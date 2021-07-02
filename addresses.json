@@ -1,0 +1,7 @@
+{
+    "kovan": {
+        "collateral": "0x025435ACD9A326fA25B4098887b38dD2CeDf6422",
+        "poolCreatorAddress": "0x0956a627788199bE312c9a1f2d8cBA70ec30fCb5",
+        "firstLiquidityPoolAddress": "0x1Ef9Db1C1EAF2240DA2a78e581d53b9e833295BE"
+    }
+}
