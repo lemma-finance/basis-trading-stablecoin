@@ -10,8 +10,6 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
     //collateral to wrapper
     mapping(address => address) public mcdexWrappers;
 
-    // function initialize
-
     function initialize(address[] calldata collateralAddresses, address[] memory wrapperAddresses)
         external
         initializer

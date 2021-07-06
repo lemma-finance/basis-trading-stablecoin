@@ -10,10 +10,12 @@ import "hardhat/console.sol";
 
 contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     using SafeCastUpgradeable for uint256;
+    using SafeCastUpgradeable for int256;
 
     uint256 public constant MAX_UINT256 = type(uint256).max;
     int256 public constant EXP_SCALE = 10**18;
     uint256 public constant UEXP_SCALE = 10**18;
+    uint32 internal constant MASK_USE_TARGET_LEVERAGE = 0x08000000;
 
     // address of Mai3 liquidity pool
     ILiquidityPool public liquidityPool;
@@ -27,13 +29,13 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     bool public isSettled;
 
     address public usdLemma;
-    address public reInvestor;
+    address public reBalancer;
 
     function initialize(
         ILiquidityPool _liquidityPool,
         uint256 _perpetualIndex,
         address _usdLemma,
-        address _reInvestor
+        address _reBalancer
     ) external initializer {
         liquidityPool = _liquidityPool;
         perpetualIndex = _perpetualIndex;
@@ -43,14 +45,17 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         console.log("isRunning", isRunning);
         collateral = IERC20Upgradeable(addresses[5]);
         collateralDecimals = uintNums[0];
+        console.log("collateralDecimals", collateralDecimals);
         isSettled = false;
 
-        reInvestor = _reInvestor;
+        reBalancer = _reBalancer;
         usdLemma = _usdLemma;
 
         //approve collateral to
         //TODO: use SafeERC20Upgreadeable
         collateral.approve(address(liquidityPool), MAX_UINT256);
+        //target leverage = 1
+        // liquidityPool.setTargetLeverage(perpetualIndex, address(this), EXP_SCALE);
     }
 
     //go short to open
@@ -121,16 +126,19 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         logInt("margin", margin);
         logInt("position", position);
         logInt("cash", cash);
-        // logInt("targetLeverage", targetLeverage); //it's 10* 10^18
+        logInt("targetLeverage", targetLeverage); //it's 10* 10^18 by default
+
+        reBalance();
     }
 
     //temporariley removing the view modifier from below function as logInt is not a view function
     function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
         public
+        view
         returns (uint256 collateralAmountRequired)
     {
         int256 tradeAmount = isShorting ? -amount.toInt256() : amount.toInt256();
-        (int256 deltaCash, ) = liquidityPool.queryTradeWithAMM(perpetualIndex, -tradeAmount);
+        (int256 deltaCash, int256 deltaPosition) = liquidityPool.queryTradeWithAMM(perpetualIndex, -tradeAmount);
 
         (, , int256[39] memory nums) = liquidityPool.getPerpetualInfo(perpetualIndex);
         int256 markPrice = nums[1];
@@ -151,20 +159,44 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
 
         logInt("totalFeeRate", totalFeeRate);
         //TODO: recreate the SafeMathExt and use it instead of vanilla multiplications
-        int256 fees = (deltaCash * totalFeeRate) / EXP_SCALE;
-        logInt("Fees", fees);
+        int256 totalFee = (deltaCash * totalFeeRate) / EXP_SCALE;
+        logInt("Fees", totalFee);
 
         logInt("deltaCash", deltaCash);
+        collateralAmountRequired = isShorting
+            ? (-(deltaCash + totalFee)).toUint256()
+            : (deltaCash - totalFee).toUint256();
+
+        // bool hasOpened = deltaPosition != 0;
+        // (, , int256 availableMargin, , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
+
+        // if (!hasOpened) {
+        //     if (availableMargin <= 0) {
+        //         totalFee = 0;
+        //     } else if (totalFee > availableMargin) {
+        //         // make sure the sum of fees < available margin
+        //         int256 rate = (availableMargin / totalFee) ;
+        //         operatorFee = (operatorFee * rate) Round.FLOOR);
+        //         vaultFee = vaultFee.wmul(rate, Round.FLOOR);
+        //         lpFee = availableMargin.sub(operatorFee).sub(vaultFee);
+        //     }
+        // }
+        // if (referrer != address(0) && perpetual.referralRebateRate > 0 && lpFee.add(operatorFee) > 0) {
+        //     int256 lpFeeRebate = lpFee.wmul(perpetual.referralRebateRate);
+        //     int256 operatorFeeRabate = operatorFee.wmul(perpetual.referralRebateRate);
+        //     referralRebate = lpFeeRebate.add(operatorFeeRabate);
+        //     lpFee = lpFee.sub(lpFeeRebate);
+        //     operatorFee = operatorFee.sub(operatorFeeRabate);
+        // }
         // liquidityPool.deposit(perpetualIndex, address(this), collateralNeeded.toInt256());
-        collateralAmountRequired = isShorting ? uint256(-(deltaCash + fees)) : uint256((deltaCash - fees));
     }
 
-    function logInt(string memory name, int256 number) internal {
+    function logInt(string memory name, int256 number) internal view {
         console.log(name);
         if (number < 0) {
-            console.log(" -", uint256(-number));
+            console.log(" -", (-number).toUint256());
         } else {
-            console.log(" ", uint256(number));
+            console.log(" ", number.toUint256());
         }
     }
 
@@ -232,13 +264,45 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         collateral.transfer(usdLemma, collateralAmountRequired);
     }
 
-    function rebalance() external returns (uint256) {
-        //check the funding payments
-        uint256 fundingPayment = 0;
-        open(fundingPayment);
-        uint256 usdlToMintAmount = 0;
-        return usdlToMintAmount;
-        //call open()
+    // function reBalance() public returns (uint256) {
+    //     // //check the funding payments
+    //     // uint256 fundingPayment = 0;
+    //     // open(fundingPayment);
+    //     // uint256 usdlToMintAmount = 0;
+    //     // return usdlToMintAmount;
+    //     int256 unitAccumulativeFunding;
+    //     {
+    //         (, , int256[39] memory nums) = liquidityPool.getPerpetualInfo(perpetualIndex);
+    //         unitAccumulativeFunding = nums[4];
+    //     }
+    //     logInt("unitAccumulativeFunding", unitAccumulativeFunding);
+
+    //     (
+    //         int256 cash,
+    //         int256 position,
+    //         ,
+    //         int256 margin,
+    //         ,
+    //         bool isInitialMarginSafe,
+    //         ,
+    //         ,
+    //         int256 targetLeverage
+    //     ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
+
+    //     int256 fundingPayment = (position * unitAccumulativeFunding) / EXP_SCALE;
+    //     logInt("fundingPayment", fundingPayment);
+    //     if (fundingPayment > 0) {
+    //         liquidityPool.withdraw(perpetualIndex, address(this), fundingPayment);
+    //         collateral.transfer(reBalancer, fundingPayment.toUint256());
+    //     }
+
+    //     console.log("balanceOf reBalancer", collateral.balanceOf(reBalancer));
+
+    //     //call open()
+    // }
+
+    function getAmountInCollateralDecimals(int256 amount) internal view returns (int256) {
+        return amount / int256(10**(18 - collateralDecimals));
     }
 
     function _msgSender()

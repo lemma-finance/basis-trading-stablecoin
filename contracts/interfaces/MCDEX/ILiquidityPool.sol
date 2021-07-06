@@ -349,4 +349,10 @@ interface ILiquidityPool {
             int256 vaultFee,
             int256 referralRebate
         );
+
+    function setTargetLeverage(
+        uint256 perpetualIndex,
+        address trader,
+        int256 targetLeverage
+    ) external;
 }
