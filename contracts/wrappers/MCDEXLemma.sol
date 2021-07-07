@@ -28,15 +28,18 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
 
     bool public isSettled;
 
-    address public usdLemma;
+    address public usdlemma;
     address public reBalancer;
 
     function initialize(
+        address _trustedForwarder,
         ILiquidityPool _liquidityPool,
         uint256 _perpetualIndex,
-        address _usdLemma,
+        address _usdlemma,
         address _reBalancer
     ) external initializer {
+        __Ownable_init();
+        __ERC2771Context_init(_trustedForwarder);
         liquidityPool = _liquidityPool;
         perpetualIndex = _perpetualIndex;
         (bool isRunning, , address[7] memory addresses, , uint256[4] memory uintNums) = liquidityPool
@@ -49,13 +52,17 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         isSettled = false;
 
         reBalancer = _reBalancer;
-        usdLemma = _usdLemma;
+        setUSDLemma(_usdlemma);
 
         //approve collateral to
         //TODO: use SafeERC20Upgreadeable
         collateral.approve(address(liquidityPool), MAX_UINT256);
         //target leverage = 1
         // liquidityPool.setTargetLeverage(perpetualIndex, address(this), EXP_SCALE);
+    }
+
+    function setUSDLemma(address _usdlemma) public onlyOwner {
+        usdlemma = _usdlemma;
     }
 
     //go short to open
@@ -70,7 +77,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     //         uint32 flags
     //     ) external returns (int256);
     function open(uint256 amount) public {
-        //check if msg.sender == usdLemma
+        //check if msg.sender == usdlemma
         liquidityPool.forceToSyncState();
         console.log("opening Position:  ");
         uint256 collateralRequiredAmount = getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
@@ -203,7 +210,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     //go long and withdraw collateral
     function close(uint256 amount) external {
         console.log("closing Position:  ");
-        //check if msg.sender == usdLemma
+        //check if msg.sender == usdlemma
         liquidityPool.forceToSyncState();
 
         uint256 collateralAmountRequired = getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
@@ -261,7 +268,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         // logInt("targetLeverage", targetLeverage); //it's 10* 10^18
 
         liquidityPool.withdraw(perpetualIndex, address(this), collateralAmountRequired.toInt256());
-        collateral.transfer(usdLemma, collateralAmountRequired);
+        collateral.transfer(usdlemma, collateralAmountRequired);
     }
 
     // function reBalance() public returns (uint256) {

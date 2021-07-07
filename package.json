@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@mcdex/mai3.js": "^0.5.46",
+    "dotenv": "^10.0.0",
     "node-notifier": "^10.0.0"
   }
 }

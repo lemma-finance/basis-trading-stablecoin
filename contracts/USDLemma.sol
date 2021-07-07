@@ -9,12 +9,15 @@ import { IPerpetualDEXWrapper } from "./interfaces/IPerpetualDEXWrapper.sol";
 contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
     mapping(uint256 => mapping(address => address)) perpetualDEXWrappers;
 
-    function intialize(
-        uint256 perpetualDEXIndex,
+    function initialize(
+        address trustedForwarder,
         address collateralAddress,
         address perpetualDEXWrapperAddress
     ) external initializer {
-        addPerpetualDEXWrapper(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
+        __Ownable_init();
+        __ERC20_init("USDLemma", "USDL");
+        __ERC2771Context_init(trustedForwarder);
+        addPerpetualDEXWrapper(0, collateralAddress, perpetualDEXWrapperAddress);
     }
 
     function addPerpetualDEXWrapper(

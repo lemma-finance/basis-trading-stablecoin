@@ -10,3 +10,5 @@ package-lock.json
 
 .openzeppelin/unknown-1337.json
 .openzeppelin/unknown-31337.json
+.openzeppelin/kovan.json
+.openzeppelin/unknown-421611.json

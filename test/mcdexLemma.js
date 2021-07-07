@@ -7,11 +7,11 @@ const { BigNumber, constants } = ethers;
 const notifier = require('node-notifier');
 
 
-const chainId = 42;//kovan
-const arbProvider = new JsonRpcProvider('https://kovan.infura.io/v3/2a1a54c3aa374385ae4531da66fdf150');
+// const chainId = 42;//kovan
+// const arbProvider = new JsonRpcProvider('https://kovan.infura.io/v3/2a1a54c3aa374385ae4531da66fdf150');
 
-// const chainId = 421611; //rinkeby arbitrum
-// const arbProvider = new JsonRpcProvider('https://rinkeby.arbitrum.io/rpc');
+const chainId = 421611; //rinkeby arbitrum
+const arbProvider = new JsonRpcProvider('https://rinkeby.arbitrum.io/rpc');
 
 describe("mcdexLemma", function () {
     let usdLemma, reInvestor, hasWETH;
