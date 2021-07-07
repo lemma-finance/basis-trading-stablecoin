@@ -7,62 +7,71 @@ import { IPerpetualDEXWrapper } from "./interfaces/IPerpetualDEXWrapper.sol";
 
 //TODO: consider adding permit function
 contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
-    //collateral to wrapper
-    mapping(address => address) public mcdexWrappers;
+    mapping(uint256 => mapping(address => address)) perpetualDEXWrappers;
 
-    function initialize(address[] calldata collateralAddresses, address[] memory wrapperAddresses)
-        external
-        initializer
-    {
-        for (uint256 i = 0; i < collateralAddresses.length; i++) {
-            setMCDEXWrapper(collateralAddresses[i], wrapperAddresses[i]);
-        }
+    function intialize(
+        uint256 perpetualDEXIndex,
+        address collateralAddress,
+        address perpetualDEXWrapperAddress
+    ) external initializer {
+        addPerpetualDEXWrapper(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
     }
 
-    function setMCDEXWrapper(address collateralAddress, address wrapperAddress) public onlyOwner {
-        mcdexWrappers[collateralAddress] = wrapperAddress;
+    function addPerpetualDEXWrapper(
+        uint256 perpetualDEXIndex,
+        address collateralAddress,
+        address perpetualDEXWrapperAddress
+    ) public onlyOwner {
+        perpetualDEXWrappers[perpetualDEXIndex][collateralAddress] = perpetualDEXWrapperAddress;
     }
 
-    // function setMCDEXWrappers(address[] calldata collateralAddresses, address[] calldata wrapperAddresses)
-    //     external
-    //     onlyOwner
-    // {}
-
-    function deposit(uint256 value, IERC20Upgradeable collateral) external {
-        //1. transferFrom msg.sender to the mcdexLemma
-        //2. call open which will deposit WETH as collateral and go short
-        //3. mint USDL by getting the info from mcdexLemma about how much to mint
-        IPerpetualDEXWrapper mcdexWrapper = IPerpetualDEXWrapper(mcdexWrappers[address(collateral)]);
-        uint256 collateralRequired = mcdexWrapper.getCollateralAmountGivenUnderlyingAssetAmount(value, false);
-        collateral.transferFrom(_msgSender(), address(mcdexWrapper), collateralRequired);
-        mcdexWrapper.open(value);
-        _mint(_msgSender(), value);
-    }
-
-    function withdraw(uint256 value, IERC20Upgradeable collateral) external {
-        _burn(_msgSender(), value);
-
-        IPerpetualDEXWrapper mcdexWrapper = IPerpetualDEXWrapper(mcdexWrappers[address(collateral)]);
-        uint256 collateralToGetBack = mcdexWrapper.getCollateralAmountGivenUnderlyingAssetAmount(value, false);
-        mcdexWrapper.close(value);
-        collateral.transfer(_msgSender(), collateralToGetBack);
-    }
-
-    function depositTo(address to, uint256 value) external {}
-
-    function withdrawTo(address to, uint256 value) external {
-        _burn(_msgSender(), value);
-    }
-
-    function withdrawFrom(
-        address from,
+    function depositTo(
         address to,
-        uint256 value
-    ) external {
-        //recreate _burnFrom instead of using the openzeppelin one as it should be clear that we do not want to allow burning of USDL
+        uint256 amount,
+        uint256 perpetualDEXIndex,
+        IERC20Upgradeable collateral
+    ) public {
+        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
+            perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
+        );
+        uint256 collateralRequired = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
+        collateral.transferFrom(_msgSender(), address(perpDEXWrapper), collateralRequired);
+        perpDEXWrapper.open(amount);
+        _mint(to, amount);
     }
 
-    //TODO: use onTokenTransfer hook
+    function withdrawTo(
+        address to,
+        uint256 amount,
+        uint256 perpetualDEXIndex,
+        IERC20Upgradeable collateral
+    ) public {
+        _burn(_msgSender(), amount);
+        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
+            perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
+        );
+        uint256 collateralToGetBack = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
+        perpDEXWrapper.close(amount);
+        collateral.transfer(to, collateralToGetBack);
+    }
+
+    function deposit(
+        uint256 amount,
+        uint256 perpetualDEXIndex,
+        IERC20Upgradeable collateral
+    ) external {
+        depositTo(_msgSender(), amount, perpetualDEXIndex, collateral);
+    }
+
+    function withdraw(
+        uint256 amount,
+        uint256 perpetualDEXIndex,
+        IERC20Upgradeable collateral
+    ) external {
+        withdrawTo(_msgSender(), amount, perpetualDEXIndex, collateral);
+    }
+
+    //TODO: make a helper contract that used onTransfer hook
 
     function _msgSender()
         internal

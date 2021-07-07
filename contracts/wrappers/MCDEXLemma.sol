@@ -128,7 +128,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         logInt("cash", cash);
         logInt("targetLeverage", targetLeverage); //it's 10* 10^18 by default
 
-        reBalance();
+        // reBalance();
     }
 
     //temporariley removing the view modifier from below function as logInt is not a view function
