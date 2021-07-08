@@ -46,13 +46,13 @@ async function main() {
     console.log("collateralAddress", collateralAddress);
     //deploy USDLemma
     const USDLemma = await ethers.getContractFactory("USDLemma");
-    const usdlemma = await upgrades.deployProxy(USDLemma, [AddressZero, collateralAddress, mcdexLemma.address], { initializer: 'initialize' });
-    console.log("USDL", usdlemma.address);
+    const usdLemma = await upgrades.deployProxy(USDLemma, [AddressZero, collateralAddress, mcdexLemma.address], { initializer: 'initialize' });
+    console.log("USDL", usdLemma.address);
 
-    let tx = await mcdexLemma.setUSDLemma(usdlemma.address);
+    let tx = await mcdexLemma.setUSDLemma(usdLemma.address);
     await tx.wait();
 
-    console.log("USDL", await mcdexLemma.usdlemma());
+    console.log("USDL", await mcdexLemma.usdLemma());
 
 }
 main()

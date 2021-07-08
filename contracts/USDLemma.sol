@@ -74,7 +74,7 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
         withdrawTo(_msgSender(), amount, perpetualDEXIndex, collateral);
     }
 
-    //TODO: make a helper contract that used onTransfer hook
+    //TODO: make a helper contract that uses onTransfer hook
 
     function _msgSender()
         internal

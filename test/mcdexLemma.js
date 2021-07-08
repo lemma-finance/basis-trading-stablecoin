@@ -4,17 +4,19 @@ const { expect } = require("chai");
 const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool } = require('@mcdex/mai3.js');
 const { utils } = require('ethers');
 const { BigNumber, constants } = ethers;
+const { AddressZero } = constants;
 const notifier = require('node-notifier');
 
 
-// const chainId = 42;//kovan
-// const arbProvider = new JsonRpcProvider('https://kovan.infura.io/v3/2a1a54c3aa374385ae4531da66fdf150');
+const chainId = 42;//kovan
+const arbProvider = new JsonRpcProvider('https://kovan.infura.io/v3/2a1a54c3aa374385ae4531da66fdf150');
 
-const chainId = 421611; //rinkeby arbitrum
-const arbProvider = new JsonRpcProvider('https://rinkeby.arbitrum.io/rpc');
+// const chainId = 421611; //rinkeby arbitrum
+// const arbProvider = new JsonRpcProvider('https://rinkeby.arbitrum.io/rpc');
 
 describe("mcdexLemma", function () {
     let usdLemma, reInvestor, hasWETH;
+    //reInvestor = reBalancer
     let liquidityPool, reader;
     const perpetualIndex = 0; //in Kovan the 0th perp for 0th liquidity pool = inverse ETH-USD
     const provider = ethers.provider;
@@ -37,7 +39,7 @@ describe("mcdexLemma", function () {
 
         //deploy mcdexLemma
         const MCDEXLemma = await ethers.getContractFactory("MCDEXLemma");
-        this.mcdexLemma = await upgrades.deployProxy(MCDEXLemma, [liquidityPool.address, perpetualIndex, usdLemma.address, reInvestor.address], { initializer: 'initialize' });
+        this.mcdexLemma = await upgrades.deployProxy(MCDEXLemma, [AddressZero, liquidityPool.address, perpetualIndex, usdLemma.address, reInvestor.address], { initializer: 'initialize' });
 
         const collateralAddress = await this.mcdexLemma.collateral();
         const ERC20 = IERC20Factory.connect(collateralAddress, defaultSinger);//choose USDLemma ust because it follows IERC20 interface
@@ -86,7 +88,7 @@ describe("mcdexLemma", function () {
 
         await liquidityPool.forceToSyncState();
 
-        const amountInUSDClose = utils.parseUnits("1990", "18");
+        const amountInUSDClose = utils.parseUnits("1000", "18");
         await this.mcdexLemma.close(amountInUSDClose);
 
         // const accountsResult = await reader.callStatic.getAccountStorage(liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
@@ -99,7 +101,7 @@ describe("mcdexLemma", function () {
         // console.log(marginAccount);
         // console.log(marginAccount.toString());
         // String
-        notifier.notify('Test done');
+        // notifier.notify('Test done');
     });
 
     it("check how the funding rate changes things", async function () {
