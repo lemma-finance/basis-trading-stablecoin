@@ -6,6 +6,7 @@ import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/m
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import { Utils } from "../libraries/Utils.sol";
 
 contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     using SafeCastUpgradeable for uint256;
@@ -29,6 +30,8 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
 
     address public usdLemma;
     address public reBalancer;
+
+    int256 entryFunding;
 
     function initialize(
         address _trustedForwarder,
@@ -69,6 +72,8 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         uint256 collateralRequiredAmount = getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
         liquidityPool.deposit(perpetualIndex, address(this), collateralRequiredAmount.toInt256());
 
+        (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
+
         int256 deltaPosition = liquidityPool.trade(
             perpetualIndex,
             address(this),
@@ -78,6 +83,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             address(0),
             0
         );
+        updateEntryFunding(position, -amount.toInt256());
     }
 
     function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
@@ -97,11 +103,12 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         liquidityPool.forceToSyncState();
 
         uint256 collateralAmountRequired = getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
+        (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
 
         int256 deltaPosition = liquidityPool.trade(
             perpetualIndex,
             address(this),
-            amount.toInt256(), //negative means you want to go short
+            amount.toInt256(),
             type(int256).max,
             MAX_UINT256,
             address(0),
@@ -109,6 +116,8 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         );
         liquidityPool.withdraw(perpetualIndex, address(this), collateralAmountRequired.toInt256());
         collateral.transfer(usdLemma, collateralAmountRequired);
+
+        updateEntryFunding(position, amount.toInt256());
     }
 
     //TODO:implement the reBalancing mechanism
@@ -118,6 +127,31 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         //if fundingPayment == 0
         //else if fundingPayment < 0, open(fundingPayment)
         //else close(fundingPayment)
+        int256 unitAccumulativeFunding;
+        {
+            (, , int256[39] memory nums) = liquidityPool.getPerpetualInfo(perpetualIndex);
+            unitAccumulativeFunding = nums[4];
+        }
+        (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
+
+        int256 fundingPNL = entryFunding - position * unitAccumulativeFunding;
+    }
+
+    function updateEntryFunding(int256 position, int256 tradeAmount) internal {
+        (int256 close, int256 open) = Utils.splitAmount(position, tradeAmount);
+        int256 unitAccumulativeFunding;
+        {
+            (, , int256[39] memory nums) = liquidityPool.getPerpetualInfo(perpetualIndex);
+            unitAccumulativeFunding = nums[4];
+        }
+        if (close != 0) {
+            int256 oldPosition = position;
+            int256 newPosition = position + close;
+            entryFunding = (entryFunding * newPosition) / oldPosition;
+        }
+        if (open != 0) {
+            entryFunding = entryFunding + unitAccumulativeFunding * open;
+        }
     }
 
     function getAmountInCollateralDecimals(int256 amount) internal view returns (int256) {

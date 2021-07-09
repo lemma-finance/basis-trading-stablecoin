@@ -32,12 +32,14 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
         address to,
         uint256 amount,
         uint256 perpetualDEXIndex,
+        uint256 maxCollateralRequired,
         IERC20Upgradeable collateral
     ) public {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         uint256 collateralRequired = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
+        require(collateralRequired <= maxCollateralRequired);
         collateral.transferFrom(_msgSender(), address(perpDEXWrapper), collateralRequired);
         perpDEXWrapper.open(amount);
         _mint(to, amount);
@@ -47,6 +49,7 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
         address to,
         uint256 amount,
         uint256 perpetualDEXIndex,
+        uint256 minCollateralToGetBack,
         IERC20Upgradeable collateral
     ) public {
         _burn(_msgSender(), amount);
@@ -54,6 +57,7 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         uint256 collateralToGetBack = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
+        require(collateralToGetBack >= minCollateralToGetBack);
         perpDEXWrapper.close(amount);
         collateral.transfer(to, collateralToGetBack);
     }
@@ -61,17 +65,19 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
     function deposit(
         uint256 amount,
         uint256 perpetualDEXIndex,
+        uint256 maxCollateralRequired,
         IERC20Upgradeable collateral
     ) external {
-        depositTo(_msgSender(), amount, perpetualDEXIndex, collateral);
+        depositTo(_msgSender(), amount, perpetualDEXIndex, maxCollateralRequired, collateral);
     }
 
     function withdraw(
         uint256 amount,
         uint256 perpetualDEXIndex,
+        uint256 minCollateralToGetBack,
         IERC20Upgradeable collateral
     ) external {
-        withdrawTo(_msgSender(), amount, perpetualDEXIndex, collateral);
+        withdrawTo(_msgSender(), amount, perpetualDEXIndex, minCollateralToGetBack, collateral);
     }
 
     //TODO: make a helper contract that uses onTransfer hook

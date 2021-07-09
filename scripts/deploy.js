@@ -53,7 +53,6 @@ async function main() {
     await tx.wait();
 
     console.log("USDL", await mcdexLemma.usdLemma());
-
 }
 main()
     .then(() => process.exit(0))
