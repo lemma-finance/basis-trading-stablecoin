@@ -7,7 +7,7 @@ import { IPerpetualDEXWrapper } from "./interfaces/IPerpetualDEXWrapper.sol";
 
 //TODO: consider adding permit function
 contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
-    mapping(uint256 => mapping(address => address)) perpetualDEXWrappers;
+    mapping(uint256 => mapping(address => address)) public perpetualDEXWrappers;
 
     function initialize(
         address trustedForwarder,

@@ -6,8 +6,8 @@ interface IPerpetualDEXWrapper {
 
     function close(uint256 amount) external;
 
-    function getCollateralAmountGivenUnderlyingAssetAmount(
-        uint256 amount,
-        bool isShorting /**view */
-    ) external returns (uint256 collateralAmountRequired);
+    function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
+        external
+        view
+        returns (uint256 collateralAmountRequired);
 }

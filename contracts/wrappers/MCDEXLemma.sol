@@ -30,6 +30,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
 
     address public usdLemma;
     address public reBalancer;
+    address public referrer;
 
     int256 entryFunding;
 
@@ -65,13 +66,16 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         usdLemma = _usdlemma;
     }
 
+    function setReferrer(address _referrer) public onlyOwner {
+        referrer = _referrer;
+    }
+
     //go short to open
     function open(uint256 amount) public {
         //check if msg.sender == usdLemma
         liquidityPool.forceToSyncState();
         uint256 collateralRequiredAmount = getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
         liquidityPool.deposit(perpetualIndex, address(this), collateralRequiredAmount.toInt256());
-
         (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
 
         int256 deltaPosition = liquidityPool.trade(
@@ -80,21 +84,10 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             -amount.toInt256(), //negative means you want to go short
             0,
             MAX_UINT256,
-            address(0),
+            referrer,
             0
         );
         updateEntryFunding(position, -amount.toInt256());
-    }
-
-    function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
-        public
-        view
-        returns (uint256 collateralAmountRequired)
-    {
-        int256 tradeAmount = isShorting ? -amount.toInt256() : amount.toInt256();
-        //TODO: use the new interface and consider to total fees in the cost as well
-        (int256 deltaCash, int256 deltaPosition) = liquidityPool.queryTradeWithAMM(perpetualIndex, -tradeAmount);
-        collateralAmountRequired = isShorting ? (-deltaCash).toUint256() : deltaCash.toUint256();
     }
 
     //go long and withdraw collateral
@@ -111,7 +104,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             amount.toInt256(),
             type(int256).max,
             MAX_UINT256,
-            address(0),
+            referrer,
             0
         );
         liquidityPool.withdraw(perpetualIndex, address(this), collateralAmountRequired.toInt256());
@@ -120,13 +113,36 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         updateEntryFunding(position, amount.toInt256());
     }
 
+    function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
+        public
+        view
+        returns (uint256 collateralAmountRequired)
+    {
+        int256 tradeAmount = isShorting ? -amount.toInt256() : amount.toInt256();
+        // //TODO: use the new interface and consider to total fees in the cost as well
+        // (int256 deltaCash, int256 deltaPosition) = liquidityPool.queryTradeWithAMM(perpetualIndex, -tradeAmount);
+        // collateralAmountRequired = isShorting ? (-deltaCash).toUint256() : deltaCash.toUint256();
+
+        (int256 tradePrice, int256 totalFee, int256 cost) = liquidityPool.queryTrade(
+            perpetualIndex,
+            address(this),
+            tradeAmount,
+            referrer,
+            MASK_USE_TARGET_LEVERAGE
+        );
+        (int256 deltaCash, int256 deltaPosition) = liquidityPool.queryTradeWithAMM(perpetualIndex, -tradeAmount);
+
+        collateralAmountRequired = isShorting
+            ? ((-deltaCash) + totalFee).toUint256()
+            : (deltaCash - totalFee).toUint256();
+        // collateralAmountRequired = (cost + totalFee).toUint256();
+        // collateralAmountRequired = cost.toUint256();
+        // collateralAmountRequired = 1 ether;
+    }
+
     //TODO:implement the reBalancing mechanism
     function reBalance() public {
         require(_msgSender() == reBalancer);
-        //find out the fundingPayment mcdexLemma got
-        //if fundingPayment == 0
-        //else if fundingPayment < 0, open(fundingPayment)
-        //else close(fundingPayment)
         int256 unitAccumulativeFunding;
         {
             (, , int256[39] memory nums) = liquidityPool.getPerpetualInfo(perpetualIndex);

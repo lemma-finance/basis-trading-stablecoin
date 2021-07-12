@@ -27,12 +27,16 @@ module.exports = {
         url: "https://kovan.infura.io/v3/2a1a54c3aa374385ae4531da66fdf150",
         // url: "https://rinkeby.arbitrum.io/rpc",
       },
+      accounts: {
+        mnemonic: process.env.MNEMONIC
+      }
     },
     localFork: {
       url: "http://localhost:8545",
     },
     arbitrumTestnet: {
-      url: "https://rinkeby.arbitrum.io/rpc",
+      // url: "https://rinkeby.arbitrum.io/rpc",
+      url: "https://arb-rinkeby.g.alchemy.com/v2/TOeb9so9DCNllHrFTfCgQFQtxpQZ1yZ0",
       accounts: {
         mnemonic: process.env.MNEMONIC
       }
