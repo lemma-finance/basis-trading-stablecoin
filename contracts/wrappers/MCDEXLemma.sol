@@ -96,7 +96,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         int256 deltaPosition = liquidityPool.trade(
             perpetualIndex,
             address(this),
-            -amount.toInt256(), //negative means you want to go short
+            amount.toInt256(),
             0,
             MAX_UINT256,
             referrer,
@@ -116,7 +116,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         int256 deltaPosition = liquidityPool.trade(
             perpetualIndex,
             address(this),
-            amount.toInt256(),
+            -amount.toInt256(), //negative means you want to go short (on USD, that in turn means long on ETH)
             type(int256).max,
             MAX_UINT256,
             referrer,
@@ -133,11 +133,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         returns (uint256 collateralAmountRequired)
     {
         liquidityPool.forceToSyncState();
-        int256 tradeAmount = isShorting ? -amount.toInt256() : amount.toInt256();
-        // //TODO: use the new interface and consider to total fees in the cost as well
-        // (int256 deltaCash, int256 deltaPosition) = liquidityPool.queryTradeWithAMM(perpetualIndex, -tradeAmount);
-        // collateralAmountRequired = isShorting ? (-deltaCash).toUint256() : deltaCash.toUint256();
-
+        int256 tradeAmount = isShorting ? amount.toInt256() : -amount.toInt256();
         (int256 tradePrice, int256 totalFee, int256 cost) = liquidityPool.queryTrade(
             perpetualIndex,
             address(this),
@@ -148,9 +144,6 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         );
         int256 deltaCash = (amount.toInt256() * tradePrice) / EXP_SCALE;
         collateralAmountRequired = isShorting ? (deltaCash + totalFee).toUint256() : (deltaCash - totalFee).toUint256();
-        // collateralAmountRequired = (cost + totalFee).toUint256();
-        // collateralAmountRequired = cost.toUint256();
-        // collateralAmountRequired = 1 ether;
     }
 
     //TODO:implement the reBalancing mechanism
