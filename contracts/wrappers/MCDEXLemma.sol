@@ -45,11 +45,13 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         __ERC2771Context_init(_trustedForwarder);
         liquidityPool = _liquidityPool;
         perpetualIndex = _perpetualIndex;
-        (bool isRunning, , address[7] memory addresses, , uint256[4] memory uintNums) = liquidityPool
-        .getLiquidityPoolInfo();
-        require(isRunning, "pool is not running");
-        collateral = IERC20Upgradeable(addresses[5]);
-        collateralDecimals = uintNums[0];
+        {
+            (bool isRunning, , address[7] memory addresses, , uint256[4] memory uintNums) = liquidityPool
+            .getLiquidityPoolInfo();
+            require(isRunning, "pool is not running");
+            collateral = IERC20Upgradeable(addresses[5]);
+            collateralDecimals = uintNums[0];
+        }
         isSettled = false;
 
         reBalancer = _reBalancer;
@@ -68,6 +70,19 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
 
     function setReferrer(address _referrer) public onlyOwner {
         referrer = _referrer;
+    }
+
+    //this needs to be done before the first withdrwal happens
+    //Keeper gas reward needs to be handled seperately which owner can get back when perpetual has settled
+    //TODO: handle what happens when perpetual is in settlement state
+    function depositKeeperGasReward() external onlyOwner {
+        int256 keeperGasReward;
+        {
+            (, , int256[39] memory nums) = liquidityPool.getPerpetualInfo(perpetualIndex);
+            keeperGasReward = nums[11];
+        }
+        collateral.transferFrom(_msgSender(), address(this), keeperGasReward.toUint256());
+        liquidityPool.deposit(perpetualIndex, address(this), keeperGasReward);
     }
 
     //go short to open
@@ -115,9 +130,9 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
 
     function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
         public
-        view
         returns (uint256 collateralAmountRequired)
     {
+        liquidityPool.forceToSyncState();
         int256 tradeAmount = isShorting ? -amount.toInt256() : amount.toInt256();
         // //TODO: use the new interface and consider to total fees in the cost as well
         // (int256 deltaCash, int256 deltaPosition) = liquidityPool.queryTradeWithAMM(perpetualIndex, -tradeAmount);
@@ -128,13 +143,11 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             address(this),
             tradeAmount,
             referrer,
-            MASK_USE_TARGET_LEVERAGE
+            0
+            // MASK_USE_TARGET_LEVERAGE
         );
-        (int256 deltaCash, int256 deltaPosition) = liquidityPool.queryTradeWithAMM(perpetualIndex, -tradeAmount);
-
-        collateralAmountRequired = isShorting
-            ? ((-deltaCash) + totalFee).toUint256()
-            : (deltaCash - totalFee).toUint256();
+        int256 deltaCash = (amount.toInt256() * tradePrice) / EXP_SCALE;
+        collateralAmountRequired = isShorting ? (deltaCash + totalFee).toUint256() : (deltaCash - totalFee).toUint256();
         // collateralAmountRequired = (cost + totalFee).toUint256();
         // collateralAmountRequired = cost.toUint256();
         // collateralAmountRequired = 1 ether;

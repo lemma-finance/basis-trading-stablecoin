@@ -35,8 +35,8 @@ module.exports = {
       url: "http://localhost:8545",
     },
     arbitrumTestnet: {
-      // url: "https://rinkeby.arbitrum.io/rpc",
-      url: "https://arb-rinkeby.g.alchemy.com/v2/TOeb9so9DCNllHrFTfCgQFQtxpQZ1yZ0",
+      url: "https://rinkeby.arbitrum.io/rpc",
+      // url: "https://arb-rinkeby.g.alchemy.com/v2/TOeb9so9DCNllHrFTfCgQFQtxpQZ1yZ0",
       accounts: {
         mnemonic: process.env.MNEMONIC
       }
