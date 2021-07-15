@@ -23,10 +23,9 @@ module.exports = {
   solidity: "0.8.3",
   networks: {
     hardhat: {
-      forking: {
-        url: "https://kovan.infura.io/v3/2a1a54c3aa374385ae4531da66fdf150",
-        // url: "https://rinkeby.arbitrum.io/rpc",
-      },
+      // forking: {
+      //   url: "https://kovan.infura.io/v3/" + process.env.INFURA_KEY,
+      // },
       accounts: {
         mnemonic: process.env.MNEMONIC
       }
@@ -35,14 +34,13 @@ module.exports = {
       url: "http://localhost:8545",
     },
     arbitrumTestnet: {
-      url: "https://rinkeby.arbitrum.io/rpc",
-      // url: "https://arb-rinkeby.g.alchemy.com/v2/TOeb9so9DCNllHrFTfCgQFQtxpQZ1yZ0",
+      url: "https://arbitrum-rinkeby.infura.io/v3/" + process.env.INFURA_KEY,
       accounts: {
         mnemonic: process.env.MNEMONIC
       }
     },
     kovan: {
-      url: "https://kovan.infura.io/v3/2a1a54c3aa374385ae4531da66fdf150",
+      url: "https://kovan.infura.io/v3/" + process.env.INFURA_KEY,
       accounts: {
         mnemonic: process.env.MNEMONIC
       }

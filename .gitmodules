@@ -1,0 +1,3 @@
+[submodule "mai-protocol-v3"]
+	path = mai-protocol-v3
+	url = https://github.com/mcdexio/mai-protocol-v3
