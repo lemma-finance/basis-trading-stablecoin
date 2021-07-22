@@ -26,11 +26,12 @@ module.exports = {
       // forking: {
       //   url: "https://kovan.infura.io/v3/" + process.env.INFURA_KEY,
       // },
-      accounts: {
-        mnemonic: process.env.MNEMONIC
-      }
+      // accounts: {
+      //   mnemonic: process.env.MNEMONIC
+      // }
+      allowUnlimitedContractSize: true,
     },
-    localFork: {
+    local: {
       url: "http://localhost:8545",
     },
     arbitrumTestnet: {

@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "compile": "npx hardhat compile"
+    "compile": "npx hardhat compile",
+    "test": "npm run compile && cd mai-protocol-v3/ && rm ./deployments/local.deployment.json && npx hardhat run scripts/deploy.ts --network local && cd ../ && npx hardhat test test/usdLemma.js --network local"
   },
   "keywords": [],
   "author": "",

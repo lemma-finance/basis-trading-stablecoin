@@ -8,11 +8,14 @@ import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/m
 import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import { Utils } from "../libraries/Utils.sol";
 
+import "hardhat/console.sol";
+
 contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
 
     uint256 public constant MAX_UINT256 = type(uint256).max;
+    int256 public constant MAX_INT256 = type(int256).max;
     int256 public constant EXP_SCALE = 10**18;
     uint256 public constant UEXP_SCALE = 10**18;
     uint32 internal constant MASK_USE_TARGET_LEVERAGE = 0x08000000;
@@ -88,20 +91,27 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     //go short to open
     function open(uint256 amount) public {
         //check if msg.sender == usdLemma
+        console.log("in");
+        console.log("current Balance of collateral", collateral.balanceOf(address(this)));
         liquidityPool.forceToSyncState();
         uint256 collateralRequiredAmount = getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
+        console.log("collateral Required Amount", collateralRequiredAmount);
+        require(collateral.balanceOf(address(this)) >= collateralRequiredAmount, "not enough collateral");
         liquidityPool.deposit(perpetualIndex, address(this), collateralRequiredAmount.toInt256());
+        console.log("collateral deposited");
+
         (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
 
         int256 deltaPosition = liquidityPool.trade(
             perpetualIndex,
             address(this),
             amount.toInt256(),
-            0,
+            MAX_INT256,
             MAX_UINT256,
             referrer,
             0
         );
+        console.log("trade done");
         updateEntryFunding(position, -amount.toInt256());
     }
 
