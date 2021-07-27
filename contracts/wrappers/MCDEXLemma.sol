@@ -91,7 +91,6 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     //go short to open
     function open(uint256 amount) public {
         //check if msg.sender == usdLemma
-        console.log("in");
         console.log("current Balance of collateral", collateral.balanceOf(address(this)));
         liquidityPool.forceToSyncState();
         uint256 collateralRequiredAmount = getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
@@ -127,12 +126,14 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             perpetualIndex,
             address(this),
             -amount.toInt256(), //negative means you want to go short (on USD, that in turn means long on ETH)
-            type(int256).max,
+            0,
             MAX_UINT256,
             referrer,
             0
         );
+        console.log("trade done");
         liquidityPool.withdraw(perpetualIndex, address(this), collateralAmountRequired.toInt256());
+        console.log("withdraw done");
         collateral.transfer(usdLemma, collateralAmountRequired);
 
         updateEntryFunding(position, amount.toInt256());
@@ -142,7 +143,9 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         public
         returns (uint256 collateralAmountRequired)
     {
+        console.log("in");
         liquidityPool.forceToSyncState();
+        console.log("getCollateralAmountGivenUnderlyingAssetAmount");
         int256 tradeAmount = isShorting ? amount.toInt256() : -amount.toInt256();
         (int256 tradePrice, int256 totalFee, int256 cost) = liquidityPool.queryTrade(
             perpetualIndex,
@@ -152,6 +155,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             0
             // MASK_USE_TARGET_LEVERAGE
         );
+        console.log("cost", totalFee.toUint256());
         int256 deltaCash = (amount.toInt256() * tradePrice) / EXP_SCALE;
         collateralAmountRequired = isShorting ? (deltaCash + totalFee).toUint256() : (deltaCash - totalFee).toUint256();
     }

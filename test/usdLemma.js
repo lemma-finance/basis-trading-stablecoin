@@ -136,7 +136,6 @@ describe("mcdexLemma", function () {
         const collateralAddress = this.collateral.address;
         const amount = utils.parseEther("1000");
 
-
         const collateralBalanceBefore = await this.collateral.balanceOf(defaultSinger.address);
         const collateralRequired = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
         if (keeperGasReward.add(collateralRequired).gt(collateralBalanceBefore)) {
@@ -162,10 +161,21 @@ describe("mcdexLemma", function () {
             let tx = await this.collateral.approve(this.usdLemma.address, MaxUint256);
             await tx.wait();
         }
-        if ((await balanceOf(this.collateral, defaultSinger.address)).lt(collateralRequired)) {
+        const collateralBalanceBeforeDepositing = await balanceOf(this.collateral, defaultSinger.address);
+
+        if (collateralBalanceBeforeDepositing.lt(collateralRequired)) {
             throw new Error("not enough collateral");
         }
-        tx = await this.usdLemma.deposit(amount, ZERO, MaxUint256, collateralAddress);
+        tx = await this.usdLemma.deposit(amount, ZERO, collateralRequired, collateralAddress);
+        await tx.wait();
+        const collateralBalanceAfter = await balanceOf(this.collateral, defaultSinger.address);
+
+        expect(collateralBalanceBeforeDepositing.sub(collateralBalanceAfter)).to.equal(collateralRequired);
+        expect(await balanceOf(this.collateral, this.mcdexLemma.address)).to.equal(ZERO);
+
+        expect(await balanceOf(this.usdLemma, defaultSinger.address)).to.equal(amount);
+
+        tx = await this.usdLemma.withdraw(amount, ZERO, ZERO, collateralAddress);
         await tx.wait();
     });
 
