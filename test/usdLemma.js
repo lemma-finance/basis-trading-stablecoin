@@ -1,12 +1,14 @@
 const { JsonRpcProvider } = require('@ethersproject/providers');
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
-const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, computeAccount, getAccountStorage, _2, computeIncreasePosition } = require('@mcdex/mai3.js');
+const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, computeAccount, getAccountStorage, _2, computeIncreasePosition, computeDecreasePosition } = require('@mcdex/mai3.js');
 const { utils } = require('ethers');
 const { BigNumber, constants } = ethers;
 const { AddressZero, MaxUint256 } = constants;
 const mcdexAddresses = require("../mai-protocol-v3/deployments/local.deployment.json");
 var colors = require('colors');
+
+const bn = require("bignumber.js");
 
 
 const chainId = 42;//kovan
@@ -208,7 +210,8 @@ describe("mcdexLemma", function () {
         const price = collateralRequired.mul(utils.parseEther("1")).div(amount);
         console.log("price", price.toString());
 
-        const accountAfterIncreasingPosition = computeIncreasePosition(liquidityPoolInfoAtStart, perpetualIndex, accountAtStart, price, amount);
+        //need to use instance of bignumber.js to be compatible with mai3.js
+        const accountAfterIncreasingPosition = computeIncreasePosition(liquidityPoolInfoAtStart, perpetualIndex, traderInfoAtStart, new bn(price.toString()), new bn(amount.toString()));
 
         console.log("account increased artificially");
         displayNicely(accountAfterIncreasingPosition);
