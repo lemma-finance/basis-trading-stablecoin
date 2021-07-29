@@ -91,13 +91,10 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     //go short to open
     function open(uint256 amount) public {
         //check if msg.sender == usdLemma
-        console.log("current Balance of collateral", collateral.balanceOf(address(this)));
         // liquidityPool.forceToSyncState();
         uint256 collateralRequiredAmount = getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
-        console.log("collateral Required Amount", collateralRequiredAmount);
         require(collateral.balanceOf(address(this)) >= collateralRequiredAmount, "not enough collateral");
         liquidityPool.deposit(perpetualIndex, address(this), collateralRequiredAmount.toInt256());
-        console.log("collateral deposited");
 
         (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
 
@@ -110,7 +107,6 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             referrer,
             0
         );
-        console.log("trade done");
         updateEntryFunding(position, -amount.toInt256());
     }
 
@@ -131,9 +127,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             referrer,
             0
         );
-        console.log("trade done");
         liquidityPool.withdraw(perpetualIndex, address(this), collateralAmountRequired.toInt256());
-        console.log("withdraw done");
         collateral.transfer(usdLemma, collateralAmountRequired);
 
         updateEntryFunding(position, amount.toInt256());
@@ -143,9 +137,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         public
         returns (uint256 collateralAmountRequired)
     {
-        console.log("syncing state in MCDEXLemma");
         // liquidityPool.forceToSyncState();
-        console.log("getCollateralAmountGivenUnderlyingAssetAmount");
         int256 tradeAmount = isShorting ? amount.toInt256() : -amount.toInt256();
         (int256 tradePrice, int256 totalFee, int256 cost) = liquidityPool.queryTrade(
             perpetualIndex,
@@ -158,6 +150,8 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
 
         int256 deltaCash = (amount.toInt256() * tradePrice) / EXP_SCALE;
         console.log("deltaCash", deltaCash.toUint256());
+        console.log("totalFee", totalFee.toUint256());
+        console.log("tradePrice", tradePrice.toUint256());
         collateralAmountRequired = isShorting ? (deltaCash + totalFee).toUint256() : (deltaCash - totalFee).toUint256();
         // collateralAmountRequired = deltaCash.toUint256();
     }

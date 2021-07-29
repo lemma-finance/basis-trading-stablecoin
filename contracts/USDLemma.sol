@@ -4,7 +4,8 @@ import { ERC20Upgradeable, IERC20Upgradeable } from "@openzeppelin/contracts-upg
 import { OwnableUpgradeable, ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { IPerpetualDEXWrapper } from "./interfaces/IPerpetualDEXWrapper.sol";
-import "hardhat/console.sol";
+
+// import "hardhat/console.sol";
 
 //TODO: consider adding permit function
 contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
@@ -39,9 +40,9 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
-        console.log("checking the collateral amount required");
+
         uint256 collateralRequired = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
-        console.log("collateralRequired", collateralRequired);
+
         require(collateralRequired <= maxCollateralRequired, "collateral required execeeds maximum");
         collateral.transferFrom(_msgSender(), address(perpDEXWrapper), collateralRequired);
         perpDEXWrapper.open(amount);
