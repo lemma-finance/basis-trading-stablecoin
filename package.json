@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "compile": "npx hardhat compile",
-    "test": "npm run compile && cd mai-protocol-v3/ && rm ./deployments/local.deployment.json && npx hardhat run scripts/deploy.ts --network local && cd ../ && npx hardhat test test/usdLemma.js --network local"
+    "test": "npm run compile && cd mai-protocol-v3/ && npx hardhat compile && rm ./deployments/local.deployment.json && npx hardhat run scripts/deploy.ts --network local && cd ../ && npx hardhat test test/usdLemma.js --network local"
   },
   "keywords": [],
   "author": "",
@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@mcdex/mai3.js": "^0.5.46",
+    "colors": "^1.4.0",
     "dotenv": "^10.0.0",
     "node-notifier": "^10.0.0"
   }

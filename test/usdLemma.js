@@ -1,11 +1,12 @@
 const { JsonRpcProvider } = require('@ethersproject/providers');
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
-const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool } = require('@mcdex/mai3.js');
+const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, computeAccount, getAccountStorage } = require('@mcdex/mai3.js');
 const { utils } = require('ethers');
 const { BigNumber, constants } = ethers;
 const { AddressZero, MaxUint256 } = constants;
 const mcdexAddresses = require("../mai-protocol-v3/deployments/local.deployment.json");
+var colors = require('colors');
 
 
 const chainId = 42;//kovan
@@ -23,6 +24,33 @@ const approveMAX = async (erc20, singer, to, amount) => {
 const balanceOf = async (erc20, userAddress) => {
     return await erc20.balanceOf(userAddress);
 };
+
+const displayNicely = function (Obj) {
+    colors.setTheme({
+        key: 'bgGreen',
+        value: 'cyan',
+    });
+    Object.keys(Obj).forEach(function (key) {
+        const value = Obj[key];
+        let showValue = value;
+        if (value == null) {
+            console.log(`${key.bgGreen} : ${showValue}`);
+        }
+        else if (BigNumber.isBigNumber(value)) {
+            showValue = value.toString();
+        }
+        else if (typeof value === 'object') {
+            console.log("/n");
+            console.log(key);
+            console.log("/n");
+            displayNicely(value);
+            showValue = null;
+        }
+        if (showValue !== null) {
+            console.log(`${key.bgGreen} : ${showValue}`);
+        }
+    });
+};
 describe("mcdexLemma", function () {
 
     let reInvestor, hasWETH, keeperGasReward;
@@ -31,6 +59,13 @@ describe("mcdexLemma", function () {
     const perpetualIndex = 0; //in Kovan the 0th perp for 0th liquidity pool = inverse ETH-USD
     const provider = ethers.provider;
     const ZERO = BigNumber.from("0");
+
+    const calcLeverage = async function (traderAddress) {
+        const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+        const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, traderAddress);
+        const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
+        return account.accountComputed.leverage;
+    };
 
     beforeEach(async function () {
 
@@ -134,7 +169,7 @@ describe("mcdexLemma", function () {
     });
     it("should deposit correctly", async function () {
         const collateralAddress = this.collateral.address;
-        const amount = utils.parseEther("1000");
+        const amount = utils.parseEther("1000");//amount of USDL to mint
 
         const collateralBalanceBefore = await this.collateral.balanceOf(defaultSinger.address);
         const collateralRequired = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
@@ -166,6 +201,29 @@ describe("mcdexLemma", function () {
         if (collateralBalanceBeforeDepositing.lt(collateralRequired)) {
             throw new Error("not enough collateral");
         }
+
+        await hre.network.provider.request({
+            method: "evm_increaseTime",
+            params: [3600]
+        }
+        );
+
+        await hre.network.provider.request({
+            method: "evm_mine",
+            params: []
+        }
+        );
+
+        {
+            const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+            const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+            const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
+
+            displayNicely(account);
+        }
+
+        await liquidityPool.forceToSyncState();
+
         tx = await this.usdLemma.deposit(amount, ZERO, collateralRequired, collateralAddress);
         await tx.wait();
         const collateralBalanceAfter = await balanceOf(this.collateral, defaultSinger.address);
@@ -175,8 +233,49 @@ describe("mcdexLemma", function () {
 
         expect(await balanceOf(this.usdLemma, defaultSinger.address)).to.equal(amount);
 
-        tx = await this.usdLemma.withdraw(amount, ZERO, ZERO, collateralAddress);
+
+        //calculate the leverage of mcdexLemma
+        //should be 1
+
+        {
+            const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+            const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+            const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
+
+            displayNicely(account);
+        }
+        console.log(account.accountStorage.toString());
+        console.log(account.accountComputed.toString());
+        console.log(account.accountComputed.leverage.toString());
+
+        const leverage = await calcLeverage(this.mcdexLemma.address);
+        console.log("leverage", leverage.toString());
+
+
+        tx = await this.usdLemma.deposit(amount, ZERO, MaxUint256, collateralAddress);
         await tx.wait();
+
+        {
+            const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+            const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+            const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
+
+            displayNicely(account);
+        }
+
+
+
+        tx = await this.usdLemma.deposit(amount, ZERO, MaxUint256, collateralAddress);
+        await tx.wait();
+
+        {
+            const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+            const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+            const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
+
+            displayNicely(account);
+        }
+
     });
 
 });
