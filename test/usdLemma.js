@@ -1,7 +1,7 @@
 const { JsonRpcProvider } = require('@ethersproject/providers');
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
-const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, computeAccount, getAccountStorage, _2, computeIncreasePosition, computeDecreasePosition } = require('@mcdex/mai3.js');
+const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, computeAccount, getAccountStorage, _2, computeIncreasePosition, computeDecreasePosition, _0, computeAMMTrade } = require('@mcdex/mai3.js');
 const { utils } = require('ethers');
 const { BigNumber, constants } = ethers;
 const { AddressZero, MaxUint256 } = constants;
@@ -61,7 +61,6 @@ let addressNames = {};
 Object.keys(mcdexAddresses).forEach(function (key) {
     addressNames[mcdexAddresses[key].address] = mcdexAddresses[key].name;
 });
-console.log(addressNames);
 
 const toBigNumber = (amount) => {
     const amountBN = new bn(amount.toString());
@@ -73,7 +72,7 @@ describe("mcdexLemma", function () {
     let reInvestor, hasWETH, keeperGasReward;
     //reInvestor = reBalancer
     let liquidityPool, reader;
-    const perpetualIndex = 0; //in Kovan the 0th perp for 0th liquidity pool = inverse ETH-USD
+    const perpetualIndex = 0; //0th perp for 0th liquidity pool = inverse ETH-USD
     const provider = ethers.provider;
     const ZERO = BigNumber.from("0");
 
@@ -174,7 +173,7 @@ describe("mcdexLemma", function () {
     });
     it("should deposit correctly", async function () {
         const collateralAddress = this.collateral.address;
-        const amount = utils.parseEther("0.000000001");//amount of USDL to mint
+        const amount = utils.parseEther("1000");//amount of USDL to mint
 
         const collateralBalanceBefore = await this.collateral.balanceOf(defaultSinger.address);
         const collateralRequired = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
@@ -207,68 +206,94 @@ describe("mcdexLemma", function () {
             throw new Error("not enough collateral");
         }
 
-        await hre.network.provider.request({
-            method: "evm_increaseTime",
-            params: [3600]
-        }
-        );
 
-        await hre.network.provider.request({
-            method: "evm_mine",
-            params: []
-        }
-        );
+        // const liquidityPoolInfoAtStart = await getLiquidityPool(reader, liquidityPool.address);
+        // const traderInfoAtStart = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+        // const accountAtStart = computeAccount(liquidityPoolInfoAtStart, perpetualIndex, traderInfoAtStart);
 
+        // displayNicely(accountAtStart);
 
-        const liquidityPoolInfoAtStart = await getLiquidityPool(reader, liquidityPool.address);
-        const traderInfoAtStart = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
-        const accountAtStart = computeAccount(liquidityPoolInfoAtStart, perpetualIndex, traderInfoAtStart);
+        // //increase position by amount with price = collateralRequired / amount
+        // const price = collateralRequired.mul(utils.parseEther("1")).div(amount);
+        // const traderInfoAfterDepositing = traderInfoAtStart;
 
-        displayNicely(accountAtStart);
+        // traderInfoAfterDepositing.cashBalance = traderInfoAfterDepositing.cashBalance.plus(toBigNumber(collateralRequired));
+        // traderInfoAfterDepositing.entryFunding = new bn("0");
+        // traderInfoAfterDepositing.entryValue = new bn("0");
 
-        //increase position by amount with price = collateralRequired / amount
-        const price = collateralRequired.mul(utils.parseEther("1")).div(amount);
-        const traderInfoAfterDepositing = traderInfoAtStart;
+        // displayNicely(traderInfoAfterDepositing);
 
-        traderInfoAfterDepositing.cashBalance = traderInfoAfterDepositing.cashBalance.plus(toBigNumber(collateralRequired));
-        traderInfoAfterDepositing.entryFunding = new bn("0");
-        traderInfoAfterDepositing.entryValue = new bn("0");
+        // //need to use instance of bignumber.js to be compatible with mai3.js
+        // const accountAfterIncreasingPosition = computeIncreasePosition(liquidityPoolInfoAtStart, perpetualIndex, traderInfoAfterDepositing, toBigNumber(price), toBigNumber(amount));
+        // const accountAfterIncreasingPositionArtificially = computeAccount(liquidityPoolInfoAtStart, perpetualIndex, accountAfterIncreasingPosition);
 
-        displayNicely(traderInfoAfterDepositing);
-
-        //need to use instance of bignumber.js to be compatible with mai3.js
-        const accountAfterIncreasingPosition = computeIncreasePosition(liquidityPoolInfoAtStart, perpetualIndex, traderInfoAfterDepositing, toBigNumber(price), toBigNumber(amount));
-        const accountAfterIncreasingPositionArtificially = computeAccount(liquidityPoolInfoAtStart, perpetualIndex, accountAfterIncreasingPosition);
-
-        console.log("account increased artificially");
-        displayNicely(accountAfterIncreasingPositionArtificially);
+        // console.log("account increased artificially");
+        // displayNicely(accountAfterIncreasingPositionArtificially);
 
 
-        // await liquidityPool.forceToSyncState();
+        // // await liquidityPool.forceToSyncState();
 
-        tx = await this.usdLemma.deposit(amount, ZERO, collateralRequired, collateralAddress);
-        await tx.wait();
-        await tokenTransfers.print(tx.hash, addressNames, false);
+        // tx = await this.usdLemma.deposit(amount, ZERO, collateralRequired, collateralAddress);
+        // await tx.wait();
+        // await tokenTransfers.print(tx.hash, addressNames, false);
 
 
-        const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
-        const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
-        const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
+        // const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+        // const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+        // const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
 
-        console.log("actual account");
-        displayNicely(account);
+        // console.log("actual account");
+        // displayNicely(account);
 
-        const collateralBalanceAfter = await balanceOf(this.collateral, defaultSinger.address);
+        // const collateralBalanceAfter = await balanceOf(this.collateral, defaultSinger.address);
 
-        expect(collateralBalanceBeforeDepositing.sub(collateralBalanceAfter)).to.equal(collateralRequired);
-        expect(await balanceOf(this.collateral, this.mcdexLemma.address)).to.equal(ZERO);
+        // expect(collateralBalanceBeforeDepositing.sub(collateralBalanceAfter)).to.equal(collateralRequired);
+        // expect(await balanceOf(this.collateral, this.mcdexLemma.address)).to.equal(ZERO);
 
-        expect(await balanceOf(this.usdLemma, defaultSinger.address)).to.equal(amount);
+        // expect(await balanceOf(this.usdLemma, defaultSinger.address)).to.equal(amount);
         //calculate the leverage of mcdexLemma
         //should be 1
 
-        for (let i = 0; i < 100; i++) {
-            tx = await this.usdLemma.deposit(amount, ZERO, MaxUint256, collateralAddress);
+        //simulate the calculation of entryFunding
+        //compare it with the entryFunding in the contract
+        let entryFunding = _0;
+        let entryValue = _0;
+        for (let i = 0; i < 3; i++) {
+            //to make sure that funding payment has a meaning impact
+            await hre.network.provider.request({
+                method: "evm_increaseTime",
+                params: [60 * 60 * 30]
+            }
+            );
+            await hre.network.provider.request({
+                method: "evm_mine",
+                params: []
+            }
+            );
+
+
+            await liquidityPool.forceToSyncState();
+
+            const collateralRequired = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
+
+            const liquidityPoolInfoAtStart = await getLiquidityPool(reader, liquidityPool.address);
+            console.log("liquidityPool at start");
+            displayNicely(liquidityPoolInfoAtStart);
+            const traderInfoAtStart = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+
+            const accountAtStart = computeAccount(liquidityPoolInfoAtStart, perpetualIndex, traderInfoAtStart);
+
+            //TODO: use computeAMMTrade to simulate 
+            // const tradeSimulationResult = computeAMMTrade(liquidityPoolInfoAtStart, perpetualIndex, traderInfoAtStart, toBigNumber(amount), 0x08000000);
+            // displayNicely(tradeSimulationResult);
+
+
+
+            // console.log("account at start");
+            // displayNicely(accountAtStart);
+
+
+            tx = await this.usdLemma.deposit(amount, ZERO, collateralRequired, collateralAddress);
             await tx.wait();
             await tokenTransfers.print(tx.hash, addressNames, false);
 
@@ -276,8 +301,39 @@ describe("mcdexLemma", function () {
             const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
             const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
 
-            console.log("after depositing the second time");
+            console.log("actual account ", i + 1);
             displayNicely(account);
+
+            //get the unitAccumulativeFunding the above trade got
+
+            const perpetualInfo = await liquidityPool.getPerpetualInfo(perpetualIndex);
+            const nums = perpetualInfo.nums;
+            const unitAccumulativeFunding = nums[4];
+            console.log("unitAccumulativeFunding", unitAccumulativeFunding.toString());
+
+            let perpetualStorage = liquidityPoolInfoAtStart.perpetuals.get(perpetualIndex);
+            perpetualStorage.unitAccumulativeFunding = toBigNumber(unitAccumulativeFunding);
+            liquidityPoolInfoAtStart.perpetuals.set(perpetualIndex, perpetualStorage);
+
+            //increase position by amount with price = collateralRequired / amount
+            const price = collateralRequired.mul(utils.parseEther("1")).div(amount);
+
+
+            const traderInfoAfterDepositing = traderInfoAtStart;
+            traderInfoAfterDepositing.cashBalance = traderInfoAfterDepositing.cashBalance.plus(toBigNumber(collateralRequired));
+            traderInfoAfterDepositing.entryFunding = entryFunding;
+            traderInfoAfterDepositing.entryValue = entryValue;
+
+
+            //need to use instance of bignumber.js to be compatible with mai3.js
+            const accountAfterIncreasingPosition = computeIncreasePosition(liquidityPoolInfoAtStart, perpetualIndex, traderInfoAfterDepositing, toBigNumber(price), toBigNumber(amount));
+            const accountAfterIncreasingPositionArtificially = computeAccount(liquidityPoolInfoAtStart, perpetualIndex, accountAfterIncreasingPosition);
+
+            console.log("account increased artificially");
+            displayNicely(accountAfterIncreasingPositionArtificially);
+
+            entryFunding = accountAfterIncreasingPositionArtificially.accountStorage.entryFunding;
+            entryValue = accountAfterIncreasingPositionArtificially.accountStorage.entryValue;
         }
     });
 

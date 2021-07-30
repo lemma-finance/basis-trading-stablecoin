@@ -13,3 +13,6 @@ scripts/test.js
 .openzeppelin/unknown-31337.json
 .openzeppelin/kovan.json
 .openzeppelin/unknown-421611.json
+
+contracts/libraries/SafeMathExt.js
+contracts/libraries/Constant.sol

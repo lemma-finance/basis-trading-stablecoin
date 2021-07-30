@@ -13,6 +13,7 @@ import "hardhat/console.sol";
 contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
+    using Utils for int256;
 
     uint256 public constant MAX_UINT256 = type(uint256).max;
     int256 public constant MAX_INT256 = type(int256).max;
@@ -107,7 +108,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             referrer,
             0
         );
-        updateEntryFunding(position, -amount.toInt256());
+        updateEntryFunding(position, amount.toInt256());
     }
 
     //go long and withdraw collateral
@@ -130,7 +131,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         liquidityPool.withdraw(perpetualIndex, address(this), collateralAmountRequired.toInt256());
         collateral.transfer(usdLemma, collateralAmountRequired);
 
-        updateEntryFunding(position, amount.toInt256());
+        updateEntryFunding(position, -amount.toInt256());
     }
 
     function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
@@ -152,6 +153,8 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         console.log("deltaCash in MCDEXLemma", deltaCash.toUint256());
         console.log("totalFee", totalFee.toUint256());
         // console.log("tradePrice", tradePrice.toUint256());
+        // console.log("cost", cost.abs().toUint256());
+
         collateralAmountRequired = isShorting ? (deltaCash + totalFee).toUint256() : (deltaCash - totalFee).toUint256();
         // collateralAmountRequired = deltaCash.toUint256();
     }
@@ -184,6 +187,8 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         if (open != 0) {
             entryFunding = entryFunding + unitAccumulativeFunding * open;
         }
+        console.log("unitAccumulativeFunding", unitAccumulativeFunding.abs().toUint256());
+        console.log("entryFunding", entryFunding.abs().toUint256());
     }
 
     function getAmountInCollateralDecimals(int256 amount) internal view returns (int256) {
