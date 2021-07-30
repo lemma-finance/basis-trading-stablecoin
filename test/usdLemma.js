@@ -9,11 +9,16 @@ const mcdexAddresses = require("../mai-protocol-v3/deployments/local.deployment.
 var colors = require('colors');
 
 const bn = require("bignumber.js");
+const { util } = require('prettier');
+const { toBuffer } = require('hardhat/node_modules/ethereumjs-util');
+const tokenTransfers = require("truffle-token-test-utils");
+
 
 
 const chainId = 42;//kovan
 // const arbProvider = new JsonRpcProvider('https://kovan.infura.io/v3/2a1a54c3aa374385ae4531da66fdf150');
 const arbProvider = new JsonRpcProvider(hre.network.url);
+tokenTransfers.setCurrentProvider(hre.network.url);
 
 // const chainId = 421611; //rinkeby arbitrum
 // const arbProvider = new JsonRpcProvider('https://rinkeby.arbitrum.io/rpc');
@@ -52,6 +57,17 @@ const displayNicely = function (Obj) {
         }
     });
 };
+let addressNames = {};
+Object.keys(mcdexAddresses).forEach(function (key) {
+    addressNames[mcdexAddresses[key].address] = mcdexAddresses[key].name;
+});
+console.log(addressNames);
+
+const toBigNumber = (amount) => {
+    const amountBN = new bn(amount.toString());
+    const ONE = new bn(utils.parseEther("1").toString());
+    return amountBN.div(ONE);
+};
 describe("mcdexLemma", function () {
 
     let reInvestor, hasWETH, keeperGasReward;
@@ -69,7 +85,9 @@ describe("mcdexLemma", function () {
     };
 
     beforeEach(async function () {
+
         [defaultSinger, reInvestor, hasWETH] = await ethers.getSigners();
+
         const poolCreatorAddress = mcdexAddresses.PoolCreator.address;
         const readerAddress = mcdexAddresses.Reader.address;
         const poolCreator = PoolCreatorFactory.connect(poolCreatorAddress, arbProvider);
@@ -86,6 +104,8 @@ describe("mcdexLemma", function () {
         //deploy mcdexLemma
         const MCDEXLemma = await ethers.getContractFactory("MCDEXLemma");
         this.mcdexLemma = await upgrades.deployProxy(MCDEXLemma, [AddressZero, liquidityPool.address, perpetualIndex, AddressZero, reInvestor.address], { initializer: 'initialize' });
+
+        addressNames[this.mcdexLemma.address] = "MCDEXLemma";
 
         const collateralAddress = await this.mcdexLemma.collateral();
         const ERC20 = IERC20Factory.connect(collateralAddress, defaultSinger);//choose USDLemma ust because it follows IERC20 interface
@@ -154,7 +174,7 @@ describe("mcdexLemma", function () {
     });
     it("should deposit correctly", async function () {
         const collateralAddress = this.collateral.address;
-        const amount = utils.parseEther("1000");//amount of USDL to mint
+        const amount = utils.parseEther("0.000000001");//amount of USDL to mint
 
         const collateralBalanceBefore = await this.collateral.balanceOf(defaultSinger.address);
         const collateralRequired = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
@@ -208,57 +228,73 @@ describe("mcdexLemma", function () {
 
         //increase position by amount with price = collateralRequired / amount
         const price = collateralRequired.mul(utils.parseEther("1")).div(amount);
-        console.log("price", price.toString());
+        const traderInfoAfterDepositing = traderInfoAtStart;
+
+        traderInfoAfterDepositing.cashBalance = traderInfoAfterDepositing.cashBalance.plus(toBigNumber(collateralRequired));
+        traderInfoAfterDepositing.entryFunding = new bn("0");
+        traderInfoAfterDepositing.entryValue = new bn("0");
+
+        displayNicely(traderInfoAfterDepositing);
 
         //need to use instance of bignumber.js to be compatible with mai3.js
-        const accountAfterIncreasingPosition = computeIncreasePosition(liquidityPoolInfoAtStart, perpetualIndex, traderInfoAtStart, new bn(price.toString()), new bn(amount.toString()));
+        const accountAfterIncreasingPosition = computeIncreasePosition(liquidityPoolInfoAtStart, perpetualIndex, traderInfoAfterDepositing, toBigNumber(price), toBigNumber(amount));
+        const accountAfterIncreasingPositionArtificially = computeAccount(liquidityPoolInfoAtStart, perpetualIndex, accountAfterIncreasingPosition);
 
         console.log("account increased artificially");
-        displayNicely(accountAfterIncreasingPosition);
+        displayNicely(accountAfterIncreasingPositionArtificially);
 
 
-
-
-
-        await liquidityPool.forceToSyncState();
+        // await liquidityPool.forceToSyncState();
 
         tx = await this.usdLemma.deposit(amount, ZERO, collateralRequired, collateralAddress);
         await tx.wait();
+        await tokenTransfers.print(tx.hash, addressNames, false);
+
+
+        const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+        const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+        const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
+
+        console.log("actual account");
+        displayNicely(account);
+
         const collateralBalanceAfter = await balanceOf(this.collateral, defaultSinger.address);
 
         expect(collateralBalanceBeforeDepositing.sub(collateralBalanceAfter)).to.equal(collateralRequired);
         expect(await balanceOf(this.collateral, this.mcdexLemma.address)).to.equal(ZERO);
 
         expect(await balanceOf(this.usdLemma, defaultSinger.address)).to.equal(amount);
-
-
         //calculate the leverage of mcdexLemma
         //should be 1
-        // for (let i = 0; i < 2; i++) {
-        //open a trade on the opposite side of above so that we do not have to deal with the changed prices
-        //approve max collateral to the liquidityPool address
-        await approveMAX(this.collateral, defaultSinger, liquidityPool.address, MaxUint256);
-        await liquidityPool.deposit(perpetualIndex, defaultSinger.address, collateralRequired);
-        await liquidityPool.trade(
-            perpetualIndex,
-            defaultSinger.address,
-            utils.parseEther("-1000"), //the negative of the trade made by mcdexLemma
-            0,
-            MaxUint256,
-            AddressZero,
-            0
-        );
 
-        const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
-        const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
-        const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
+        for (let i = 0; i < 100; i++) {
+            tx = await this.usdLemma.deposit(amount, ZERO, MaxUint256, collateralAddress);
+            await tx.wait();
+            await tokenTransfers.print(tx.hash, addressNames, false);
 
-        displayNicely(account);
+            const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+            const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+            const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
 
-
-        //     tx = await this.usdLemma.deposit(amount, ZERO, MaxUint256, collateralAddress);
-        //     await tx.wait();
-        // }
+            console.log("after depositing the second time");
+            displayNicely(account);
+        }
     });
 
 });
+
+ //open a trade on the opposite side of above so that we do not have to deal with the changed prices
+            //approve max collateral to the liquidityPool address
+            // await approveMAX(this.collateral, defaultSinger, liquidityPool.address, MaxUint256);
+            // await liquidityPool.deposit(perpetualIndex, defaultSinger.address, collateralRequired);
+            // tx = await liquidityPool.trade(
+            //     perpetualIndex,
+            //     defaultSinger.address,
+            //     utils.parseEther("-100"), //the negative of the trade made by mcdexLemma
+            //     0,
+            //     MaxUint256,
+            //     AddressZero,
+            //     0
+            // );
+            // await tx.wait();
+            // await tokenTransfers.print(tx.hash, addressNames, false);
