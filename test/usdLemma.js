@@ -9,9 +9,9 @@ const mcdexAddresses = require("../mai-protocol-v3/deployments/local.deployment.
 var colors = require('colors');
 
 const bn = require("bignumber.js");
-const { util } = require('prettier');
 const { toBuffer } = require('hardhat/node_modules/ethereumjs-util');
 const tokenTransfers = require("truffle-token-test-utils");
+
 
 
 
@@ -277,14 +277,16 @@ describe("mcdexLemma", function () {
             const collateralRequired = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
 
             const liquidityPoolInfoAtStart = await getLiquidityPool(reader, liquidityPool.address);
-            console.log("liquidityPool at start");
-            displayNicely(liquidityPoolInfoAtStart);
+            // console.log("liquidityPool at start");
+            // displayNicely(liquidityPoolInfoAtStart);
             const traderInfoAtStart = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+            // console.log("traderInfo at start");
+            // displayNicely(traderInfoAtStart);
 
             const accountAtStart = computeAccount(liquidityPoolInfoAtStart, perpetualIndex, traderInfoAtStart);
 
             //TODO: use computeAMMTrade to simulate 
-            // const tradeSimulationResult = computeAMMTrade(liquidityPoolInfoAtStart, perpetualIndex, traderInfoAtStart, toBigNumber(amount), 0x08000000);
+            // const tradeSimulationResult = computeAMMTrade(liquidityPoolInfoAtStart, perpetualIndex, traderInfoAtStart, toBigNumber(amount),/**0x08000000*/ 0);
             // displayNicely(tradeSimulationResult);
 
 
@@ -334,9 +336,20 @@ describe("mcdexLemma", function () {
 
             entryFunding = accountAfterIncreasingPositionArtificially.accountStorage.entryFunding;
             entryValue = accountAfterIncreasingPositionArtificially.accountStorage.entryValue;
+
+            const entryFundingCalculatedInMCDEXLemma = await this.mcdexLemma.entryFunding();
+
+            console.log("entryFunding calculated artificially", entryFunding.toString());
+            console.log("entryFunding calculated in MCDEX Lemma", (toBigNumber(entryFundingCalculatedInMCDEXLemma)).toString());
+
+            expect(entryFunding.toString()).to.equal((toBigNumber(entryFundingCalculatedInMCDEXLemma)).toString());
+
+            const fundingPNL = await this.mcdexLemma.getFundingPNL();
+            expect(toBigNumber(fundingPNL).toString()).to.equal(accountAfterIncreasingPositionArtificially.accountComputed.fundingPNL.toString());
+
+            console.log("fundingPNL", toBigNumber(fundingPNL).toString());
         }
     });
-
 });
 
  //open a trade on the opposite side of above so that we do not have to deal with the changed prices
