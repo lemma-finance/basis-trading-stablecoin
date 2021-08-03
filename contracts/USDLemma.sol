@@ -5,7 +5,7 @@ import { OwnableUpgradeable, ContextUpgradeable } from "@openzeppelin/contracts-
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { IPerpetualDEXWrapper } from "./interfaces/IPerpetualDEXWrapper.sol";
 
-// import "hardhat/console.sol";
+import "hardhat/console.sol";
 
 //TODO: consider adding permit function
 contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
@@ -40,9 +40,7 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
-
         uint256 collateralRequired = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
-
         require(collateralRequired <= maxCollateralRequired, "collateral required execeeds maximum");
         collateral.transferFrom(_msgSender(), address(perpDEXWrapper), collateralRequired);
         perpDEXWrapper.open(amount);
@@ -71,7 +69,7 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
         uint256 perpetualDEXIndex,
         uint256 maxCollateralRequired,
         IERC20Upgradeable collateral
-    ) external {
+    ) public {
         depositTo(_msgSender(), amount, perpetualDEXIndex, maxCollateralRequired, collateral);
     }
 
@@ -80,7 +78,7 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
         uint256 perpetualDEXIndex,
         uint256 minCollateralToGetBack,
         IERC20Upgradeable collateral
-    ) external {
+    ) public {
         withdrawTo(_msgSender(), amount, perpetualDEXIndex, minCollateralToGetBack, collateral);
     }
 

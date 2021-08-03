@@ -258,7 +258,7 @@ describe("mcdexLemma", function () {
         //compare it with the entryFunding in the contract
         let entryFunding = _0;
         let entryValue = _0;
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 2; i++) {
             //to make sure that funding payment has a meaning impact
             await hre.network.provider.request({
                 method: "evm_increaseTime",
@@ -277,12 +277,7 @@ describe("mcdexLemma", function () {
             const collateralRequired = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
 
             const liquidityPoolInfoAtStart = await getLiquidityPool(reader, liquidityPool.address);
-            // console.log("liquidityPool at start");
-            // displayNicely(liquidityPoolInfoAtStart);
             const traderInfoAtStart = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
-            // console.log("traderInfo at start");
-            // displayNicely(traderInfoAtStart);
-
             const accountAtStart = computeAccount(liquidityPoolInfoAtStart, perpetualIndex, traderInfoAtStart);
 
             //TODO: use computeAMMTrade to simulate 
@@ -349,6 +344,17 @@ describe("mcdexLemma", function () {
 
             console.log("fundingPNL", toBigNumber(fundingPNL).toString());
         }
+
+        tx = await this.usdLemma.reBalance(utils.parseEther("1000"), perpetualIndex, false, MaxUint256, collateralAddress);
+        await tx.wait();
+        await tokenTransfers.print(tx.hash, addressNames, false);
+
+        const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+        const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+        const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
+
+        console.log("account after re balance ");
+        displayNicely(account);
     });
 });
 

@@ -37,6 +37,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     address public referrer;
 
     int256 public entryFunding;
+    int256 public realizedFundingPNL;
 
     function initialize(
         address _trustedForwarder,
@@ -150,26 +151,22 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         );
 
         int256 deltaCash = (amount.toInt256() * tradePrice) / EXP_SCALE;
-        console.log("deltaCash in MCDEXLemma", deltaCash.toUint256());
-        console.log("totalFee", totalFee.toUint256());
-        // console.log("tradePrice", tradePrice.toUint256());
-        // console.log("cost", cost.abs().toUint256());
-
         collateralAmountRequired = isShorting ? (deltaCash + totalFee).toUint256() : (deltaCash - totalFee).toUint256();
-        // collateralAmountRequired = deltaCash.toUint256();
     }
 
-    //TODO:implement the reBalancing mechanism
-    function reBalance() public {
+    //TODO:implement the reBalancing mechanism //add equation to calculate relaized funding
+    function reBalance(uint256 collateralAmount) public {
         require(_msgSender() == reBalancer, "only reBalancer is allowed");
-        int256 unitAccumulativeFunding;
-        {
-            (, , int256[39] memory nums) = liquidityPool.getPerpetualInfo(perpetualIndex);
-            unitAccumulativeFunding = nums[4];
+        int256 fundingPNL = getFundingPNL();
+        require((fundingPNL + realizedFundingPNL).abs() >= collateralAmount.toUint256().abs(), "not allowed");
+        if (fundingPNL > 0) {
+            liquidityPool.deposit(perpetualIndex, address(this), collateralAmount.toInt256());
+            realizedFundingPNL += collateralAmount.toInt256();
+        } else {
+            liquidityPool.withdraw(perpetualIndex, address(this), collateralAmount.toInt256());
+            collateral.transfer(reBalancer, collateralAmount);
+            realizedFundingPNL -= collateralAmount.toInt256();
         }
-        (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
-
-        int256 fundingPNL = entryFunding - position * unitAccumulativeFunding;
     }
 
     function updateEntryFunding(int256 position, int256 tradeAmount) internal {
@@ -192,6 +189,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         console.log("entryFunding", entryFunding.abs().toUint256());
     }
 
+    //TODO:make this method internal?
     function getFundingPNL() public view returns (int256 fundingPNL) {
         int256 unitAccumulativeFunding;
         {
@@ -199,7 +197,6 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             unitAccumulativeFunding = nums[4];
         }
         (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
-
         fundingPNL = entryFunding - (position * unitAccumulativeFunding) / EXP_SCALE;
     }
 
