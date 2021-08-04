@@ -146,20 +146,22 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             address(this),
             tradeAmount,
             referrer,
-            0
-            // MASK_USE_TARGET_LEVERAGE
+            // 0
+            MASK_USE_TARGET_LEVERAGE
         );
 
         int256 deltaCash = (amount.toInt256() * tradePrice) / EXP_SCALE;
         collateralAmountRequired = isShorting ? (deltaCash + totalFee).toUint256() : (deltaCash - totalFee).toUint256();
+
+        // collateralAmountRequired = cost.abs().toUint256();
     }
 
     //TODO:implement the reBalancing mechanism //add equation to calculate relaized funding
     function reBalance(uint256 collateralAmount) public {
-        require(_msgSender() == reBalancer, "only reBalancer is allowed");
+        // require(_msgSender() == reBalancer, "only reBalancer is allowed");
         int256 fundingPNL = getFundingPNL();
-        require((fundingPNL + realizedFundingPNL).abs() >= collateralAmount.toUint256().abs(), "not allowed");
-        if (fundingPNL > 0) {
+        require((fundingPNL + realizedFundingPNL).abs().toUint256() >= collateralAmount, "not allowed");
+        if (fundingPNL < 0) {
             liquidityPool.deposit(perpetualIndex, address(this), collateralAmount.toInt256());
             realizedFundingPNL += collateralAmount.toInt256();
         } else {

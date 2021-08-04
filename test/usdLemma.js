@@ -49,7 +49,14 @@ const displayNicely = function (Obj) {
         else if (typeof value === 'object') {
             console.log("\n");
             console.log(key);
-            displayNicely(value);
+            if (value instanceof Map) {
+                for (let i = 0; i < value.size; i++) {
+                    console.log(i);
+                    displayNicely(value.get(i));
+                }
+            } else {
+                displayNicely(value);
+            }
             showValue = null;
         }
         if (showValue !== null) {
@@ -258,7 +265,7 @@ describe("mcdexLemma", function () {
         //compare it with the entryFunding in the contract
         let entryFunding = _0;
         let entryValue = _0;
-        for (let i = 0; i < 2; i++) {
+        for (let i = 0; i < 3; i++) {
             //to make sure that funding payment has a meaning impact
             await hre.network.provider.request({
                 method: "evm_increaseTime",
@@ -270,29 +277,53 @@ describe("mcdexLemma", function () {
                 params: []
             }
             );
-
-
             await liquidityPool.forceToSyncState();
+
+
 
             const collateralRequired = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
 
             const liquidityPoolInfoAtStart = await getLiquidityPool(reader, liquidityPool.address);
+            // console.log("liquidityPoolInfoAtStart");
+            // displayNicely(liquidityPoolInfoAtStart);
             const traderInfoAtStart = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
             const accountAtStart = computeAccount(liquidityPoolInfoAtStart, perpetualIndex, traderInfoAtStart);
 
             //TODO: use computeAMMTrade to simulate 
-            // const tradeSimulationResult = computeAMMTrade(liquidityPoolInfoAtStart, perpetualIndex, traderInfoAtStart, toBigNumber(amount),/**0x08000000*/ 0);
-            // displayNicely(tradeSimulationResult);
-
+            const tradeSimulationResult = computeAMMTrade(liquidityPoolInfoAtStart, perpetualIndex, traderInfoAtStart, toBigNumber(amount), 0x08000000/** 0*/);
+            console.log("tradeSimulationResult");
+            displayNicely(tradeSimulationResult);
+            //check if liquidityPool is terminated
+            // const { isSynced, pool } = await reader.callStatic.getLiquidityPoolStorage(liquidityPool.address);
+            // console.log(pool);
+            // console.log(pool.toString());
 
 
             // console.log("account at start");
             // displayNicely(accountAtStart);
 
+            {
+                const realizedFundingPNL = await this.mcdexLemma.realizedFundingPNL();
+                const fundingPNL = await this.mcdexLemma.getFundingPNL();
+                console.log("fundingPNL", fundingPNL.toString());
 
+                let collateralToAddOrRemove = fundingPNL.add(realizedFundingPNL);
+                console.log("collateralToAddOrRemove", collateralToAddOrRemove.toString());
+                if (collateralToAddOrRemove.isNegative()) {
+                    tx = await this.collateral.transfer(this.mcdexLemma.address, collateralToAddOrRemove.abs());
+                    await tx.wait();
+                    await tokenTransfers.print(tx.hash, addressNames, false);
+
+                    tx = await this.mcdexLemma.reBalance(collateralToAddOrRemove.abs());
+                    await tx.wait();
+                    await tokenTransfers.print(tx.hash, addressNames, false);
+                }
+            }
             tx = await this.usdLemma.deposit(amount, ZERO, collateralRequired, collateralAddress);
             await tx.wait();
             await tokenTransfers.print(tx.hash, addressNames, false);
+
+
 
             const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
             const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
@@ -326,8 +357,8 @@ describe("mcdexLemma", function () {
             const accountAfterIncreasingPosition = computeIncreasePosition(liquidityPoolInfoAtStart, perpetualIndex, traderInfoAfterDepositing, toBigNumber(price), toBigNumber(amount));
             const accountAfterIncreasingPositionArtificially = computeAccount(liquidityPoolInfoAtStart, perpetualIndex, accountAfterIncreasingPosition);
 
-            console.log("account increased artificially");
-            displayNicely(accountAfterIncreasingPositionArtificially);
+            // console.log("account increased artificially");
+            // displayNicely(accountAfterIncreasingPositionArtificially);
 
             entryFunding = accountAfterIncreasingPositionArtificially.accountStorage.entryFunding;
             entryValue = accountAfterIncreasingPositionArtificially.accountStorage.entryValue;
@@ -339,22 +370,11 @@ describe("mcdexLemma", function () {
 
             expect(entryFunding.toString()).to.equal((toBigNumber(entryFundingCalculatedInMCDEXLemma)).toString());
 
-            const fundingPNL = await this.mcdexLemma.getFundingPNL();
-            expect(toBigNumber(fundingPNL).toString()).to.equal(accountAfterIncreasingPositionArtificially.accountComputed.fundingPNL.toString());
+            // const fundingPNL = await this.mcdexLemma.getFundingPNL();
+            // expect(toBigNumber(fundingPNL).toString()).to.equal(accountAfterIncreasingPositionArtificially.accountComputed.fundingPNL.toString());
 
-            console.log("fundingPNL", toBigNumber(fundingPNL).toString());
+            // console.log("fundingPNL", toBigNumber(fundingPNL).toString());
         }
-
-        tx = await this.usdLemma.reBalance(utils.parseEther("1000"), perpetualIndex, false, MaxUint256, collateralAddress);
-        await tx.wait();
-        await tokenTransfers.print(tx.hash, addressNames, false);
-
-        const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
-        const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
-        const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
-
-        console.log("account after re balance ");
-        displayNicely(account);
     });
 });
 
