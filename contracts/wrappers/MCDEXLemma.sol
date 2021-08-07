@@ -146,8 +146,8 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             address(this),
             tradeAmount,
             referrer,
-            // 0
-            MASK_USE_TARGET_LEVERAGE
+            0
+            // MASK_USE_TARGET_LEVERAGE
         );
 
         int256 deltaCash = (amount.toInt256() * tradePrice) / EXP_SCALE;
@@ -157,16 +157,37 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     }
 
     //TODO:implement the reBalancing mechanism //add equation to calculate relaized funding
-    function reBalance(uint256 collateralAmount) public {
+    function reBalance(
+        int256 amount,
+        int256 limitPrice,
+        uint256 deadline
+    ) public {
         // require(_msgSender() == reBalancer, "only reBalancer is allowed");
         int256 fundingPNL = getFundingPNL();
+
+        (int256 tradePrice, int256 totalFee, int256 cost) = liquidityPool.queryTrade(
+            perpetualIndex,
+            address(this),
+            amount,
+            referrer,
+            0
+            // MASK_USE_TARGET_LEVERAGE
+        );
+        int256 deltaCash = (amount.abs() * tradePrice) / EXP_SCALE;
+        uint256 collateralAmount = amount > 0 ? (deltaCash + totalFee).toUint256() : (deltaCash - totalFee).toUint256();
+
         require((fundingPNL + realizedFundingPNL).abs().toUint256() >= collateralAmount, "not allowed");
+        liquidityPool.trade(perpetualIndex, address(this), -amount, limitPrice, deadline, referrer, 0);
         if (fundingPNL < 0) {
-            liquidityPool.deposit(perpetualIndex, address(this), collateralAmount.toInt256());
+            // require(amount < 0, "need to long ETH when fundingPNL is < 0");
+            // liquidityPool.deposit(perpetualIndex, address(this), collateralAmount.toInt256());
+            // realizedFundingPNL += collateralAmount.toInt256();
             realizedFundingPNL += collateralAmount.toInt256();
         } else {
-            liquidityPool.withdraw(perpetualIndex, address(this), collateralAmount.toInt256());
-            collateral.transfer(reBalancer, collateralAmount);
+            // liquidityPool.withdraw(perpetualIndex, address(this), collateralAmount.toInt256());
+            // collateral.transfer(reBalancer, collateralAmount);
+            // realizedFundingPNL -= collateralAmount.toInt256();
+            require(amount > 0, "need to short ETH when fundingPNL is >0");
             realizedFundingPNL -= collateralAmount.toInt256();
         }
     }

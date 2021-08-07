@@ -1,10 +1,10 @@
 const { JsonRpcProvider } = require('@ethersproject/providers');
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
-const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, computeAccount, getAccountStorage, _2, computeIncreasePosition, computeDecreasePosition, _0, computeAMMTrade } = require('@mcdex/mai3.js');
+const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, computeAccount, getAccountStorage, _2, computeIncreasePosition, computeAMMTradeAmountByMargin, _0, computeAMMTrade } = require('@mcdex/mai3.js');
 const { utils } = require('ethers');
 const { BigNumber, constants } = ethers;
-const { AddressZero, MaxUint256 } = constants;
+const { AddressZero, MaxUint256, MaxInt256 } = constants;
 const mcdexAddresses = require("../mai-protocol-v3/deployments/local.deployment.json");
 var colors = require('colors');
 
@@ -73,6 +73,11 @@ const toBigNumber = (amount) => {
     const amountBN = new bn(amount.toString());
     const ONE = new bn(utils.parseEther("1").toString());
     return amountBN.div(ONE);
+};
+const fromBigNumber = (amount) => {
+    const ONE = new bn(utils.parseEther("1").toString());
+    const amountInWei = (amount.times(ONE)).integerValue(); //ignore after 18 decimals
+    return BigNumber.from(amountInWei.toString());
 };
 describe("mcdexLemma", function () {
 
@@ -310,13 +315,30 @@ describe("mcdexLemma", function () {
                 let collateralToAddOrRemove = fundingPNL.add(realizedFundingPNL);
                 console.log("collateralToAddOrRemove", collateralToAddOrRemove.toString());
                 if (collateralToAddOrRemove.isNegative()) {
-                    tx = await this.collateral.transfer(this.mcdexLemma.address, collateralToAddOrRemove.abs());
+                    const liquidityPoolStorage = await getLiquidityPool(reader, liquidityPool.address);
+                    const amount = computeAMMTradeAmountByMargin(liquidityPoolStorage, perpetualIndex, toBigNumber(collateralToAddOrRemove));
+                    console.log("amount", amount.toString());
+                    const amountWithFeesConsidered = fromBigNumber(amount).mul(9990).div(10000);//0.01% (need to be more exact)
+                    console.log("amountWithFeesConsidered", amountWithFeesConsidered.toString());
+                    tx = await this.mcdexLemma.reBalance(amountWithFeesConsidered, 0, MaxUint256);
                     await tx.wait();
                     await tokenTransfers.print(tx.hash, addressNames, false);
 
-                    tx = await this.mcdexLemma.reBalance(collateralToAddOrRemove.abs());
-                    await tx.wait();
-                    await tokenTransfers.print(tx.hash, addressNames, false);
+                    // tx = await this.collateral.transfer(this.mcdexLemma.address, collateralToAddOrRemove.abs());
+                    // await tx.wait();
+                    // await tokenTransfers.print(tx.hash, addressNames, false);
+
+                    // tx = await this.mcdexLemma.reBalance(collateralToAddOrRemove.abs());
+                    // await tx.wait();
+                    // await tokenTransfers.print(tx.hash, addressNames, false);
+                }
+                {
+                    const realizedFundingPNL = await this.mcdexLemma.realizedFundingPNL();
+                    const fundingPNL = await this.mcdexLemma.getFundingPNL();
+                    console.log("fundingPNL", fundingPNL.toString());
+
+                    let collateralToAddOrRemove = fundingPNL.add(realizedFundingPNL);
+                    console.log("collateralToAddOrRemove", collateralToAddOrRemove.toString());
                 }
             }
             tx = await this.usdLemma.deposit(amount, ZERO, collateralRequired, collateralAddress);

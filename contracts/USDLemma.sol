@@ -78,7 +78,7 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
         uint256 perpetualDEXIndex,
         uint256 minCollateralToGetBack,
         IERC20Upgradeable collateral
-    ) public { 
+    ) public {
         withdrawTo(_msgSender(), amount, perpetualDEXIndex, minCollateralToGetBack, collateral);
     }
 
