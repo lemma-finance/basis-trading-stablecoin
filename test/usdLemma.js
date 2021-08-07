@@ -320,7 +320,8 @@ describe("mcdexLemma", function () {
                     console.log("amount", amount.toString());
                     const amountWithFeesConsidered = fromBigNumber(amount).mul(9990).div(10000);//0.01% (need to be more exact)
                     console.log("amountWithFeesConsidered", amountWithFeesConsidered.toString());
-                    tx = await this.mcdexLemma.reBalance(amountWithFeesConsidered, 0, MaxUint256);
+                    //give negative amount as input below
+                    tx = await this.mcdexLemma.reBalance(amountWithFeesConsidered/**needs to be negative */, 0, MaxUint256);
                     await tx.wait();
                     await tokenTransfers.print(tx.hash, addressNames, false);
 
