@@ -174,12 +174,20 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             // MASK_USE_TARGET_LEVERAGE
         );
         int256 deltaCash = (amount.abs() * tradePrice) / EXP_SCALE;
-        uint256 collateralAmount = amount > 0 ? (deltaCash + totalFee).toUint256() : (deltaCash - totalFee).toUint256();
+        // uint256 collateralAmount = amount > 0 ? (deltaCash + totalFee).toUint256() : (deltaCash - totalFee).toUint256();
+        uint256 collateralAmount = (deltaCash + totalFee).toUint256();
 
+        console.log("amount", amount.abs().toUint256());
+        console.log(
+            "fundingPNL + realizedFundingPNL).abs().toUint256()",
+            (fundingPNL + realizedFundingPNL).abs().toUint256()
+        );
+        console.log("collateralAmount", collateralAmount);
         require((fundingPNL + realizedFundingPNL).abs().toUint256() >= collateralAmount, "not allowed");
+
         liquidityPool.trade(perpetualIndex, address(this), amount, limitPrice, deadline, referrer, 0);
         if (fundingPNL < 0) {
-            // require(amount < 0, "need to long ETH when fundingPNL is < 0");
+            require(amount < 0, "need to long ETH when fundingPNL is < 0");
             // liquidityPool.deposit(perpetualIndex, address(this), collateralAmount.toInt256());
             // realizedFundingPNL += collateralAmount.toInt256();
             realizedFundingPNL += collateralAmount.toInt256();
