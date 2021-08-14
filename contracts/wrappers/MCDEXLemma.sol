@@ -158,11 +158,16 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
 
     //TODO:implement the reBalancing mechanism //add equation to calculate relaized funding
     function reBalance(
+        address _reBalancer,
         int256 amount,
-        int256 limitPrice,
-        uint256 deadline
-    ) public {
-        // require(_msgSender() == reBalancer, "only reBalancer is allowed");
+        bytes calldata data
+    ) external returns (bool) {
+        require(_msgSender() == usdLemma, "only usdLemma is allowed");
+        require(_reBalancer == reBalancer, "only rebalancer is allowed");
+
+        (int256 limitPrice, uint256 deadline) = abi.decode(data, (int256, uint256));
+        console.log("deadline", deadline);
+        console.log("limitPrice", limitPrice.abs().toUint256());
         int256 fundingPNL = getFundingPNL();
 
         (int256 tradePrice, int256 totalFee, int256 cost) = liquidityPool.queryTrade(
@@ -198,6 +203,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             require(amount > 0, "need to short ETH when fundingPNL is >0");
             realizedFundingPNL -= collateralAmount.toInt256();
         }
+        return true;
     }
 
     function updateEntryFunding(int256 position, int256 tradeAmount) internal {

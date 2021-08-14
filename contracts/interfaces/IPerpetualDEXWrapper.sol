@@ -10,4 +10,10 @@ interface IPerpetualDEXWrapper {
         external
         view
         returns (uint256 collateralAmountRequired);
+
+    function reBalance(
+        address _reBalancer,
+        int256 amount,
+        bytes calldata data
+    ) external returns (bool);
 }

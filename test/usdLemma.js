@@ -280,7 +280,8 @@ describe("mcdexLemma", function () {
                     //give negative amount as input below
                     console.log(toNeg(amountWithFeesConsidered).toString());
 
-                    tx = await this.mcdexLemma.reBalance(toNeg(amountWithFeesConsidered).toString()/**needs to be negative */, 0, MaxUint256);
+                    tx = await this.usdLemma.connect(reInvestor).reBalance(ZERO, this.collateral.address, toNeg(amountWithFeesConsidered).toString(), ethers.utils.defaultAbiCoder.encode(["int256", "uint256"], [0, MaxUint256]));
+                    // tx = await this.mcdexLemma.reBalance(toNeg(amountWithFeesConsidered).toString()/**needs to be negative */, 0, MaxUint256);
                     await tx.wait();
                     await tokenTransfers.print(tx.hash, addressNames, false);
 

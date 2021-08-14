@@ -31,7 +31,7 @@ async function main() {
     console.log("poolCount", poolCount.toString());
     const liquidityPools = await poolCreator.listLiquidityPools(ZERO, poolCount);
 
-    const liquidityPoolAddress = liquidityPools[0];
+    const liquidityPoolAddress = liquidityPools[0];//liquidityPool + perpetualIndex needs to be an inverse perpetual
     const perpetualIndex = ZERO;
     const liquidityPool = LiquidityPoolFactory.connect(liquidityPoolAddress, defaultSinger);
     console.log("liquidity pool address", liquidityPool.address);
