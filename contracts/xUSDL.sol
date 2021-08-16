@@ -36,7 +36,11 @@ contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUp
 
     function deposit(uint256 amount) external override returns (uint256 shares) {
         usdl.transferFrom(_msgSender(), address(this), amount);
-        shares = (amount * 1e18) / pricePerShare();
+        if(totalSupply() == 0){
+            shares = amount;
+        }else{
+            shares = (amount * 1e18) / pricePerShare();
+        }
         userUnlockBlock[_msgSender()] = block.number + MINIMUM_LOCK;
         _mint(_msgSender(), shares);
     }
