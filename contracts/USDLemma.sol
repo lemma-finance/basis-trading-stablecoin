@@ -31,9 +31,6 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
         __ERC20_init("USDLemma", "USDL");
         __ERC2771Context_init(trustedForwarder);
         addPerpetualDEXWrapper(0, collateralAddress, perpetualDEXWrapperAddress);
-        lemmaTreasury = 0x0000000000000000000000000000000000000004;
-        stakingContractAddress = 0x0000000000000000000000000000000000000005;
-        fees = 30;
     }
 
     function setStakingContractAddress(address _stakingContractAddress) public onlyOwner {
@@ -141,9 +138,9 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
             if (amountBurntFromLemmaTreasury > 0) {
                 _burn(lemmaTreasury, amountBurntFromLemmaTreasury);
             }
-            if ((amountBurntFromStakingContract + amountBurntFromLemmaTreasury) != totalAmountToBurn) {
-                //need to handle this case via burning Lemma? or just let USDL value go down?
-            }
+            // if ((amountBurntFromStakingContract + amountBurntFromLemmaTreasury) != totalAmountToBurn) {
+            //     //in this case value of USDL will go down
+            // }
         }
     }
 
