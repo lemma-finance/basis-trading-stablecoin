@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.3;
+import "./SafeMathExt.sol";
+import "@openzeppelin/contracts-upgradeable/utils/math/SignedSafeMathUpgradeable.sol";
 
 //recreating https://github.com/mcdexio/mai-protocol-v3/blob/master/contracts/libraries/Utils.sol
 library Utils {
+    using SafeMathExt for int256;
+    using SignedSafeMathUpgradeable for int256;
+
     /*
      * @dev Check if two numbers have the same sign. Zero has the same sign with any number
      */
@@ -21,18 +26,10 @@ library Utils {
     function splitAmount(int256 amount, int256 delta) internal pure returns (int256, int256) {
         if (Utils.hasTheSameSign(amount, delta)) {
             return (0, delta);
-        } else if (Utils.abs(amount) >= Utils.abs(delta)) {
+        } else if (amount.abs() >= delta.abs()) {
             return (delta, 0);
         } else {
-            return (neg(amount), amount + delta);
+            return (amount.neg(), amount.add(delta));
         }
-    }
-
-    function abs(int256 x) internal pure returns (int256) {
-        return x >= 0 ? x : neg(x);
-    }
-
-    function neg(int256 x) internal pure returns (int256) {
-        return 0 - x;
     }
 }

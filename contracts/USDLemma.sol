@@ -5,6 +5,7 @@ import { OwnableUpgradeable, ContextUpgradeable } from "@openzeppelin/contracts-
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 import { Utils } from "./libraries/Utils.sol";
+import { SafeMathExt } from "./libraries/SafeMathExt.sol";
 import { IPerpetualDEXWrapper } from "./interfaces/IPerpetualDEXWrapper.sol";
 
 import "hardhat/console.sol";
@@ -12,7 +13,8 @@ import "hardhat/console.sol";
 //TODO: consider adding permit function
 contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
     using SafeCastUpgradeable for int256;
-    using Utils for int256;
+    using SafeMathExt for int256;
+    using SafeMathExt for uint256;
 
     address public lemmaTreasury;
     address public stakingContractAddress;
@@ -128,9 +130,8 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
             uint256 balanceOfStakingContract = balanceOf(stakingContractAddress);
             uint256 balanceOfLemmaTreasury = balanceOf(lemmaTreasury);
 
-            uint256 amountBurntFromStakingContract = min(balanceOfStakingContract, totalAmountToBurn);
-            uint256 amountBurntFromLemmaTreasury = min(
-                balanceOfLemmaTreasury,
+            uint256 amountBurntFromStakingContract = balanceOfStakingContract.min(totalAmountToBurn);
+            uint256 amountBurntFromLemmaTreasury = balanceOfLemmaTreasury.min(
                 totalAmountToBurn - amountBurntFromStakingContract
             );
 
@@ -144,11 +145,6 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
                 //need to handle this case via burning Lemma? or just let USDL value go down?
             }
         }
-    }
-
-    //TODO: move to the safeMathExt library
-    function min(uint256 x, uint256 y) internal pure returns (uint256) {
-        return (x < y) ? x : y;
     }
 
     //TODO: make a helper contract that uses onTransfer hook

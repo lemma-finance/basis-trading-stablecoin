@@ -7,6 +7,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import { Utils } from "../libraries/Utils.sol";
+import { SafeMathExt } from "../libraries/SafeMathExt.sol";
 
 import "hardhat/console.sol";
 
@@ -14,6 +15,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
     using Utils for int256;
+    using SafeMathExt for int256;
 
     uint256 public constant MAX_UINT256 = type(uint256).max;
     int256 public constant MAX_INT256 = type(int256).max;
@@ -150,7 +152,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             // MASK_USE_TARGET_LEVERAGE
         );
 
-        int256 deltaCash = (amount.toInt256() * tradePrice) / EXP_SCALE;
+        int256 deltaCash = amount.toInt256().wmul(tradePrice);
         collateralAmountRequired = isShorting ? (deltaCash + totalFee).toUint256() : (deltaCash - totalFee).toUint256();
 
         // collateralAmountRequired = cost.abs().toUint256();
@@ -178,7 +180,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             0
             // MASK_USE_TARGET_LEVERAGE
         );
-        int256 deltaCash = (amount.abs() * tradePrice) / EXP_SCALE;
+        int256 deltaCash = amount.abs().wmul(tradePrice);
         // uint256 collateralAmount = amount > 0 ? (deltaCash + totalFee).toUint256() : (deltaCash - totalFee).toUint256();
         uint256 collateralAmount = (deltaCash + totalFee).toUint256();
 
@@ -216,10 +218,10 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         if (close != 0) {
             int256 oldPosition = position;
             int256 newPosition = position + close;
-            entryFunding = (entryFunding * newPosition) / oldPosition;
+            entryFunding = entryFunding.wmul(newPosition).wdiv(oldPosition);
         }
         if (open != 0) {
-            entryFunding = entryFunding + (unitAccumulativeFunding * open) / EXP_SCALE;
+            entryFunding = entryFunding + unitAccumulativeFunding.wmul(open);
         }
 
         console.log("unitAccumulativeFunding", unitAccumulativeFunding.abs().toUint256());
@@ -234,9 +236,10 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             unitAccumulativeFunding = nums[4];
         }
         (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
-        fundingPNL = entryFunding - (position * unitAccumulativeFunding) / EXP_SCALE;
+        fundingPNL = entryFunding - position.wmul(unitAccumulativeFunding);
     }
 
+    //TODO: use safeMathExt
     function getAmountInCollateralDecimals(int256 amount) internal view returns (int256) {
         return amount / int256(10**(18 - collateralDecimals));
     }
