@@ -71,15 +71,19 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         liquidityPool.setTargetLeverage(perpetualIndex, address(this), EXP_SCALE);
     }
 
+    ///@dev sets USDLemma address - only owner can set
+    ///@param _usdlemma USDLemma address to set
     function setUSDLemma(address _usdlemma) public onlyOwner {
         usdLemma = _usdlemma;
     }
 
+    ///@dev sets refferer address - only owner can set
+    ///@param _referrer refferer address to set
     function setReferrer(address _referrer) public onlyOwner {
         referrer = _referrer;
     }
 
-    //this needs to be done before the first withdrwal happens
+    //this needs to be done before the first withdrawal happens
     //Keeper gas reward needs to be handled seperately which owner can get back when perpetual has settled
     //TODO: handle what happens when perpetual is in settlement state
     function depositKeeperGasReward() external onlyOwner {
@@ -94,7 +98,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
 
     //go short to open
     function open(uint256 amount) public {
-        //check if msg.sender == usdLemma
+        require(_msgSender() == usdLemma, "only usdLemma is allowed");
         // liquidityPool.forceToSyncState();
         uint256 collateralRequiredAmount = getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
         require(collateral.balanceOf(address(this)) >= collateralRequiredAmount, "not enough collateral");
@@ -116,8 +120,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
 
     //go long and withdraw collateral
     function close(uint256 amount) external {
-        //check if msg.sender == usdLemma
-        // liquidityPool.forceToSyncState();
+        require(_msgSender() == usdLemma, "only usdLemma is allowed");
 
         uint256 collateralAmountRequired = getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
         (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));

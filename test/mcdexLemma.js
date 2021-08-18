@@ -1,18 +1,14 @@
 const { JsonRpcProvider } = require('@ethersproject/providers');
 const { ethers } = require("hardhat");
-const { expect } = require("chai");
-const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, getAccountStorage, computeAccount, normalizeBigNumberish, DECIMALS } = require('@mcdex/mai3.js');
+const { expect, util } = require("chai");
+const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, getAccountStorage, computeAccount, normalizeBigNumberish, DECIMALS, computeAMMTrade } = require('@mcdex/mai3.js');
 const { utils } = require('ethers');
 const { BigNumber, constants } = ethers;
 const { AddressZero, MaxUint256 } = constants;
 const mcdexAddresses = require("../mai-protocol-v3/deployments/local.deployment.json");
-
+const { displayNicely, tokenTransfers } = require("./utils");
 
 const arbProvider = new JsonRpcProvider(hre.network.url);
-
-const balanceOf = async (erc20, userAddress) => {
-    return await erc20.balanceOf(userAddress);
-};
 describe("mcdexLemma", function () {
 
     let usdLemma, reBalancer, hasWETH, keeperGasReward;
@@ -67,7 +63,7 @@ describe("mcdexLemma", function () {
 
         //deposit ETH to WETH contract
         await defaultSinger.sendTransaction({ to: this.collateral.address, value: amountOfCollateralToMint });
-        await hasWETH.sendTransaction({ to: this.collateral.address, value: amountOfCollateralToMint });
+        await usdLemma.sendTransaction({ to: this.collateral.address, value: amountOfCollateralToMint }); await hasWETH.sendTransaction({ to: this.collateral.address, value: amountOfCollateralToMint });
         //deploy mcdexLemma
         const MCDEXLemma = await ethers.getContractFactory("MCDEXLemma");
         this.mcdexLemma = await upgrades.deployProxy(MCDEXLemma, [AddressZero, liquidityPool.address, perpetualIndex, usdLemma.address, reBalancer.address], { initializer: 'initialize' });
@@ -112,51 +108,110 @@ describe("mcdexLemma", function () {
         const traderInfoAfter = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
         expect(traderInfoAfter.cashBalance.toString()).to.equal(normalizeBigNumberish(keeperGasReward).shiftedBy(-DECIMALS).toString());
     });
+    it("should open position correctly", async function () {
+        const amount = utils.parseEther("1000");
+        //deposit keeper gas reward
+        await this.collateral.approve(this.mcdexLemma.address, keeperGasReward);
+        await this.mcdexLemma.depositKeeperGasReward();
 
-    it("should open and close position correctly", async function () {
-        //deposit keeper Gas reward
-        // console.log("depositing keeper gas reward");
-        if ((await this.collateral.allowance(defaultSinger.address, this.mcdexLemma.address)).lt(keeperGasReward)) {
-            let tx = await this.collateral.approve(this.mcdexLemma.address, MaxUint256);
-            await tx.wait();
-        }
-        tx = await this.mcdexLemma.depositKeeperGasReward();
-        await tx.wait();
 
-        const trader = this.mcdexLemma.address;
-        //find an address with the WETH 
-        const amount = utils.parseUnits("1", "18");
-        //The WETH on kovan deployment of MCDEX has 18 decimals
-        // console.log("amount", amount.toString());
-        // console.log("collateral decimals", (await this.collateral.decimals()).toString());
+        const traderInfoBeforeOpen = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+        expect(traderInfoBeforeOpen.positionAmount.toString()).to.equal("0");
 
-        const balanceOfHasWETH = await this.collateral.balanceOf(hasWETH._signer._address);
-        if (balanceOfHasWETH.lt(amount)) {
-            throw new Error("not enough balance");
-        }
+        //transfer collateral to mcdexLemma (transfer + open is supposed to be done in one transaction)
+        const collateralToTransfer = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
+        await this.collateral.connect(usdLemma).transfer(this.mcdexLemma.address, collateralToTransfer);
+        await this.mcdexLemma.connect(usdLemma).open(amount);
 
-        await this.collateral.connect(hasWETH).transfer(this.mcdexLemma.address, amount);
-
-        const amountInUSD = utils.parseUnits("1000", "18");
-        await this.mcdexLemma.open(amountInUSD);
-
-        await liquidityPool.forceToSyncState();
-
-        // const amountInUSDClose = utils.parseUnits("1000", "18");
-        // await this.mcdexLemma.close(amountInUSDClose);
-
-        // const accountsResult = await reader.callStatic.getAccountStorage(liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
-        //need to use .callStatic as to explicitly tell to node that it is not a state changing transaction and return the result (We have to do this because the reader contract implements this method without making it a "view" method even though it is)
-
-        // console.log(accountsResult);
-        // console.log(accountsResult.toString());
-
-        // const marginAccount = await liquidityPool.getMarginAccount(perpetualIndex, trader);
-        // console.log(marginAccount);
-        // console.log(marginAccount.toString());
-        // String
-        // notifier.notify('Test done');
+        const traderInfoAfterOpen = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+        expect(traderInfoAfterOpen.positionAmount.toString()).to.equal("1000"); //amount/10^18
+        expect(await this.collateral.balanceOf(this.mcdexLemma.address)).to.equal(ZERO);
     });
+    it("should close position correctly", async function () {
+        const amount = utils.parseEther("1000");
+
+        await this.collateral.approve(this.mcdexLemma.address, keeperGasReward);
+        await this.mcdexLemma.depositKeeperGasReward();
+
+        const collateralToTransfer = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
+        await this.collateral.connect(usdLemma).transfer(this.mcdexLemma.address, collateralToTransfer);
+        await this.mcdexLemma.connect(usdLemma).open(amount);
+
+        const traderInfoBeforeClose = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+        expect(traderInfoBeforeClose.positionAmount.toString()).to.equal("1000");
+
+        await this.mcdexLemma.connect(usdLemma).close(amount);
+        const traderInfoAfterClose = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+        expect(traderInfoAfterClose.positionAmount.toString()).to.equal("0");
+    });
+    it("should return collateral amount required correctly", async function () {
+        //deposit keeper gas reward
+        await this.collateral.approve(this.mcdexLemma.address, keeperGasReward);
+        await this.mcdexLemma.depositKeeperGasReward();
+
+        const amount = "1000";
+        const MASK_USE_TARGET_LEVERAGE = 0x08000000;
+        // const MASK_USE_TARGET_LEVERAGE = 0;
+
+        const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+        const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+
+        const tradeInfoForOpening = computeAMMTrade(liquidityPoolInfo, perpetualIndex, traderInfo, amount, MASK_USE_TARGET_LEVERAGE);
+        // displayNicely(tradeInfoForOpening);
+        const collateralToTransferForOpening = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(utils.parseEther(amount), true);
+        expect(tradeInfoForOpening.adjustCollateral.toString()).to.equal(utils.formatEther(collateralToTransferForOpening).toString());
+
+        const tradeInfoForClosing = computeAMMTrade(liquidityPoolInfo, perpetualIndex, traderInfo, "-1000", MASK_USE_TARGET_LEVERAGE);
+        displayNicely(tradeInfoForClosing);
+        const collateralToTransferForClosing = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(utils.parseEther(amount), false);
+        console.log("collateralToTransferForClosing", collateralToTransferForClosing.toString());
+        // expect(tradeInfoForClosing.adjustCollateral.toString()).to.equal(utils.formatEther(collateralToTransferForClosing).toString());
+
+    });
+    // it("should open and close position correctly", async function () {
+    //     //deposit keeper Gas reward
+    //     // console.log("depositing keeper gas reward");
+    //     if ((await this.collateral.allowance(defaultSinger.address, this.mcdexLemma.address)).lt(keeperGasReward)) {
+    //         let tx = await this.collateral.approve(this.mcdexLemma.address, MaxUint256);
+    //         await tx.wait();
+    //     }
+    //     tx = await this.mcdexLemma.depositKeeperGasReward();
+    //     await tx.wait();
+
+    //     const trader = this.mcdexLemma.address;
+    //     //find an address with the WETH 
+    //     const amount = utils.parseUnits("1", "18");
+    //     //The WETH on kovan deployment of MCDEX has 18 decimals
+    //     // console.log("amount", amount.toString());
+    //     // console.log("collateral decimals", (await this.collateral.decimals()).toString());
+
+    //     const balanceOfHasWETH = await this.collateral.balanceOf(hasWETH._signer._address);
+    //     if (balanceOfHasWETH.lt(amount)) {
+    //         throw new Error("not enough balance");
+    //     }
+
+    //     await this.collateral.connect(hasWETH).transfer(this.mcdexLemma.address, amount);
+
+    //     const amountInUSD = utils.parseUnits("1000", "18");
+    //     await this.mcdexLemma.open(amountInUSD);
+
+    //     await liquidityPool.forceToSyncState();
+
+    //     // const amountInUSDClose = utils.parseUnits("1000", "18");
+    //     // await this.mcdexLemma.close(amountInUSDClose);
+
+    //     // const accountsResult = await reader.callStatic.getAccountStorage(liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+    //     //need to use .callStatic as to explicitly tell to node that it is not a state changing transaction and return the result (We have to do this because the reader contract implements this method without making it a "view" method even though it is)
+
+    //     // console.log(accountsResult);
+    //     // console.log(accountsResult.toString());
+
+    //     // const marginAccount = await liquidityPool.getMarginAccount(perpetualIndex, trader);
+    //     // console.log(marginAccount);
+    //     // console.log(marginAccount.toString());
+    //     // String
+    //     // notifier.notify('Test done');
+    // });
 
     // it("check how the funding rate changes things", async function () {
     //     const trader = this.mcdexLemma.address;
