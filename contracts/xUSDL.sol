@@ -9,7 +9,7 @@ import { IXUSDL } from './interfaces/IXUSDL.sol';
 contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
 
 
-    uint256 public override MINIMUM_LOCK = 100;
+    uint256 public override MINIMUM_LOCK;
 
     mapping(address => uint256) public override userUnlockBlock;
 
@@ -24,6 +24,11 @@ contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUp
         __ERC2771Context_init(_trustedForwarder);
         usdl = IERC20Upgradeable(_usdl);
         usdl.approve(address(usdl), type(uint256).max);
+        MINIMUM_LOCK = 100;
+    }
+
+    function updateLock(uint256 lock) external onlyOwner {
+        MINIMUM_LOCK = lock;
     }
 
     function resetApprovals() external {
@@ -35,12 +40,14 @@ contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUp
     }
 
     function deposit(uint256 amount) external override returns (uint256 shares) {
-        usdl.transferFrom(_msgSender(), address(this), amount);
+        
         if(totalSupply() == 0){
             shares = amount;
         }else{
             shares = (amount * 1e18) / pricePerShare();
         }
+
+        usdl.transferFrom(_msgSender(), address(this), amount);
         userUnlockBlock[_msgSender()] = block.number + MINIMUM_LOCK;
         _mint(_msgSender(), shares);
     }
@@ -58,15 +65,19 @@ contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUp
         price = (balance() * 1e18)/ totalSupply();
     }
 
-    function _transfer(
+    function transfer(address recipient, uint256 amount) public override returns (bool){
+        require(block.number >= userUnlockBlock[_msgSender()], "xUSDL: Locked tokens");
+        return super.transfer(recipient, amount);
+    }
+
+    function transferFrom(
         address sender,
         address recipient,
         uint256 amount
-    ) internal override {
-        require(block.number > userUnlockBlock[sender], "ERC20: tokens not yet unlocked");
-        super._transfer(sender, recipient, amount);
+    ) public override returns (bool) {        
+        require(block.number >= userUnlockBlock[sender], "xUSDL: Locked tokens");
+        return super.transferFrom(sender, recipient, amount);
     }
-
 
     function _msgSender()
         internal
