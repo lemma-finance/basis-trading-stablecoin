@@ -159,22 +159,12 @@ describe("mcdexLemma", function () {
 
         const tradeInfoForOpening = computeAMMTrade(liquidityPoolInfo, perpetualIndex, traderInfo, amount, tradeFlag);
         const deltaCashForOpening = tradeInfoForOpening.tradingPrice.times(normalizeBigNumberish(amount));
-        // console.log("tradePrice",tradeInfoForOpening.tradingPrice.toString());
-        // console.log("deltaCashForOpening", deltaCashForOpening.toString());
-        // console.log("fees",tradeInfoForOpening.totalFee.toString());
-        // displayNicely(tradeInfoForOpening);
         const collateralToTransferForOpening = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(utils.parseEther(amount), true);
-        // console.log("collateralToTransferForOpening", collateralToTransferForOpening.toString());
-        expect(deltaCashForOpening.plus(tradeInfoForOpening.totalFee).shiftedBy(DECIMALS).integerValue().toString()).to.equal(collateralToTransferForOpening.toString());
+        expect(BigNumber.from(deltaCashForOpening.plus(tradeInfoForOpening.totalFee).shiftedBy(DECIMALS).integerValue().toString())).to.be.closeTo(collateralToTransferForOpening,10000);
 
         const tradeInfoForClosing = computeAMMTrade(liquidityPoolInfo, perpetualIndex, traderInfo, "-1000", tradeFlag);
-        // displayNicely(tradeInfoForClosing);
         const deltaCashForClosing = tradeInfoForClosing.tradingPrice.times(normalizeBigNumberish(amount));
-        // console.log("deltaCashForOpening", deltaCashForClosing.toString());
-        // console.log("fees",tradeInfoForClosing.totalFee.toString());
-
         const collateralToTransferForClosing = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(utils.parseEther(amount), false);
-        // console.log("collateralToTransferForClosing", collateralToTransferForClosing.toString());
-        expect(deltaCashForClosing.minus(tradeInfoForClosing.totalFee).shiftedBy(DECIMALS).integerValue().toString()).to.equal(collateralToTransferForClosing.toString());
+        expect(BigNumber.from(deltaCashForClosing.minus(tradeInfoForClosing.totalFee).shiftedBy(DECIMALS).integerValue().toString())).to.be.closeTo(collateralToTransferForClosing,10000);
     });
 });
