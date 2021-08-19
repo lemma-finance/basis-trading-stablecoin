@@ -36,4 +36,5 @@ const displayNicely = function (Obj) {
         }
     });
 };
+
 module.exports = { displayNicely, tokenTransfers };

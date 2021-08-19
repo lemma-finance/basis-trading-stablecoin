@@ -151,123 +151,30 @@ describe("mcdexLemma", function () {
 
         const amount = "1000";
         const MASK_USE_TARGET_LEVERAGE = 0x08000000;
-        // const MASK_USE_TARGET_LEVERAGE = 0;
+        const tradeFlag = 0;
+        // const tradeFlag = MASK_USE_TARGET_LEVERAGE;
 
         const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
         const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
 
-        const tradeInfoForOpening = computeAMMTrade(liquidityPoolInfo, perpetualIndex, traderInfo, amount, MASK_USE_TARGET_LEVERAGE);
+        const tradeInfoForOpening = computeAMMTrade(liquidityPoolInfo, perpetualIndex, traderInfo, amount, tradeFlag);
+        const deltaCashForOpening = tradeInfoForOpening.tradingPrice.times(normalizeBigNumberish(amount));
+        // console.log("tradePrice",tradeInfoForOpening.tradingPrice.toString());
+        // console.log("deltaCashForOpening", deltaCashForOpening.toString());
+        // console.log("fees",tradeInfoForOpening.totalFee.toString());
         // displayNicely(tradeInfoForOpening);
         const collateralToTransferForOpening = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(utils.parseEther(amount), true);
-        expect(tradeInfoForOpening.adjustCollateral.toString()).to.equal(utils.formatEther(collateralToTransferForOpening).toString());
+        // console.log("collateralToTransferForOpening", collateralToTransferForOpening.toString());
+        expect(deltaCashForOpening.plus(tradeInfoForOpening.totalFee).shiftedBy(DECIMALS).integerValue().toString()).to.equal(collateralToTransferForOpening.toString());
 
-        const tradeInfoForClosing = computeAMMTrade(liquidityPoolInfo, perpetualIndex, traderInfo, "-1000", MASK_USE_TARGET_LEVERAGE);
-        displayNicely(tradeInfoForClosing);
+        const tradeInfoForClosing = computeAMMTrade(liquidityPoolInfo, perpetualIndex, traderInfo, "-1000", tradeFlag);
+        // displayNicely(tradeInfoForClosing);
+        const deltaCashForClosing = tradeInfoForClosing.tradingPrice.times(normalizeBigNumberish(amount));
+        // console.log("deltaCashForOpening", deltaCashForClosing.toString());
+        // console.log("fees",tradeInfoForClosing.totalFee.toString());
+
         const collateralToTransferForClosing = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(utils.parseEther(amount), false);
-        console.log("collateralToTransferForClosing", collateralToTransferForClosing.toString());
-        // expect(tradeInfoForClosing.adjustCollateral.toString()).to.equal(utils.formatEther(collateralToTransferForClosing).toString());
-
+        // console.log("collateralToTransferForClosing", collateralToTransferForClosing.toString());
+        expect(deltaCashForClosing.minus(tradeInfoForClosing.totalFee).shiftedBy(DECIMALS).integerValue().toString()).to.equal(collateralToTransferForClosing.toString());
     });
-    // it("should open and close position correctly", async function () {
-    //     //deposit keeper Gas reward
-    //     // console.log("depositing keeper gas reward");
-    //     if ((await this.collateral.allowance(defaultSinger.address, this.mcdexLemma.address)).lt(keeperGasReward)) {
-    //         let tx = await this.collateral.approve(this.mcdexLemma.address, MaxUint256);
-    //         await tx.wait();
-    //     }
-    //     tx = await this.mcdexLemma.depositKeeperGasReward();
-    //     await tx.wait();
-
-    //     const trader = this.mcdexLemma.address;
-    //     //find an address with the WETH 
-    //     const amount = utils.parseUnits("1", "18");
-    //     //The WETH on kovan deployment of MCDEX has 18 decimals
-    //     // console.log("amount", amount.toString());
-    //     // console.log("collateral decimals", (await this.collateral.decimals()).toString());
-
-    //     const balanceOfHasWETH = await this.collateral.balanceOf(hasWETH._signer._address);
-    //     if (balanceOfHasWETH.lt(amount)) {
-    //         throw new Error("not enough balance");
-    //     }
-
-    //     await this.collateral.connect(hasWETH).transfer(this.mcdexLemma.address, amount);
-
-    //     const amountInUSD = utils.parseUnits("1000", "18");
-    //     await this.mcdexLemma.open(amountInUSD);
-
-    //     await liquidityPool.forceToSyncState();
-
-    //     // const amountInUSDClose = utils.parseUnits("1000", "18");
-    //     // await this.mcdexLemma.close(amountInUSDClose);
-
-    //     // const accountsResult = await reader.callStatic.getAccountStorage(liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
-    //     //need to use .callStatic as to explicitly tell to node that it is not a state changing transaction and return the result (We have to do this because the reader contract implements this method without making it a "view" method even though it is)
-
-    //     // console.log(accountsResult);
-    //     // console.log(accountsResult.toString());
-
-    //     // const marginAccount = await liquidityPool.getMarginAccount(perpetualIndex, trader);
-    //     // console.log(marginAccount);
-    //     // console.log(marginAccount.toString());
-    //     // String
-    //     // notifier.notify('Test done');
-    // });
-
-    // it("check how the funding rate changes things", async function () {
-    //     const trader = this.mcdexLemma.address;
-    //     //find an address with the WETH 
-    //     const amount = utils.parseUnits("1", "18");
-    //     //The WETH on kovan deployment of MCDEX has 18 decimals
-    //     console.log("amount", amount.toString());
-    //     console.log("collateral decimals", (await this.collateral.decimals()).toString());
-
-    //     await this.collateral.connect(hasWETH).transfer(this.mcdexLemma.address, amount);
-    //     console.log("WETH transferred");
-    //     const amountInUSD = utils.parseUnits("2000", "18");
-    //     await this.mcdexLemma.open(amountInUSD);
-
-    //     await liquidityPool.forceToSyncState();
-
-    //     {
-    //         const accountsResult = await reader.callStatic.getAccountStorage(liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
-    //         const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
-    //         const perpetualInfo = liquidityPoolInfo.perpetuals.get(perpetualIndex);
-
-    //         console.log("fundingRate", perpetualInfo.fundingRate.toString());
-    //         console.log("unitAccumulativeFunding", perpetualInfo.unitAccumulativeFunding.toString());
-
-    //         ///need to use .callStatic as to explicitly tell to node that it is not a state changing transaction and return the result (We have to do this because the reader contract implements this method without making it a "view" method even though it is)
-
-    //         console.log(accountsResult.toString());
-    //     }
-
-    //     await this.mcdexLemma.reBalance();
-
-    //     //go forward in time to be able to distribute the fundingPayments
-    //     await hre.network.provider.request({
-    //         method: "evm_increaseTime",
-    //         params: [60 * 60 * 9] //8 hours
-    //     }
-    //     );
-    //     await hre.network.provider.request({
-    //         method: "evm_mine",
-    //     }
-    //     );
-
-    //     ///update the cumulative funding Rate
-    //     await liquidityPool.forceToSyncState();
-    //     {
-    //         const accountsResult = await reader.callStatic.getAccountStorage(liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
-    //         const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
-    //         const perpetualInfo = liquidityPoolInfo.perpetuals.get(perpetualIndex);
-
-    //         console.log("fundingRate", perpetualInfo.fundingRate.toString());
-    //         console.log("unitAccumulativeFunding", perpetualInfo.unitAccumulativeFunding.toString());
-
-    //         ///need to use .callStatic as to explicitly tell to node that it is not a state changing transaction and return the result (We have to do this because the reader contract implements this method without making it a "view" method even though it is)
-
-    //         console.log(accountsResult.toString());
-    //     }
-    //     await this.mcdexLemma.reBalance();
-    // });
 });

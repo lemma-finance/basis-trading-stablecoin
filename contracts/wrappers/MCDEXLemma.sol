@@ -156,6 +156,10 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         );
 
         int256 deltaCash = amount.toInt256().wmul(tradePrice);
+        console.log("tradePrice", tradePrice.toUint256());
+        console.log("deltaCash", deltaCash.toUint256());
+        console.log("fee", totalFee.toUint256());
+
         collateralAmountRequired = isShorting ? (deltaCash + totalFee).toUint256() : (deltaCash - totalFee).toUint256();
 
         // collateralAmountRequired = cost.abs().toUint256();
