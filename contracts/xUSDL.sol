@@ -4,21 +4,16 @@ pragma solidity =0.8.3;
 import { ERC20Upgradeable, IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import { OwnableUpgradeable, ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
-import { IXUSDL } from './interfaces/IXUSDL.sol';
+import { IXUSDL } from "./interfaces/IXUSDL.sol";
 
 contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
-
-
     uint256 public override MINIMUM_LOCK;
 
     mapping(address => uint256) public override userUnlockBlock;
 
     IERC20Upgradeable public override usdl;
 
-    function initialize(
-        address _trustedForwarder,
-        address _usdl
-    ) external initializer {
+    function initialize(address _trustedForwarder, address _usdl) external initializer {
         __Ownable_init();
         __ERC20_init("xUSDLemma", "xUSDL");
         __ERC2771Context_init(_trustedForwarder);
@@ -35,15 +30,14 @@ contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUp
         usdl.approve(address(usdl), type(uint256).max);
     }
 
-    function balance() public override view returns (uint256 balance) {
+    function balance() public view override returns (uint256 balance) {
         balance = usdl.balanceOf(address(this));
     }
 
     function deposit(uint256 amount) external override returns (uint256 shares) {
-        
-        if(totalSupply() == 0){
+        if (totalSupply() == 0) {
             shares = amount;
-        }else{
+        } else {
             shares = (amount * 1e18) / pricePerShare();
         }
 
@@ -52,31 +46,23 @@ contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUp
         _mint(_msgSender(), shares);
     }
 
-
     function withdraw(uint256 shares) external override returns (uint256 amount) {
         require(block.number >= userUnlockBlock[_msgSender()], "xUSDL: Locked tokens");
-        amount = (pricePerShare() * shares)/1e18;
+        amount = (pricePerShare() * shares) / 1e18;
         usdl.transfer(_msgSender(), amount);
         _burn(_msgSender(), shares);
     }
 
-
     function pricePerShare() public view override returns (uint256 price) {
-        price = (balance() * 1e18)/ totalSupply();
+        price = (balance() * 1e18) / totalSupply();
     }
 
-    function transfer(address recipient, uint256 amount) public override returns (bool){
-        require(block.number >= userUnlockBlock[_msgSender()], "xUSDL: Locked tokens");
-        return super.transfer(recipient, amount);
-    }
-
-    function transferFrom(
-        address sender,
-        address recipient,
-        uint256 amount
-    ) public override returns (bool) {        
-        require(block.number >= userUnlockBlock[sender], "xUSDL: Locked tokens");
-        return super.transferFrom(sender, recipient, amount);
+    function _beforeTokenTransfer(
+        address from,
+        address,
+        uint256
+    ) internal override {
+        require(block.number >= userUnlockBlock[from], "xUSDL: Locked tokens");
     }
 
     function _msgSender()
@@ -100,5 +86,4 @@ contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUp
         //ERC2771ContextUpgradeable._msgData();
         return super._msgData();
     }
-
-} 
+}
