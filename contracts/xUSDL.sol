@@ -61,7 +61,7 @@ contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUp
         address from,
         address,
         uint256
-    ) internal override {
+    ) internal view override {
         require(block.number >= userUnlockBlock[from], "xUSDL: Locked tokens");
     }
 
