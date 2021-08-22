@@ -31,4 +31,25 @@ interface IXUSDL {
     /// @return Block number after which user can withdraw USDL 
     function userUnlockBlock(address usr) external view returns (uint256);
 
+    /// @notice Permit to allow an account to use its balance
+    /// @param owner address
+    /// @param spender address
+    /// @param amount to approve
+    /// @param deadline for permit function
+    /// @param v part of sig
+    /// @param r part of sig
+    /// @param s part of sig
+    function permit(address owner, address spender, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
+
+    /**
+     * @notice Returns the current ERC2612 nonce for `owner`. This value must be
+     * included whenever a signature is generated for {permit}.
+     *
+     * Every successful call to {permit} increases ``owner``'s nonce by one. This
+     * prevents a signature from being used multiple times.
+     * @param owner address
+     * @return Nonce
+     */
+    function nonces(address owner) external view returns (uint256);
+
 }
