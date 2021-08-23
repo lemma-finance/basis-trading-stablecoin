@@ -5,14 +5,16 @@ const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, Liq
 const { utils } = require('ethers');
 const { BigNumber, constants } = ethers;
 const { AddressZero, MaxUint256 } = constants;
-const mcdexAddresses = require("../mai-protocol-v3/deployments/local.deployment.json");
-const { displayNicely, tokenTransfers } = require("./utils");
+// const mcdexAddresses = require("../mai-protocol-v3/deployments/local.deployment.json");
+
+const { displayNicely, tokenTransfers, loadMCDEXInfo } = require("./utils");
 
 const arbProvider = new JsonRpcProvider(hre.network.url);
 const MASK_USE_TARGET_LEVERAGE = 0x08000000;
 describe("mcdexLemma", function () {
-
+    const mcdexAddresses = loadMCDEXInfo();
     let usdLemma, reBalancer, hasWETH, keeperGasReward;
+
     let liquidityPool, reader;
     const perpetualIndex = 0; //in Kovan the 0th perp for 0th liquidity pool = inverse ETH-USD
     const provider = ethers.provider;

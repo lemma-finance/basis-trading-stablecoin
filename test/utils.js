@@ -1,9 +1,16 @@
 var colors = require('colors');
+const fs = require("fs");
 const { ethers } = require("hardhat");
 const { BigNumber } = ethers;
 const tokenTransfers = require("truffle-token-test-utils");
 tokenTransfers.setCurrentProvider(hre.network.url);
 
+const loadMCDEXInfo = function () {
+    //get MCDEXAddresses
+    const data = fs.readFileSync(__dirname + '/../mai-protocol-v3/deployments/local.deployment.js', 'utf8');
+    return JSON.parse(data);
+
+};
 const displayNicely = function (Obj) {
     colors.setTheme({
         key: 'bgGreen',
@@ -37,4 +44,4 @@ const displayNicely = function (Obj) {
     });
 };
 
-module.exports = { displayNicely, tokenTransfers };
+module.exports = { displayNicely, tokenTransfers, loadMCDEXInfo };
