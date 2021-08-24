@@ -17,8 +17,8 @@ const tokenTransfers = require("truffle-token-test-utils");
 
 const chainId = 42;//kovan
 // const arbProvider = new JsonRpcProvider('https://kovan.infura.io/v3/2a1a54c3aa374385ae4531da66fdf150');
-const arbProvider = new JsonRpcProvider(hre.network.url);
-tokenTransfers.setCurrentProvider(hre.network.url);
+const arbProvider = new JsonRpcProvider(hre.network.config.url);
+tokenTransfers.setCurrentProvider(hre.network.config.url);
 
 // const chainId = 421611; //rinkeby arbitrum
 // const arbProvider = new JsonRpcProvider('https://rinkeby.arbitrum.io/rpc');

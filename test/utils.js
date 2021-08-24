@@ -1,9 +1,9 @@
 var colors = require('colors');
 const fs = require("fs");
-const { ethers } = require("hardhat");
-const { BigNumber } = ethers;
+const hre = require("hardhat");
+const { BigNumber } = hre.ethers;
 const tokenTransfers = require("truffle-token-test-utils");
-tokenTransfers.setCurrentProvider(hre.network.url);
+tokenTransfers.setCurrentProvider(hre.network.config.url);
 
 const loadMCDEXInfo = function () {
     //get MCDEXAddresses

@@ -9,7 +9,7 @@ const { AddressZero, MaxUint256 } = constants;
 
 const { displayNicely, tokenTransfers, loadMCDEXInfo } = require("./utils");
 
-const arbProvider = new JsonRpcProvider(hre.network.url);
+const arbProvider = new JsonRpcProvider(hre.network.config.url);
 const MASK_USE_TARGET_LEVERAGE = 0x08000000;
 describe("mcdexLemma", function () {
     const mcdexAddresses = loadMCDEXInfo();
