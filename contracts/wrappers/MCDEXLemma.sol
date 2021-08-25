@@ -18,9 +18,6 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
 
     uint256 public constant MAX_UINT256 = type(uint256).max;
     int256 public constant MAX_INT256 = type(int256).max;
-    int256 public constant EXP_SCALE = 10**18;
-    uint256 public constant UEXP_SCALE = 10**18;
-    uint32 internal constant MASK_USE_TARGET_LEVERAGE = 0x08000000;
 
     // address of Mai3 liquidity pool
     ILiquidityPool public liquidityPool;
@@ -68,7 +65,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         //approve collateral to
         collateral.approve(address(liquidityPool), MAX_UINT256);
         //target leverage = 1
-        liquidityPool.setTargetLeverage(perpetualIndex, address(this), EXP_SCALE);
+        liquidityPool.setTargetLeverage(perpetualIndex, address(this), 1 ether); //1
     }
 
     ///@notice sets USDLemma address - only owner can set
@@ -99,7 +96,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     //go short to open
     /// @notice Open short position on dex and deposit collateral
     /// @param amount worth in USD short position which is to be opened
-    function open(uint256 amount) public {
+    function open(uint256 amount) external {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
         // liquidityPool.forceToSyncState();
         uint256 collateralRequiredAmount = getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
@@ -108,15 +105,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
 
         (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
 
-        int256 deltaPosition = liquidityPool.trade(
-            perpetualIndex,
-            address(this),
-            amount.toInt256(),
-            MAX_INT256,
-            MAX_UINT256,
-            referrer,
-            0
-        );
+        liquidityPool.trade(perpetualIndex, address(this), amount.toInt256(), MAX_INT256, MAX_UINT256, referrer, 0);
         updateEntryFunding(position, amount.toInt256());
     }
 
@@ -133,7 +122,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         if (perpetualState != PerpetualState.CLEARED) {
             //means perpetual settled
             (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
-            int256 deltaPosition = liquidityPool.trade(
+            liquidityPool.trade(
                 perpetualIndex,
                 address(this),
                 -amount.toInt256(), //negative means you want to go short (on USD, that in turn means long on ETH)
@@ -188,13 +177,12 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             }
             collateralAmountRequired = (collateral.balanceOf(address(this)) * amount) / positionAtSettlement;
         } else {
-            (int256 tradePrice, int256 totalFee, int256 cost) = liquidityPool.queryTrade(
+            (int256 tradePrice, int256 totalFee, ) = liquidityPool.queryTrade(
                 perpetualIndex,
                 address(this),
                 tradeAmount,
                 referrer,
                 0
-                // MASK_USE_TARGET_LEVERAGE
             );
 
             int256 deltaCash = amount.toInt256().wmul(tradePrice);
@@ -203,8 +191,6 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
                 ? (deltaCash + totalFee).toUint256()
                 : (deltaCash - totalFee).toUint256();
         }
-
-        // collateralAmountRequired = cost.abs().toUint256();
     }
 
     /// @notice Rebalance position of dex based on accumulated funding, since last rebalancing
@@ -223,13 +209,12 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         (int256 limitPrice, uint256 deadline) = abi.decode(data, (int256, uint256));
         int256 fundingPNL = getFundingPNL();
 
-        (int256 tradePrice, int256 totalFee, int256 cost) = liquidityPool.queryTrade(
+        (int256 tradePrice, int256 totalFee, ) = liquidityPool.queryTrade(
             perpetualIndex,
             address(this),
             amount,
             referrer,
             0
-            // MASK_USE_TARGET_LEVERAGE
         );
         int256 deltaCash = amount.abs().wmul(tradePrice);
         uint256 collateralAmount = (deltaCash + totalFee).toUint256();
@@ -251,19 +236,19 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     /// @param position Current position on Dex
     /// @param tradeAmount Change in current position on dex
     function updateEntryFunding(int256 position, int256 tradeAmount) internal {
-        (int256 close, int256 open) = Utils.splitAmount(position, tradeAmount);
+        (int256 closeAmount, int256 openAmount) = Utils.splitAmount(position, tradeAmount);
         int256 unitAccumulativeFunding;
         {
             (, , int256[39] memory nums) = liquidityPool.getPerpetualInfo(perpetualIndex);
             unitAccumulativeFunding = nums[4];
         }
-        if (close != 0) {
+        if (closeAmount != 0) {
             int256 oldPosition = position;
-            int256 newPosition = position + close;
+            int256 newPosition = position + closeAmount;
             entryFunding = entryFunding.wmul(newPosition).wdiv(oldPosition);
         }
-        if (open != 0) {
-            entryFunding = entryFunding + unitAccumulativeFunding.wmul(open);
+        if (openAmount != 0) {
+            entryFunding = entryFunding + unitAccumulativeFunding.wmul(openAmount);
         }
     }
 

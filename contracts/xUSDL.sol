@@ -14,7 +14,7 @@ contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUp
 
     IERC20Upgradeable public override usdl;
 
-    mapping (address => uint256) public override nonces;
+    mapping(address => uint256) public override nonces;
 
     bytes32 public PERMIT_TYPEHASH;
     bytes32 private _DOMAIN_SEPARATOR;
@@ -27,12 +27,15 @@ contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUp
         usdl = IERC20Upgradeable(_usdl);
         usdl.approve(address(usdl), type(uint256).max);
         MINIMUM_LOCK = 100;
-        PERMIT_TYPEHASH = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+        PERMIT_TYPEHASH = keccak256(
+            "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+        );
         uint256 chainId;
-        assembly {chainId := chainid()}
+        assembly {
+            chainId := chainid()
+        }
         deploymentChainId = chainId;
         _DOMAIN_SEPARATOR = _calculateDomainSeparator(chainId);
-
     }
 
     /// @notice updated minimum number of blocks to be locked before xUSDL tokens are unlocked
@@ -46,9 +49,9 @@ contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUp
     }
 
     /// @notice Balance of USDL in xUSDL contract
-    /// @return balance Amount of USDL
-    function balance() public view override returns (uint256 balance) {
-        balance = usdl.balanceOf(address(this));
+    /// @return balanceAmount Amount of USDL
+    function balance() public view override returns (uint256 balanceAmount) {
+        balanceAmount = usdl.balanceOf(address(this));
     }
 
     /// @notice Deposit and mint xUSDL in exchange of USDL
@@ -113,26 +116,31 @@ contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUp
     }
 
     /// @notice Setting the version as a function so that it can be overriden
-    /// @return version 
-    function version() public pure virtual returns(string memory) { return "1"; }
+    /// @return version
+    function version() public pure virtual returns (string memory) {
+        return "1";
+    }
 
     /// @dev Calculate the DOMAIN_SEPARATOR.
     function _calculateDomainSeparator(uint256 chainId) private view returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-                keccak256(bytes(name())),
-                keccak256(bytes(version())),
-                chainId,
-                address(this)
-            )
-        );
+        return
+            keccak256(
+                abi.encode(
+                    keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                    keccak256(bytes(name())),
+                    keccak256(bytes(version())),
+                    chainId,
+                    address(this)
+                )
+            );
     }
 
     /// @dev Return the DOMAIN_SEPARATOR.
     function DOMAIN_SEPARATOR() external view returns (bytes32) {
         uint256 chainId;
-        assembly {chainId := chainid()}
+        assembly {
+            chainId := chainid()
+        }
         return chainId == deploymentChainId ? _DOMAIN_SEPARATOR : _calculateDomainSeparator(chainId);
     }
 
@@ -144,22 +152,23 @@ contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUp
     /// @param v part of sig
     /// @param r part of sig
     /// @param s part of sig
-    function permit(address owner, address spender, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external virtual override {
+    function permit(
+        address owner,
+        address spender,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external virtual override {
         require(deadline >= block.timestamp, "xUSDL: expired deadline");
 
         uint256 chainId;
-        assembly {chainId := chainid()}
+        assembly {
+            chainId := chainid()
+        }
 
-        bytes32 hashStruct = keccak256(
-            abi.encode(
-                PERMIT_TYPEHASH,
-                owner,
-                spender,
-                amount,
-                nonces[owner]++,
-                deadline
-            )
-        );
+        bytes32 hashStruct = keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, amount, nonces[owner]++, deadline));
 
         bytes32 hash = keccak256(
             abi.encodePacked(
@@ -170,12 +179,8 @@ contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUp
         );
 
         address signer = ecrecover(hash, v, r, s);
-        require(
-            signer != address(0) && signer == owner,
-            "xUSDL: invalid signature"
-        );
+        require(signer != address(0) && signer == owner, "xUSDL: invalid signature");
 
         _approve(owner, spender, amount);
-    }    
-
+    }
 }
