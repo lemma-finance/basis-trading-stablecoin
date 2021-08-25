@@ -18,7 +18,8 @@
     "chai": "^4.3.4",
     "ethereum-waffle": "^3.4.0",
     "ethers": "^5.3.1",
-    "hardhat": "^2.5.0"
+    "hardhat": "^2.5.0",
+    "solidity-coverage": "^0.7.16"
   },
   "dependencies": {
     "@mcdex/mai3.js": "^0.5.80",
