@@ -9,8 +9,6 @@ import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC
 import { Utils } from "../libraries/Utils.sol";
 import { SafeMathExt } from "../libraries/SafeMathExt.sol";
 
-import "hardhat/console.sol";
-
 /// @author Lemma Finance
 contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     using SafeCastUpgradeable for uint256;
@@ -68,7 +66,6 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         setUSDLemma(_usdlemma);
 
         //approve collateral to
-        //TODO: use SafeERC20Upgreadeable
         collateral.approve(address(liquidityPool), MAX_UINT256);
         //target leverage = 1
         liquidityPool.setTargetLeverage(perpetualIndex, address(this), EXP_SCALE);
@@ -88,7 +85,6 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
 
     //this needs to be done before the first withdrawal happens
     //Keeper gas reward needs to be handled seperately which owner can get back when perpetual has settled
-    //TODO: handle what happens when perpetual is in settlement state
     /// @notice Deposit Keeper gas reward for the perpetual - only owner can call
     function depositKeeperGasReward() external onlyOwner {
         int256 keeperGasReward;
@@ -135,6 +131,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         (PerpetualState perpetualState, , ) = liquidityPool.getPerpetualInfo(perpetualIndex);
 
         if (perpetualState != PerpetualState.CLEARED) {
+            //means perpetual settled
             (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
             int256 deltaPosition = liquidityPool.trade(
                 perpetualIndex,
@@ -151,6 +148,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         collateral.transfer(usdLemma, collateralAmountRequired);
     }
 
+    //// @notice when perpetual is in CLEARED state, withdraw the collateral
     function settle() public {
         (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
         positionAtSettlement = position.abs().toUint256();
@@ -185,7 +183,6 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
 
             ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
 
-            console.log("settlable margin", settleableMargin.toUint256());
             if (settleableMargin != 0) {
                 settle();
             }
@@ -201,9 +198,6 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             );
 
             int256 deltaCash = amount.toInt256().wmul(tradePrice);
-            console.log("tradePrice", tradePrice.toUint256());
-            console.log("deltaCash", deltaCash.toUint256());
-            console.log("fee", totalFee.toUint256());
 
             collateralAmountRequired = isShorting
                 ? (deltaCash + totalFee).toUint256()
@@ -213,7 +207,6 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         // collateralAmountRequired = cost.abs().toUint256();
     }
 
-    //TODO:implement the reBalancing mechanism //add equation to calculate relaized funding
     /// @notice Rebalance position of dex based on accumulated funding, since last rebalancing
     /// @param _reBalancer Address of rebalancer who called function on USDL contract
     /// @param amount Amount of accumulated funding fees used to rebalance by opening or closing a short position
@@ -228,8 +221,6 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         require(_reBalancer == reBalancer, "only rebalancer is allowed");
 
         (int256 limitPrice, uint256 deadline) = abi.decode(data, (int256, uint256));
-        console.log("deadline", deadline);
-        console.log("limitPrice", limitPrice.abs().toUint256());
         int256 fundingPNL = getFundingPNL();
 
         (int256 tradePrice, int256 totalFee, int256 cost) = liquidityPool.queryTrade(
@@ -243,12 +234,6 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         int256 deltaCash = amount.abs().wmul(tradePrice);
         uint256 collateralAmount = (deltaCash + totalFee).toUint256();
 
-        console.log("amount", amount.abs().toUint256());
-        console.log(
-            "fundingPNL + realizedFundingPNL).abs().toUint256()",
-            (fundingPNL + realizedFundingPNL).abs().toUint256()
-        );
-        console.log("collateralAmount", collateralAmount);
         require((fundingPNL + realizedFundingPNL).abs().toUint256() >= collateralAmount, "not allowed");
 
         liquidityPool.trade(perpetualIndex, address(this), amount, limitPrice, deadline, referrer, 0);
@@ -280,12 +265,8 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         if (open != 0) {
             entryFunding = entryFunding + unitAccumulativeFunding.wmul(open);
         }
-
-        console.log("unitAccumulativeFunding", unitAccumulativeFunding.abs().toUint256());
-        console.log("entryFunding", entryFunding.abs().toUint256());
     }
 
-    //TODO:make this method internal?
     /// @notice Get current PnL based on funding fees
     /// @return fundingPNL Funding PnL accumulated till now
     function getFundingPNL() public view returns (int256 fundingPNL) {
@@ -298,7 +279,6 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         fundingPNL = entryFunding - position.wmul(unitAccumulativeFunding);
     }
 
-    //TODO: use safeMathExt
     /// @notice Get Amount in collateral decimals, provided amount is in 18 decimals
     /// @param amount Amount in 18 decimals
     /// @return decimal adjusted value
