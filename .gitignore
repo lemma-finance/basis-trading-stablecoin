@@ -13,3 +13,8 @@ scripts/test.js
 .openzeppelin/unknown-31337.json
 .openzeppelin/kovan.json
 .openzeppelin/unknown-421611.json
+
+##solidity-coverage
+coverage.json
+coverage
+
