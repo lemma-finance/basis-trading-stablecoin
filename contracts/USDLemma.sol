@@ -10,7 +10,6 @@ import { IPerpetualDEXWrapper } from "./interfaces/IPerpetualDEXWrapper.sol";
 
 import "hardhat/console.sol";
 
-//TODO: consider adding permit function
 /// @author Lemma Finance
 contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
     using SafeCastUpgradeable for int256;
@@ -202,8 +201,6 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
         }
         _burn(account, amount);
     }
-
-    //TODO: make a helper contract that uses onTransfer hook
 
     function _msgSender()
         internal

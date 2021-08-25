@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "compile": "npx hardhat compile",
-    "test": "npm run compile && cd mai-protocol-v3/ && npx hardhat compile && npx hardhat run scripts/deploy.ts --network local && cd ../ && npx hardhat test test/mcdexLemma.js test/xusdl.js --network local"
+    "test": "npm run compile && cd mai-protocol-v3/ && npx hardhat compile && npx hardhat run scripts/deploy.ts --network local && cd ../ && npx hardhat test test/usdLemma.js test/xusdl.js --network local"
   },
   "keywords": [],
   "author": "",
