@@ -4,12 +4,25 @@ const hre = require("hardhat");
 const { BigNumber } = hre.ethers;
 const tokenTransfers = require("truffle-token-test-utils");
 tokenTransfers.setCurrentProvider(hre.network.config.url);
+const util = require('util');
+const exec = util.promisify(require('child_process').exec);
 
-const loadMCDEXInfo = function () {
+const deployMCDEXLocally = async function () {
+    // console.log("deploying MCDEX locally,please wait...");
+    const { stdout, stderr } = await exec("cd mai-protocol-v3/ && pwd && npx hardhat run scripts/deploy.ts --network local && cd ..  && pwd");
+    if (stderr) {
+        console.error(`error: ${stderr}`);
+    }
+    // console.log(`output: ${stdout}`);
+    // console.log("deployment done");
+};
+
+const loadMCDEXInfo = async function () {
+    //deploy mcdex and then load
+    await deployMCDEXLocally();
     //get MCDEXAddresses
     const data = fs.readFileSync(__dirname + '/../mai-protocol-v3/deployments/local.deployment.js', 'utf8');
     return JSON.parse(data);
-
 };
 const displayNicely = function (Obj) {
     colors.setTheme({

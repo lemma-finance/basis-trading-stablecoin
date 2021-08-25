@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.3;
 
-import { ILiquidityPool } from "../interfaces/MCDEX/ILiquidityPool.sol";
+import { ILiquidityPool, PerpetualState } from "../interfaces/MCDEX/ILiquidityPool.sol";
 import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
@@ -40,6 +40,8 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
 
     int256 public entryFunding;
     int256 public realizedFundingPNL;
+
+    uint256 positionAtSettlement;
 
     function initialize(
         address _trustedForwarder,
@@ -123,21 +125,30 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
 
         uint256 collateralAmountRequired = getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
-        (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
 
-        int256 deltaPosition = liquidityPool.trade(
-            perpetualIndex,
-            address(this),
-            -amount.toInt256(), //negative means you want to go short (on USD, that in turn means long on ETH)
-            0,
-            MAX_UINT256,
-            referrer,
-            0
-        );
-        liquidityPool.withdraw(perpetualIndex, address(this), collateralAmountRequired.toInt256());
+        (PerpetualState perpetualState, , ) = liquidityPool.getPerpetualInfo(perpetualIndex);
+
+        if (perpetualState != PerpetualState.CLEARED) {
+            (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
+            int256 deltaPosition = liquidityPool.trade(
+                perpetualIndex,
+                address(this),
+                -amount.toInt256(), //negative means you want to go short (on USD, that in turn means long on ETH)
+                0,
+                MAX_UINT256,
+                referrer,
+                0
+            );
+            liquidityPool.withdraw(perpetualIndex, address(this), collateralAmountRequired.toInt256());
+            updateEntryFunding(position, -amount.toInt256());
+        }
         collateral.transfer(usdLemma, collateralAmountRequired);
+    }
 
-        updateEntryFunding(position, -amount.toInt256());
+    function settle() public {
+        (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
+        positionAtSettlement = position.abs().toUint256();
+        liquidityPool.settle(perpetualIndex, address(this));
     }
 
     function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
@@ -146,26 +157,52 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     {
         // liquidityPool.forceToSyncState();
         int256 tradeAmount = isShorting ? amount.toInt256() : -amount.toInt256();
-        (int256 tradePrice, int256 totalFee, int256 cost) = liquidityPool.queryTrade(
-            perpetualIndex,
-            address(this),
-            tradeAmount,
-            referrer,
-            0
-            // MASK_USE_TARGET_LEVERAGE
-        );
 
-        int256 deltaCash = amount.toInt256().wmul(tradePrice);
-        console.log("tradePrice", tradePrice.toUint256());
-        console.log("deltaCash", deltaCash.toUint256());
-        console.log("fee", totalFee.toUint256());
+        //handle the case when perpetual has settled
+        (PerpetualState perpetualState, , ) = liquidityPool.getPerpetualInfo(perpetualIndex);
 
-        collateralAmountRequired = isShorting ? (deltaCash + totalFee).toUint256() : (deltaCash - totalFee).toUint256();
+        if (perpetualState == PerpetualState.CLEARED) {
+            require(isShorting == false, "cannot open when perpetual has settled");
+            (
+                ,
+                ,
+                ,
+                ,
+                int256 settleableMargin, // bankrupt
+                ,
+                ,
+                ,
+
+            ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
+
+            console.log("settlable margin", settleableMargin.toUint256());
+            if (settleableMargin != 0) {
+                settle();
+            }
+            collateralAmountRequired = (collateral.balanceOf(address(this)) * amount) / positionAtSettlement;
+        } else {
+            (int256 tradePrice, int256 totalFee, int256 cost) = liquidityPool.queryTrade(
+                perpetualIndex,
+                address(this),
+                tradeAmount,
+                referrer,
+                0
+                // MASK_USE_TARGET_LEVERAGE
+            );
+
+            int256 deltaCash = amount.toInt256().wmul(tradePrice);
+            console.log("tradePrice", tradePrice.toUint256());
+            console.log("deltaCash", deltaCash.toUint256());
+            console.log("fee", totalFee.toUint256());
+
+            collateralAmountRequired = isShorting
+                ? (deltaCash + totalFee).toUint256()
+                : (deltaCash - totalFee).toUint256();
+        }
 
         // collateralAmountRequired = cost.abs().toUint256();
     }
 
-    //TODO:implement the reBalancing mechanism //add equation to calculate relaized funding
     function reBalance(
         address _reBalancer,
         int256 amount,

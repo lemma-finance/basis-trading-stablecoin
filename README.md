@@ -5,4 +5,4 @@
 4. npm install --force
 5. cd ..
 6. npx hardhat node
-7. npm run test
+7. npx hardhat test test/mcdexLemma.js --network local
