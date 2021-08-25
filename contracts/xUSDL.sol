@@ -6,6 +6,7 @@ import { OwnableUpgradeable, ContextUpgradeable } from "@openzeppelin/contracts-
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { IXUSDL } from "./interfaces/IXUSDL.sol";
 
+/// @author Lemma Finance
 contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
     uint256 public override MINIMUM_LOCK;
 
@@ -34,18 +35,25 @@ contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUp
 
     }
 
+    /// @notice updated minimum number of blocks to be locked before xUSDL tokens are unlocked
     function updateLock(uint256 lock) external onlyOwner {
         MINIMUM_LOCK = lock;
     }
 
+    /// @notice reset approvals for usdl contract to user usdl as needed
     function resetApprovals() external {
         usdl.approve(address(usdl), type(uint256).max);
     }
 
+    /// @notice Balance of USDL in xUSDL contract
+    /// @return balance Amount of USDL
     function balance() public view override returns (uint256 balance) {
         balance = usdl.balanceOf(address(this));
     }
 
+    /// @notice Deposit and mint xUSDL in exchange of USDL
+    /// @param amount of USDL to deposit
+    /// @return shares Amount of xUSDL minted
     function deposit(uint256 amount) external override returns (uint256 shares) {
         if (totalSupply() == 0) {
             shares = amount;
@@ -58,6 +66,9 @@ contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUp
         _mint(_msgSender(), shares);
     }
 
+    /// @notice Withdraw USDL and burn xUSDL
+    /// @param shares of xUSDL to burn
+    /// @return amount Amount of USDL withdrawn
     function withdraw(uint256 shares) external override returns (uint256 amount) {
         require(block.number >= userUnlockBlock[_msgSender()], "xUSDL: Locked tokens");
         amount = (pricePerShare() * shares) / 1e18;
@@ -65,6 +76,8 @@ contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUp
         _burn(_msgSender(), shares);
     }
 
+    /// @notice Price per share in terms of USDL
+    /// @return price Price of 1 xUSDL in terms of USDL
     function pricePerShare() public view override returns (uint256 price) {
         price = (balance() * 1e18) / totalSupply();
     }
@@ -99,7 +112,8 @@ contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUp
         return super._msgData();
     }
 
-    /// @dev Setting the version as a function so that it can be overriden
+    /// @notice Setting the version as a function so that it can be overriden
+    /// @return version 
     function version() public pure virtual returns(string memory) { return "1"; }
 
     /// @dev Calculate the DOMAIN_SEPARATOR.
@@ -122,7 +136,14 @@ contract xUSDL is IXUSDL, ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUp
         return chainId == deploymentChainId ? _DOMAIN_SEPARATOR : _calculateDomainSeparator(chainId);
     }
 
-
+    /// @notice Permit to allow an account to use its balance
+    /// @param owner address
+    /// @param spender address
+    /// @param amount to approve
+    /// @param deadline for permit function
+    /// @param v part of sig
+    /// @param r part of sig
+    /// @param s part of sig
     function permit(address owner, address spender, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external virtual override {
         require(deadline >= block.timestamp, "xUSDL: expired deadline");
 

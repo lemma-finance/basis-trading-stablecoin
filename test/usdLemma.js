@@ -17,8 +17,8 @@ const tokenTransfers = require("truffle-token-test-utils");
 
 const chainId = 42;//kovan
 // const arbProvider = new JsonRpcProvider('https://kovan.infura.io/v3/2a1a54c3aa374385ae4531da66fdf150');
-const arbProvider = new JsonRpcProvider(hre.network.url);
-tokenTransfers.setCurrentProvider(hre.network.url);
+const arbProvider = new JsonRpcProvider(hre.network.config.url);
+tokenTransfers.setCurrentProvider(hre.network.config.url);
 
 // const chainId = 421611; //rinkeby arbitrum
 // const arbProvider = new JsonRpcProvider('https://rinkeby.arbitrum.io/rpc');
@@ -78,6 +78,9 @@ const fromBigNumber = (amount) => {
     const ONE = new bn(utils.parseEther("1").toString());
     const amountInWei = (amount.times(ONE)).integerValue(); //ignore after 18 decimals
     return BigNumber.from(amountInWei.toString());
+};
+const toNeg = (amount) => {
+    return (new bn(amount.toString())).negated().toString();
 };
 describe("mcdexLemma", function () {
 
@@ -218,44 +221,11 @@ describe("mcdexLemma", function () {
             throw new Error("not enough collateral");
         }
 
-
-        // const liquidityPoolInfoAtStart = await getLiquidityPool(reader, liquidityPool.address);
-        // const traderInfoAtStart = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
-        // const accountAtStart = computeAccount(liquidityPoolInfoAtStart, perpetualIndex, traderInfoAtStart);
-
-        // displayNicely(accountAtStart);
-
-        // //increase position by amount with price = collateralRequired / amount
-        // const price = collateralRequired.mul(utils.parseEther("1")).div(amount);
-        // const traderInfoAfterDepositing = traderInfoAtStart;
-
-        // traderInfoAfterDepositing.cashBalance = traderInfoAfterDepositing.cashBalance.plus(toBigNumber(collateralRequired));
-        // traderInfoAfterDepositing.entryFunding = new bn("0");
-        // traderInfoAfterDepositing.entryValue = new bn("0");
-
-        // displayNicely(traderInfoAfterDepositing);
-
-        // //need to use instance of bignumber.js to be compatible with mai3.js
-        // const accountAfterIncreasingPosition = computeIncreasePosition(liquidityPoolInfoAtStart, perpetualIndex, traderInfoAfterDepositing, toBigNumber(price), toBigNumber(amount));
-        // const accountAfterIncreasingPositionArtificially = computeAccount(liquidityPoolInfoAtStart, perpetualIndex, accountAfterIncreasingPosition);
-
-        // console.log("account increased artificially");
-        // displayNicely(accountAfterIncreasingPositionArtificially);
-
-
         // // await liquidityPool.forceToSyncState();
 
         // tx = await this.usdLemma.deposit(amount, ZERO, collateralRequired, collateralAddress);
         // await tx.wait();
         // await tokenTransfers.print(tx.hash, addressNames, false);
-
-
-        // const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
-        // const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
-        // const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
-
-        // console.log("actual account");
-        // displayNicely(account);
 
         // const collateralBalanceAfter = await balanceOf(this.collateral, defaultSinger.address);
 
@@ -285,7 +255,60 @@ describe("mcdexLemma", function () {
             await liquidityPool.forceToSyncState();
 
 
+            {
+                {
+                    const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+                    const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+                    const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
 
+                    console.log("actual account ");
+                    displayNicely(account);
+                }
+                const realizedFundingPNL = await this.mcdexLemma.realizedFundingPNL();
+                const fundingPNL = await this.mcdexLemma.getFundingPNL();
+                console.log("fundingPNL", fundingPNL.toString());
+
+                let collateralToAddOrRemove = fundingPNL.add(realizedFundingPNL);
+                console.log("collateralToAddOrRemove", collateralToAddOrRemove.toString());
+                if (collateralToAddOrRemove.isNegative()) {
+                    const liquidityPoolStorage = await getLiquidityPool(reader, liquidityPool.address);
+                    const amount = computeAMMTradeAmountByMargin(liquidityPoolStorage, perpetualIndex, toBigNumber(collateralToAddOrRemove).negated());
+                    console.log("amount", amount.toString());
+
+                    const amountWithFeesConsidered = fromBigNumber(amount.negated()).mul(9900).div(10000);//0.01% (need to be more exact)
+                    console.log("amountWithFeesConsidered", amountWithFeesConsidered.toString());
+                    //give negative amount as input below
+                    console.log(toNeg(amountWithFeesConsidered).toString());
+
+                    tx = await this.usdLemma.connect(reInvestor).reBalance(ZERO, this.collateral.address, toNeg(amountWithFeesConsidered).toString(), ethers.utils.defaultAbiCoder.encode(["int256", "uint256"], [0, MaxUint256]));
+                    // tx = await this.mcdexLemma.reBalance(toNeg(amountWithFeesConsidered).toString()/**needs to be negative */, 0, MaxUint256);
+                    await tx.wait();
+                    await tokenTransfers.print(tx.hash, addressNames, false);
+
+                    // tx = await this.collateral.transfer(this.mcdexLemma.address, collateralToAddOrRemove.abs());
+                    // await tx.wait();
+                    // await tokenTransfers.print(tx.hash, addressNames, false);
+
+                    // tx = await this.mcdexLemma.reBalance(collateralToAddOrRemove.abs());
+                    // await tx.wait();
+                    // await tokenTransfers.print(tx.hash, addressNames, false);
+                }
+                {
+                    const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+                    const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+                    const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
+
+                    console.log("actual account ");
+                    displayNicely(account);
+
+                    const realizedFundingPNL = await this.mcdexLemma.realizedFundingPNL();
+                    const fundingPNL = await this.mcdexLemma.getFundingPNL();
+                    console.log("fundingPNL", fundingPNL.toString());
+
+                    let collateralToAddOrRemove = fundingPNL.add(realizedFundingPNL);
+                    console.log("collateralToAddOrRemove", collateralToAddOrRemove.toString());
+                }
+            }
             const collateralRequired = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
 
             const liquidityPoolInfoAtStart = await getLiquidityPool(reader, liquidityPool.address);
@@ -307,41 +330,7 @@ describe("mcdexLemma", function () {
             // console.log("account at start");
             // displayNicely(accountAtStart);
 
-            {
-                const realizedFundingPNL = await this.mcdexLemma.realizedFundingPNL();
-                const fundingPNL = await this.mcdexLemma.getFundingPNL();
-                console.log("fundingPNL", fundingPNL.toString());
 
-                let collateralToAddOrRemove = fundingPNL.add(realizedFundingPNL);
-                console.log("collateralToAddOrRemove", collateralToAddOrRemove.toString());
-                if (collateralToAddOrRemove.isNegative()) {
-                    const liquidityPoolStorage = await getLiquidityPool(reader, liquidityPool.address);
-                    const amount = computeAMMTradeAmountByMargin(liquidityPoolStorage, perpetualIndex, toBigNumber(collateralToAddOrRemove));
-                    console.log("amount", amount.toString());
-                    const amountWithFeesConsidered = fromBigNumber(amount).mul(9990).div(10000);//0.01% (need to be more exact)
-                    console.log("amountWithFeesConsidered", amountWithFeesConsidered.toString());
-                    //give negative amount as input below
-                    tx = await this.mcdexLemma.reBalance(amountWithFeesConsidered/**needs to be negative */, 0, MaxUint256);
-                    await tx.wait();
-                    await tokenTransfers.print(tx.hash, addressNames, false);
-
-                    // tx = await this.collateral.transfer(this.mcdexLemma.address, collateralToAddOrRemove.abs());
-                    // await tx.wait();
-                    // await tokenTransfers.print(tx.hash, addressNames, false);
-
-                    // tx = await this.mcdexLemma.reBalance(collateralToAddOrRemove.abs());
-                    // await tx.wait();
-                    // await tokenTransfers.print(tx.hash, addressNames, false);
-                }
-                {
-                    const realizedFundingPNL = await this.mcdexLemma.realizedFundingPNL();
-                    const fundingPNL = await this.mcdexLemma.getFundingPNL();
-                    console.log("fundingPNL", fundingPNL.toString());
-
-                    let collateralToAddOrRemove = fundingPNL.add(realizedFundingPNL);
-                    console.log("collateralToAddOrRemove", collateralToAddOrRemove.toString());
-                }
-            }
             tx = await this.usdLemma.deposit(amount, ZERO, collateralRequired, collateralAddress);
             await tx.wait();
             await tokenTransfers.print(tx.hash, addressNames, false);
@@ -398,6 +387,7 @@ describe("mcdexLemma", function () {
 
             // console.log("fundingPNL", toBigNumber(fundingPNL).toString());
         }
+
     });
 });
 

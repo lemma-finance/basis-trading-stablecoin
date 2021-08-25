@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "compile": "npx hardhat compile",
-    "test": "npm run compile && cd mai-protocol-v3/ && npx hardhat compile && rm ./deployments/local.deployment.json && npx hardhat run scripts/deploy.ts --network local && cd ../ && npx hardhat test test/usdLemma.js --network local"
+    "test": "npm run compile && cd mai-protocol-v3/ && npx hardhat compile && npx hardhat run scripts/deploy.ts --network local && cd ../ && npx hardhat test test/mcdexLemma.js test/xusdl.js --network local"
   },
   "keywords": [],
   "author": "",
@@ -21,8 +21,7 @@
     "hardhat": "^2.5.0"
   },
   "dependencies": {
-    "@mcdex/mai3.js": "^0.5.77",
-    "@truffle/abi-utils": "^0.2.4",
+    "@mcdex/mai3.js": "^0.5.80",
     "bignumber.js": "^9.0.1",
     "colors": "^1.4.0",
     "dotenv": "^10.0.0",
