@@ -385,7 +385,7 @@ describe("mcdexLemma", async function () {
             await liquidityPool.setEmergencyState(perpetualIndex);
 
             const activeAccounts = await liquidityPool.getActiveAccountCount(perpetualIndex);
-            console.log("activeAccounts", parseInt(activeAccounts));
+            // console.log("activeAccounts", parseInt(activeAccounts));
             for (let i = 0; i < activeAccounts; i++) {
                 await liquidityPool.connect(signer2).clear(perpetualIndex);//keeper = any account
             }
@@ -423,8 +423,9 @@ describe("mcdexLemma", async function () {
             await this.mcdexLemma.settle();
             expect(await this.collateral.balanceOf(this.mcdexLemma.address)).to.equal(settleableMargin);
             //close
-            let tx = await this.mcdexLemma.connect(usdLemma).close(amount);
-            await printTx(tx.hash);
+            // let tx =
+            await this.mcdexLemma.connect(usdLemma).close(amount);
+            // await printTx(tx.hash);
             expect(await this.collateral.balanceOf(this.mcdexLemma.address)).to.equal(ZERO);
             const collateralBalanceAfter = await this.collateral.balanceOf(usdLemma.address);
             //usdlemma balance change == settleableMargin
