@@ -66,7 +66,7 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
 
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL
     /// @param to Receipent of minted USDL
-    /// @param amount Amount of USDL to mint 
+    /// @param amount Amount of USDL to mint
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
     /// @param maxCollateralRequired Maximum amount of collateral to be used to mint given USDL
     /// @param collateral Collateral to be used to mint USDL
@@ -89,7 +89,7 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
 
     /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc
     /// @param to Receipent of withdrawn collateral
-    /// @param amount Amount of USDL to redeem 
+    /// @param amount Amount of USDL to redeem
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be closed
     /// @param minCollateralToGetBack Minimum amount of collateral to get back on redeeming given USDL
     /// @param collateral Collateral to be used to redeem USDL
@@ -111,7 +111,7 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
     }
 
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL
-    /// @param amount Amount of USDL to mint 
+    /// @param amount Amount of USDL to mint
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
     /// @param maxCollateralRequired Maximum amount of collateral to be used to mint given USDL
     /// @param collateral Collateral to be used to mint USDL
@@ -125,7 +125,7 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
     }
 
     /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc
-    /// @param amount Amount of USDL to redeem 
+    /// @param amount Amount of USDL to redeem
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be closed
     /// @param minCollateralToGetBack Minimum amount of collateral to get back on redeeming given USDL
     /// @param collateral Collateral to be used to redeem USDL
@@ -138,7 +138,7 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
         withdrawTo(_msgSender(), amount, perpetualDEXIndex, minCollateralToGetBack, collateral);
     }
 
-    /// @notice Rebalance position on a dex to reinvest if funding rate positive and burn USDL if funding rate negative 
+    /// @notice Rebalance position on a dex to reinvest if funding rate positive and burn USDL if funding rate negative
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be rebalanced
     /// @param collateral Collateral to be used to rebalance position
     /// @param amount amount of USDL to burn or mint
@@ -162,8 +162,10 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
             _mint(stakingContractAddress, amountToStakingContract);
         } else {
             uint256 totalAmountToBurn = amount.neg().toUint256();
-            uint256 balanceOfStakingContract = balanceOf(stakingContractAddress);
-            uint256 balanceOfLemmaTreasury = balanceOf(lemmaTreasury);
+            uint256 balanceOfStakingContract = balanceOf(stakingContractAddress).min(
+                allowance(stakingContractAddress, address(this))
+            );
+            uint256 balanceOfLemmaTreasury = balanceOf(lemmaTreasury).min(allowance(lemmaTreasury, address(this)));
 
             uint256 amountBurntFromStakingContract = balanceOfStakingContract.min(totalAmountToBurn);
             uint256 amountBurntFromLemmaTreasury = balanceOfLemmaTreasury.min(
@@ -171,15 +173,34 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
             );
 
             if (amountBurntFromStakingContract > 0) {
-                _burn(stakingContractAddress, amountBurntFromStakingContract);
+                _burnFrom(stakingContractAddress, amountBurntFromStakingContract);
             }
             if (amountBurntFromLemmaTreasury > 0) {
-                _burn(lemmaTreasury, amountBurntFromLemmaTreasury);
+                _burnFrom(lemmaTreasury, amountBurntFromLemmaTreasury);
             }
             // if ((amountBurntFromStakingContract + amountBurntFromLemmaTreasury) != totalAmountToBurn) {
             //     //in this case value of USDL will go down
             // }
         }
+    }
+
+    /**
+     * @dev Destroys `amount` tokens from `account`, deducting from the caller's
+     * allowance.
+     *
+     *
+     * Requirements:
+     *
+     * - the caller must have allowance for ``accounts``'s tokens of at least
+     * `amount`.
+     */
+    function _burnFrom(address account, uint256 amount) internal {
+        uint256 currentAllowance = allowance(account, _msgSender());
+        require(currentAllowance >= amount, "ERC20: burn amount exceeds allowance");
+        unchecked {
+            _approve(account, _msgSender(), currentAllowance - amount);
+        }
+        _burn(account, amount);
     }
 
     //TODO: make a helper contract that uses onTransfer hook
