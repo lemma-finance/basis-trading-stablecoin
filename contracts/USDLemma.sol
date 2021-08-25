@@ -11,6 +11,7 @@ import { IPerpetualDEXWrapper } from "./interfaces/IPerpetualDEXWrapper.sol";
 import "hardhat/console.sol";
 
 //TODO: consider adding permit function
+/// @author Lemma Finance
 contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
     using SafeCastUpgradeable for int256;
     using SafeMathExt for int256;
@@ -33,18 +34,28 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
         addPerpetualDEXWrapper(0, collateralAddress, perpetualDEXWrapperAddress);
     }
 
+    /// @notice Set staking contract address, can only be called by owner
+    /// @param _stakingContractAddress Address of staking contract
     function setStakingContractAddress(address _stakingContractAddress) public onlyOwner {
         stakingContractAddress = _stakingContractAddress;
     }
 
+    /// @notice Set Lemma treasury, can only be called by owner
+    /// @param _lemmaTreasury Address of Lemma Treasury
     function setLemmaTreasury(address _lemmaTreasury) public onlyOwner {
         lemmaTreasury = _lemmaTreasury;
     }
 
+    /// @notice Set Fees, can only be called by owner
+    /// @param _fees Fees taken by the protocol
     function setFees(uint256 _fees) public onlyOwner {
         fees = _fees;
     }
 
+    /// @notice Add address for perpetual dex wrapper for perpetual index and collateral, can only be called by owner
+    /// @param perpetualDEXIndex, index of perpetual dex
+    /// @param collateralAddress, address of collateral to be used in the dex
+    /// @param perpetualDEXWrapperAddress, address of perpetual dex wrapper
     function addPerpetualDEXWrapper(
         uint256 perpetualDEXIndex,
         address collateralAddress,
@@ -53,6 +64,12 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
         perpetualDEXWrappers[perpetualDEXIndex][collateralAddress] = perpetualDEXWrapperAddress;
     }
 
+    /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL
+    /// @param to Receipent of minted USDL
+    /// @param amount Amount of USDL to mint 
+    /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
+    /// @param maxCollateralRequired Maximum amount of collateral to be used to mint given USDL
+    /// @param collateral Collateral to be used to mint USDL
     function depositTo(
         address to,
         uint256 amount,
@@ -70,6 +87,12 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
         _mint(to, amount);
     }
 
+    /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc
+    /// @param to Receipent of withdrawn collateral
+    /// @param amount Amount of USDL to redeem 
+    /// @param perpetualDEXIndex Index of perpetual dex, where position will be closed
+    /// @param minCollateralToGetBack Minimum amount of collateral to get back on redeeming given USDL
+    /// @param collateral Collateral to be used to redeem USDL
     function withdrawTo(
         address to,
         uint256 amount,
@@ -87,6 +110,11 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
         collateral.transfer(to, collateralToGetBack);
     }
 
+    /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL
+    /// @param amount Amount of USDL to mint 
+    /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
+    /// @param maxCollateralRequired Maximum amount of collateral to be used to mint given USDL
+    /// @param collateral Collateral to be used to mint USDL
     function deposit(
         uint256 amount,
         uint256 perpetualDEXIndex,
@@ -96,6 +124,11 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
         depositTo(_msgSender(), amount, perpetualDEXIndex, maxCollateralRequired, collateral);
     }
 
+    /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc
+    /// @param amount Amount of USDL to redeem 
+    /// @param perpetualDEXIndex Index of perpetual dex, where position will be closed
+    /// @param minCollateralToGetBack Minimum amount of collateral to get back on redeeming given USDL
+    /// @param collateral Collateral to be used to redeem USDL
     function withdraw(
         uint256 amount,
         uint256 perpetualDEXIndex,
@@ -105,6 +138,11 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
         withdrawTo(_msgSender(), amount, perpetualDEXIndex, minCollateralToGetBack, collateral);
     }
 
+    /// @notice Rebalance position on a dex to reinvest if funding rate positive and burn USDL if funding rate negative 
+    /// @param perpetualDEXIndex Index of perpetual dex, where position will be rebalanced
+    /// @param collateral Collateral to be used to rebalance position
+    /// @param amount amount of USDL to burn or mint
+    /// @param data data used to rebalance for perpetual data
     function reBalance(
         uint256 perpetualDEXIndex,
         IERC20Upgradeable collateral,

@@ -11,6 +11,7 @@ import { SafeMathExt } from "../libraries/SafeMathExt.sol";
 
 import "hardhat/console.sol";
 
+/// @author Lemma Finance
 contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
@@ -73,13 +74,13 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         liquidityPool.setTargetLeverage(perpetualIndex, address(this), EXP_SCALE);
     }
 
-    ///@dev sets USDLemma address - only owner can set
+    ///@notice sets USDLemma address - only owner can set
     ///@param _usdlemma USDLemma address to set
     function setUSDLemma(address _usdlemma) public onlyOwner {
         usdLemma = _usdlemma;
     }
 
-    ///@dev sets refferer address - only owner can set
+    ///@notice sets refferer address - only owner can set
     ///@param _referrer refferer address to set
     function setReferrer(address _referrer) public onlyOwner {
         referrer = _referrer;
@@ -88,6 +89,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     //this needs to be done before the first withdrawal happens
     //Keeper gas reward needs to be handled seperately which owner can get back when perpetual has settled
     //TODO: handle what happens when perpetual is in settlement state
+    /// @notice Deposit Keeper gas reward for the perpetual - only owner can call
     function depositKeeperGasReward() external onlyOwner {
         int256 keeperGasReward;
         {
@@ -99,6 +101,8 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     }
 
     //go short to open
+    /// @notice Open short position on dex and deposit collateral
+    /// @param amount worth in USD short position which is to be opened
     function open(uint256 amount) public {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
         // liquidityPool.forceToSyncState();
@@ -121,6 +125,8 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     }
 
     //go long and withdraw collateral
+    /// @notice Close short position on dex and withdraw collateral
+    /// @param amount worth in USD short position which is to be closed
     function close(uint256 amount) external {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
 
@@ -151,6 +157,10 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         liquidityPool.settle(perpetualIndex, address(this));
     }
 
+    /// @notice Collateral amount required for amount in USD to open or close position on dex
+    /// @param amount worth in USD short position which is to be closed or opened
+    /// @param isShorting true if opening short position, false if closing short position
+    /// @return collateralAmountRequired equivalent collateral amount
     function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
         public
         returns (uint256 collateralAmountRequired)
@@ -203,6 +213,12 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         // collateralAmountRequired = cost.abs().toUint256();
     }
 
+    //TODO:implement the reBalancing mechanism //add equation to calculate relaized funding
+    /// @notice Rebalance position of dex based on accumulated funding, since last rebalancing
+    /// @param _reBalancer Address of rebalancer who called function on USDL contract
+    /// @param amount Amount of accumulated funding fees used to rebalance by opening or closing a short position
+    /// @param data Abi encoded data to call respective mcdex function, contains limitPrice and deadline
+    /// @return True if successful, False if unsuccessful
     function reBalance(
         address _reBalancer,
         int256 amount,
@@ -246,6 +262,9 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         return true;
     }
 
+    /// @notice Update cumulative funding fees earned or paid for position on dex
+    /// @param position Current position on Dex
+    /// @param tradeAmount Change in current position on dex
     function updateEntryFunding(int256 position, int256 tradeAmount) internal {
         (int256 close, int256 open) = Utils.splitAmount(position, tradeAmount);
         int256 unitAccumulativeFunding;
@@ -267,6 +286,8 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     }
 
     //TODO:make this method internal?
+    /// @notice Get current PnL based on funding fees
+    /// @return fundingPNL Funding PnL accumulated till now
     function getFundingPNL() public view returns (int256 fundingPNL) {
         int256 unitAccumulativeFunding;
         {
@@ -278,6 +299,9 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     }
 
     //TODO: use safeMathExt
+    /// @notice Get Amount in collateral decimals, provided amount is in 18 decimals
+    /// @param amount Amount in 18 decimals
+    /// @return decimal adjusted value
     function getAmountInCollateralDecimals(int256 amount) internal view returns (int256) {
         return amount / int256(10**(18 - collateralDecimals));
     }
