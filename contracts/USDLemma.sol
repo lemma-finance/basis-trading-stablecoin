@@ -20,6 +20,12 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
 
     mapping(uint256 => mapping(address => address)) public perpetualDEXWrappers;
 
+    mapping(address => uint256) public nonces;
+
+    bytes32 public PERMIT_TYPEHASH;
+    bytes32 private _DOMAIN_SEPARATOR;
+    uint256 public deploymentChainId;
+
     function initialize(
         address trustedForwarder,
         address collateralAddress,
@@ -29,6 +35,15 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
         __ERC20_init("USDLemma", "USDL");
         __ERC2771Context_init(trustedForwarder);
         addPerpetualDEXWrapper(0, collateralAddress, perpetualDEXWrapperAddress);
+        PERMIT_TYPEHASH = keccak256(
+            "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+        );
+        uint256 chainId;
+        assembly {
+            chainId := chainid()
+        }
+        deploymentChainId = chainId;
+        _DOMAIN_SEPARATOR = _calculateDomainSeparator(chainId);
     }
 
     /// @notice Set staking contract address, can only be called by owner
@@ -221,4 +236,75 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
         //ERC2771ContextUpgradeable._msgData();
         return super._msgData();
     }
+
+    /// @notice Setting the version as a function so that it can be overriden
+    /// @return version
+    function version() public pure virtual returns (string memory) {
+        return "1";
+    }
+
+    /// @dev Calculate the DOMAIN_SEPARATOR.
+    function _calculateDomainSeparator(uint256 chainId) private view returns (bytes32) {
+        return
+            keccak256(
+                abi.encode(
+                    keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                    keccak256(bytes(name())),
+                    keccak256(bytes(version())),
+                    chainId,
+                    address(this)
+                )
+            );
+    }
+
+    /// @dev Return the DOMAIN_SEPARATOR.
+    function DOMAIN_SEPARATOR() external view returns (bytes32) {
+        uint256 chainId;
+        assembly {
+            chainId := chainid()
+        }
+        return chainId == deploymentChainId ? _DOMAIN_SEPARATOR : _calculateDomainSeparator(chainId);
+    }
+
+
+    /// @notice Permit to allow an account to use its balance
+    /// @param owner address
+    /// @param spender address
+    /// @param amount to approve
+    /// @param deadline for permit function
+    /// @param v part of sig
+    /// @param r part of sig
+    /// @param s part of sig
+    function permit(
+        address owner,
+        address spender,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external virtual {
+        require(deadline >= block.timestamp, "USDL: expired deadline");
+
+        uint256 chainId;
+        assembly {
+            chainId := chainid()
+        }
+
+        bytes32 hashStruct = keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, amount, nonces[owner]++, deadline));
+
+        bytes32 hash = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                chainId == deploymentChainId ? _DOMAIN_SEPARATOR : _calculateDomainSeparator(chainId),
+                hashStruct
+            )
+        );
+
+        address signer = ecrecover(hash, v, r, s);
+        require(signer != address(0) && signer == owner, "USDL: invalid signature");
+
+        _approve(owner, spender, amount);
+    }
+
 }

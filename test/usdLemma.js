@@ -99,4 +99,39 @@ describe("usdLemma", async function () {
         expect(await this.mcdexLemma.usdLemma()).to.equal(this.usdLemma.address);
         expect(await this.usdLemma.perpetualDEXWrappers("0", this.collateral.address)).to.equal(this.mcdexLemma.address);
     });
+
+    it("should deposit correctly", async function () {
+
+        let tx = await this.collateral.approve(this.usdLemma.address, utils.parseEther("10"));
+        await tx.wait();
+
+        tx = await this.usdLemma.deposit(utils.parseEther("1000"), 0, utils.parseEther("1"), this.collateral.address)
+        await tx.wait();
+        
+        let balance = await this.usdLemma.balanceOf(defaultSinger.address);
+
+        expect(balance).to.equal(utils.parseEther("1000"));
+
+    })
+
+
+    it("should withdraw correctly", async function () {
+
+        let tx = await this.collateral.approve(this.usdLemma.address, utils.parseEther("10"));
+        await tx.wait();
+        const preBalanceDeposit = await this.collateral.balanceOf(defaultSinger.address);
+        tx = await this.usdLemma.deposit(utils.parseEther("1000"), 0, utils.parseEther("1"), this.collateral.address)
+        await tx.wait();
+        
+        const preBalance = await this.collateral.balanceOf(defaultSinger.address);
+
+        tx = await this.usdLemma.withdraw(utils.parseEther("1000"), 0, utils.parseEther("0.5"), this.collateral.address);
+        await tx.wait();
+
+        const postBalance = await this.collateral.balanceOf(defaultSinger.address);
+
+        expect(postBalance.sub(preBalance)).to.gte(preBalanceDeposit.sub(preBalance).mul("998").div("1000"));
+
+    })
+
 });
