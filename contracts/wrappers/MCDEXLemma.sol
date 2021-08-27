@@ -9,7 +9,10 @@ import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC
 import { Utils } from "../libraries/Utils.sol";
 import { SafeMathExt } from "../libraries/SafeMathExt.sol";
 
+import "hardhat/console.sol";
+
 /// @author Lemma Finance
+///TODO: make contract compatible with collateralDecimals != 18
 contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
@@ -219,16 +222,20 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         int256 deltaCash = amount.abs().wmul(tradePrice);
         uint256 collateralAmount = (deltaCash + totalFee).toUint256();
 
-        require((fundingPNL + realizedFundingPNL).abs().toUint256() >= collateralAmount, "not allowed");
-
-        liquidityPool.trade(perpetualIndex, address(this), amount, limitPrice, deadline, referrer, 0);
-        if (fundingPNL < 0) {
+        int256 remaingingFundingPNL = fundingPNL - realizedFundingPNL;
+        if (remaingingFundingPNL < 0) {
             require(amount < 0, "need to long ETH when fundingPNL is < 0");
-            realizedFundingPNL += collateralAmount.toInt256();
+            realizedFundingPNL -= collateralAmount.toInt256();
         } else {
             require(amount > 0, "need to short ETH when fundingPNL is >0");
-            realizedFundingPNL -= collateralAmount.toInt256();
+            realizedFundingPNL += collateralAmount.toInt256();
         }
+        console.log("fundingPNL abs", fundingPNL.abs().toUint256());
+        console.log("realizedFundingPNL abs", realizedFundingPNL.abs().toUint256());
+        require(fundingPNL.abs() >= realizedFundingPNL.abs(), "not allowed");
+
+        liquidityPool.trade(perpetualIndex, address(this), amount, limitPrice, deadline, referrer, 0);
+
         return true;
     }
 
