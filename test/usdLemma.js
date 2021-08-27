@@ -102,11 +102,9 @@ describe("usdLemma", async function () {
 
     it("should deposit correctly", async function () {
 
-        let tx = await this.collateral.approve(this.usdLemma.address, utils.parseEther("10"));
-        await tx.wait();
+        await this.collateral.approve(this.usdLemma.address, utils.parseEther("10"));
 
-        tx = await this.usdLemma.deposit(utils.parseEther("1000"), 0, utils.parseEther("1"), this.collateral.address)
-        await tx.wait();
+        await this.usdLemma.deposit(utils.parseEther("1000"), 0, utils.parseEther("1"), this.collateral.address)
         
         let balance = await this.usdLemma.balanceOf(defaultSinger.address);
 
@@ -117,16 +115,14 @@ describe("usdLemma", async function () {
 
     it("should withdraw correctly", async function () {
 
-        let tx = await this.collateral.approve(this.usdLemma.address, utils.parseEther("10"));
-        await tx.wait();
+        await this.collateral.approve(this.usdLemma.address, utils.parseEther("10"));
+
         const preBalanceDeposit = await this.collateral.balanceOf(defaultSinger.address);
-        tx = await this.usdLemma.deposit(utils.parseEther("1000"), 0, utils.parseEther("1"), this.collateral.address)
-        await tx.wait();
+        await this.usdLemma.deposit(utils.parseEther("1000"), 0, utils.parseEther("1"), this.collateral.address)
         
         const preBalance = await this.collateral.balanceOf(defaultSinger.address);
 
-        tx = await this.usdLemma.withdraw(utils.parseEther("1000"), 0, utils.parseEther("0.5"), this.collateral.address);
-        await tx.wait();
+        await this.usdLemma.withdraw(utils.parseEther("1000"), 0, utils.parseEther("0.5"), this.collateral.address);
 
         const postBalance = await this.collateral.balanceOf(defaultSinger.address);
 
