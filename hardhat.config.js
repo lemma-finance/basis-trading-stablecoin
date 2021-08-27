@@ -1,7 +1,7 @@
 require("@nomiclabs/hardhat-waffle");
 require("@openzeppelin/hardhat-upgrades");
 require("@nomiclabs/hardhat-ethers");
-// require("solidity-coverage");
+require("solidity-coverage");
 require("dotenv").config();
 
 // This is a sample Hardhat task. To learn how to create your own go to

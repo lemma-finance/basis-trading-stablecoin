@@ -2,10 +2,12 @@ var colors = require('colors');
 const fs = require("fs");
 const hre = require("hardhat");
 const { BigNumber } = hre.ethers;
+const { utils } = require('ethers');
 const tokenTransfers = require("truffle-token-test-utils");
 tokenTransfers.setCurrentProvider(hre.network.config.url);
 const util = require('util');
 const exec = util.promisify(require('child_process').exec);
+const bn = require("bignumber.js");
 
 const deployMCDEXLocally = async function () {
     // console.log("deploying MCDEX locally,please wait...");
@@ -23,6 +25,16 @@ const loadMCDEXInfo = async function () {
     //get MCDEXAddresses
     const data = fs.readFileSync(__dirname + '/../mai-protocol-v3/deployments/local.deployment.js', 'utf8');
     return JSON.parse(data);
+};
+const toBigNumber = (amount) => {
+    const amountBN = new bn(amount.toString());
+    const ONE = new bn(utils.parseEther("1").toString());
+    return amountBN.div(ONE);
+};
+const fromBigNumber = (amount) => {
+    const ONE = new bn(utils.parseEther("1").toString());
+    const amountInWei = (amount.times(ONE)).integerValue(); //ignore after 18 decimals
+    return BigNumber.from(amountInWei.toString());
 };
 const displayNicely = function (Obj) {
     colors.setTheme({
@@ -57,4 +69,4 @@ const displayNicely = function (Obj) {
     });
 };
 
-module.exports = { displayNicely, tokenTransfers, loadMCDEXInfo };
+module.exports = { displayNicely, tokenTransfers, loadMCDEXInfo, toBigNumber, fromBigNumber };

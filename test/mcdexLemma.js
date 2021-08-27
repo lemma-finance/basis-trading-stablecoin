@@ -1,13 +1,13 @@
 const { JsonRpcProvider } = require('@ethersproject/providers');
 const { ethers } = require("hardhat");
 const { expect, util } = require("chai");
-const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, getAccountStorage, computeAccount, normalizeBigNumberish, DECIMALS, computeAMMTrade, computeIncreasePosition, _0, _1, computeDecreasePosition } = require('@mcdex/mai3.js');
+const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, getAccountStorage, computeAccount, normalizeBigNumberish, DECIMALS, computeAMMTrade, computeIncreasePosition, _0, _1, computeDecreasePosition, computeAMMTradeAmountByMargin } = require('@mcdex/mai3.js');
 const { utils } = require('ethers');
 const { BigNumber, constants } = ethers;
-const { AddressZero, MaxUint256 } = constants;
+const { AddressZero, MaxUint256, MaxInt256 } = constants;
 // const mcdexAddresses = require("../mai-protocol-v3/deployments/local.deployment.json");
 
-const { displayNicely, tokenTransfers, loadMCDEXInfo } = require("./utils");
+const { displayNicely, tokenTransfers, loadMCDEXInfo, toBigNumber, fromBigNumber } = require("./utils");
 
 const arbProvider = new JsonRpcProvider(hre.network.config.url);
 const MASK_USE_TARGET_LEVERAGE = 0x08000000;
@@ -446,4 +446,163 @@ describe("mcdexLemma", async function () {
             expect(collateralRequiredForHalfAmount).to.equal(account.settleableMargin.div(2));
         });
     });
+    // describe("should reBalance correctly", async function () {
+    //     beforeEach(async function () {
+    //         const amount = utils.parseEther("1000");
+
+    //         await this.collateral.approve(this.mcdexLemma.address, keeperGasReward);
+    //         await this.mcdexLemma.depositKeeperGasReward();
+
+    //         const collateralToTransfer = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
+    //         await this.collateral.connect(usdLemma).transfer(this.mcdexLemma.address, collateralToTransfer);
+    //         await this.mcdexLemma.connect(usdLemma).open(amount);
+    //     });
+
+    //     // it("when fundingPNL is positive", async function () {
+    //     //     await liquidityPool.trade(perpetualIndex, defaultSinger.address, "-" + (utils.parseEther("10000")).toString(), "0", MaxUint256, AddressZero, MASK_USE_TARGET_LEVERAGE);
+    //     // });
+    //     it("when fundingPNL is negative", async function () {
+
+    //     });
+    //     afterEach(async function () {
+    //         //increase time
+    //         //to make sure that funding payment has a meaning impact
+    //         await hre.network.provider.request({
+    //             method: "evm_increaseTime",
+    //             params: [60 * 60 * 30 * 10]
+    //         }
+    //         );
+    //         await hre.network.provider.request({
+    //             method: "evm_mine",
+    //             params: []
+    //         }
+    //         );
+
+    //         await liquidityPool.forceToSyncState();
+
+    //         {
+    //             const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+    //             const perpetualInfo = liquidityPoolInfo.perpetuals.get(perpetualIndex);
+    //             const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+    //             const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
+
+    //             console.log("actual account ");
+    //             displayNicely(account);
+
+
+
+
+
+    //             const positionValue = account.accountComputed.positionValue;
+    //             const marginBalance = account.accountComputed.marginBalance;
+    //             const keeperGasReward = liquidityPoolInfo.perpetuals.get(perpetualIndex).keeperGasReward;
+    //             const markPrice = liquidityPoolInfo.perpetuals.get(perpetualIndex).markPrice;
+    //             const marginWithoutReserve = marginBalance.minus(keeperGasReward);
+    //             const leverage = positionValue.div(marginWithoutReserve);
+    //             console.log("leverage", leverage.toString());
+
+    //             //leverage after the unrealizedFundingPNL is realized
+    //             const realizedFundingPNL = await this.mcdexLemma.realizedFundingPNL();
+    //             const fundingPNL = await this.mcdexLemma.getFundingPNL();
+    //             console.log("fundingPNL", fundingPNL.toString());
+    //             console.log("realizedFundingPNL", realizedFundingPNL.toString());
+    //             const unrealizedFundingPNL = fundingPNL.sub(realizedFundingPNL);
+    //             console.log("unrealizedFundingPNL", unrealizedFundingPNL.toString());
+
+    //             // const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+    //             const marginChange = toBigNumber(unrealizedFundingPNL).negated();
+    //             const feeRate = perpetualInfo.lpFeeRate.plus(liquidityPoolInfo.vaultFeeRate).plus(perpetualInfo.operatorFeeRate);
+    //             const marginChangeWithFeesConsidered = marginChange.times(toBigNumber(utils.parseEther("1")).minus(feeRate));
+    //             console.log("marginChange", marginChange.toString());
+    //             console.log("marginChangeWithFeesConsidered", marginChangeWithFeesConsidered.toString());
+    //             const amountRemainingToAdd = computeAMMTradeAmountByMargin(liquidityPoolInfo, perpetualIndex, marginChangeWithFeesConsidered);
+
+
+    //             const positionValueAfterRemainingIsAdded = amountRemainingToAdd.multipliedBy(markPrice).plus(positionValue);
+    //             const leverageAfter = positionValueAfterRemainingIsAdded.div(marginWithoutReserve);
+
+    //             console.log("leverageAfter", leverageAfter.toString());
+
+
+
+    //         }
+    //         for (let i = 0; i < 20; i++) {
+    //             const fundingPNL = await this.mcdexLemma.getFundingPNL();
+    //             const realizedFundingPNL = await this.mcdexLemma.realizedFundingPNL();
+    //             console.log("fundingPNL", fundingPNL.toString());
+    //             console.log("realizedFundingPNL", realizedFundingPNL.toString());
+    //             const unrealizedFundingPNL = fundingPNL.sub(realizedFundingPNL);
+    //             console.log("unrealizedFundingPNL", unrealizedFundingPNL.toString());
+
+    //             const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+    //             const perpetualInfo = liquidityPoolInfo.perpetuals.get(perpetualIndex);
+    //             // const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+    //             const marginChange = toBigNumber(unrealizedFundingPNL).negated();
+    //             const feeRate = perpetualInfo.lpFeeRate.plus(liquidityPoolInfo.vaultFeeRate).plus(perpetualInfo.operatorFeeRate);
+    //             const marginChangeWithFeesConsidered = marginChange.times(toBigNumber(utils.parseEther("1")).minus(feeRate));//0.07%
+    //             //use different value to find the exact one when fundingPNL = realizedPNL
+    //             // const amount = computeAMMTradeAmountByMargin(liquidityPoolInfo, perpetualIndex, marginChangeWithFeesConsidered);
+
+    //             const amountWithFeesConsidered = computeAMMTradeAmountByMargin(liquidityPoolInfo, perpetualIndex, marginChangeWithFeesConsidered);
+
+    //             // const amountWithFeesConsidered = amount.multipliedBy(9993).dividedBy(10000);//0.07% (need to be more exact)
+    //             // console.log("amount", amount.toString());
+    //             console.log("amountWithFeesConsidered", amountWithFeesConsidered.toString());
+
+    //             const limitPrice = amountWithFeesConsidered.isNegative() ? 0 : MaxInt256;
+    //             const deadline = MaxUint256;
+    //             console.log("amountWithFeesConsidered in BigNumber", fromBigNumber(amountWithFeesConsidered).toString());
+    //             await this.mcdexLemma.connect(usdLemma).reBalance(reBalancer.address, fromBigNumber(amountWithFeesConsidered), ethers.utils.defaultAbiCoder.encode(["int256", "uint256"], [limitPrice, deadline]));
+    //             console.log("rebalance done");
+
+
+    //             {
+    //                 const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+    //                 const perpetualInfo = liquidityPoolInfo.perpetuals.get(perpetualIndex);
+    //                 const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+    //                 const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
+
+    //                 console.log("actual account ");
+    //                 displayNicely(account);
+
+
+
+
+
+    //                 const positionValue = account.accountComputed.positionValue;
+    //                 const marginBalance = account.accountComputed.marginBalance;
+    //                 const keeperGasReward = liquidityPoolInfo.perpetuals.get(perpetualIndex).keeperGasReward;
+    //                 const markPrice = liquidityPoolInfo.perpetuals.get(perpetualIndex).markPrice;
+    //                 const marginWithoutReserve = marginBalance.minus(keeperGasReward);
+    //                 const leverage = positionValue.div(marginWithoutReserve);
+    //                 console.log("leverage", leverage.toString());
+
+    //                 //leverage after the unrealizedFundingPNL is realized
+    //                 const realizedFundingPNL = await this.mcdexLemma.realizedFundingPNL();
+    //                 const fundingPNL = await this.mcdexLemma.getFundingPNL();
+    //                 const unrealizedFundingPNL = fundingPNL.sub(realizedFundingPNL);
+    //                 console.log("unrealizedFundingPNL", unrealizedFundingPNL.toString());
+
+    //                 // const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+    //                 const marginChange = toBigNumber(unrealizedFundingPNL).negated();
+    //                 const feeRate = perpetualInfo.lpFeeRate.plus(liquidityPoolInfo.vaultFeeRate).plus(perpetualInfo.operatorFeeRate);
+    //                 const marginChangeWithFeesConsidered = marginChange.times(toBigNumber(utils.parseEther("1")).minus(feeRate));
+    //                 console.log("multiply with", toBigNumber(utils.parseEther("1")).minus(feeRate).toString());
+    //                 console.log("marginChange", marginChange.toString());
+    //                 console.log("marginChangeWithFeesConsidered", marginChangeWithFeesConsidered.toString());
+    //                 const amountRemainingToAdd = computeAMMTradeAmountByMargin(liquidityPoolInfo, perpetualIndex, marginChangeWithFeesConsidered);
+
+
+    //                 const positionValueAfterRemainingIsAdded = amountRemainingToAdd.multipliedBy(markPrice).plus(positionValue);
+    //                 const leverageAfter = positionValueAfterRemainingIsAdded.div(marginWithoutReserve);
+
+    //                 console.log("leverageAfter", leverageAfter.toString());
+
+
+
+    //             }
+    //         }
+
+    //     });
+    // });
 });
