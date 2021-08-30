@@ -1,7 +1,7 @@
 const { JsonRpcProvider } = require('@ethersproject/providers');
 const { ethers } = require("hardhat");
 const { expect, util } = require("chai");
-const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, getAccountStorage, computeAccount, normalizeBigNumberish, DECIMALS, computeAMMTrade, computeIncreasePosition, _0, _1, computeDecreasePosition } = require('@mcdex/mai3.js');
+const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, getAccountStorage, computeAccount, normalizeBigNumberish, DECIMALS, computeAMMTrade, computeIncreasePosition, _0, _1, computeDecreasePosition, balanceOf } = require('@mcdex/mai3.js');
 const { utils } = require('ethers');
 const { BigNumber, constants } = ethers;
 const { AddressZero, MaxUint256 } = constants;
@@ -44,7 +44,7 @@ describe("usdLemma", async function () {
         //deploy mcdexLemma
         const MCDEXLemma = await ethers.getContractFactory("MCDEXLemma");
         this.mcdexLemma = await upgrades.deployProxy(MCDEXLemma, [AddressZero, liquidityPool.address, perpetualIndex, AddressZero, reBalancer.address], { initializer: 'initialize' });
-
+        this.collateralDecimals = await this.mcdexLemma.collateralDecimals();
         const collateralAddress = await this.mcdexLemma.collateral();
         const ERC20 = IERC20Factory.connect(collateralAddress, defaultSinger);//choose USDLemma ust because it follows IERC20 interface
         this.collateral = ERC20.attach(collateralAddress);//WETH
@@ -79,12 +79,12 @@ describe("usdLemma", async function () {
         // await collateralWithMintMethod.connect(defaultSinger).mint(hasWETH._signer._address, utils.parseUnits("1000000000", "18"));//a large number
         // await collateralWithMintMethod.connect(defaultSinger).mint(defaultSinger._signer._address, utils.parseUnits("10000000000", "18"));//a large number
 
-        await defaultSinger.sendTransaction({ to: this.collateral.address, value: utils.parseEther("10") });//deposit ETH to WETH contract
-        await hasWETH.sendTransaction({ to: this.collateral.address, value: utils.parseEther("10") });
+        await defaultSinger.sendTransaction({ to: this.collateral.address, value: utils.parseUnits("10", 18) });//deposit ETH to WETH contract
+        await hasWETH.sendTransaction({ to: this.collateral.address, value: utils.parseUnits("10", 18) });
 
 
         //add liquidity to the liquidity Pool
-        const liquidityToAdd = utils.parseEther("1");
+        const liquidityToAdd = utils.parseUnits("1", 18);
         if ((await this.collateral.allowance(defaultSinger.address, liquidityPool.address)).lt(liquidityToAdd)) {
             let tx = await this.collateral.approve(liquidityPool.address, MaxUint256);
             await tx.wait();
@@ -103,8 +103,8 @@ describe("usdLemma", async function () {
     it("should deposit correctly", async function () {
 
         await this.collateral.approve(this.usdLemma.address, utils.parseEther("10"));
-
-        await this.usdLemma.deposit(utils.parseEther("1000"), 0, utils.parseEther("1"), this.collateral.address)
+        let collateralRequired = utils.parseUnits("1", this.collateralDecimals);
+        await this.usdLemma.deposit(utils.parseEther("1000"), 0, collateralRequired, this.collateral.address)
         
         let balance = await this.usdLemma.balanceOf(defaultSinger.address);
 
@@ -118,11 +118,11 @@ describe("usdLemma", async function () {
         await this.collateral.approve(this.usdLemma.address, utils.parseEther("10"));
 
         const preBalanceDeposit = await this.collateral.balanceOf(defaultSinger.address);
-        await this.usdLemma.deposit(utils.parseEther("1000"), 0, utils.parseEther("1"), this.collateral.address)
+        await this.usdLemma.deposit(utils.parseEther("1000"), 0, utils.parseUnits("1", this.collateralDecimals), this.collateral.address)
         
         const preBalance = await this.collateral.balanceOf(defaultSinger.address);
 
-        await this.usdLemma.withdraw(utils.parseEther("1000"), 0, utils.parseEther("0.5"), this.collateral.address);
+        await this.usdLemma.withdraw(utils.parseEther("1000"), 0, utils.parseUnits("0.5", this.collateralDecimals), this.collateral.address);
 
         const postBalance = await this.collateral.balanceOf(defaultSinger.address);
 
