@@ -63,7 +63,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         }
         isSettled = false;
 
-        reBalancer = _reBalancer;
+        setReBalancer(_reBalancer);
         setUSDLemma(_usdlemma);
 
         //approve collateral to
@@ -82,6 +82,12 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     ///@param _referrer refferer address to set
     function setReferrer(address _referrer) public onlyOwner {
         referrer = _referrer;
+    }
+
+    ///@notice sets reBalncer address - only owner can set
+    ///@param _reBalancer reBalancer address to set
+    function setReBalancer(address _reBalancer) public onlyOwner {
+        reBalancer = _reBalancer;
     }
 
     //this needs to be done before the first withdrawal happens
