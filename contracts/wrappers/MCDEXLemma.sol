@@ -39,6 +39,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
 
     int256 public entryFunding;
     int256 public realizedFundingPNL;
+    int256 public fundingPNLAtLastReBalance;
 
     uint256 positionAtSettlement;
 
@@ -221,18 +222,21 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         );
         int256 deltaCash = amount.abs().wmul(tradePrice);
         uint256 collateralAmount = (deltaCash + totalFee).toUint256();
-
-        int256 remaingingFundingPNL = fundingPNL - realizedFundingPNL;
-        if (remaingingFundingPNL < 0) {
-            require(amount < 0, "need to long ETH when fundingPNL is < 0");
+        if (amount < 0) {
             realizedFundingPNL -= collateralAmount.toInt256();
         } else {
-            require(amount > 0, "need to short ETH when fundingPNL is >0");
             realizedFundingPNL += collateralAmount.toInt256();
         }
+
+        int256 difference = fundingPNL - realizedFundingPNL;
         console.log("fundingPNL abs", fundingPNL.abs().toUint256());
         console.log("realizedFundingPNL abs", realizedFundingPNL.abs().toUint256());
-        require(fundingPNL.abs() >= realizedFundingPNL.abs(), "not allowed");
+        console.log("differece", difference.abs().toUint256());
+        //error +-10**12 is allowed in calculation
+        require(difference.abs() <= 10**12, "not allowed");
+
+        console.log("fundingPNL abs", fundingPNL.abs().toUint256());
+        console.log("realizedFundingPNL abs", realizedFundingPNL.abs().toUint256());
 
         liquidityPool.trade(perpetualIndex, address(this), amount, limitPrice, deadline, referrer, 0);
 
