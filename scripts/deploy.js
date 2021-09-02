@@ -13,7 +13,7 @@ const ZERO = BigNumber.from("0");
 //     42: "0xF82986F574803dfFd9609BE8b9c7B92f63a1410E",
 // };
 async function main() {
-    [defaultSinger, reInvestor] = await ethers.getSigners();
+    [defaultSinger, reBalancer] = await ethers.getSigners();
     // console.log(defaultSinger);
     // console.log(hre.network);
     const arbProvider = ethers.getDefaultProvider(hre.network.config.url);
@@ -31,7 +31,8 @@ async function main() {
     console.log("poolCount", poolCount.toString());
     const liquidityPools = await poolCreator.listLiquidityPools(ZERO, poolCount);
 
-    const liquidityPoolAddress = liquidityPools[0];//liquidityPool + perpetualIndex needs to be an inverse perpetual
+    // const liquidityPoolAddress = liquidityPools[0];//liquidityPool + perpetualIndex needs to be an inverse perpetual
+    const liquidityPoolAddress = "0x95a8030ce95e40a97ecc50b04074c1d71977f23a";
     const perpetualIndex = ZERO;
     const liquidityPool = LiquidityPoolFactory.connect(liquidityPoolAddress, defaultSinger);
     console.log("liquidity pool address", liquidityPool.address);
@@ -39,7 +40,7 @@ async function main() {
 
     //deploy mcdexLemma
     const MCDEXLemma = await ethers.getContractFactory("MCDEXLemma");
-    const mcdexLemma = await upgrades.deployProxy(MCDEXLemma, [AddressZero, liquidityPool.address, perpetualIndex, AddressZero, reInvestor.address], { initializer: 'initialize' });
+    const mcdexLemma = await upgrades.deployProxy(MCDEXLemma, [AddressZero, liquidityPool.address, perpetualIndex, AddressZero, reBalancer.address], { initializer: 'initialize' });
     console.log("mcdexLemma", mcdexLemma.address);
 
     const collateralAddress = await mcdexLemma.collateral();
