@@ -92,61 +92,46 @@ describe('xUSDL', function(){
     })
 
     it('should deposit initial correctly', async function() {
-        let tx = await this.xusdl.deposit(utils.parseEther("1000"));
-        await tx.wait();
+        await this.xusdl.deposit(utils.parseEther("1000"));
         expect(await balanceOf(this.xusdl,owner.address)).to.equal(utils.parseEther("1000"));
     })
 
     it('should price per share greater than 1 when more USDL', async function() {
-        let tx = await this.xusdl.deposit(utils.parseEther("1000"));
-        await tx.wait();
-        
-        tx = await this.usdl.transfer(this.xusdl.address, utils.parseEther("1000"));
-        await tx.wait();
+        await this.xusdl.deposit(utils.parseEther("1000"));
 
+        await this.usdl.transfer(this.xusdl.address, utils.parseEther("1000"));
+        
         expect(await this.xusdl.pricePerShare()).gt(utils.parseEther("1"));
     })
 
     it('should price per share less than 1 when more USDL', async function() {
-        let tx = await this.xusdl.deposit(utils.parseEther("1000"));
-        await tx.wait();
+        await this.xusdl.deposit(utils.parseEther("1000"));
         
-        tx = await this.usdl.removeTokens(utils.parseEther("100"), this.xusdl.address);
-        await tx.wait();
+        await this.usdl.removeTokens(utils.parseEther("100"), this.xusdl.address);
 
         expect(await this.xusdl.pricePerShare()).lt(utils.parseEther("1"));
     })    
 
     it('should mint less XUSDL when price per share greater than 1', async function() {
-        let tx = await this.xusdl.deposit(utils.parseEther("1000"));
-        await tx.wait();
+        await this.xusdl.deposit(utils.parseEther("1000"));
         
-        tx = await this.usdl.transfer(this.xusdl.address, utils.parseEther("1000"));
-        await tx.wait();
+        await this.usdl.transfer(this.xusdl.address, utils.parseEther("1000"));
 
-        tx = await this.usdl.transfer(user1.address, utils.parseEther("1000"));
-        await tx.wait();
+        await this.usdl.transfer(user1.address, utils.parseEther("1000"));
         
-        tx = await this.xusdl.connect(user1).deposit(utils.parseEther("1000"));
-        await tx.wait();
-
+        await this.xusdl.connect(user1).deposit(utils.parseEther("1000"));
 
         expect(await balanceOf(this.xusdl, user1.address)).equal(utils.parseEther("500"));    
     })    
 
     it('should mint more XUSDL when price per share less than 1', async function() {
-        let tx = await this.xusdl.deposit(utils.parseEther("1000"));
-        await tx.wait();
-        
-        tx = await this.usdl.removeTokens(utils.parseEther("500"), this.xusdl.address);
-        await tx.wait();
+        await this.xusdl.deposit(utils.parseEther("1000"));        
 
-        tx = await this.usdl.transfer(user1.address, utils.parseEther("1000"));
-        await tx.wait();
-        
-        tx = await this.xusdl.connect(user1).deposit(utils.parseEther("1000"));
-        await tx.wait();
+        await this.usdl.removeTokens(utils.parseEther("500"), this.xusdl.address);
 
+        await this.usdl.transfer(user1.address, utils.parseEther("1000"));
+        
+        await this.xusdl.connect(user1).deposit(utils.parseEther("1000"));
 
         expect(await balanceOf(this.xusdl, user1.address)).equal(utils.parseEther("2000"));
 
@@ -154,8 +139,7 @@ describe('xUSDL', function(){
 
 
     it('should revert while withdrawing & transfer before minimum lock', async function() {
-        let tx = await this.xusdl.deposit(utils.parseEther("1000"));
-        await tx.wait();
+        await this.xusdl.deposit(utils.parseEther("1000"));
 
         await mineBlocks(97);
 
@@ -168,8 +152,7 @@ describe('xUSDL', function(){
     })
 
     it('should withdraw & transfer after minimum lock', async function() {
-        let tx = await this.xusdl.deposit(utils.parseEther("1000"));
-        await tx.wait();
+        await this.xusdl.deposit(utils.parseEther("1000"));
 
         await mineBlocks(100);
         await expect(this.xusdl.transfer(user1.address, utils.parseEther("100")))
@@ -180,45 +163,40 @@ describe('xUSDL', function(){
 
 
     it('should withdraw same amount as deposited', async function() {
-        let tx = await this.xusdl.deposit(utils.parseEther("1000"));
-        await tx.wait();
+        await this.xusdl.deposit(utils.parseEther("1000"));
 
         await mineBlocks(100);
         let preBalance = await balanceOf(this.usdl, owner.address);
-        tx = await this.xusdl.withdraw(await balanceOf(this.xusdl, owner.address));
-        await tx.wait();
+        await this.xusdl.withdraw(await balanceOf(this.xusdl, owner.address));
+        
         let postBalance = await balanceOf(this.usdl, owner.address);
         expect(postBalance.sub(preBalance)).equal(utils.parseEther("1000"));
     })
 
 
     it('should withdraw more USDL as price per share increases', async function() {
-        let tx = await this.xusdl.deposit(utils.parseEther("1000"));
-        await tx.wait();
-
+        await this.xusdl.deposit(utils.parseEther("1000"));
+        
         await mineBlocks(100);
-        tx = await this.usdl.transfer(this.xusdl.address, utils.parseEther("1000"));
-        await tx.wait();
+        await this.usdl.transfer(this.xusdl.address, utils.parseEther("1000"));
 
         let preBalance = await balanceOf(this.usdl, owner.address);
-        tx = await this.xusdl.withdraw(await balanceOf(this.xusdl, owner.address));
-        await tx.wait();
+        await this.xusdl.withdraw(await balanceOf(this.xusdl, owner.address));
+        
         let postBalance = await balanceOf(this.usdl, owner.address);
         expect(postBalance.sub(preBalance)).equal(utils.parseEther("2000"));
     })
 
     it('should withdraw less USDL as price per share decreases', async function() {
-        let tx = await this.xusdl.deposit(utils.parseEther("1000"));
-        await tx.wait();
+        await this.xusdl.deposit(utils.parseEther("1000"));
 
         await mineBlocks(100);
 
-        tx = await this.usdl.removeTokens(utils.parseEther("500"), this.xusdl.address);
-        await tx.wait();
+        await this.usdl.removeTokens(utils.parseEther("500"), this.xusdl.address);
 
         let preBalance = await balanceOf(this.usdl, owner.address);
-        tx = await this.xusdl.withdraw(await balanceOf(this.xusdl, owner.address));
-        await tx.wait();
+        await this.xusdl.withdraw(await balanceOf(this.xusdl, owner.address));
+        
         let postBalance = await balanceOf(this.usdl, owner.address);
         expect(postBalance.sub(preBalance)).equal(utils.parseEther("500"));
     })

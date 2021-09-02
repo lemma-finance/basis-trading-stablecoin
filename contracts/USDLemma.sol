@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.3;
-import { ERC20Upgradeable, IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import { ERC20PermitUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/draft-ERC20PermitUpgradeable.sol";
 import { OwnableUpgradeable, ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
@@ -9,7 +10,7 @@ import { SafeMathExt } from "./libraries/SafeMathExt.sol";
 import { IPerpetualDEXWrapper } from "./interfaces/IPerpetualDEXWrapper.sol";
 
 /// @author Lemma Finance
-contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
+contract USDLemma is ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
     using SafeCastUpgradeable for int256;
     using SafeMathExt for int256;
     using SafeMathExt for uint256;
@@ -27,6 +28,7 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
     ) external initializer {
         __Ownable_init();
         __ERC20_init("USDLemma", "USDL");
+        __ERC20Permit_init("USDLemma");
         __ERC2771Context_init(trustedForwarder);
         addPerpetualDEXWrapper(0, collateralAddress, perpetualDEXWrapperAddress);
     }
@@ -221,4 +223,5 @@ contract USDLemma is ERC20Upgradeable, OwnableUpgradeable, ERC2771ContextUpgrade
         //ERC2771ContextUpgradeable._msgData();
         return super._msgData();
     }
+
 }
