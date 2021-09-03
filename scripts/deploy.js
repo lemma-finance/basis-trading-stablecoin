@@ -13,8 +13,8 @@ const ZERO = BigNumber.from("0");
 //     42: "0xF82986F574803dfFd9609BE8b9c7B92f63a1410E",
 // };
 async function main() {
-    [defaultSinger, reBalancer] = await ethers.getSigners();
-    // console.log(defaultSinger);
+    [defaultSigner, reBalancer] = await ethers.getSigners();
+    console.log("defaultSigner", defaultSigner.address);
     // console.log(hre.network);
     const arbProvider = ethers.getDefaultProvider(hre.network.config.url);
     const { chainId } = await arbProvider.getNetwork();
@@ -24,7 +24,7 @@ async function main() {
 
 
     const poolCreator = PoolCreatorFactory.connect(CHAIN_ID_TO_POOL_CREATOR_ADDRESS[chainId], arbProvider);
-    reader = ReaderFactory.connect(CHAIN_ID_TO_READER_ADDRESS[chainId], defaultSinger);
+    reader = ReaderFactory.connect(CHAIN_ID_TO_READER_ADDRESS[chainId], defaultSigner);
     console.log("poolCreatorAddress", poolCreator.address);
 
     const poolCount = await poolCreator.getLiquidityPoolCount();
@@ -34,7 +34,7 @@ async function main() {
     // const liquidityPoolAddress = liquidityPools[0];//liquidityPool + perpetualIndex needs to be an inverse perpetual
     const liquidityPoolAddress = "0x95a8030ce95e40a97ecc50b04074c1d71977f23a";
     const perpetualIndex = ZERO;
-    const liquidityPool = LiquidityPoolFactory.connect(liquidityPoolAddress, defaultSinger);
+    const liquidityPool = LiquidityPoolFactory.connect(liquidityPoolAddress, defaultSigner);
     console.log("liquidity pool address", liquidityPool.address);
 
 
@@ -54,6 +54,16 @@ async function main() {
     await tx.wait();
 
     console.log("USDL", await mcdexLemma.usdLemma());
+
+    // const ERC20 = IERC20Factory.connect(collateralAddress, defaultSigner);
+    // const collateral = ERC20.attach(collateralAddress);//WETH
+
+    // await defaultSigner.sendTransaction({ to: collateral.address, value: ethers.utils.parseEther("0.01") });//deposit ETH to WETH contract
+    // console.log("balance", (await collateral.balanceOf(defaultSigner.address)).toString());
+    // await collateral.approve(usdLemma.address, ethers.utils.parseEther("0.01"));
+    // await usdLemma.deposit(ethers.utils.parseEther("10"), 0, ethers.utils.parseEther("1"), collateral.address);
+    // console.log("balance of USDL", (await usdLemma.balanceOf(defaultSigner.address)).toString());
+
 }
 main()
     .then(() => process.exit(0))
