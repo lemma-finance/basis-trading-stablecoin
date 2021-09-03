@@ -241,9 +241,6 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         //error +-10**12 is allowed in calculation
         require(difference.abs() <= 10**12, "not allowed");
 
-        console.log("fundingPNL abs", fundingPNL.abs().toUint256());
-        console.log("realizedFundingPNL abs", realizedFundingPNL.abs().toUint256());
-
         liquidityPool.trade(perpetualIndex, address(this), amount, limitPrice, deadline, referrer, 0);
 
         return true;

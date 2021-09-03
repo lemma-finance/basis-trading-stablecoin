@@ -72,7 +72,8 @@ describe("mcdexLemma", async function () {
 
         //deposit ETH to WETH contract
         await defaultSinger.sendTransaction({ to: this.collateral.address, value: amountOfCollateralToMint });
-        await usdLemma.sendTransaction({ to: this.collateral.address, value: amountOfCollateralToMint }); await hasWETH.sendTransaction({ to: this.collateral.address, value: amountOfCollateralToMint });
+        await usdLemma.sendTransaction({ to: this.collateral.address, value: amountOfCollateralToMint });
+        await hasWETH.sendTransaction({ to: this.collateral.address, value: amountOfCollateralToMint });
         //deploy mcdexLemma
         const MCDEXLemma = await ethers.getContractFactory("MCDEXLemma");
         this.mcdexLemma = await upgrades.deployProxy(MCDEXLemma, [AddressZero, liquidityPool.address, perpetualIndex, usdLemma.address, reBalancer.address], { initializer: 'initialize' });
