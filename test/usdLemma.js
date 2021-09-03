@@ -110,7 +110,16 @@ describe("usdLemma", async function () {
         const collateralBalanceAfter = await this.collateral.balanceOf(defaultSigner.address);
         expect(collateralNeeded).to.equal(collateralBalanceBefore.sub(collateralBalanceAfter));
         expect(await this.usdLemma.balanceOf(defaultSigner.address)).to.equal(utils.parseEther("1000"));
-
+    });
+    it("should depositTo correctly", async function () {
+        const collateralBalanceBefore = await this.collateral.balanceOf(defaultSigner.address);
+        const amount = utils.parseEther("1000");
+        const collateralNeeded = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
+        await this.collateral.approve(this.usdLemma.address, collateralNeeded);
+        await this.usdLemma.depositTo(signer1.address, amount, 0, collateralNeeded, this.collateral.address);
+        const collateralBalanceAfter = await this.collateral.balanceOf(defaultSigner.address);
+        expect(collateralNeeded).to.equal(collateralBalanceBefore.sub(collateralBalanceAfter));
+        expect(await this.usdLemma.balanceOf(signer1.address)).to.equal(utils.parseEther("1000"));
     });
 
     it("should withdraw correctly", async function () {
@@ -123,6 +132,20 @@ describe("usdLemma", async function () {
         const collateralToGetBack = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
         await this.usdLemma.withdraw(amount, 0, collateralToGetBack, this.collateral.address);
         const collateralBalanceAfter = await this.collateral.balanceOf(defaultSigner.address);
+        expect(collateralToGetBack).to.equal(collateralBalanceAfter.sub(collateralBalanceBefore));
+        expect(await this.usdLemma.balanceOf(defaultSigner.address)).to.equal(ZERO);
+    });
+
+    it("should withdrawTo correctly", async function () {
+        const amount = utils.parseEther("1000");
+        const collateralNeeded = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
+        await this.collateral.approve(this.usdLemma.address, collateralNeeded);
+        await this.usdLemma.deposit(amount, 0, collateralNeeded, this.collateral.address);
+
+        const collateralBalanceBefore = await this.collateral.balanceOf(signer1.address);
+        const collateralToGetBack = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
+        await this.usdLemma.withdrawTo(signer1.address, amount, 0, collateralToGetBack, this.collateral.address);
+        const collateralBalanceAfter = await this.collateral.balanceOf(signer1.address);
         expect(collateralToGetBack).to.equal(collateralBalanceAfter.sub(collateralBalanceBefore));
         expect(await this.usdLemma.balanceOf(defaultSigner.address)).to.equal(ZERO);
     });
