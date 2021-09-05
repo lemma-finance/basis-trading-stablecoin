@@ -7,7 +7,7 @@ const { BigNumber, constants } = ethers;
 const { AddressZero, MaxUint256, MaxInt256 } = constants;
 // const mcdexAddresses = require("../mai-protocol-v3/deployments/local.deployment.json");
 
-const { displayNicely, tokenTransfers, loadMCDEXInfo, toBigNumber, fromBigNumber } = require("./utils");
+const { displayNicely, tokenTransfers, loadMCDEXInfo, toBigNumber, fromBigNumber, snapshot, revertToSnapshot } = require("./utils");
 
 const arbProvider = new JsonRpcProvider(hre.network.config.url);
 const MASK_USE_TARGET_LEVERAGE = 0x08000000;
@@ -24,7 +24,8 @@ describe("usdLemma", async function () {
     const perpetualIndex = 0; //in Kovan the 0th perp for 0th liquidity pool = inverse ETH-USD
     const provider = ethers.provider;
     const ZERO = BigNumber.from("0");
-    beforeEach(async function () {
+    let snapshotId;
+    before(async function () {
         mcdexAddresses = await loadMCDEXInfo();
         [defaultSigner, reBalancer, hasWETH, stackingContract, lemmaTreasury, signer1, signer2] = await ethers.getSigners();
 
@@ -95,6 +96,12 @@ describe("usdLemma", async function () {
         //set lemma treasury address
         await this.usdLemma.setLemmaTreasury(lemmaTreasury.address);
 
+    });
+    beforeEach(async function () {
+        snapshotId = await snapshot();
+    });
+    afterEach(async function () {
+        await revertToSnapshot(snapshotId);
     });
     it("should initialize correctly", async function () {
         expect(await this.mcdexLemma.usdLemma()).to.equal(this.usdLemma.address);

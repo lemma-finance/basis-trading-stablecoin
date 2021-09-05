@@ -7,7 +7,7 @@ const { BigNumber, constants } = ethers;
 const { AddressZero, MaxUint256, MaxInt256 } = constants;
 // const mcdexAddresses = require("../mai-protocol-v3/deployments/local.deployment.json");
 
-const { displayNicely, tokenTransfers, loadMCDEXInfo, toBigNumber, fromBigNumber } = require("./utils");
+const { displayNicely, tokenTransfers, loadMCDEXInfo, toBigNumber, fromBigNumber, snapshot, revertToSnapshot } = require("./utils");
 
 const arbProvider = new JsonRpcProvider(hre.network.config.url);
 const MASK_USE_TARGET_LEVERAGE = 0x08000000;
@@ -24,7 +24,8 @@ describe("mcdexLemma", async function () {
     const perpetualIndex = 0; //in Kovan the 0th perp for 0th liquidity pool = inverse ETH-USD
     const provider = ethers.provider;
     const ZERO = BigNumber.from("0");
-    beforeEach(async function () {
+    let snapshotId;
+    before(async function () {
         mcdexAddresses = await loadMCDEXInfo();
         [defaultSinger, usdLemma, reBalancer, hasWETH, signer1, signer2] = await ethers.getSigners();
         const poolCreatorAddress = mcdexAddresses.PoolCreator.address;
@@ -85,6 +86,12 @@ describe("mcdexLemma", async function () {
             await tx.wait();
         }
         await liquidityPool.addLiquidity(liquidityToAdd);
+    });
+    beforeEach(async function () {
+        snapshotId = await snapshot();
+    });
+    afterEach(async function () {
+        await revertToSnapshot(snapshotId);
     });
     it("should initialize correctly", async function () {
         expect(await this.mcdexLemma.owner()).to.equal(defaultSinger.address);
@@ -395,11 +402,11 @@ describe("mcdexLemma", async function () {
         });
         it("should not be able to deposit keeper gas reward", async function () {
             await this.collateral.approve(this.mcdexLemma.address, keeperGasReward);
-            expect(this.mcdexLemma.depositKeeperGasReward()).to.be.revertedWith("perpetual should be in NORMAL state");
+            await expect(this.mcdexLemma.depositKeeperGasReward()).to.be.revertedWith("perpetual should be in NORMAL state");
         });
         it("should not be able to open", async function () {
             await this.collateral.connect(usdLemma).transfer(this.mcdexLemma.address, utils.parseEther("1"));
-            expect(this.mcdexLemma.connect(usdLemma).open(utils.parseEther("1000"))).to.be.revertedWith("cannot open when perpetual has settled");
+            await expect(this.mcdexLemma.connect(usdLemma).open(utils.parseEther("1000"))).to.be.revertedWith("cannot open when perpetual has settled");
         });
         it("should close correctly", async function () {
             const amount = utils.parseEther("1000");
@@ -435,7 +442,7 @@ describe("mcdexLemma", async function () {
         it("should return collateral required correctly", async function () {
             const amount = utils.parseEther("1000");
             //fails if tries to open
-            expect(this.mcdexLemma.getCollateralAmountGivenUnderlyingAssetAmount(amount, true)).to.be.revertedWith("cannot open when perpetual has settled");
+            await expect(this.mcdexLemma.getCollateralAmountGivenUnderlyingAssetAmount(amount, true)).to.be.revertedWith("cannot open when perpetual has settled");
             const collateralRequiredFromContractForAllAmount = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
             const account = await liquidityPool.getMarginAccount(
                 perpetualIndex,

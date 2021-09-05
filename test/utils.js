@@ -36,6 +36,18 @@ const fromBigNumber = (amount) => {
     const amountInWei = (amount.times(ONE)).integerValue(); //ignore after 18 decimals
     return BigNumber.from(amountInWei.toString());
 };
+const rpcCall = async (callType, params) => {
+    return await hre.network.provider.request({
+        method: callType,
+        params: params
+    });
+};
+const snapshot = async () => {
+    return await rpcCall("evm_snapshot", []);
+};
+const revertToSnapshot = async (snapId) => {
+    return await rpcCall("evm_revert", [snapId]);
+};
 const displayNicely = function (Obj) {
     colors.setTheme({
         key: 'bgGreen',
@@ -69,4 +81,4 @@ const displayNicely = function (Obj) {
     });
 };
 
-module.exports = { displayNicely, tokenTransfers, loadMCDEXInfo, toBigNumber, fromBigNumber };
+module.exports = { displayNicely, tokenTransfers, loadMCDEXInfo, toBigNumber, fromBigNumber, snapshot, revertToSnapshot };
