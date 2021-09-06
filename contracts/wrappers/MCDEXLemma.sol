@@ -275,6 +275,11 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     /// @param amount Amount in 18 decimals
     /// @return decimal adjusted value
     function getAmountInCollateralDecimals(uint256 amount) public view returns (uint256) {
+        
+        if(amount %  (uint256(10**(18 - collateralDecimals))) != 0){
+            return amount / uint256(10**(18 - collateralDecimals)) + 1;
+        }
+        
         return amount / uint256(10**(18 - collateralDecimals));
     }
 
