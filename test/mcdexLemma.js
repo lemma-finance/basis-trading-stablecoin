@@ -12,9 +12,20 @@ const { displayNicely, tokenTransfers, loadMCDEXInfo, toBigNumber, fromBigNumber
 const arbProvider = new JsonRpcProvider(hre.network.config.url);
 const MASK_USE_TARGET_LEVERAGE = 0x08000000;
 
+const bn = require("bignumber.js");
+
 const printTx = async (hash) => {
     await tokenTransfers.print(hash, [], false);
 };
+
+const convertToCollateralDecimals = (numString, collateralDecimals) => {
+    let decimalPos = utils.formatEther(numString).indexOf(".");
+    if(decimalPos < 0){
+        return numString;
+    }
+    let trimmedNumber = utils.formatEther(numString).substring(0, collateralDecimals.toNumber() + decimalPos + 1);
+    return utils.parseUnits(trimmedNumber, collateralDecimals);
+}
 
 describe("mcdexLemma", async function () {
 
@@ -76,6 +87,7 @@ describe("mcdexLemma", async function () {
         //deploy mcdexLemma
         const MCDEXLemma = await ethers.getContractFactory("MCDEXLemma");
         this.mcdexLemma = await upgrades.deployProxy(MCDEXLemma, [AddressZero, liquidityPool.address, perpetualIndex, usdLemma.address, reBalancer.address], { initializer: 'initialize' });
+        this.collateralDecimals = await this.mcdexLemma.collateralDecimals();
 
         //add liquidity to the liquidity Pool
         const liquidityToAdd = utils.parseEther("10");
@@ -85,6 +97,7 @@ describe("mcdexLemma", async function () {
         }
         await liquidityPool.addLiquidity(liquidityToAdd);
     });
+
     it("should initialize correctly", async function () {
         expect(await this.mcdexLemma.owner()).to.equal(defaultSinger.address);
         expect(await this.mcdexLemma.liquidityPool()).to.equal(liquidityPool.address);
@@ -129,12 +142,14 @@ describe("mcdexLemma", async function () {
 
         //transfer collateral to mcdexLemma (transfer + open is supposed to be done in one transaction)
         const collateralToTransfer = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
-        await this.collateral.connect(usdLemma).transfer(this.mcdexLemma.address, collateralToTransfer);
+        let collaterAmountInDecimals = await this.mcdexLemma.getAmountInCollateralDecimals(collateralToTransfer);
+        let preBalance = await this.collateral.balanceOf(this.mcdexLemma.address);
+        await this.collateral.connect(usdLemma).transfer(this.mcdexLemma.address, collaterAmountInDecimals);
         await this.mcdexLemma.connect(usdLemma).open(amount);
-
+        let postBalance = await this.collateral.balanceOf(this.mcdexLemma.address);
         const traderInfoAfterOpen = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
         expect(traderInfoAfterOpen.positionAmount.toString()).to.equal("1000"); //amount/10^18
-        expect(await this.collateral.balanceOf(this.mcdexLemma.address)).to.equal(ZERO);
+        expect(postBalance.sub(preBalance)).to.equal(ZERO);
     });
     it("should close position correctly", async function () {
         const amount = utils.parseEther("1000");
@@ -403,33 +418,38 @@ describe("mcdexLemma", async function () {
         it("should close correctly", async function () {
             const amount = utils.parseEther("1000");
             const collateralBalanceBefore = await this.collateral.balanceOf(usdLemma.address);
-            const { settleableMargin } = await liquidityPool.getMarginAccount(
+            let { settleableMargin } = await liquidityPool.getMarginAccount(
                 perpetualIndex,
                 this.mcdexLemma.address
             );
+            settleableMargin = await this.mcdexLemma.getAmountInCollateralDecimals(settleableMargin);
             await this.mcdexLemma.connect(usdLemma).close(amount);
             const collateralBalanceAfter = await this.collateral.balanceOf(usdLemma.address);
+            let diff = collateralBalanceAfter.sub(collateralBalanceBefore)
             //usdlemma balance change == settleableMargin
-            expect(collateralBalanceAfter.sub(collateralBalanceBefore)).to.equal(settleableMargin);
+            expect(diff).to.be.closeTo(settleableMargin, utils.parseUnits("0.05", this.collateralDecimals));
         });
         it("should settle + close correctly", async function () {
             const amount = utils.parseEther("1000");
-            const { settleableMargin } = await liquidityPool.getMarginAccount(
+            let { settleableMargin } = await liquidityPool.getMarginAccount(
                 perpetualIndex,
                 this.mcdexLemma.address
             );
             const collateralBalanceBefore = await this.collateral.balanceOf(usdLemma.address);
-            expect(await this.collateral.balanceOf(this.mcdexLemma.address)).to.equal(ZERO);
+            let preBalance = await this.collateral.balanceOf(this.mcdexLemma.address);
+            
             await this.mcdexLemma.settle();
-            expect(await this.collateral.balanceOf(this.mcdexLemma.address)).to.equal(settleableMargin);
-            //close
-            // let tx =
+                
+            let settledDiff = (await this.collateral.balanceOf(this.mcdexLemma.address)).sub(preBalance);
+            expect((await this.collateral.balanceOf(this.mcdexLemma.address)).sub(preBalance)).to.equal(convertToCollateralDecimals(settleableMargin.toString(), this.collateralDecimals));
+            
             await this.mcdexLemma.connect(usdLemma).close(amount);
+            settledDiff = (await this.collateral.balanceOf(this.mcdexLemma.address)).sub(preBalance);
             // await printTx(tx.hash);
-            expect(await this.collateral.balanceOf(this.mcdexLemma.address)).to.equal(ZERO);
+            expect(await this.collateral.balanceOf(this.mcdexLemma.address)).to.be.closeTo(preBalance, utils.parseUnits("0.05", this.collateralDecimals));
             const collateralBalanceAfter = await this.collateral.balanceOf(usdLemma.address);
             //usdlemma balance change == settleableMargin
-            expect(collateralBalanceAfter.sub(collateralBalanceBefore)).to.equal(settleableMargin);
+            expect(collateralBalanceAfter.sub(collateralBalanceBefore)).to.be.closeTo(convertToCollateralDecimals(settleableMargin.toString(), this.collateralDecimals), utils.parseUnits("0.05", this.collateralDecimals));
         });
         it("should return collateral required correctly", async function () {
             const amount = utils.parseEther("1000");
@@ -440,10 +460,10 @@ describe("mcdexLemma", async function () {
                 perpetualIndex,
                 this.mcdexLemma.address
             );
-            expect(collateralRequiredFromContractForAllAmount).to.equal(account.settleableMargin);
+            expect(collateralRequiredFromContractForAllAmount).to.be.closeTo(account.settleableMargin, utils.parseUnits("0.05", 18));
 
             const collateralRequiredForHalfAmount = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount.div(2), false);
-            expect(collateralRequiredForHalfAmount).to.equal(account.settleableMargin.div(2));
+            expect(collateralRequiredForHalfAmount).to.be.closeTo(account.settleableMargin.div(2), utils.parseUnits("0.05", 18));
         });
     });
     // describe("should reBalance correctly", async function () {
