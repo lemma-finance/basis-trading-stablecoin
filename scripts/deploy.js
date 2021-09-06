@@ -3,7 +3,8 @@ const { ethers, upgrades } = hre;
 const { constants, BigNumber } = ethers;
 const { AddressZero } = constants;
 const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, computeAMMCloseAndOpenAmountWithPrice } = require('@mcdex/mai3.js');
-
+const { tokenTransfers } = require("../test/utils");
+const { MaxUint256 } = require("@ethersproject/constants");
 
 
 const ZERO = BigNumber.from("0");
@@ -11,6 +12,9 @@ const ZERO = BigNumber.from("0");
 // const TRUSTED_FORWARDER = {
 //     42: "0xF82986F574803dfFd9609BE8b9c7B92f63a1410E",
 // };
+const printTx = async (hash) => {
+    await tokenTransfers.print(hash, [], false);
+};
 async function main() {
     [defaultSigner, reBalancer, lemmaTreasury, trustedForwarder] = await ethers.getSigners();
     console.log("defaultSigner", defaultSigner.address);
@@ -51,7 +55,7 @@ async function main() {
 
     //deploy stackingContract
     const XUSDL = await ethers.getContractFactory("xUSDL");
-    const xUSDL = await upgrades.deployProxy("XUSDL", [trustedForwarder.address, this.usdl.address], { initializer: 'initialize' });
+    const xUSDL = await upgrades.deployProxy(XUSDL, [trustedForwarder.address, usdLemma.address], { initializer: 'initialize' });
     console.log("xUSDL", xUSDL.address);
 
 
@@ -85,15 +89,20 @@ async function main() {
     tx = await collateral.approve(mcdexLemma.address, keeperGasReward);
     await tx.wait();
 
-    tx = await defaultSinger.sendTransaction({ to: collateral.address, value: keeperGasReward });
+    tx = await defaultSigner.sendTransaction({ to: collateral.address, value: keeperGasReward });
     await tx.wait();
 
 
 
-    await defaultSigner.sendTransaction({ to: collateral.address, value: ethers.utils.parseEther("0.01") });//deposit ETH to WETH contract
+    tx = await defaultSigner.sendTransaction({ to: collateral.address, value: ethers.utils.parseEther("0.1") });//deposit ETH to WETH contract
+    await tx.wait();
     console.log("balance", (await collateral.balanceOf(defaultSigner.address)).toString());
-    await collateral.approve(usdLemma.address, ethers.utils.parseEther("0.01"));
-    await usdLemma.deposit(ethers.utils.parseEther("10"), 0, ethers.utils.parseEther("1"), collateral.address);
+    tx = await collateral.approve(usdLemma.address, MaxUint256);
+    await tx.wait();
+    console.log("depositing");
+    tx = await usdLemma.deposit(ethers.utils.parseEther("100"), 0, MaxUint256, collateral.address);
+    await tx.wait();
+    await printTx(tx.hash);
     console.log("balance of USDL", (await usdLemma.balanceOf(defaultSigner.address)).toString());
 
 }
