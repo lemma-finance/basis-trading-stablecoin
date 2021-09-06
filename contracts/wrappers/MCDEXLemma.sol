@@ -103,7 +103,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
         // liquidityPool.forceToSyncState();
         uint256 collateralRequiredAmount = getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
-        require(collateral.balanceOf(address(this)) >= getAmountInCollateralDecimals(collateralRequiredAmount), "not enough collateral");
+        require(collateral.balanceOf(address(this)) >= getAmountInCollateralDecimals(collateralRequiredAmount, true), "not enough collateral");
         liquidityPool.deposit(perpetualIndex, address(this), collateralRequiredAmount.toInt256());
 
         (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
@@ -137,7 +137,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             liquidityPool.withdraw(perpetualIndex, address(this), collateralAmountRequired.toInt256());
             updateEntryFunding(position, -amount.toInt256());
         }
-        collateral.transfer(usdLemma, getAmountInCollateralDecimals(collateralAmountRequired));
+        collateral.transfer(usdLemma, getAmountInCollateralDecimals(collateralAmountRequired, false));
     }
 
     //// @notice when perpetual is in CLEARED state, withdraw the collateral
@@ -273,10 +273,11 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
 
     /// @notice Get Amount in collateral decimals, provided amount is in 18 decimals
     /// @param amount Amount in 18 decimals
+    /// @param roundUp If needs to round up
     /// @return decimal adjusted value
-    function getAmountInCollateralDecimals(uint256 amount) public view returns (uint256) {
+    function getAmountInCollateralDecimals(uint256 amount, bool roundUp) public view returns (uint256) {
         
-        if(amount %  (uint256(10**(18 - collateralDecimals))) != 0){
+        if(roundUp && (amount %  (uint256(10**(18 - collateralDecimals))) != 0)){
             return amount / uint256(10**(18 - collateralDecimals)) + 1;
         }
         
