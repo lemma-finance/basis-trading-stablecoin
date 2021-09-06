@@ -27,15 +27,15 @@ describe("mcdexLemma", async function () {
     let snapshotId;
     before(async function () {
         mcdexAddresses = await loadMCDEXInfo();
-        [defaultSinger, usdLemma, reBalancer, hasWETH, signer1, signer2] = await ethers.getSigners();
+        [defaultSigner, usdLemma, reBalancer, hasWETH, signer1, signer2] = await ethers.getSigners();
         const poolCreatorAddress = mcdexAddresses.PoolCreator.address;
         const readerAddress = mcdexAddresses.Reader.address;
         const poolCreator = PoolCreatorFactory.connect(poolCreatorAddress, arbProvider);
-        reader = ReaderFactory.connect(readerAddress, defaultSinger);
+        reader = ReaderFactory.connect(readerAddress, defaultSigner);
         const poolCount = await poolCreator.getLiquidityPoolCount();
         const liquidityPools = await poolCreator.listLiquidityPools(ZERO, poolCount);
         const liquidityPoolAddress = liquidityPools[0];
-        liquidityPool = LiquidityPoolFactory.connect(liquidityPoolAddress, defaultSinger);
+        liquidityPool = LiquidityPoolFactory.connect(liquidityPoolAddress, defaultSigner);
 
         const perpetualInfo = await liquidityPool.getPerpetualInfo(perpetualIndex);
         const nums = perpetualInfo.nums;
@@ -43,7 +43,7 @@ describe("mcdexLemma", async function () {
 
         //get the collateral tokens
         const collateralAddress = mcdexAddresses.WETH9.address;
-        const ERC20 = IERC20Factory.connect(collateralAddress, defaultSinger);
+        const ERC20 = IERC20Factory.connect(collateralAddress, defaultSigner);
         this.collateral = ERC20.attach(collateralAddress);
 
         const amountOfCollateralToMint = utils.parseEther("100");
@@ -68,11 +68,11 @@ describe("mcdexLemma", async function () {
         //     }
         // ];
         // const collateralWithMintMethod = new ethers.Contract(this.collateral.address, mintABI, hasWETH);
-        // await collateralWithMintMethod.connect(defaultSinger).mint(hasWETH._signer._address, amountOfCollateralToMint);
-        // await collateralWithMintMethod.connect(defaultSinger).mint(defaultSinger._signer._address, amountOfCollateralToMint);
+        // await collateralWithMintMethod.connect(defaultSigner).mint(hasWETH._signer._address, amountOfCollateralToMint);
+        // await collateralWithMintMethod.connect(defaultSigner).mint(defaultSigner._signer._address, amountOfCollateralToMint);
 
         //deposit ETH to WETH contract
-        await defaultSinger.sendTransaction({ to: this.collateral.address, value: amountOfCollateralToMint });
+        await defaultSigner.sendTransaction({ to: this.collateral.address, value: amountOfCollateralToMint });
         await usdLemma.sendTransaction({ to: this.collateral.address, value: amountOfCollateralToMint });
         await hasWETH.sendTransaction({ to: this.collateral.address, value: amountOfCollateralToMint });
         //deploy mcdexLemma
@@ -81,7 +81,7 @@ describe("mcdexLemma", async function () {
 
         //add liquidity to the liquidity Pool
         const liquidityToAdd = utils.parseEther("10");
-        if ((await this.collateral.allowance(defaultSinger.address, liquidityPool.address)).lt(liquidityToAdd)) {
+        if ((await this.collateral.allowance(defaultSigner.address, liquidityPool.address)).lt(liquidityToAdd)) {
             let tx = await this.collateral.approve(liquidityPool.address, MaxUint256);
             await tx.wait();
         }
@@ -94,7 +94,7 @@ describe("mcdexLemma", async function () {
         await revertToSnapshot(snapshotId);
     });
     it("should initialize correctly", async function () {
-        expect(await this.mcdexLemma.owner()).to.equal(defaultSinger.address);
+        expect(await this.mcdexLemma.owner()).to.equal(defaultSigner.address);
         expect(await this.mcdexLemma.liquidityPool()).to.equal(liquidityPool.address);
         expect((await this.mcdexLemma.perpetualIndex()).toString()).to.equal(perpetualIndex.toString());
         expect(await this.mcdexLemma.collateral()).to.equal(mcdexAddresses.WETH9.address);
@@ -109,12 +109,12 @@ describe("mcdexLemma", async function () {
     it("should set addresses correctly", async function () {
         //setUSDLemma
         await expect(this.mcdexLemma.connect(signer1).setUSDLemma(signer1.address)).to.be.revertedWith("Ownable: caller is not the owner");
-        await this.mcdexLemma.connect(defaultSinger).setUSDLemma(signer1.address);
+        await this.mcdexLemma.connect(defaultSigner).setUSDLemma(signer1.address);
         expect(await this.mcdexLemma.usdLemma()).to.equal(signer1.address);
 
         //setReferrer
         await expect(this.mcdexLemma.connect(signer1).setReferrer(signer1.address)).to.be.revertedWith("Ownable: caller is not the owner");
-        await this.mcdexLemma.connect(defaultSinger).setReferrer(signer1.address);
+        await this.mcdexLemma.connect(defaultSigner).setReferrer(signer1.address);
         expect(await this.mcdexLemma.referrer()).to.equal(signer1.address);
     });
     it("should deposit keeper reward correctly", async function () {
@@ -228,7 +228,7 @@ describe("mcdexLemma", async function () {
         it("when negative", async function () { });
         it("when positive", async function () {
             //short to get the PNL in positive
-            await liquidityPool.trade(perpetualIndex, defaultSinger.address, "-" + (utils.parseEther("10000")).toString(), "0", MaxUint256, AddressZero, MASK_USE_TARGET_LEVERAGE);
+            await liquidityPool.trade(perpetualIndex, defaultSigner.address, "-" + (utils.parseEther("10000")).toString(), "0", MaxUint256, AddressZero, MASK_USE_TARGET_LEVERAGE);
         });
         afterEach(async function () {
             const price = normalizeBigNumberish(utils.parseUnits("5", "14").toString());
@@ -237,7 +237,7 @@ describe("mcdexLemma", async function () {
             await this.collateral.approve(this.mcdexLemma.address, keeperGasReward);
             await this.mcdexLemma.depositKeeperGasReward();
             // //short to get the PNL in positive
-            // await liquidityPool.trade(perpetualIndex, defaultSinger.address, "-" + (utils.parseEther("10000")).toString(), "0", MaxUint256, AddressZero, MASK_USE_TARGET_LEVERAGE);
+            // await liquidityPool.trade(perpetualIndex, defaultSigner.address, "-" + (utils.parseEther("10000")).toString(), "0", MaxUint256, AddressZero, MASK_USE_TARGET_LEVERAGE);
             // console.log("increasing");
             // const collateralToTransfer = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(utils.parseEther("10000"), true);
             // await this.collateral.connect(usdLemma).transfer(this.mcdexLemma.address, collateralToTransfer);
@@ -320,7 +320,7 @@ describe("mcdexLemma", async function () {
     //     //if in normal condition then should revert        
     //     expect(this.mcdexLemma.settle()).to.be.revertedWith("perpetual should be in CLEARED state");
 
-    //     await liquidityPool.trade(perpetualIndex, defaultSinger.address, "-" + (utils.parseEther("1000")).toString(), "0", MaxUint256, AddressZero, MASK_USE_TARGET_LEVERAGE);
+    //     await liquidityPool.trade(perpetualIndex, defaultSigner.address, "-" + (utils.parseEther("1000")).toString(), "0", MaxUint256, AddressZero, MASK_USE_TARGET_LEVERAGE);
 
     //     {
     //         const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
@@ -328,7 +328,7 @@ describe("mcdexLemma", async function () {
     //     }
     //     //terminate the oracle as prerequisite of setting emergency state
     //     const oracleAdaptorAddress = mcdexAddresses.OracleAdaptor.address;
-    //     const oracleAdaptor = new ethers.Contract(oracleAdaptorAddress, ["function setTerminated(bool isTerminated_)"], defaultSinger);
+    //     const oracleAdaptor = new ethers.Contract(oracleAdaptorAddress, ["function setTerminated(bool isTerminated_)"], defaultSigner);
     //     await oracleAdaptor.setTerminated(true);
 
     //     await liquidityPool.setEmergencyState(perpetualIndex);
@@ -387,7 +387,7 @@ describe("mcdexLemma", async function () {
 
             //terminate the oracle as prerequisite of setting emergency state
             const oracleAdaptorAddress = mcdexAddresses.OracleAdaptor.address;
-            const oracleAdaptor = new ethers.Contract(oracleAdaptorAddress, ["function setTerminated(bool isTerminated_)"], defaultSinger);
+            const oracleAdaptor = new ethers.Contract(oracleAdaptorAddress, ["function setTerminated(bool isTerminated_)"], defaultSigner);
             await oracleAdaptor.setTerminated(true);
 
             await liquidityPool.setEmergencyState(perpetualIndex);
@@ -467,7 +467,7 @@ describe("mcdexLemma", async function () {
     //     });
 
     //     // it("when fundingPNL is positive", async function () {
-    //     //     await liquidityPool.trade(perpetualIndex, defaultSinger.address, "-" + (utils.parseEther("10000")).toString(), "0", MaxUint256, AddressZero, MASK_USE_TARGET_LEVERAGE);
+    //     //     await liquidityPool.trade(perpetualIndex, defaultSigner.address, "-" + (utils.parseEther("10000")).toString(), "0", MaxUint256, AddressZero, MASK_USE_TARGET_LEVERAGE);
     //     // });
     //     it("when fundingPNL is negative", async function () {
 
@@ -626,7 +626,7 @@ describe("mcdexLemma", async function () {
         });
 
         it("when fundingPNL is positive", async function () {
-            await liquidityPool.trade(perpetualIndex, defaultSinger.address, "-" + (utils.parseEther("10000")).toString(), "0", MaxUint256, AddressZero, MASK_USE_TARGET_LEVERAGE);
+            await liquidityPool.trade(perpetualIndex, defaultSigner.address, "-" + (utils.parseEther("10000")).toString(), "0", MaxUint256, AddressZero, MASK_USE_TARGET_LEVERAGE);
         });
         it("when fundingPNL is negative", async function () {
 
