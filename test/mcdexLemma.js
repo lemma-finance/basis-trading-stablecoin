@@ -186,7 +186,7 @@ describe("mcdexLemma", async function () {
     });
 
     // it("should calculate fundingPNL correctly", async function () {
-    //computeAMM simulating is not working as expected
+    // computeAMM simulating is not working as expected
     //     let tx;
     //     const amount = "1000";
     //     const MASK_USE_TARGET_LEVERAGE = 0x08000000;
@@ -250,7 +250,7 @@ describe("mcdexLemma", async function () {
                 //increase position
                 // if (x) {
                 const collateralToTransfer = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(utils.parseEther(amount), true);
-                await this.collateral.connect(usdLemma).transfer(this.mcdexLemma.address, collateralToTransfer);
+                await this.collateral.connect(usdLemma).transfer(this.mcdexLemma.address, collateralToTransfer.mul(2));//add more than required as it won't be accurate
                 await this.mcdexLemma.connect(usdLemma).open(utils.parseEther(amount));
 
                 const entryFundingFromContract = await this.mcdexLemma.entryFunding();
