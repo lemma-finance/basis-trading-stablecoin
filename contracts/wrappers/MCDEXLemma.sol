@@ -106,7 +106,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     function open(uint256 amount) external {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
         uint256 collateralRequiredAmount = getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
-        require(collateral.balanceOf(address(this)) >= collateralRequiredAmount, "not enough collateral");
+        require(collateral.balanceOf(address(this)) >= getAmountInCollateralDecimals(collateralRequiredAmount), "not enough collateral");
         liquidityPool.deposit(perpetualIndex, address(this), collateralRequiredAmount.toInt256());
 
         (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
@@ -140,7 +140,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             liquidityPool.withdraw(perpetualIndex, address(this), collateralAmountRequired.toInt256());
             updateEntryFunding(position, -amount.toInt256());
         }
-        collateral.transfer(usdLemma, collateralAmountRequired);
+        collateral.transfer(usdLemma, getAmountInCollateralDecimals(collateralAmountRequired));
     }
 
     //// @notice when perpetual is in CLEARED state, withdraw the collateral
@@ -274,8 +274,13 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     /// @notice Get Amount in collateral decimals, provided amount is in 18 decimals
     /// @param amount Amount in 18 decimals
     /// @return decimal adjusted value
-    function getAmountInCollateralDecimals(int256 amount) internal view returns (int256) {
-        return amount / int256(10**(18 - collateralDecimals));
+    function getAmountInCollateralDecimals(uint256 amount) public view returns (uint256) {
+        
+        if(amount %  (uint256(10**(18 - collateralDecimals))) != 0){
+            return amount / uint256(10**(18 - collateralDecimals)) + 1;
+        }
+        
+        return amount / uint256(10**(18 - collateralDecimals));
     }
 
     function _msgSender()

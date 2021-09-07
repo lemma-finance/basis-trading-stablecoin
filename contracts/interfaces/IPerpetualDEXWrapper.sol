@@ -15,4 +15,6 @@ interface IPerpetualDEXWrapper {
         int256 amount,
         bytes calldata data
     ) external returns (bool);
+
+    function getAmountInCollateralDecimals(uint256 amount) external view returns (uint256);
 }
