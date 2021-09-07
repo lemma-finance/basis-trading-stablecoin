@@ -80,6 +80,7 @@ contract USDLemma is ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextU
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         uint256 collateralRequired = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
+        collateralRequired = perpDEXWrapper.getAmountInCollateralDecimals(collateralRequired);
         require(collateralRequired <= maxCollateralRequired, "collateral required execeeds maximum");
         collateral.transferFrom(_msgSender(), address(perpDEXWrapper), collateralRequired);
         perpDEXWrapper.open(amount);
@@ -104,6 +105,7 @@ contract USDLemma is ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextU
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         uint256 collateralToGetBack = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
+        collateralToGetBack = perpDEXWrapper.getAmountInCollateralDecimals(collateralToGetBack);
         require(collateralToGetBack >= minCollateralToGetBack, "collateral got back is too low");
         perpDEXWrapper.close(amount);
         collateral.transfer(to, collateralToGetBack);
