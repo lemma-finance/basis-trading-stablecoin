@@ -91,6 +91,9 @@ describe("usdLemma", async function () {
         await this.collateral.approve(this.mcdexLemma.address, keeperGasReward);
         await this.mcdexLemma.depositKeeperGasReward();
 
+        //set fees
+        const fees = 3000;//30%
+        await this.usdLemma.setFees(fees);
         //set stacking contract address
         await this.usdLemma.setStakingContractAddress(stackingContract.address);
         //set lemma treasury address
@@ -137,9 +140,9 @@ describe("usdLemma", async function () {
 
         const collateralBalanceBefore = await this.collateral.balanceOf(defaultSigner.address);
         const collateralToGetBack = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
-        await this.usdLemma.withdraw(amount, 0, collateralToGetBack, this.collateral.address);
+        await this.usdLemma.withdraw(amount, 0, 0, this.collateral.address);
         const collateralBalanceAfter = await this.collateral.balanceOf(defaultSigner.address);
-        expect(collateralToGetBack).to.equal(collateralBalanceAfter.sub(collateralBalanceBefore));
+        expect(collateralToGetBack).to.be.closeTo(collateralBalanceAfter.sub(collateralBalanceBefore), 1e7);
         expect(await this.usdLemma.balanceOf(defaultSigner.address)).to.equal(ZERO);
     });
 
@@ -151,9 +154,9 @@ describe("usdLemma", async function () {
 
         const collateralBalanceBefore = await this.collateral.balanceOf(signer1.address);
         const collateralToGetBack = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
-        await this.usdLemma.withdrawTo(signer1.address, amount, 0, collateralToGetBack, this.collateral.address);
+        await this.usdLemma.withdrawTo(signer1.address, amount, 0, 0, this.collateral.address);
         const collateralBalanceAfter = await this.collateral.balanceOf(signer1.address);
-        expect(collateralToGetBack).to.equal(collateralBalanceAfter.sub(collateralBalanceBefore));
+        expect(collateralToGetBack).to.be.closeTo(collateralBalanceAfter.sub(collateralBalanceBefore), 1e7);
         expect(await this.usdLemma.balanceOf(defaultSigner.address)).to.equal(ZERO);
     });
     describe("re balance", async function () {

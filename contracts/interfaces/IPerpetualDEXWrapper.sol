@@ -8,7 +8,6 @@ interface IPerpetualDEXWrapper {
 
     function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
         external
-        view
         returns (uint256 collateralAmountRequired);
 
     function reBalance(
