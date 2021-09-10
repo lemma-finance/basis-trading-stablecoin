@@ -28,8 +28,6 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     IERC20Upgradeable public collateral;
     uint256 public collateralDecimals;
 
-    bool public isSettled;
-
     address public usdLemma;
     address public reBalancer;
     address public referrer;
@@ -58,8 +56,6 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             collateral = IERC20Upgradeable(addresses[5]);
             collateralDecimals = uintNums[0];
         }
-        isSettled = false;
-
         setReBalancer(_reBalancer);
         setUSDLemma(_usdlemma);
 
@@ -106,7 +102,10 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     function open(uint256 amount) external {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
         uint256 collateralRequiredAmount = getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
-        require(collateral.balanceOf(address(this)) >= getAmountInCollateralDecimals(collateralRequiredAmount), "not enough collateral");
+        require(
+            collateral.balanceOf(address(this)) >= getAmountInCollateralDecimals(collateralRequiredAmount),
+            "not enough collateral"
+        );
         liquidityPool.deposit(perpetualIndex, address(this), collateralRequiredAmount.toInt256());
 
         (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
@@ -275,11 +274,10 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     /// @param amount Amount in 18 decimals
     /// @return decimal adjusted value
     function getAmountInCollateralDecimals(uint256 amount) public view returns (uint256) {
-        
-        if(amount %  (uint256(10**(18 - collateralDecimals))) != 0){
+        if (amount % (uint256(10**(18 - collateralDecimals))) != 0) {
             return amount / uint256(10**(18 - collateralDecimals)) + 1;
         }
-        
+
         return amount / uint256(10**(18 - collateralDecimals));
     }
 
