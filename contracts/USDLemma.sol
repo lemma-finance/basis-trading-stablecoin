@@ -9,6 +9,8 @@ import { Utils } from "./libraries/Utils.sol";
 import { SafeMathExt } from "./libraries/SafeMathExt.sol";
 import { IPerpetualDEXWrapper } from "./interfaces/IPerpetualDEXWrapper.sol";
 
+import "hardhat/console.sol";
+
 /// @author Lemma Finance
 contract USDLemma is ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
     using SafeCastUpgradeable for int256;
@@ -121,7 +123,7 @@ contract USDLemma is ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextU
         uint256 perpetualDEXIndex,
         uint256 maxCollateralRequired,
         IERC20Upgradeable collateral
-    ) public {
+    ) external {
         depositTo(_msgSender(), amount, perpetualDEXIndex, maxCollateralRequired, collateral);
     }
 
@@ -135,7 +137,7 @@ contract USDLemma is ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextU
         uint256 perpetualDEXIndex,
         uint256 minCollateralToGetBack,
         IERC20Upgradeable collateral
-    ) public {
+    ) external {
         withdrawTo(_msgSender(), amount, perpetualDEXIndex, minCollateralToGetBack, collateral);
     }
 
@@ -172,34 +174,30 @@ contract USDLemma is ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextU
             uint256 amountBurntFromLemmaTreasury = balanceOfLemmaTreasury.min(
                 totalAmountToBurn - amountBurntFromStakingContract
             );
-
             if (amountBurntFromStakingContract > 0) {
                 _burnFrom(stakingContractAddress, amountBurntFromStakingContract);
             }
             if (amountBurntFromLemmaTreasury > 0) {
                 _burnFrom(lemmaTreasury, amountBurntFromLemmaTreasury);
             }
-            // if ((amountBurntFromStakingContract + amountBurntFromLemmaTreasury) != totalAmountToBurn) {
-            //     //in this case value of USDL will go down
-            // }
         }
     }
 
     /**
-     * @dev Destroys `amount` tokens from `account`, deducting from the caller's
+     * @dev Destroys `amount` tokens from `account`, deducting from this contract's
      * allowance.
      *
      *
      * Requirements:
      *
-     * - the caller must have allowance for ``accounts``'s tokens of at least
+     * - this contract must have allowance for ``accounts``'s tokens of at least
      * `amount`.
      */
     function _burnFrom(address account, uint256 amount) internal {
-        uint256 currentAllowance = allowance(account, _msgSender());
+        uint256 currentAllowance = allowance(account, address(this));
         require(currentAllowance >= amount, "ERC20: burn amount exceeds allowance");
         unchecked {
-            _approve(account, _msgSender(), currentAllowance - amount);
+            _approve(account, address(this), currentAllowance - amount);
         }
         _burn(account, amount);
     }
