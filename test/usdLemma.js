@@ -159,12 +159,23 @@ describe("usdLemma", async function () {
         expect(await this.usdLemma.balanceOf(defaultSigner.address)).to.equal(ZERO);
     });
     describe("re balance", async function () {
+        let lemmaTreasuryBalanceBefore;
+        let stackingContractBalanceBefore;
         beforeEach(async function () {
             const amount = utils.parseEther("1000");
 
             const collateralNeeded = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
             await this.collateral.approve(this.usdLemma.address, collateralNeeded);
             await this.usdLemma.deposit(amount, 0, MaxUint256, this.collateral.address);
+
+            //send some USDL to stackingContract and lemmaTreasury to see if they get burnt when funding Payment is negative
+            await this.usdLemma.transfer(stackingContract.address, utils.parseEther("1"));//not enough to be able to test
+            stackingContractBalanceBefore = utils.parseEther("1");
+            await this.usdLemma.transfer(lemmaTreasury.address, amount.div(2));//enough to cover the rest of burn amount
+            lemmaTreasuryBalanceBefore = amount.div(2);
+
+            await this.usdLemma.connect(stackingContract).approve(this.usdLemma.address, MaxUint256);
+            await this.usdLemma.connect(lemmaTreasury).approve(this.usdLemma.address, MaxUint256);
         });
 
         it("when fundingPNL is positive", async function () {
@@ -210,6 +221,18 @@ describe("usdLemma", async function () {
                 const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
                 //expect the leverage to be ~1
                 expect(fromBigNumber(account.accountComputed.leverage)).to.be.closeTo(utils.parseEther("1"), 1e14);
+            }
+            if (unrealizedFundingPNL.isNegative()) {
+                const totalUSDLToBeBurnt = fromBigNumber(amountWithFeesConsidered.absoluteValue());
+                //it should burn the right amounts
+                expect(await this.usdLemma.balanceOf(stackingContract.address)).to.equal(ZERO);
+                //change in lemmaTreasury balance = totalUSDLToBeBurnt - amount burnt from stacking contract
+                expect(lemmaTreasuryBalanceBefore.sub(await this.usdLemma.balanceOf(lemmaTreasury.address))).to.equal(totalUSDLToBeBurnt.sub(stackingContractBalanceBefore));
+            } else {
+                //TODO:
+                //when funding payment is positive
+                //mint 30% to lemmaTreasury
+                //rest to stackingContract
             }
         });
     });

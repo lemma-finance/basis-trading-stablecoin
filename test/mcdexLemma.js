@@ -686,6 +686,7 @@ describe("mcdexLemma", async function () {
                 //expect the leverage to be ~1
                 expect(fromBigNumber(account.accountComputed.leverage)).to.be.closeTo(utils.parseEther("1"), 1e14);
             }
+            //TODO: need to also add test to check that the trade actually happens on MCDEX via events
         });
     });
 });
