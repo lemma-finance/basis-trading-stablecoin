@@ -149,7 +149,7 @@ describe("mcdexLemma", async function () {
 
         //transfer collateral to mcdexLemma (transfer + open is supposed to be done in one transaction)
         const collateralToTransfer = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
-        let collaterAmountInDecimals = await this.mcdexLemma.getAmountInCollateralDecimals(collateralToTransfer);
+        let collaterAmountInDecimals = await this.mcdexLemma.getAmountInCollateralDecimals(collateralToTransfer, true);
         let preBalance = await this.collateral.balanceOf(this.mcdexLemma.address);
         await this.collateral.connect(usdLemma).transfer(this.mcdexLemma.address, collaterAmountInDecimals);
         await this.mcdexLemma.connect(usdLemma).open(amount);
@@ -429,7 +429,7 @@ describe("mcdexLemma", async function () {
                 perpetualIndex,
                 this.mcdexLemma.address
             );
-            settleableMargin = await this.mcdexLemma.getAmountInCollateralDecimals(settleableMargin);
+            settleableMargin = await this.mcdexLemma.getAmountInCollateralDecimals(settleableMargin, false);
             await this.mcdexLemma.connect(usdLemma).close(amount);
             const collateralBalanceAfter = await this.collateral.balanceOf(usdLemma.address);
             let diff = collateralBalanceAfter.sub(collateralBalanceBefore);
