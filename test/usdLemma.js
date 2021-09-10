@@ -222,17 +222,20 @@ describe("usdLemma", async function () {
                 //expect the leverage to be ~1
                 expect(fromBigNumber(account.accountComputed.leverage)).to.be.closeTo(utils.parseEther("1"), 1e14);
             }
+            const totalUSDL = fromBigNumber(amountWithFeesConsidered.absoluteValue());
             if (unrealizedFundingPNL.isNegative()) {
-                const totalUSDLToBeBurnt = fromBigNumber(amountWithFeesConsidered.absoluteValue());
                 //it should burn the right amounts
                 expect(await this.usdLemma.balanceOf(stackingContract.address)).to.equal(ZERO);
                 //change in lemmaTreasury balance = totalUSDLToBeBurnt - amount burnt from stacking contract
-                expect(lemmaTreasuryBalanceBefore.sub(await this.usdLemma.balanceOf(lemmaTreasury.address))).to.equal(totalUSDLToBeBurnt.sub(stackingContractBalanceBefore));
+                expect(lemmaTreasuryBalanceBefore.sub(await this.usdLemma.balanceOf(lemmaTreasury.address))).to.equal(totalUSDL.sub(stackingContractBalanceBefore));
             } else {
-                //TODO:
                 //when funding payment is positive
                 //mint 30% to lemmaTreasury
+                const fees = await this.usdLemma.fees();
+                const feeAmount = totalUSDL.mul(fees).div(BigNumber.from("10000"));
+                expect((await this.usdLemma.balanceOf(lemmaTreasury.address)).sub(lemmaTreasuryBalanceBefore)).to.equal(feeAmount);
                 //rest to stackingContract
+                expect((await this.usdLemma.balanceOf(stackingContract.address)).sub(stackingContractBalanceBefore)).to.equal(totalUSDL.sub(feeAmount));
             }
         });
     });
