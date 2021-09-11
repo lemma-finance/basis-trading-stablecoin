@@ -689,4 +689,12 @@ describe("mcdexLemma", async function () {
             //TODO: need to also add test to check that the trade actually happens on MCDEX via events
         });
     });
+
+    it("should round up correctly", async function () {
+        const amount = "1";
+        const roundUpAmount = await this.mcdexLemma.getAmountInCollateralDecimals(amount, true);
+        expect(roundUpAmount).to.equal("1");
+        const notRoundedUpAmount = await this.mcdexLemma.getAmountInCollateralDecimals(amount, false);
+        expect(notRoundedUpAmount).to.equal("0");
+    });
 });

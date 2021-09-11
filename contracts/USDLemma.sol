@@ -9,8 +9,6 @@ import { Utils } from "./libraries/Utils.sol";
 import { SafeMathExt } from "./libraries/SafeMathExt.sol";
 import { IPerpetualDEXWrapper } from "./interfaces/IPerpetualDEXWrapper.sol";
 
-import "hardhat/console.sol";
-
 /// @author Lemma Finance
 contract USDLemma is ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
     using SafeCastUpgradeable for int256;

@@ -92,7 +92,11 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             (, , int256[39] memory nums) = liquidityPool.getPerpetualInfo(perpetualIndex);
             keeperGasReward = nums[11];
         }
-        collateral.transferFrom(_msgSender(), address(this), keeperGasReward.toUint256());
+        collateral.transferFrom(
+            _msgSender(),
+            address(this),
+            getAmountInCollateralDecimals(keeperGasReward.toUint256(), true)
+        );
         liquidityPool.deposit(perpetualIndex, address(this), keeperGasReward);
     }
 
