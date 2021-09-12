@@ -240,4 +240,9 @@ describe("usdLemma", async function () {
         });
     });
 
+    // it("should send MCB tokens to lemma treasury correctly", async function () {
+    //     // this.collateral needs to be attached to MCB token address somehow
+    //     // not possible to test without forking arbitrum state
+    //     await expect(this.mcdexLemma.sendMCBToTreasury()).to.emit(this.collateral, "Transfer").withArgs(this.mcdexLemma.address, lemmaTreasury.address, ZERO);
+    // });
 });

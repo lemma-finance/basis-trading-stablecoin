@@ -9,6 +9,10 @@ import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC
 import { Utils } from "../libraries/Utils.sol";
 import { SafeMathExt } from "../libraries/SafeMathExt.sol";
 
+interface IUSDLemma {
+    function lemmaTreasury() external view returns (address);
+}
+
 /// @author Lemma Finance
 contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     using SafeCastUpgradeable for uint256;
@@ -284,6 +288,13 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         }
 
         return amount / uint256(10**(18 - collateralDecimals));
+    }
+
+    ///@notice send MCB tokens that we may get to lemmaTreasury
+    function sendMCBToTreasury() external {
+        IERC20Upgradeable mcbToken = IERC20Upgradeable(0x4e352cF164E64ADCBad318C3a1e222E9EBa4Ce42);
+        address lemmaTreasury = IUSDLemma(usdLemma).lemmaTreasury();
+        mcbToken.transfer(lemmaTreasury, mcbToken.balanceOf(address(this)));
     }
 
     function _msgSender()
