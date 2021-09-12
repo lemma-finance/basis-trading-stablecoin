@@ -182,8 +182,9 @@ contract USDLemma is ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextU
     }
 
     /**
-     * @dev Destroys `amount` tokens from `account`, deducting from this contract's
-     * allowance.
+     * @dev This is a slightly different implementation of _burnFrom then usually seen.
+     * Destroys `amount` tokens from `account`, deducting from this contract's
+     * allowance.(instead of _msgSender()'s)
      *
      *
      * Requirements:
