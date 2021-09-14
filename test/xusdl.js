@@ -106,25 +106,21 @@ describe('xUSDL', function () {
     });
 
 
-    it('should revert while withdrawing & transfer before minimum lock', async function () {
+    it('should revert while withdrawing before minimum lock', async function () {
         await this.xusdl.deposit(utils.parseEther("1000"));
 
-        await mineBlocks(97);
+        await mineBlocks(96);
 
-        // tx = await this.xusdl.withdraw(await balanceOf(this.xusdl, owner.address));
-        // await tx.wait();
-        await expect(this.xusdl.transfer(user1.address, await balanceOf(this.xusdl, owner.address)))
-            .to.be.revertedWith('xUSDL: Locked tokens');
+
         await expect(this.xusdl.withdraw(await balanceOf(this.xusdl, owner.address)))
             .to.be.revertedWith('xUSDL: Locked tokens');
     });
 
-    it('should withdraw & transfer after minimum lock', async function () {
+    it('should withdraw after minimum lock', async function () {
         await this.xusdl.deposit(utils.parseEther("1000"));
 
         await mineBlocks(100);
-        await expect(this.xusdl.transfer(user1.address, utils.parseEther("100")))
-            .not.to.be.reverted;
+
         await expect(this.xusdl.withdraw(await balanceOf(this.xusdl, owner.address)))
             .not.to.be.reverted;
     });
@@ -168,5 +164,29 @@ describe('xUSDL', function () {
         let postBalance = await balanceOf(this.usdl, owner.address);
         expect(postBalance.sub(preBalance)).equal(utils.parseEther("500"));
     });
+
+    it('should transfer & update minimum lock for new user', async function() {
+        await this.xusdl.deposit(utils.parseEther("1000"));
+
+        await mineBlocks(80);
+
+        await this.xusdl.transfer(user1.address, utils.parseEther("100"));
+
+        await expect(this.xusdl.connect(user1).withdraw(utils.parseEther("100")))
+        .to.be.revertedWith("xUSDL: Locked tokens");        
+    })
+
+    it('should enable withdraw after minimum lock for new user', async function() {
+        await this.xusdl.deposit(utils.parseEther("1000"));
+
+
+        await this.xusdl.transfer(user1.address, utils.parseEther("100"));
+
+        await mineBlocks(100);
+
+        await expect(this.xusdl.connect(user1).withdraw(utils.parseEther("100")))
+        .not.to.be.reverted;        
+    })
+
 
 });
