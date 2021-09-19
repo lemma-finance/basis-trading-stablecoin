@@ -42,12 +42,15 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
 
     uint256 positionAtSettlement;
 
+    uint256 maxPosition;
+
     function initialize(
         address _trustedForwarder,
         ILiquidityPool _liquidityPool,
         uint256 _perpetualIndex,
         address _usdlemma,
-        address _reBalancer
+        address _reBalancer,
+        uint256 _maxPosition
     ) external initializer {
         __Ownable_init();
         __ERC2771Context_init(_trustedForwarder);
@@ -62,6 +65,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         }
         setReBalancer(_reBalancer);
         setUSDLemma(_usdlemma);
+        setMaxPosition(_maxPosition);
 
         //approve collateral to
         collateral.approve(address(liquidityPool), MAX_UINT256);
@@ -85,6 +89,12 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     ///@param _reBalancer reBalancer address to set
     function setReBalancer(address _reBalancer) public onlyOwner {
         reBalancer = _reBalancer;
+    }
+
+    ///@notice sets Max Positions - only owner can set
+    ///@param _maxPosition reBalancer address to set
+    function setMaxPosition(uint256 _maxPosition) public onlyOwner {
+        maxPosition = _maxPosition;
     }
 
     //this needs to be done before the first withdrawal happens
@@ -118,6 +128,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
 
         (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
 
+        require(position.abs().toUint256() + amount <= maxPosition, "max position reached");
         liquidityPool.trade(perpetualIndex, address(this), amount.toInt256(), MAX_INT256, MAX_UINT256, referrer, 0);
         updateEntryFunding(position, amount.toInt256());
     }
@@ -216,6 +227,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         int256 amount,
         bytes calldata data
     ) external returns (bool) {
+        liquidityPool.forceToSyncState();
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
         require(_reBalancer == reBalancer, "only rebalancer is allowed");
 
@@ -246,9 +258,9 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         return true;
     }
 
-    /// @notice Update cumulative funding fees earned or paid for position on dex
-    /// @param position Current position on Dex
-    /// @param tradeAmount Change in current position on dex
+    /// @notice calculate entryFunding to be able to calculate the fundingPNL easily
+    /// @param position Current position on MCDEX
+    /// @param tradeAmount Change in current position on MCDEX
     function updateEntryFunding(int256 position, int256 tradeAmount) internal {
         (int256 closeAmount, int256 openAmount) = Utils.splitAmount(position, tradeAmount);
         int256 unitAccumulativeFunding;
@@ -266,7 +278,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         }
     }
 
-    /// @notice Get current PnL based on funding fees
+    /// @notice Get funding PnL for this address till now
     /// @return fundingPNL Funding PnL accumulated till now
     function getFundingPNL() public view returns (int256 fundingPNL) {
         int256 unitAccumulativeFunding;

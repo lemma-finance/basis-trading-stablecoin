@@ -86,9 +86,12 @@ describe("mcdexLemma", async function () {
         await defaultSigner.sendTransaction({ to: this.collateral.address, value: amountOfCollateralToMint });
         await usdLemma.sendTransaction({ to: this.collateral.address, value: amountOfCollateralToMint });
         await hasWETH.sendTransaction({ to: this.collateral.address, value: amountOfCollateralToMint });
+
+        const maxPosition = MaxUint256;
+        const trustedForwarder = AddressZero;
         //deploy mcdexLemma
         const MCDEXLemma = await ethers.getContractFactory("MCDEXLemma");
-        this.mcdexLemma = await upgrades.deployProxy(MCDEXLemma, [AddressZero, liquidityPool.address, perpetualIndex, usdLemma.address, reBalancer.address], { initializer: 'initialize' });
+        this.mcdexLemma = await upgrades.deployProxy(MCDEXLemma, [trustedForwarder, liquidityPool.address, perpetualIndex, usdLemma.address, reBalancer.address, maxPosition], { initializer: 'initialize' });
         this.collateralDecimals = await this.mcdexLemma.collateralDecimals();
 
         //add liquidity to the liquidity Pool
@@ -157,6 +160,22 @@ describe("mcdexLemma", async function () {
         const traderInfoAfterOpen = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
         expect(traderInfoAfterOpen.positionAmount.toString()).to.equal("1000"); //amount/10^18
         expect(postBalance.sub(preBalance)).to.equal(ZERO);
+    });
+    it("should fail to open when max position is reached", async function () {
+        const amount = utils.parseEther("1000");
+        await this.mcdexLemma.setMaxPosition(amount);
+
+        //deposit keeper gas reward
+        await this.collateral.approve(this.mcdexLemma.address, keeperGasReward);
+        await this.mcdexLemma.depositKeeperGasReward();
+
+        //transfer collateral to mcdexLemma (transfer + open is supposed to be done in one transaction)
+        const collateralToTransfer = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
+        let collaterAmountInDecimals = await this.mcdexLemma.getAmountInCollateralDecimals(collateralToTransfer, true);
+
+        await this.collateral.connect(usdLemma).transfer(this.mcdexLemma.address, collaterAmountInDecimals);
+        await expect(this.mcdexLemma.connect(usdLemma).open(amount.add(1))).to.be.revertedWith("max position reached");
+        await expect(this.mcdexLemma.connect(usdLemma).open(amount)).not.to.be.reverted;
     });
     it("should close position correctly", async function () {
         const amount = utils.parseEther("1000");

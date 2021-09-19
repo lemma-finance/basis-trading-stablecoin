@@ -22,7 +22,7 @@
     "solidity-coverage": "^0.7.17"
   },
   "dependencies": {
-    "@mcdex/mai3.js": "^0.5.80",
+    "@mcdex/mai3.js": "^0.5.81",
     "bignumber.js": "^9.0.1",
     "colors": "^1.4.0",
     "dotenv": "^10.0.0",

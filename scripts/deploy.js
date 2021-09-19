@@ -15,6 +15,8 @@ const ZERO = BigNumber.from("0");
 const printTx = async (hash) => {
     await tokenTransfers.print(hash, [], false);
 };
+const delay = ms => new Promise(res => setTimeout(res, ms));
+
 async function main() {
     [defaultSigner, reBalancer, lemmaTreasury, trustedForwarder] = await ethers.getSigners();
     console.log("defaultSigner", defaultSigner.address);
@@ -42,9 +44,12 @@ async function main() {
 
 
     //deploy mcdexLemma
+    const maxPosition = MaxUint256;
     const MCDEXLemma = await ethers.getContractFactory("MCDEXLemma");
-    const mcdexLemma = await upgrades.deployProxy(MCDEXLemma, [trustedForwarder.address, liquidityPool.address, perpetualIndex, AddressZero, reBalancer.address], { initializer: 'initialize' });
+    const mcdexLemma = await upgrades.deployProxy(MCDEXLemma, [trustedForwarder.address, liquidityPool.address, perpetualIndex, AddressZero, reBalancer.address, maxPosition], { initializer: 'initialize' });
     console.log("mcdexLemma", mcdexLemma.address);
+
+    // await delay(60000);
 
     const collateralAddress = await mcdexLemma.collateral();
     console.log("collateralAddress", collateralAddress);
@@ -52,30 +57,33 @@ async function main() {
     const USDLemma = await ethers.getContractFactory("USDLemma");
     const usdLemma = await upgrades.deployProxy(USDLemma, [trustedForwarder.address, collateralAddress, mcdexLemma.address], { initializer: 'initialize' });
     console.log("USDL", usdLemma.address);
-
+    // await delay(60000);
     //deploy stackingContract
     const XUSDL = await ethers.getContractFactory("xUSDL");
     const xUSDL = await upgrades.deployProxy(XUSDL, [trustedForwarder.address, usdLemma.address], { initializer: 'initialize' });
     console.log("xUSDL", xUSDL.address);
-
+    // await delay(60000);
 
     //setUSDLemma address in MCDEXLemma contract
     let tx = await mcdexLemma.setUSDLemma(usdLemma.address);
     await tx.wait();
+    // await delay(60000);
     console.log("USDL", await mcdexLemma.usdLemma());
 
     //set Fees
     const fees = 3000;//30%
     tx = await usdLemma.setFees(fees);
     await tx.wait();
+    // await delay(60000);
     //set stacking contract address
     tx = await usdLemma.setStakingContractAddress(xUSDL.address);
     await tx.wait();
+    // await delay(60000);
 
     //set lemma treasury address
     tx = await usdLemma.setLemmaTreasury(lemmaTreasury.address);
     await tx.wait();
-
+    // await delay(60000);
     //deposit keeper gas reward
     //get some WETH first
     //get the keeper gas reward
@@ -88,20 +96,25 @@ async function main() {
     console.log("keeperGasReward", keeperGasReward.toString());
     tx = await collateral.approve(mcdexLemma.address, keeperGasReward);
     await tx.wait();
-
+    // await delay(60000);
     tx = await defaultSigner.sendTransaction({ to: collateral.address, value: keeperGasReward });
     await tx.wait();
-
-
+    // await delay(60000);
+    tx = await mcdexLemma.depositKeeperGasReward();
+    await tx.wait();
+    // await delay(60000);
 
     tx = await defaultSigner.sendTransaction({ to: collateral.address, value: ethers.utils.parseEther("0.1") });//deposit ETH to WETH contract
     await tx.wait();
+    // await delay(60000);
     console.log("balance", (await collateral.balanceOf(defaultSigner.address)).toString());
     tx = await collateral.approve(usdLemma.address, MaxUint256);
     await tx.wait();
+    // await delay(60000);
     console.log("depositing");
     tx = await usdLemma.deposit(ethers.utils.parseEther("100"), 0, MaxUint256, collateral.address);
     await tx.wait();
+    // await delay(60000);
     await printTx(tx.hash);
     console.log("balance of USDL", (await usdLemma.balanceOf(defaultSigner.address)).toString());
 
