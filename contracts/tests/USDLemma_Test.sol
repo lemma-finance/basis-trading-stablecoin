@@ -39,11 +39,32 @@ contract USDLemma_Test {
         );
     }
 
+    function withdraw_test() public {
+        prepare();
+        uint256 amount = 10 ether;
+        deposit(amount);
+        uint256 collateralBalanceBefore = collateral.balanceOf(address(this));
+        uint256 collateralAmountToGetBack = withdraw(amount);
+
+        Test.eq(usdLemma.balanceOf(address(this)), uint256(0), "not minted correctly");
+        Test.eq(
+            collateral.balanceOf(address(this)) - collateralBalanceBefore,
+            collateralAmountToGetBack,
+            "collateral transferred incorrectly"
+        );
+    }
+
     function deposit(uint256 amount) public returns (uint256 collateralAmountRequiredInDecimals) {
         uint256 collateralAmountRequired = mcdexLemma.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
         collateralAmountRequiredInDecimals = mcdexLemma.getAmountInCollateralDecimals(collateralAmountRequired, true);
         collateral.approve(address(usdLemma), collateralAmountRequiredInDecimals);
         usdLemma.deposit(amount, perpetualDEXIndex, collateralAmountRequiredInDecimals, collateral);
+    }
+
+    function withdraw(uint256 amount) public returns (uint256 collateralAmountRequiredInDecimals) {
+        uint256 collateralAmountRequired = mcdexLemma.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
+        collateralAmountRequiredInDecimals = mcdexLemma.getAmountInCollateralDecimals(collateralAmountRequired, false);
+        usdLemma.withdraw(amount, perpetualDEXIndex, collateralAmountRequiredInDecimals, collateral);
     }
 
     function prepare() public {
