@@ -7,6 +7,7 @@ const { BigNumber, constants } = ethers;
 const { AddressZero, MaxUint256, MaxInt256 } = constants;
 
 const { displayNicely, tokenTransfers, loadMCDEXInfo, toBigNumber, fromBigNumber, snapshot, revertToSnapshot } = require("./utils");
+const { italic } = require('colors');
 
 const arbProvider = new JsonRpcProvider(hre.network.config.url);
 const MASK_USE_TARGET_LEVERAGE = 0x08000000;
@@ -330,5 +331,57 @@ describe("usdLemma", async function () {
     //     await expect(this.mcdexLemma.sendMCBToTreasury()).to.emit(this.collateral, "Transfer").withArgs(this.mcdexLemma.address, lemmaTreasury.address, ZERO);
     // });
 
-    //TODO: add tests to make sure that change in markPrice does not affect the leverage
+    describe("should keep the leverage same regardless of the change in price", async function () {
+        let leverage, currentTimestamp, oracleAdaptor;
+        beforeEach(async function () {
+            //mint 
+            const amount = utils.parseEther("1000");
+            const collateralNeeded = await this.mcdexLemma.getAmountInCollateralDecimals(await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true), true);
+            await this.collateral.approve(this.usdLemma.address, collateralNeeded);
+            await this.usdLemma.deposit(amount, 0, collateralNeeded, this.collateral.address);
+
+
+            await liquidityPool.forceToSyncState();
+            const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+            const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+            const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
+            leverage = account.accountComputed.leverage;
+            // console.log("leverage", account.accountComputed.leverage.toString());
+
+            //get oracleAdaptor contract
+            const latestBlock = await provider.getBlock("latest");
+            currentTimestamp = latestBlock.timestamp;
+            const oracleAdaptorAddress = mcdexAddresses.OracleAdaptor.address;
+            oracleAdaptor = new ethers.Contract(oracleAdaptorAddress, ["function setMarkPrice(int256 price, uint256 timestamp)", "function setIndexPrice(int256 price, uint256 timestamp)"], defaultSigner);
+
+        });
+        it("when price increases", async function () {
+            //current price = 5*10^14 ETH per USD (2000 usd per ETH)
+            //changes to = 10*10^14 ETH per USD (4000 usd per ETH)
+            await oracleAdaptor.setMarkPrice(utils.parseUnits("10", "14"), currentTimestamp);
+            await oracleAdaptor.setIndexPrice(utils.parseUnits("10", "14"), currentTimestamp);
+
+
+            const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+            const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+            const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
+            // console.log("leverage", account.accountComputed.leverage.toString());
+            //expect the leverage to be equal to leverage before change in price
+            expect(fromBigNumber(account.accountComputed.leverage)).to.be.closeTo(fromBigNumber(leverage), 1e14);
+        });
+        it("when price decreases", async function () {
+            //current price = 5*10^14 ETH per USD (2000 usd per ETH)
+            //changes to = 2.5*10^14 ETH per USD (1000 usd per ETH)
+            await oracleAdaptor.setMarkPrice(utils.parseUnits("2.5", "14"), currentTimestamp);
+            await oracleAdaptor.setIndexPrice(utils.parseUnits("2.5", "14"), currentTimestamp);
+
+            await liquidityPool.forceToSyncState();
+            const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+            const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+            const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
+            // console.log("leverage", account.accountComputed.leverage.toString());
+            //expect the leverage to be equal to leverage before change in price
+            expect(fromBigNumber(account.accountComputed.leverage)).to.be.closeTo(fromBigNumber(leverage), 1e14);
+        });
+    });
 });
