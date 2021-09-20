@@ -195,5 +195,17 @@ describe('xUSDL', function () {
         .not.to.be.reverted;        
     })
 
+    it('should withdraw to another user', async function() {
+        await this.xusdl.deposit(utils.parseEther("1000"));
+
+        await mineBlocks(100);
+
+        let preBalance = await balanceOf(this.usdl, user1.address);
+        await this.xusdl.withdrawTo(user1.address, await balanceOf(this.xusdl, owner.address));
+
+        let postBalance = await balanceOf(this.usdl, user1.address);
+        expect(postBalance.sub(preBalance)).equal(utils.parseEther("1000"));     
+    })
+
 
 });
