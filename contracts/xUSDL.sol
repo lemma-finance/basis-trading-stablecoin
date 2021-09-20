@@ -45,15 +45,7 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
     /// @param amount of USDL to deposit
     /// @return shares Amount of xUSDL minted
     function deposit(uint256 amount) external override returns (uint256 shares) {
-        if (totalSupply() == 0) {
-            shares = amount;
-        } else {
-            shares = (amount * 1e18) / pricePerShare();
-        }
-
-        usdl.transferFrom(_msgSender(), address(this), amount);
-        userUnlockBlock[_msgSender()] = block.number + MINIMUM_LOCK;
-        _mint(_msgSender(), shares);
+        return depositTo(_msgSender(), amount);
     }
 
     /// @notice Withdraw USDL and burn xUSDL
@@ -66,21 +58,33 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
         _burn(_msgSender(), shares);
     }
 
+    /// @notice Deposit and mint xUSDL in exchange of USDL
+    /// @param user address of user to deposit xUSDL
+    /// @param amount of USDL to deposit
+    /// @return shares Amount of xUSDL minted
+    function depositTo(address user, uint256 amount) public override returns (uint256 shares) {
+        if (totalSupply() == 0) {
+            shares = amount;
+        } else {
+            shares = (amount * 1e18) / pricePerShare();
+        }
+        usdl.transferFrom(_msgSender(), address(this), amount);
+        userUnlockBlock[user] = block.number + MINIMUM_LOCK;
+        _mint(user, shares);
+    }
+
     /// @notice Price per share in terms of USDL
     /// @return price Price of 1 xUSDL in terms of USDL
     function pricePerShare() public view override returns (uint256 price) {
         price = (balance() * 1e18) / totalSupply();
     }
 
-    function _afterTokenTransfer(
+    function _beforeTokenTransfer(
         address from,
         address to,
         uint256
-    ) internal override {
-        if(userUnlockBlock[from] >= block.number){
-            uint256 newUnlock = userUnlockBlock[from];
-            userUnlockBlock[to] = userUnlockBlock[to] > newUnlock ? userUnlockBlock[to] : newUnlock; 
-        }
+    ) internal view override {
+        require(block.number >= userUnlockBlock[from], "xUSDL: Locked tokens");
     }
 
     function _msgSender()
