@@ -52,10 +52,7 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
     /// @param shares of xUSDL to burn
     /// @return amount Amount of USDL withdrawn
     function withdraw(uint256 shares) external override returns (uint256 amount) {
-        require(block.number >= userUnlockBlock[_msgSender()], "xUSDL: Locked tokens");
-        amount = (pricePerShare() * shares) / 1e18;
-        usdl.transfer(_msgSender(), amount);
-        _burn(_msgSender(), shares);
+        return withdrawTo(_msgSender(), shares);
     }
 
     /// @notice Deposit and mint xUSDL in exchange of USDL
@@ -72,6 +69,18 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
         userUnlockBlock[user] = block.number + MINIMUM_LOCK;
         _mint(user, shares);
     }
+
+    /// @notice Withdraw USDL and burn xUSDL
+    /// @param user address of user to transger USDL
+    /// @param shares of xUSDL to burn
+    /// @return amount Amount of USDL withdrawn
+    function withdrawTo(address user, uint256 shares) public override returns (uint256 amount){
+        require(block.number >= userUnlockBlock[_msgSender()], "xUSDL: Locked tokens");
+        amount = (pricePerShare() * shares) / 1e18;
+        usdl.transfer(user, amount);
+        _burn(_msgSender(), shares);        
+    }
+
 
     /// @notice Price per share in terms of USDL
     /// @return price Price of 1 xUSDL in terms of USDL
