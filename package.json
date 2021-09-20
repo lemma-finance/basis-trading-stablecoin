@@ -19,9 +19,11 @@
     "ethereum-waffle": "^3.4.0",
     "ethers": "^5.3.1",
     "hardhat": "^2.5.0",
+    "hardhat-deploy": "^0.9.1",
     "solidity-coverage": "^0.7.17"
   },
   "dependencies": {
+    "@giry/hardhat-test-solidity": "0.0.8",
     "@mcdex/mai3.js": "^0.5.81",
     "bignumber.js": "^9.0.1",
     "colors": "^1.4.0",
