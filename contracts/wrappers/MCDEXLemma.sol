@@ -40,9 +40,9 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     int256 public realizedFundingPNL;
     int256 public fundingPNLAtLastReBalance;
 
-    uint256 positionAtSettlement;
+    uint256 public positionAtSettlement;
 
-    uint256 maxPosition;
+    uint256 public maxPosition;
 
     function initialize(
         address _trustedForwarder,
