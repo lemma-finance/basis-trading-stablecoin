@@ -28,31 +28,32 @@ contract USDLemma_Test {
     function deposit_test() public {
         prepare();
         uint256 collateralBalanceBefore = collateral.balanceOf(address(this));
-        uint256 amount = 10 ether;
+        uint256 amount = 100 ether;
         uint256 collateralAmountRequired = deposit(amount);
-
+        int256 leverage = calculateLeverge();
         Test.eq(usdLemma.balanceOf(address(this)), amount, "not minted correctly");
         Test.eq(
             collateralBalanceBefore - collateral.balanceOf(address(this)),
             collateralAmountRequired,
             "collateral transferred incorrectly"
         );
+        Test.eq(leverage.toUint256(), 1 ether, "leverge !=1");
     }
 
-    function withdraw_test() public {
-        prepare();
-        uint256 amount = 10 ether;
-        deposit(amount);
-        uint256 collateralBalanceBefore = collateral.balanceOf(address(this));
-        uint256 collateralAmountToGetBack = withdraw(amount);
+    // function withdraw_test() public {
+    //     prepare();
+    //     uint256 amount = 10 ether;
+    //     deposit(amount);
+    //     uint256 collateralBalanceBefore = collateral.balanceOf(address(this));
+    //     uint256 collateralAmountToGetBack = withdraw(amount);
 
-        Test.eq(usdLemma.balanceOf(address(this)), uint256(0), "not minted correctly");
-        Test.eq(
-            collateral.balanceOf(address(this)) - collateralBalanceBefore,
-            collateralAmountToGetBack,
-            "collateral transferred incorrectly"
-        );
-    }
+    //     Test.eq(usdLemma.balanceOf(address(this)), uint256(0), "not minted correctly");
+    //     Test.eq(
+    //         collateral.balanceOf(address(this)) - collateralBalanceBefore,
+    //         collateralAmountToGetBack,
+    //         "collateral transferred incorrectly"
+    //     );
+    // }
 
     function deposit(uint256 amount) public returns (uint256 collateralAmountRequiredInDecimals) {
         uint256 collateralAmountRequired = mcdexLemma.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
@@ -65,6 +66,64 @@ contract USDLemma_Test {
         uint256 collateralAmountRequired = mcdexLemma.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
         collateralAmountRequiredInDecimals = mcdexLemma.getAmountInCollateralDecimals(collateralAmountRequired, false);
         usdLemma.withdraw(amount, perpetualDEXIndex, collateralAmountRequiredInDecimals, collateral);
+    }
+
+    function calculateLeverge() internal returns (int256 leverage) {
+        int256 markPrice;
+        int256 keeperGasReward;
+        int256 unitAccumulativeFunding;
+        int256 initialMarginRate;
+        {
+            (, , int256[39] memory nums) = liquidityPool.getPerpetualInfo(perpetualIndex);
+            markPrice = nums[1];
+            keeperGasReward = nums[11];
+            unitAccumulativeFunding = nums[4];
+            initialMarginRate = nums[5];
+        }
+        {
+            int256 reservedCash = keeperGasReward;
+            logInt("reservedCash", reservedCash);
+            (
+                int256 cash,
+                int256 position,
+                int256 availableMarginFromMCDEX,
+                int256 marginBalanceFromMCDEX,
+                ,
+                ,
+                ,
+                ,
+
+            ) = liquidityPool.getMarginAccount(perpetualIndex, address(mcdexLemma));
+            // logInt("position", position);
+            // logInt("cash", cash);
+            int256 positionValue = markPrice.wmul(position.abs());
+            logInt("positionValue", positionValue);
+            int256 positionMargin = positionValue.wmul(initialMarginRate);
+
+            int256 availableCashBalance = cash - (position.wmul(unitAccumulativeFunding));
+            //marginBalanceFromMCDEX(margin) ==  marginBalance
+            int256 marginBalance = availableCashBalance + (markPrice.wmul(position));
+            logInt("marginBalanceFromMCDEX", marginBalanceFromMCDEX);
+            logInt("marginBalance", marginBalance);
+            int256 availableMargin = marginBalance - positionMargin - reservedCash;
+            // logInt("availableMarginFromMCDEX", availableMarginFromMCDEX);
+            // logInt("availableMargin", availableMargin);
+
+            int256 marginWithoutReserved = marginBalance - reservedCash;
+
+            leverage = positionValue.wdiv(marginWithoutReserved);
+        }
+
+        console.log("leverage", leverage.toUint256());
+        // revert("yuhi");
+    }
+
+    function logInt(string memory name, int256 num) internal {
+        if (num >= 0) {
+            console.log(name, ":  ", num.toUint256());
+        } else {
+            console.log(name, ": -", num.abs().toUint256());
+        }
     }
 
     function prepare() public {
