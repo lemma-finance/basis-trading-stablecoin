@@ -106,21 +106,24 @@ describe('xUSDL', function () {
     });
 
 
-    it('should revert while withdrawing before minimum lock', async function () {
+    it('should revert while withdrawing & transfer before minimum lock', async function () {
         await this.xusdl.deposit(utils.parseEther("1000"));
 
-        await mineBlocks(96);
+        await mineBlocks(97);
 
-
+        await expect(this.xusdl.transfer(user1.address, await balanceOf(this.xusdl, owner.address)))
+            .to.be.revertedWith('xUSDL: Locked tokens');
         await expect(this.xusdl.withdraw(await balanceOf(this.xusdl, owner.address)))
             .to.be.revertedWith('xUSDL: Locked tokens');
     });
 
-    it('should withdraw after minimum lock', async function () {
+    it('should withdraw & transfer after minimum lock', async function () {
         await this.xusdl.deposit(utils.parseEther("1000"));
 
         await mineBlocks(100);
 
+        await expect(this.xusdl.transfer(user1.address, utils.parseEther("100")))
+            .not.to.be.reverted;
         await expect(this.xusdl.withdraw(await balanceOf(this.xusdl, owner.address)))
             .not.to.be.reverted;
     });
@@ -165,26 +168,30 @@ describe('xUSDL', function () {
         expect(postBalance.sub(preBalance)).equal(utils.parseEther("500"));
     });
 
-    it('should transfer & update minimum lock for new user', async function() {
-        await this.xusdl.deposit(utils.parseEther("1000"));
+    it('should deposit to another user', async function() {
+        await this.xusdl.depositTo(user1.address, utils.parseEther("1000"));
+
+        expect(await balanceOf(this.xusdl, user1.address)).equal(utils.parseEther("1000"));       
+    })
+
+    it('should disable withdraw & transfer before minimum lock for depositing another user', async function() {
+        await this.xusdl.depositTo(user1.address, utils.parseEther("1000"));
 
         await mineBlocks(80);
 
-        await this.xusdl.transfer(user1.address, utils.parseEther("100"));
-
-        await expect(this.xusdl.connect(user1).withdraw(utils.parseEther("100")))
-        .to.be.revertedWith("xUSDL: Locked tokens");        
+        await expect(this.xusdl.connect(user1).transfer(owner.address, utils.parseEther("100")))
+        .to.be.revertedWith('xUSDL: Locked tokens');
+        await expect(this.xusdl.connect(user1).withdraw(utils.parseEther("1000")))
+        .to.be.revertedWith('xUSDL: Locked tokens');        
     })
 
-    it('should enable withdraw after minimum lock for new user', async function() {
-        await this.xusdl.deposit(utils.parseEther("1000"));
 
-
-        await this.xusdl.transfer(user1.address, utils.parseEther("100"));
+    it('should enable withdraw after minimum lock for depositing another user', async function() {
+        await this.xusdl.depositTo(user1.address, utils.parseEther("1000"));
 
         await mineBlocks(100);
 
-        await expect(this.xusdl.connect(user1).withdraw(utils.parseEther("100")))
+        await expect(this.xusdl.connect(user1).withdraw(utils.parseEther("1000")))
         .not.to.be.reverted;        
     })
 
