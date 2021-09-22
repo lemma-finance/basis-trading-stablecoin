@@ -5,6 +5,10 @@ import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC
 
 interface IXUSDL {
     
+
+    event Stake(address indexed user, uint256 amount);
+    event Unstake(address indexed user, uint256 amount);
+
     function usdl() external view returns (IERC20Upgradeable); 
 
     /// @notice Balance of USDL in xUSDL contract

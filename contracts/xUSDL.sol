@@ -68,6 +68,7 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
         usdl.transferFrom(_msgSender(), address(this), amount);
         userUnlockBlock[user] = block.number + MINIMUM_LOCK;
         _mint(user, shares);
+        emit Stake(user, amount);
     }
 
     /// @notice Withdraw USDL and burn xUSDL
@@ -78,7 +79,8 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
         require(block.number >= userUnlockBlock[_msgSender()], "xUSDL: Locked tokens");
         amount = (pricePerShare() * shares) / 1e18;
         usdl.transfer(user, amount);
-        _burn(_msgSender(), shares);        
+        _burn(_msgSender(), shares);
+        emit Unstake(user, amount);        
     }
 
 
