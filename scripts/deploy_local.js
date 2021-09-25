@@ -3,7 +3,7 @@ const { ethers, upgrades } = hre;
 const { constants, BigNumber } = ethers;
 const { utils } = require('ethers');
 const { AddressZero } = constants;
-const {  displayNicely, tokenTransfers, loadMCDEXInfo, toBigNumber, fromBigNumber, snapshot, revertToSnapshot } = require("../test/utils");
+const { displayNicely, tokenTransfers, loadMCDEXInfo, toBigNumber, fromBigNumber, snapshot, revertToSnapshot } = require("../test/utils");
 const { MaxUint256 } = require("@ethersproject/constants");
 const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, getAccountStorage, computeAccount, normalizeBigNumberish, DECIMALS, computeAMMTrade, computeIncreasePosition, _0, _1, computeDecreasePosition, computeAMMTradeAmountByMargin } = require('@mcdex/mai3.js');
 const fs = require('fs');
@@ -23,7 +23,7 @@ const printTx = async (hash) => {
 
 const save = async () => {
     await fs.writeFileSync(SAVE_PREFIX + SAVE_POSTFIX, JSON.stringify(deployedContracts, null, 2));
-}
+};
 
 
 async function main() {
@@ -65,13 +65,16 @@ async function main() {
     const ERC20 = IERC20Factory.connect(collateralAddress, defaultSigner);//choose USDLemma ust because it follows IERC20 interface
     const collateral = ERC20.attach(collateralAddress);//WETH
     const USDLemma = await ethers.getContractFactory("USDLemma");
+    console.log("mcdexLemma", mcdexLemma.address);
     const usdLemma = await upgrades.deployProxy(USDLemma, [AddressZero, collateralAddress, mcdexLemma.address], { initializer: 'initialize' });
     await mcdexLemma.setUSDLemma(usdLemma.address);
+    console.log("mcdexLemma", await usdLemma.perpetualDEXWrappers("0", collateral.address));
 
     //deploy stackingContract
     const XUSDL = await ethers.getContractFactory("xUSDL");
     const xUSDL = await upgrades.deployProxy(XUSDL, [AddressZero, usdLemma.address], { initializer: 'initialize' });
     console.log("xUSDL", xUSDL.address);
+    console.log("USDLemma", xUSDL.usdl());
 
     //deposit keeper gas reward
     //get some WETH first
@@ -103,17 +106,17 @@ async function main() {
     deployedContracts['USDLemma'] = {
         name: 'USDLemma',
         address: usdLemma.address
-    }
+    };
 
     deployedContracts['XUSDL'] = {
         name: 'XUSDL',
         address: xUSDL.address
-    }
+    };
 
     deployedContracts['MCDEXLemma'] = {
         name: 'MCDEXLemma',
         address: mcdexLemma.address
-    }
+    };
 
     deployedContracts = Object.assign(mcdexAddresses, deployedContracts);
 
