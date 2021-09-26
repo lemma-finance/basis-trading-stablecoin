@@ -194,7 +194,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         (PerpetualState perpetualState, , ) = liquidityPool.getPerpetualInfo(perpetualIndex);
 
         if (perpetualState == PerpetualState.CLEARED) {
-            require(isShorting == false, "cannot open when perpetual has settled");
+            require(!isShorting, "cannot open when perpetual has settled");
             (
                 ,
                 ,
