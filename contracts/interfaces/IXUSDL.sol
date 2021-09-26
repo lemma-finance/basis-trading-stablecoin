@@ -4,8 +4,7 @@ pragma solidity =0.8.3;
 import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
 interface IXUSDL {
-    
-    function usdl() external view returns (IERC20Upgradeable); 
+    function usdl() external view returns (IERC20Upgradeable);
 
     /// @notice Balance of USDL in xUSDL contract
     /// @return Amount of USDL
@@ -30,6 +29,6 @@ interface IXUSDL {
     function pricePerShare() external view returns (uint256);
 
     /// @notice Block number after which user can withdraw USDL
-    /// @return Block number after which user can withdraw USDL 
+    /// @return Block number after which user can withdraw USDL
     function userUnlockBlock(address usr) external view returns (uint256);
 }

@@ -81,7 +81,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
 
     ///@notice sets refferer address - only owner can set
     ///@param _referrer refferer address to set
-    function setReferrer(address _referrer) public onlyOwner {
+    function setReferrer(address _referrer) external onlyOwner {
         referrer = _referrer;
     }
 
