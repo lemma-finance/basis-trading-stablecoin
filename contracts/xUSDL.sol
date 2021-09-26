@@ -51,7 +51,6 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
         } else {
             shares = (amount * 1e18) / pricePerShare();
         }
-
         SafeERC20Upgradeable.safeTransferFrom(usdl, _msgSender(), address(this), amount);
         userUnlockBlock[_msgSender()] = block.number + MINIMUM_LOCK;
         _mint(_msgSender(), shares);
@@ -63,8 +62,8 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
     function withdraw(uint256 shares) external override returns (uint256 amount) {
         require(block.number >= userUnlockBlock[_msgSender()], "xUSDL: Locked tokens");
         amount = (pricePerShare() * shares) / 1e18;
-        SafeERC20Upgradeable.safeTransfer(usdl, _msgSender(), amount);
         _burn(_msgSender(), shares);
+        SafeERC20Upgradeable.safeTransfer(usdl, _msgSender(), amount);
     }
 
     /// @notice Price per share in terms of USDL
