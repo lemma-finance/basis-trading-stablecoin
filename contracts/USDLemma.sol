@@ -153,7 +153,7 @@ contract USDLemma is ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextU
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
-        require(perpDEXWrapper.reBalance(msg.sender, amount, data), "rebalance not done");
+        require(perpDEXWrapper.reBalance(_msgSender(), amount, data), "rebalance not done");
         //burn or mint from the staker contract
         if (amount >= 0) {
             uint256 totalAmountToMint = amount.toUint256();
