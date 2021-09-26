@@ -35,19 +35,19 @@ contract USDLemma is ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextU
 
     /// @notice Set staking contract address, can only be called by owner
     /// @param _stakingContractAddress Address of staking contract
-    function setStakingContractAddress(address _stakingContractAddress) public onlyOwner {
+    function setStakingContractAddress(address _stakingContractAddress) external onlyOwner {
         stakingContractAddress = _stakingContractAddress;
     }
 
     /// @notice Set Lemma treasury, can only be called by owner
     /// @param _lemmaTreasury Address of Lemma Treasury
-    function setLemmaTreasury(address _lemmaTreasury) public onlyOwner {
+    function setLemmaTreasury(address _lemmaTreasury) external onlyOwner {
         lemmaTreasury = _lemmaTreasury;
     }
 
     /// @notice Set Fees, can only be called by owner
     /// @param _fees Fees taken by the protocol
-    function setFees(uint256 _fees) public onlyOwner {
+    function setFees(uint256 _fees) external onlyOwner {
         fees = _fees;
     }
 
