@@ -40,7 +40,6 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
 
     int256 public entryFunding;
     int256 public realizedFundingPNL;
-    int256 public fundingPNLAtLastReBalance;
 
     uint256 public positionAtSettlement;
 
