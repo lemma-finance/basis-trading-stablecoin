@@ -9,13 +9,14 @@ import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC
 import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import { Utils } from "../libraries/Utils.sol";
 import { SafeMathExt } from "../libraries/SafeMathExt.sol";
+import { IPerpetualDEXWrapper } from "../interfaces/IPerpetualDEXWrapper.sol";
 
 interface IUSDLemma {
     function lemmaTreasury() external view returns (address);
 }
 
 /// @author Lemma Finance
-contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
+contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualDEXWrapper {
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
     using Utils for int256;
@@ -124,7 +125,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     //go short to open
     /// @notice Open short position on dex and deposit collateral
     /// @param amount worth in USD short position which is to be opened
-    function open(uint256 amount) external {
+    function open(uint256 amount) external override {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
         uint256 collateralRequiredAmount = getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
         require(
@@ -143,7 +144,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     //go long and withdraw collateral
     /// @notice Close short position on dex and withdraw collateral
     /// @param amount worth in USD short position which is to be closed
-    function close(uint256 amount) external {
+    function close(uint256 amount) external override {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
 
         uint256 collateralAmountRequired = getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
@@ -185,6 +186,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     /// @return collateralAmountRequired equivalent collateral amount
     function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
         public
+        override
         returns (uint256 collateralAmountRequired)
     {
         liquidityPool.forceToSyncState();
@@ -237,7 +239,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         address _reBalancer,
         int256 amount,
         bytes calldata data
-    ) external returns (bool) {
+    ) external override returns (bool) {
         liquidityPool.forceToSyncState();
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
         require(_reBalancer == reBalancer, "only rebalancer is allowed");
@@ -305,7 +307,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     /// @param amount Amount in 18 decimals
     /// @param roundUp If needs to round up
     /// @return decimal adjusted value
-    function getAmountInCollateralDecimals(uint256 amount, bool roundUp) public view returns (uint256) {
+    function getAmountInCollateralDecimals(uint256 amount, bool roundUp) public view override returns (uint256) {
         if (roundUp && (amount % (uint256(10**(18 - collateralDecimals))) != 0)) {
             return amount / uint256(10**(18 - collateralDecimals)) + 1;
         }
