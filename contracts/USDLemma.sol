@@ -186,7 +186,6 @@ contract USDLemma is ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextU
      * Destroys `amount` tokens from `account`, deducting from this contract's
      * allowance.(instead of _msgSender()'s)
      *
-     *
      * Requirements:
      *
      * - this contract must have allowance for ``accounts``'s tokens of at least
