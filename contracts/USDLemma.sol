@@ -5,6 +5,7 @@ import { ERC20PermitUpgradeable } from "@openzeppelin/contracts-upgradeable/toke
 import { OwnableUpgradeable, ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
+import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import { Utils } from "./libraries/Utils.sol";
 import { SafeMathExt } from "./libraries/SafeMathExt.sol";
 import { IPerpetualDEXWrapper } from "./interfaces/IPerpetualDEXWrapper.sol";
@@ -82,7 +83,7 @@ contract USDLemma is ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextU
         uint256 collateralRequired = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
         collateralRequired = perpDEXWrapper.getAmountInCollateralDecimals(collateralRequired, true);
         require(collateralRequired <= maxCollateralRequired, "collateral required execeeds maximum");
-        collateral.transferFrom(_msgSender(), address(perpDEXWrapper), collateralRequired);
+        SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), collateralRequired);
         perpDEXWrapper.open(amount);
         _mint(to, amount);
     }
@@ -108,7 +109,7 @@ contract USDLemma is ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextU
         collateralToGetBack = perpDEXWrapper.getAmountInCollateralDecimals(collateralToGetBack, false);
         require(collateralToGetBack >= minCollateralToGetBack, "collateral got back is too low");
         perpDEXWrapper.close(amount);
-        collateral.transfer(to, collateralToGetBack);
+        SafeERC20Upgradeable.safeTransfer(collateral, to, collateralToGetBack);
     }
 
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL

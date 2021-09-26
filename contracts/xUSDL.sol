@@ -5,6 +5,7 @@ import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC
 import { ERC20PermitUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/draft-ERC20PermitUpgradeable.sol";
 import { OwnableUpgradeable, ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
+import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import { IXUSDL } from "./interfaces/IXUSDL.sol";
 
 /// @author Lemma Finance
@@ -21,7 +22,7 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
         __ERC20Permit_init("xUSDLemma");
         __ERC2771Context_init(_trustedForwarder);
         usdl = IERC20Upgradeable(_usdl);
-        usdl.approve(address(usdl), type(uint256).max);
+        SafeERC20Upgradeable.safeApprove(usdl, address(usdl), type(uint256).max);
         MINIMUM_LOCK = 100;
     }
 
@@ -32,7 +33,7 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
 
     /// @notice reset approvals for usdl contract to user usdl as needed
     function resetApprovals() external {
-        usdl.approve(address(usdl), type(uint256).max);
+        SafeERC20Upgradeable.safeApprove(usdl, address(usdl), type(uint256).max);
     }
 
     /// @notice Balance of USDL in xUSDL contract
@@ -51,7 +52,7 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
             shares = (amount * 1e18) / pricePerShare();
         }
 
-        usdl.transferFrom(_msgSender(), address(this), amount);
+        SafeERC20Upgradeable.safeTransferFrom(usdl, _msgSender(), address(this), amount);
         userUnlockBlock[_msgSender()] = block.number + MINIMUM_LOCK;
         _mint(_msgSender(), shares);
     }
@@ -62,7 +63,7 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
     function withdraw(uint256 shares) external override returns (uint256 amount) {
         require(block.number >= userUnlockBlock[_msgSender()], "xUSDL: Locked tokens");
         amount = (pricePerShare() * shares) / 1e18;
-        usdl.transfer(_msgSender(), amount);
+        SafeERC20Upgradeable.safeTransfer(usdl, _msgSender(), amount);
         _burn(_msgSender(), shares);
     }
 

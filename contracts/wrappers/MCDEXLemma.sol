@@ -6,6 +6,7 @@ import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/m
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import { Utils } from "../libraries/Utils.sol";
 import { SafeMathExt } from "../libraries/SafeMathExt.sol";
 
@@ -68,7 +69,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         setMaxPosition(_maxPosition);
 
         //approve collateral to
-        collateral.approve(address(liquidityPool), MAX_UINT256);
+        SafeERC20Upgradeable.safeApprove(collateral, address(liquidityPool), MAX_UINT256);
         //target leverage = 1
         liquidityPool.setTargetLeverage(perpetualIndex, address(this), 1 ether); //1
     }
@@ -97,6 +98,11 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         maxPosition = _maxPosition;
     }
 
+    /// @notice reset approvals
+    function resetApprovals() external {
+        SafeERC20Upgradeable.safeApprove(collateral, address(liquidityPool), MAX_UINT256);
+    }
+
     //this needs to be done before the first withdrawal happens
     //Keeper gas reward needs to be handled seperately which owner can get back when perpetual has settled
     /// @notice Deposit Keeper gas reward for the perpetual - only owner can call
@@ -106,7 +112,8 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             (, , int256[39] memory nums) = liquidityPool.getPerpetualInfo(perpetualIndex);
             keeperGasReward = nums[11];
         }
-        collateral.transferFrom(
+        SafeERC20Upgradeable.safeTransferFrom(
+            collateral,
             _msgSender(),
             address(this),
             getAmountInCollateralDecimals(keeperGasReward.toUint256(), true)
@@ -158,7 +165,11 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             liquidityPool.withdraw(perpetualIndex, address(this), collateralAmountRequired.toInt256());
             updateEntryFunding(position, -amount.toInt256());
         }
-        collateral.transfer(usdLemma, getAmountInCollateralDecimals(collateralAmountRequired, false));
+        SafeERC20Upgradeable.safeTransfer(
+            collateral,
+            usdLemma,
+            getAmountInCollateralDecimals(collateralAmountRequired, false)
+        );
     }
 
     //// @notice when perpetual is in CLEARED state, withdraw the collateral
@@ -306,7 +317,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     function sendMCBToTreasury() external {
         IERC20Upgradeable mcbToken = IERC20Upgradeable(0x4e352cF164E64ADCBad318C3a1e222E9EBa4Ce42);
         address lemmaTreasury = IUSDLemma(usdLemma).lemmaTreasury();
-        mcbToken.transfer(lemmaTreasury, mcbToken.balanceOf(address(this)));
+        SafeERC20Upgradeable.safeTransfer(mcbToken, lemmaTreasury, mcbToken.balanceOf(address(this)));
     }
 
     function _msgSender()
