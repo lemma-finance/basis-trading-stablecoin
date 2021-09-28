@@ -100,6 +100,16 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
         require(block.number >= userUnlockBlock[from], "xUSDL: Locked tokens");
     }
 
+    function _afterTokenTransfer(
+        address from,
+        address to,
+        uint256
+    ) internal override {
+        if(from == periphery){
+            userUnlockBlock[to] = block.number + MINIMUM_LOCK;
+        }
+    }
+
     function _msgSender()
         internal
         view
