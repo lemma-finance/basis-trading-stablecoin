@@ -15,14 +15,22 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
 
     IERC20Upgradeable public override usdl;
 
-    function initialize(address _trustedForwarder, address _usdl) external initializer {
+    address public periphery;
+
+    function initialize(address _trustedForwarder, address _usdl, address _periphery) external initializer {
         __Ownable_init();
         __ERC20_init("xUSDLemma", "xUSDL");
         __ERC20Permit_init("xUSDLemma");
         __ERC2771Context_init(_trustedForwarder);
         usdl = IERC20Upgradeable(_usdl);
         usdl.approve(address(usdl), type(uint256).max);
+        periphery = _periphery;
         MINIMUM_LOCK = 100;
+    }
+
+    ///@notice update periphery contract address
+    function updatePeriphery(address _periphery) external onlyOwner {
+        periphery = _periphery;
     }
 
     /// @notice updated minimum number of blocks to be locked before xUSDL tokens are unlocked
@@ -45,7 +53,17 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
     /// @param amount of USDL to deposit
     /// @return shares Amount of xUSDL minted
     function deposit(uint256 amount) external override returns (uint256 shares) {
-        return depositTo(_msgSender(), amount);
+        if (totalSupply() == 0) {
+            shares = amount;
+        } else {
+            shares = (amount * 1e18) / pricePerShare();
+        }
+        usdl.transferFrom(_msgSender(), address(this), amount);
+        if(periphery != _msgSender()){
+            userUnlockBlock[_msgSender()] = block.number + MINIMUM_LOCK;
+        }
+        _mint(_msgSender(), shares);
+        emit Stake(_msgSender(), amount);
     }
 
     /// @notice Withdraw USDL and burn xUSDL
@@ -53,22 +71,6 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
     /// @return amount Amount of USDL withdrawn
     function withdraw(uint256 shares) external override returns (uint256 amount) {
         return withdrawTo(_msgSender(), shares);
-    }
-
-    /// @notice Deposit and mint xUSDL in exchange of USDL
-    /// @param user address of user to deposit xUSDL
-    /// @param amount of USDL to deposit
-    /// @return shares Amount of xUSDL minted
-    function depositTo(address user, uint256 amount) public override returns (uint256 shares) {
-        if (totalSupply() == 0) {
-            shares = amount;
-        } else {
-            shares = (amount * 1e18) / pricePerShare();
-        }
-        usdl.transferFrom(_msgSender(), address(this), amount);
-        userUnlockBlock[user] = block.number + MINIMUM_LOCK;
-        _mint(user, shares);
-        emit Stake(user, amount);
     }
 
     /// @notice Withdraw USDL and burn xUSDL
