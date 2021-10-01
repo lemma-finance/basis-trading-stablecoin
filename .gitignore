@@ -18,3 +18,7 @@ scripts/test.js
 coverage.json
 coverage
 
+deployments/local
+
+##solidity-tests
+deployments
