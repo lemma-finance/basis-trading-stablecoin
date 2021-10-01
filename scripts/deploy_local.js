@@ -72,7 +72,8 @@ async function main() {
 
     //deploy stackingContract
     const XUSDL = await ethers.getContractFactory("xUSDL");
-    const xUSDL = await upgrades.deployProxy(XUSDL, [AddressZero, usdLemma.address], { initializer: 'initialize' });
+    const peripheryAddress = AddressZero;
+    const xUSDL = await upgrades.deployProxy(XUSDL, [AddressZero, usdLemma.address, peripheryAddress], { initializer: 'initialize' });
     console.log("xUSDL", xUSDL.address);
     console.log("USDLemma", xUSDL.usdl());
 
