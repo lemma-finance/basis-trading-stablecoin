@@ -5,6 +5,10 @@ import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC
 
 interface IXUSDL {
     
+
+    event Stake(address indexed user, uint256 amount);
+    event Unstake(address indexed user, uint256 amount);
+
     function usdl() external view returns (IERC20Upgradeable); 
 
     /// @notice Balance of USDL in xUSDL contract
@@ -24,6 +28,12 @@ interface IXUSDL {
     /// @param shares of xUSDL to burn
     /// @return Amount of USDL withdrawn
     function withdraw(uint256 shares) external returns (uint256);
+
+    /// @notice Withdraw USDL and burn xUSDL
+    /// @param user address of user to transger USDL
+    /// @param shares of xUSDL to burn
+    /// @return Amount of USDL withdrawn
+    function withdrawTo(address user, uint256 shares) external returns (uint256);
 
     /// @notice Price per share in terms of USDL
     /// @return Price of 1 xUSDL in terms of USDL

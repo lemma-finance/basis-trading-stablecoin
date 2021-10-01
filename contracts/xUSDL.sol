@@ -15,14 +15,22 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
 
     IERC20Upgradeable public override usdl;
 
-    function initialize(address _trustedForwarder, address _usdl) external initializer {
+    address public periphery;
+
+    function initialize(address _trustedForwarder, address _usdl, address _periphery) external initializer {
         __Ownable_init();
         __ERC20_init("xUSDLemma", "xUSDL");
         __ERC20Permit_init("xUSDLemma");
         __ERC2771Context_init(_trustedForwarder);
         usdl = IERC20Upgradeable(_usdl);
         usdl.approve(address(usdl), type(uint256).max);
+        periphery = _periphery;
         MINIMUM_LOCK = 100;
+    }
+
+    ///@notice update periphery contract address
+    function updatePeriphery(address _periphery) external onlyOwner {
+        periphery = _periphery;
     }
 
     /// @notice updated minimum number of blocks to be locked before xUSDL tokens are unlocked
@@ -50,21 +58,33 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
         } else {
             shares = (amount * 1e18) / pricePerShare();
         }
-
         usdl.transferFrom(_msgSender(), address(this), amount);
-        userUnlockBlock[_msgSender()] = block.number + MINIMUM_LOCK;
+        if(periphery != _msgSender()){
+            userUnlockBlock[_msgSender()] = block.number + MINIMUM_LOCK;
+        }
         _mint(_msgSender(), shares);
+        emit Stake(_msgSender(), amount);
     }
 
     /// @notice Withdraw USDL and burn xUSDL
     /// @param shares of xUSDL to burn
     /// @return amount Amount of USDL withdrawn
     function withdraw(uint256 shares) external override returns (uint256 amount) {
+        return withdrawTo(_msgSender(), shares);
+    }
+
+    /// @notice Withdraw USDL and burn xUSDL
+    /// @param user address of user to transger USDL
+    /// @param shares of xUSDL to burn
+    /// @return amount Amount of USDL withdrawn
+    function withdrawTo(address user, uint256 shares) public override returns (uint256 amount){
         require(block.number >= userUnlockBlock[_msgSender()], "xUSDL: Locked tokens");
         amount = (pricePerShare() * shares) / 1e18;
-        usdl.transfer(_msgSender(), amount);
+        usdl.transfer(user, amount);
         _burn(_msgSender(), shares);
+        emit Unstake(user, amount);        
     }
+
 
     /// @notice Price per share in terms of USDL
     /// @return price Price of 1 xUSDL in terms of USDL
@@ -74,10 +94,20 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
 
     function _beforeTokenTransfer(
         address from,
-        address,
+        address to,
         uint256
     ) internal view override {
         require(block.number >= userUnlockBlock[from], "xUSDL: Locked tokens");
+    }
+
+    function _afterTokenTransfer(
+        address from,
+        address to,
+        uint256
+    ) internal override {
+        if(from == periphery){
+            userUnlockBlock[to] = block.number + MINIMUM_LOCK;
+        }
     }
 
     function _msgSender()
