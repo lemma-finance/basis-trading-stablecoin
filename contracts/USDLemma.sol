@@ -70,13 +70,13 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @param to Receipent of minted USDL
     /// @param amount Amount of USDL to mint
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
-    /// @param maxCollateralRequired Maximum amount of collateral to be used to mint given USDL
+    /// @param maxCollateralAmountRequired Maximum amount of collateral to be used to mint given USDL
     /// @param collateral Collateral to be used to mint USDL
     function depositTo(
         address to,
         uint256 amount,
         uint256 perpetualDEXIndex,
-        uint256 maxCollateralRequired,
+        uint256 maxCollateralAmountRequired,
         IERC20Upgradeable collateral
     ) public nonReentrant {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
@@ -85,7 +85,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
         uint256 collateralRequired = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
         collateralRequired = perpDEXWrapper.getAmountInCollateralDecimals(collateralRequired, true);
-        require(collateralRequired <= maxCollateralRequired, "collateral required execeeds maximum");
+        require(collateralRequired <= maxCollateralAmountRequired, "collateral required execeeds maximum");
         SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), collateralRequired);
         perpDEXWrapper.open(amount, collateralRequired);
         _mint(to, amount);
@@ -95,13 +95,13 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @param to Receipent of withdrawn collateral
     /// @param amount Amount of USDL to redeem
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be closed
-    /// @param minCollateralToGetBack Minimum amount of collateral to get back on redeeming given USDL
+    /// @param minCollateralAmountToGetBack Minimum amount of collateral to get back on redeeming given USDL
     /// @param collateral Collateral to be used to redeem USDL
     function withdrawTo(
         address to,
         uint256 amount,
         uint256 perpetualDEXIndex,
-        uint256 minCollateralToGetBack,
+        uint256 minCollateralAmountToGetBack,
         IERC20Upgradeable collateral
     ) public nonReentrant {
         _burn(_msgSender(), amount);
@@ -109,39 +109,39 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
-        uint256 collateralToGetBack = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
-        collateralToGetBack = perpDEXWrapper.getAmountInCollateralDecimals(collateralToGetBack, false);
-        require(collateralToGetBack >= minCollateralToGetBack, "collateral got back is too low");
-        perpDEXWrapper.close(amount, collateralToGetBack);
-        SafeERC20Upgradeable.safeTransfer(collateral, to, collateralToGetBack);
+        uint256 collateralAmountToGetBack = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
+        collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmountToGetBack, false);
+        require(collateralAmountToGetBack >= minCollateralAmountToGetBack, "collateral got back is too low");
+        perpDEXWrapper.close(amount, collateralAmountToGetBack);
+        SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmountToGetBack);
     }
 
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL
     /// @param amount Amount of USDL to mint
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
-    /// @param maxCollateralRequired Maximum amount of collateral to be used to mint given USDL
+    /// @param maxCollateralAmountRequired Maximum amount of collateral to be used to mint given USDL
     /// @param collateral Collateral to be used to mint USDL
     function deposit(
         uint256 amount,
         uint256 perpetualDEXIndex,
-        uint256 maxCollateralRequired,
+        uint256 maxCollateralAmountRequired,
         IERC20Upgradeable collateral
     ) external {
-        depositTo(_msgSender(), amount, perpetualDEXIndex, maxCollateralRequired, collateral);
+        depositTo(_msgSender(), amount, perpetualDEXIndex, maxCollateralAmountRequired, collateral);
     }
 
     /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc
     /// @param amount Amount of USDL to redeem
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be closed
-    /// @param minCollateralToGetBack Minimum amount of collateral to get back on redeeming given USDL
+    /// @param minCollateralAmountToGetBack Minimum amount of collateral to get back on redeeming given USDL
     /// @param collateral Collateral to be used to redeem USDL
     function withdraw(
         uint256 amount,
         uint256 perpetualDEXIndex,
-        uint256 minCollateralToGetBack,
+        uint256 minCollateralAmountToGetBack,
         IERC20Upgradeable collateral
     ) external {
-        withdrawTo(_msgSender(), amount, perpetualDEXIndex, minCollateralToGetBack, collateral);
+        withdrawTo(_msgSender(), amount, perpetualDEXIndex, minCollateralAmountToGetBack, collateral);
     }
 
     /// @notice Rebalance position on a dex to reinvest if funding rate positive and burn USDL if funding rate negative

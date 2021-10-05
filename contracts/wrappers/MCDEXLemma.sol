@@ -127,7 +127,6 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
     /// @param collateralAmountRequired collateral amount required to open the position
     function open(uint256 amount, uint256 collateralAmountRequired) external override {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
-        // uint256 collateralRequiredAmount = getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
         require(
             collateral.balanceOf(address(this)) >= getAmountInCollateralDecimals(collateralAmountRequired, true),
             "not enough collateral"
@@ -144,11 +143,9 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
     //go long and withdraw collateral
     /// @notice Close short position on dex and withdraw collateral
     /// @param amount worth in USD short position which is to be closed
-    /// @param collateralAmountRequired collateral amount freed after closing the position
-    function close(uint256 amount, uint256 collateralAmountRequired) external override {
+    /// @param collateralAmountToGetBack collateral amount freed up after closing the position
+    function close(uint256 amount, uint256 collateralAmountToGetBack) external override {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
-
-        // uint256 collateralAmountRequired = getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
 
         (PerpetualState perpetualState, , ) = liquidityPool.getPerpetualInfo(perpetualIndex);
 
@@ -164,13 +161,13 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
                 referrer,
                 0
             );
-            liquidityPool.withdraw(perpetualIndex, address(this), collateralAmountRequired.toInt256());
+            liquidityPool.withdraw(perpetualIndex, address(this), collateralAmountToGetBack.toInt256());
             updateEntryFunding(position, -amount.toInt256());
         }
         SafeERC20Upgradeable.safeTransfer(
             collateral,
             usdLemma,
-            getAmountInCollateralDecimals(collateralAmountRequired, false)
+            getAmountInCollateralDecimals(collateralAmountToGetBack, false)
         );
     }
 
@@ -181,7 +178,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
         liquidityPool.settle(perpetualIndex, address(this));
     }
 
-    /// @notice Collateral amount required for amount in USD to open or close position on dex
+    /// @notice Collateral amount required/to get back for amount in USD to open/close position on dex
     /// @param amount worth in USD short position which is to be closed or opened
     /// @param isShorting true if opening short position, false if closing short position
     /// @return collateralAmountRequired equivalent collateral amount
