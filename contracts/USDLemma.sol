@@ -4,6 +4,7 @@ import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC
 import { ERC20PermitUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/draft-ERC20PermitUpgradeable.sol";
 import { OwnableUpgradeable, ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
+import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import { Utils } from "./libraries/Utils.sol";
@@ -11,7 +12,7 @@ import { SafeMathExt } from "./libraries/SafeMathExt.sol";
 import { IPerpetualDEXWrapper } from "./interfaces/IPerpetualDEXWrapper.sol";
 
 /// @author Lemma Finance
-contract USDLemma is ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
+contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
     using SafeCastUpgradeable for int256;
     using SafeMathExt for int256;
     using SafeMathExt for uint256;
@@ -27,6 +28,7 @@ contract USDLemma is ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextU
         address collateralAddress,
         address perpetualDEXWrapperAddress
     ) external initializer {
+        __ReentrancyGuard_init();
         __Ownable_init();
         __ERC20_init("USDLemma", "USDL");
         __ERC20Permit_init("USDLemma");
@@ -76,15 +78,16 @@ contract USDLemma is ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextU
         uint256 perpetualDEXIndex,
         uint256 maxCollateralRequired,
         IERC20Upgradeable collateral
-    ) public {
+    ) public nonReentrant {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
+        require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
         uint256 collateralRequired = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
         collateralRequired = perpDEXWrapper.getAmountInCollateralDecimals(collateralRequired, true);
         require(collateralRequired <= maxCollateralRequired, "collateral required execeeds maximum");
         SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), collateralRequired);
-        perpDEXWrapper.open(amount);
+        perpDEXWrapper.open(amount, collateralRequired);
         _mint(to, amount);
     }
 
@@ -100,15 +103,16 @@ contract USDLemma is ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextU
         uint256 perpetualDEXIndex,
         uint256 minCollateralToGetBack,
         IERC20Upgradeable collateral
-    ) public {
+    ) public nonReentrant {
         _burn(_msgSender(), amount);
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
+        require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
         uint256 collateralToGetBack = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
         collateralToGetBack = perpDEXWrapper.getAmountInCollateralDecimals(collateralToGetBack, false);
         require(collateralToGetBack >= minCollateralToGetBack, "collateral got back is too low");
-        perpDEXWrapper.close(amount);
+        perpDEXWrapper.close(amount, collateralToGetBack);
         SafeERC20Upgradeable.safeTransfer(collateral, to, collateralToGetBack);
     }
 
@@ -154,6 +158,7 @@ contract USDLemma is ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextU
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
+        require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
         require(perpDEXWrapper.reBalance(_msgSender(), amount, data), "rebalance not done");
         //burn or mint from the staker contract
         if (amount >= 0) {
