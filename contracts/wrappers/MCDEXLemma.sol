@@ -124,14 +124,15 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
     //go short to open
     /// @notice Open short position on dex and deposit collateral
     /// @param amount worth in USD short position which is to be opened
-    function open(uint256 amount) external override {
+    /// @param collateralAmountRequired collateral amount required to open the position
+    function open(uint256 amount, uint256 collateralAmountRequired) external override {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
-        uint256 collateralRequiredAmount = getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
+        // uint256 collateralRequiredAmount = getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
         require(
-            collateral.balanceOf(address(this)) >= getAmountInCollateralDecimals(collateralRequiredAmount, true),
+            collateral.balanceOf(address(this)) >= getAmountInCollateralDecimals(collateralAmountRequired, true),
             "not enough collateral"
         );
-        liquidityPool.deposit(perpetualIndex, address(this), collateralRequiredAmount.toInt256());
+        liquidityPool.deposit(perpetualIndex, address(this), collateralAmountRequired.toInt256());
 
         (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
 
@@ -143,10 +144,11 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
     //go long and withdraw collateral
     /// @notice Close short position on dex and withdraw collateral
     /// @param amount worth in USD short position which is to be closed
-    function close(uint256 amount) external override {
+    /// @param collateralAmountRequired collateral amount freed after closing the position
+    function close(uint256 amount, uint256 collateralAmountRequired) external override {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
 
-        uint256 collateralAmountRequired = getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
+        // uint256 collateralAmountRequired = getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
 
         (PerpetualState perpetualState, , ) = liquidityPool.getPerpetualInfo(perpetualIndex);
 

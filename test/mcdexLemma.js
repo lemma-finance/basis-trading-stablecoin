@@ -113,7 +113,7 @@ describe("mcdexLemma", async function () {
         expect(await this.mcdexLemma.liquidityPool()).to.equal(liquidityPool.address);
         expect((await this.mcdexLemma.perpetualIndex()).toString()).to.equal(perpetualIndex.toString());
         expect(await this.mcdexLemma.collateral()).to.equal(mcdexAddresses.WETH9.address);
-        // expect(await this.mcdexLemma.isSettled()).to.equal(false);
+        expect(await this.mcdexLemma.collateralDecimals()).to.equal(await this.collateral.decimals());
         expect(await this.mcdexLemma.reBalancer()).to.equal(reBalancer.address);
         expect(await this.mcdexLemma.usdLemma()).to.equal(usdLemma.address);
         expect(await this.collateral.allowance(this.mcdexLemma.address, liquidityPool.address)).to.equal(MaxUint256);
@@ -155,7 +155,7 @@ describe("mcdexLemma", async function () {
         let collaterAmountInDecimals = await this.mcdexLemma.getAmountInCollateralDecimals(collateralToTransfer, true);
         let preBalance = await this.collateral.balanceOf(this.mcdexLemma.address);
         await this.collateral.connect(usdLemma).transfer(this.mcdexLemma.address, collaterAmountInDecimals);
-        await this.mcdexLemma.connect(usdLemma).open(amount);
+        await this.mcdexLemma.connect(usdLemma).open(amount, collateralToTransfer);
         let postBalance = await this.collateral.balanceOf(this.mcdexLemma.address);
         const traderInfoAfterOpen = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
         expect(traderInfoAfterOpen.positionAmount.toString()).to.equal("1000"); //amount/10^18
@@ -174,8 +174,8 @@ describe("mcdexLemma", async function () {
         let collaterAmountInDecimals = await this.mcdexLemma.getAmountInCollateralDecimals(collateralToTransfer, true);
 
         await this.collateral.connect(usdLemma).transfer(this.mcdexLemma.address, collaterAmountInDecimals);
-        await expect(this.mcdexLemma.connect(usdLemma).open(amount.add(1))).to.be.revertedWith("max position reached");
-        await expect(this.mcdexLemma.connect(usdLemma).open(amount)).not.to.be.reverted;
+        await expect(this.mcdexLemma.connect(usdLemma).open(amount.add(1), collateralToTransfer)).to.be.revertedWith("max position reached");
+        await expect(this.mcdexLemma.connect(usdLemma).open(amount, collateralToTransfer)).not.to.be.reverted;
     });
     it("should close position correctly", async function () {
         const amount = utils.parseEther("1000");
@@ -185,12 +185,13 @@ describe("mcdexLemma", async function () {
 
         const collateralToTransfer = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
         await this.collateral.connect(usdLemma).transfer(this.mcdexLemma.address, collateralToTransfer);
-        await this.mcdexLemma.connect(usdLemma).open(amount);
+        await this.mcdexLemma.connect(usdLemma).open(amount, collateralToTransfer);
 
         const traderInfoBeforeClose = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
         expect(traderInfoBeforeClose.positionAmount.toString()).to.equal("1000");
 
-        await this.mcdexLemma.connect(usdLemma).close(amount);
+        const collateralToGetBack = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
+        await this.mcdexLemma.connect(usdLemma).close(amount, collateralToGetBack);
         const traderInfoAfterClose = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
         expect(traderInfoAfterClose.positionAmount.toString()).to.equal("0");
     });
@@ -244,7 +245,7 @@ describe("mcdexLemma", async function () {
     //     //withdraw to reset 
     //     tx = await this.mcdexLemma.withdraw(collateralToTransfer);
     //     await printTx(tx.hash);
-    //     tx = await this.mcdexLemma.connect(usdLemma).open(utils.parseEther(amount));
+    //     tx = await this.mcdexLemma.connect(usdLemma).open(utils.parseEther(amount),collateralToTransfer);
     //     await printTx(tx.hash);
     //     {
     //         const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
@@ -275,7 +276,7 @@ describe("mcdexLemma", async function () {
                 //increase position
                 const collateralToTransfer = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(utils.parseEther(amount), true);
                 await this.collateral.connect(usdLemma).transfer(this.mcdexLemma.address, collateralToTransfer.mul(2));//add more than required as it won't be accurate
-                await this.mcdexLemma.connect(usdLemma).open(utils.parseEther(amount));
+                await this.mcdexLemma.connect(usdLemma).open(utils.parseEther(amount), collateralToTransfer);
 
                 const entryFundingFromContract = await this.mcdexLemma.entryFunding();
                 //entryFunding only changes by the amount it was increased with that is why doing the simulation after the trade has happened yields the same results
@@ -297,7 +298,7 @@ describe("mcdexLemma", async function () {
 
                 const collateralToTransfer = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(utils.parseEther(amount), false);
                 await this.collateral.connect(usdLemma).transfer(this.mcdexLemma.address, collateralToTransfer);
-                await this.mcdexLemma.connect(usdLemma).close(utils.parseEther(amount));
+                await this.mcdexLemma.connect(usdLemma).close(utils.parseEther(amount), collateralToTransfer);
 
                 const entryFundingFromContract = await this.mcdexLemma.entryFunding();
                 expect(BigNumber.from(entryFunding.shiftedBy(DECIMALS).integerValue().toString())).to.be.closeTo(entryFundingFromContract, 1000);
@@ -323,7 +324,7 @@ describe("mcdexLemma", async function () {
 
             const collateralToTransfer = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
             await this.collateral.connect(usdLemma).transfer(this.mcdexLemma.address, collateralToTransfer);
-            await this.mcdexLemma.connect(usdLemma).open(amount);
+            await this.mcdexLemma.connect(usdLemma).open(amount, collateralToTransfer);
 
             //terminate the oracle as prerequisite of setting emergency state
             const oracleAdaptorAddress = mcdexAddresses.OracleAdaptor.address;
@@ -345,8 +346,8 @@ describe("mcdexLemma", async function () {
             await expect(this.mcdexLemma.depositKeeperGasReward()).to.be.revertedWith("perpetual should be in NORMAL state");
         });
         it("should not be able to open", async function () {
-            await this.collateral.connect(usdLemma).transfer(this.mcdexLemma.address, utils.parseEther("1"));
-            await expect(this.mcdexLemma.connect(usdLemma).open(utils.parseEther("1000"))).to.be.revertedWith("cannot open when perpetual has settled");
+            const amount = utils.parseEther("1000");
+            await expect(this.mcdexLemma.getCollateralAmountGivenUnderlyingAssetAmount(amount, true)).to.be.revertedWith("cannot open when perpetual has settled");
         });
         it("should close correctly", async function () {
             const amount = utils.parseEther("1000");
@@ -356,7 +357,9 @@ describe("mcdexLemma", async function () {
                 this.mcdexLemma.address
             );
             settleableMargin = await this.mcdexLemma.getAmountInCollateralDecimals(settleableMargin, false);
-            await this.mcdexLemma.connect(usdLemma).close(amount);
+            const collateralToGetBack = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
+            await this.mcdexLemma.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
+            await this.mcdexLemma.connect(usdLemma).close(amount, collateralToGetBack);
             const collateralBalanceAfter = await this.collateral.balanceOf(usdLemma.address);
             let diff = collateralBalanceAfter.sub(collateralBalanceBefore);
             //usdlemma balance change == settleableMargin
@@ -376,7 +379,8 @@ describe("mcdexLemma", async function () {
             let settledDiff = (await this.collateral.balanceOf(this.mcdexLemma.address)).sub(preBalance);
             expect((await this.collateral.balanceOf(this.mcdexLemma.address)).sub(preBalance)).to.equal(convertToCollateralDecimals(settleableMargin.toString(), this.collateralDecimals));
 
-            await this.mcdexLemma.connect(usdLemma).close(amount);
+            const collateralToGetBack = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
+            await this.mcdexLemma.connect(usdLemma).close(amount, collateralToGetBack);
             settledDiff = (await this.collateral.balanceOf(this.mcdexLemma.address)).sub(preBalance);
             // await printTx(tx.hash);
             expect(await this.collateral.balanceOf(this.mcdexLemma.address)).to.be.closeTo(preBalance, utils.parseUnits("0.05", this.collateralDecimals));
@@ -408,7 +412,7 @@ describe("mcdexLemma", async function () {
 
             const collateralToTransfer = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
             await this.collateral.connect(usdLemma).transfer(this.mcdexLemma.address, collateralToTransfer);
-            await this.mcdexLemma.connect(usdLemma).open(amount);
+            await this.mcdexLemma.connect(usdLemma).open(amount, collateralToTransfer);
         });
 
         it("when fundingPNL is positive", async function () {
@@ -458,10 +462,14 @@ describe("mcdexLemma", async function () {
     });
 
     it("should round up correctly", async function () {
-        const amount = "1";
-        const roundUpAmount = await this.mcdexLemma.getAmountInCollateralDecimals(amount, true);
-        expect(roundUpAmount).to.equal("1");
-        const notRoundedUpAmount = await this.mcdexLemma.getAmountInCollateralDecimals(amount, false);
-        expect(notRoundedUpAmount).to.equal("0");
+        const collateralDecimals = (await this.mcdexLemma.collateralDecimals()).toString();
+        const SYSTEM_DECIMALS = "18";
+        if (collateralDecimals != SYSTEM_DECIMALS) {
+            const amount = "1";
+            const roundUpAmount = await this.mcdexLemma.getAmountInCollateralDecimals(amount, true);
+            expect(roundUpAmount).to.equal("1");
+            const notRoundedUpAmount = await this.mcdexLemma.getAmountInCollateralDecimals(amount, false);
+            expect(notRoundedUpAmount).to.equal("0");
+        }
     });
 });
