@@ -64,18 +64,19 @@ async function main() {
     const collateralAddress = await mcdexLemma.collateral();
     const ERC20 = IERC20Factory.connect(collateralAddress, defaultSigner);//choose USDLemma ust because it follows IERC20 interface
     const collateral = ERC20.attach(collateralAddress);//WETH
+    console.log("collateral", collateralAddress);
     const USDLemma = await ethers.getContractFactory("USDLemma");
     console.log("mcdexLemma", mcdexLemma.address);
     const usdLemma = await upgrades.deployProxy(USDLemma, [AddressZero, collateralAddress, mcdexLemma.address], { initializer: 'initialize' });
     await mcdexLemma.setUSDLemma(usdLemma.address);
-    console.log("mcdexLemma", await usdLemma.perpetualDEXWrappers("0", collateral.address));
+    // console.log("mcdexLemma", await usdLemma.perpetualDEXWrappers("0", collateral.address));
 
     //deploy stackingContract
     const XUSDL = await ethers.getContractFactory("xUSDL");
     const peripheryAddress = AddressZero;
     const xUSDL = await upgrades.deployProxy(XUSDL, [AddressZero, usdLemma.address, peripheryAddress], { initializer: 'initialize' });
     console.log("xUSDL", xUSDL.address);
-    console.log("USDLemma", xUSDL.usdl());
+    console.log("USDLemma", await xUSDL.usdl());
 
     //deposit keeper gas reward
     //get some WETH first
@@ -103,6 +104,12 @@ async function main() {
     await usdLemma.setStakingContractAddress(xUSDL.address);
     //set lemma treasury address
     await usdLemma.setLemmaTreasury(lemmaTreasury.address);
+
+    //mint USDL
+    const amount = utils.parseEther("1000");
+    const collateralNeeded = await mcdexLemma.getAmountInCollateralDecimals(await mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true), true);
+    await collateral.approve(usdLemma.address, collateralNeeded);
+    await usdLemma.deposit(amount, 0, collateralNeeded, collateral.address);
 
     deployedContracts['USDLemma'] = {
         name: 'USDLemma',
