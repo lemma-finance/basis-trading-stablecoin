@@ -23,6 +23,15 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
 
     mapping(uint256 => mapping(address => address)) public perpetualDEXWrappers;
 
+    // events
+    event DepositTo(address indexed user, address indexed to, uint256 amount);
+    event WithrawTo(address indexed user, address indexed to, uint256 amount);
+    event Rebalance(uint256 indexed dexIndex, address indexed collateral, int256 amount);
+    event UpdateStakingContract(address indexed current);
+    event UpdateLemmaTreasury(address indexed current);
+    event UpdateFees(uint256 newFees);
+    event AddPerpetualDexWrapper(uint256 indexed dexIndex, address indexed collateral, address dexWrapper);
+
     function initialize(
         address trustedForwarder,
         address collateralAddress,
@@ -40,18 +49,21 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @param _stakingContractAddress Address of staking contract
     function setStakingContractAddress(address _stakingContractAddress) external onlyOwner {
         stakingContractAddress = _stakingContractAddress;
+        emit UpdateStakingContract(stakingContractAddress);
     }
 
     /// @notice Set Lemma treasury, can only be called by owner
     /// @param _lemmaTreasury Address of Lemma Treasury
     function setLemmaTreasury(address _lemmaTreasury) external onlyOwner {
         lemmaTreasury = _lemmaTreasury;
+        emit UpdateLemmaTreasury(lemmaTreasury);
     }
 
     /// @notice Set Fees, can only be called by owner
     /// @param _fees Fees taken by the protocol
     function setFees(uint256 _fees) external onlyOwner {
         fees = _fees;
+        emit UpdateFees(fees);
     }
 
     /// @notice Add address for perpetual dex wrapper for perpetual index and collateral, can only be called by owner
@@ -64,6 +76,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         address perpetualDEXWrapperAddress
     ) public onlyOwner {
         perpetualDEXWrappers[perpetualDEXIndex][collateralAddress] = perpetualDEXWrapperAddress;
+        emit AddPerpetualDexWrapper(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
     }
 
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL
@@ -89,6 +102,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), collateralRequired);
         perpDEXWrapper.open(amount, collateralRequired);
         _mint(to, amount);
+        emit DepositTo(_msgSender(), to, collateralRequired);
     }
 
     /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc
@@ -114,6 +128,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         require(collateralAmountToGetBack >= minCollateralAmountToGetBack, "collateral got back is too low");
         perpDEXWrapper.close(amount, collateralAmountToGetBack);
         SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmountToGetBack);
+        emit WithrawTo(_msgSender(), to, collateralAmountToGetBack);
     }
 
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL
@@ -185,6 +200,8 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
                 _burnFrom(lemmaTreasury, amountBurntFromLemmaTreasury);
             }
         }
+
+        emit Rebalance(perpetualDEXIndex, address(collateral), amount);
     }
 
     /**
