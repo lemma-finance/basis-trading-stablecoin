@@ -352,4 +352,28 @@ describe("usdLemma", async function () {
             expect(fromBigNumber(account.accountComputed.leverage)).to.be.closeTo(fromBigNumber(leverage), 1e14);
         });
     });
+
+    it("should set staking contract correctly", async function() {
+        let tx = await this.usdLemma.setStakingContractAddress(signer2.address);
+        expect(tx).to.emit(this.usdLemma, "StakingContractUpdated").withArgs(signer2.address);
+        await this.usdLemma.setStakingContractAddress(stackingContract.address);
+    })
+
+    it("should set lemma treasury correctly", async function() {
+        let tx = await this.usdLemma.setLemmaTreasury(signer2.address);
+        expect(tx).to.emit(this.usdLemma, "LemmaTreasuryUpdated").withArgs(signer2.address); 
+        await this.usdLemma.setLemmaTreasury(lemmaTreasury.address);       
+    })
+
+    it("should set fees correctly", async function() {
+        let tx = await this.usdLemma.setFees(utils.parseEther("1000"));
+        expect(tx).to.emit(this.usdLemma, "FeesUpdated").withArgs(utils.parseEther("1000"));
+        await this.usdLemma.setFees(utils.parseEther("0"));
+    })
+
+    it("should add per dex wrapper correctly", async function() {
+        let tx = await this.usdLemma.addPerpetualDEXWrapper(1, signer1.address, signer2.address);
+        expect(tx).to.emit(this.usdLemma, "PerpetualDexWrapperAdded").withArgs(1, signer1.address, signer2.address);
+    })
+
 });
