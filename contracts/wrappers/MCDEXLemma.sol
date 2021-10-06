@@ -46,10 +46,10 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
     uint256 public maxPosition;
 
     //events
-    event UpdateUSDLemma(address usdlAddress);
-    event UpdateReferrer(address referrerAddress);
-    event UpdateRebalancer(address rebalancerAddress);
-    event UpdateMaxPosition(uint256 maxPos);
+    event USDLemmaUpdated(address usdlAddress);
+    event ReferrerUpdated(address referrerAddress);
+    event RebalancerUpdated(address rebalancerAddress);
+    event MaxPositionUpdated(uint256 maxPos);
 
     function initialize(
         address _trustedForwarder,
@@ -84,28 +84,28 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
     ///@param _usdlemma USDLemma address to set
     function setUSDLemma(address _usdlemma) public onlyOwner {
         usdLemma = _usdlemma;
-        emit UpdateUSDLemma(usdLemma);
+        emit USDLemmaUpdated(usdLemma);
     }
 
     ///@notice sets refferer address - only owner can set
     ///@param _referrer refferer address to set
     function setReferrer(address _referrer) external onlyOwner {
         referrer = _referrer;
-        emit UpdateReferrer(referrer);
+        emit ReferrerUpdated(referrer);
     }
 
     ///@notice sets reBalncer address - only owner can set
     ///@param _reBalancer reBalancer address to set
     function setReBalancer(address _reBalancer) public onlyOwner {
         reBalancer = _reBalancer;
-        emit UpdateRebalancer(reBalancer);
+        emit RebalancerUpdated(reBalancer);
     }
 
     ///@notice sets Max Positions - only owner can set
     ///@param _maxPosition reBalancer address to set
     function setMaxPosition(uint256 _maxPosition) public onlyOwner {
         maxPosition = _maxPosition;
-        emit UpdateMaxPosition(maxPosition);
+        emit MaxPositionUpdated(maxPosition);
     }
 
     /// @notice reset approvals
