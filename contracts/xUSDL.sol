@@ -16,6 +16,11 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
 
     IERC20Upgradeable public override usdl;
 
+    //events
+    event UpdateMinimumLock(uint256 newLock);
+    event Deposit(address indexed user, uint256 amount);
+    event Withdraw(address indexed user, uint256 amount);
+
     function initialize(address _trustedForwarder, address _usdl) external initializer {
         __Ownable_init();
         __ERC20_init("xUSDLemma", "xUSDL");
@@ -29,6 +34,7 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
     /// @notice updated minimum number of blocks to be locked before xUSDL tokens are unlocked
     function updateLock(uint256 lock) external onlyOwner {
         MINIMUM_LOCK = lock;
+        emit UpdateMinimumLock(lock);
     }
 
     /// @notice reset approvals for usdl contract to user usdl as needed
@@ -54,6 +60,7 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
         SafeERC20Upgradeable.safeTransferFrom(usdl, _msgSender(), address(this), amount);
         userUnlockBlock[_msgSender()] = block.number + MINIMUM_LOCK;
         _mint(_msgSender(), shares);
+        emit Deposit(_msgSender(), amount);
     }
 
     /// @notice Withdraw USDL and burn xUSDL
@@ -64,6 +71,7 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
         amount = (pricePerShare() * shares) / 1e18;
         _burn(_msgSender(), shares);
         SafeERC20Upgradeable.safeTransfer(usdl, _msgSender(), amount);
+        emit Withdraw(_msgSender(), amount);
     }
 
     /// @notice Price per share in terms of USDL
