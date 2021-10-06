@@ -29,7 +29,7 @@ const convertToCollateralDecimals = (numString, collateralDecimals) => {
 
 describe("mcdexLemma", async function () {
 
-    let usdLemma, reBalancer, hasWETH, keeperGasReward, signer1, signer2;
+    let usdLemma, reBalancer, hasWETH, keeperGasReward, signer1, signer2, usdl2;
 
     let liquidityPool, reader, mcdexAddresses;
     const perpetualIndex = 0; //in Kovan the 0th perp for 0th liquidity pool = inverse ETH-USD
@@ -38,7 +38,7 @@ describe("mcdexLemma", async function () {
     let snapshotId;
     before(async function () {
         mcdexAddresses = await loadMCDEXInfo();
-        [defaultSigner, usdLemma, reBalancer, hasWETH, signer1, signer2] = await ethers.getSigners();
+        [defaultSigner, usdLemma, reBalancer, hasWETH, signer1, signer2, usdl2] = await ethers.getSigners();
         const poolCreatorAddress = mcdexAddresses.PoolCreator.address;
         const readerAddress = mcdexAddresses.Reader.address;
         const poolCreator = PoolCreatorFactory.connect(poolCreatorAddress, arbProvider);
@@ -472,4 +472,28 @@ describe("mcdexLemma", async function () {
             expect(notRoundedUpAmount).to.equal("0");
         }
     });
+
+    it("should update USDL", async function () {
+        let tx = await this.mcdexLemma.setUSDLemma(usdl2.address);
+        expect(tx).to.emit(this.mcdexLemma, "USDLemmaUpdated").withArgs(usdl2.address);
+        await this.mcdexLemma.setUSDLemma(usdLemma.address);
+    })
+
+    it("should update referrer", async function () {
+        let tx = await this.mcdexLemma.setReferrer(signer1.address);
+        expect(tx).to.emit(this.mcdexLemma, "ReferrerUpdated").withArgs(signer1.address);
+    })
+
+    it("should update rebalancer", async function () {
+        let tx = await this.mcdexLemma.setReBalancer(signer1.address);
+        expect(tx).to.emit(this.mcdexLemma, "RebalancerUpdated").withArgs(signer1.address);
+        await this.mcdexLemma.setReBalancer(reBalancer.address);
+    })
+
+    it("should update max position", async function () {
+        let tx = await this.mcdexLemma.setMaxPosition(utils.parseEther("100000"));
+        expect(tx).to.emit(this.mcdexLemma, "MaxPositionUpdated").withArgs(utils.parseEther("100000"));
+        await this.mcdexLemma.setMaxPosition(MaxUint256);
+    })    
+
 });
