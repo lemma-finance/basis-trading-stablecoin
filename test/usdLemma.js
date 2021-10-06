@@ -98,7 +98,7 @@ describe("usdLemma", async function () {
         const collateralBalanceAfter = await this.collateral.balanceOf(defaultSigner.address);
         expect(collateralNeeded).to.equal(collateralBalanceBefore.sub(collateralBalanceAfter));
         expect(await this.usdLemma.balanceOf(defaultSigner.address)).to.equal(utils.parseEther("1000"));
-        expect(tx).to.emit(this.usdLemma, "DepositTo").withArgs(defaultSigner.address, defaultSigner.address, collateralNeeded);
+        expect(tx).to.emit(this.usdLemma, "DepositTo").withArgs(0,this.collateral.address, defaultSigner.address, amount, collateralNeeded);
     });
     it("should depositTo correctly", async function () {
         const collateralBalanceBefore = await this.collateral.balanceOf(defaultSigner.address);
@@ -109,7 +109,7 @@ describe("usdLemma", async function () {
         const collateralBalanceAfter = await this.collateral.balanceOf(defaultSigner.address);
         expect(collateralNeeded).to.equal(collateralBalanceBefore.sub(collateralBalanceAfter));
         expect(await this.usdLemma.balanceOf(signer1.address)).to.equal(utils.parseEther("1000"));
-        expect(tx).to.emit(this.usdLemma, "DepositTo").withArgs(defaultSigner.address, signer1.address, collateralNeeded);
+        expect(tx).to.emit(this.usdLemma, "DepositTo").withArgs(0,this.collateral.address, signer1.address, amount, collateralNeeded);
     });
 
     it("should withdraw correctly", async function () {
@@ -124,7 +124,7 @@ describe("usdLemma", async function () {
         const collateralBalanceAfter = await this.collateral.balanceOf(defaultSigner.address);
         expect(collateralToGetBack).to.be.closeTo(collateralBalanceAfter.sub(collateralBalanceBefore), await this.mcdexLemma.getAmountInCollateralDecimals(1e7, false));
         expect(await this.usdLemma.balanceOf(defaultSigner.address)).to.equal(ZERO);
-        expect(tx).to.emit(this.usdLemma, "WithdrawTo").withArgs(defaultSigner.address, defaultSigner.address, collateralToGetBack);
+        expect(tx).to.emit(this.usdLemma, "WithdrawTo").withArgs(0, this.collateral.address, defaultSigner.address, amount, collateralToGetBack);
     });
 
     it("should withdrawTo correctly", async function () {
@@ -139,7 +139,7 @@ describe("usdLemma", async function () {
         const collateralBalanceAfter = await this.collateral.balanceOf(signer1.address);
         expect(collateralToGetBack).to.be.closeTo(collateralBalanceAfter.sub(collateralBalanceBefore), await this.mcdexLemma.getAmountInCollateralDecimals(1e7, false));
         expect(await this.usdLemma.balanceOf(defaultSigner.address)).to.equal(ZERO);
-        expect(tx).to.emit(this.usdLemma, "WithdrawTo").withArgs(defaultSigner.address, signer1.address, collateralToGetBack);
+        expect(tx).to.emit(this.usdLemma, "WithdrawTo").withArgs(0, this.collateral.address, signer1.address, amount, collateralToGetBack);
     });
     describe("re balance", async function () {
         let lemmaTreasuryBalanceBefore;
