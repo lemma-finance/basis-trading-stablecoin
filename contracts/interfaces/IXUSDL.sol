@@ -24,6 +24,12 @@ interface IXUSDL {
     /// @return Amount of USDL withdrawn
     function withdraw(uint256 shares) external returns (uint256);
 
+    /// @notice Withdraw USDL and burn xUSDL
+    /// @param to address of user to transfer USDL
+    /// @param shares of xUSDL to burn
+    /// @return Amount of USDL withdrawn
+    function withdrawTo(address to, uint256 shares) external returns (uint256);
+
     /// @notice Price per share in terms of USDL
     /// @return Price of 1 xUSDL in terms of USDL
     function pricePerShare() external view returns (uint256);
