@@ -194,7 +194,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
     /// @param isShorting true if opening short position, false if closing short position
     /// @return collateralAmountRequired equivalent collateral amount
     function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
-        public
+        external
         override
         returns (uint256 collateralAmountRequired)
     {

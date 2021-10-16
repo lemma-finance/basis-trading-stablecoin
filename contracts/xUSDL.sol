@@ -34,7 +34,6 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
         __ERC2771Context_init(_trustedForwarder);
         usdl = IERC20Upgradeable(_usdl);
         SafeERC20Upgradeable.safeApprove(usdl, address(usdl), type(uint256).max);
-        usdl.approve(address(usdl), type(uint256).max);
         periphery = _periphery;
         MINIMUM_LOCK = 100;
     }
