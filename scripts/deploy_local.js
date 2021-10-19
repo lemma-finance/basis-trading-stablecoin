@@ -58,8 +58,9 @@ async function main() {
     const nums = perpetualInfo.nums;
     keeperGasReward = nums[11];
     //deploy mcdexLemma
+    const maxPosition = utils.parseEther("1000000");
     const MCDEXLemma = await ethers.getContractFactory("MCDEXLemma");
-    const mcdexLemma = await upgrades.deployProxy(MCDEXLemma, [AddressZero, liquidityPool.address, perpetualIndex, AddressZero, reBalancer.address], { initializer: 'initialize' });
+    const mcdexLemma = await upgrades.deployProxy(MCDEXLemma, [AddressZero, liquidityPool.address, perpetualIndex, AddressZero, reBalancer.address, maxPosition], { initializer: 'initialize' });
     const collateralDecimals = await mcdexLemma.collateralDecimals();
     const collateralAddress = await mcdexLemma.collateral();
     const ERC20 = IERC20Factory.connect(collateralAddress, defaultSigner);//choose USDLemma ust because it follows IERC20 interface
