@@ -111,6 +111,23 @@ async function main() {
     await collateral.approve(usdLemma.address, collateralNeeded);
     await usdLemma.deposit(amount, 0, collateralNeeded, collateral.address);
 
+    //stake USDL
+    await usdLemma.approve(xUSDL.address, amount);
+    await xUSDL.deposit(amount);
+
+    {
+        const amount = utils.parseEther("1000");
+        const collateralNeeded = await mcdexLemma.getAmountInCollateralDecimals(await mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true), true);
+        await collateral.approve(usdLemma.address, collateralNeeded);
+        await usdLemma.deposit(amount, 0, collateralNeeded, collateral.address);
+
+        await usdLemma.transfer(signer1.address, amount.div(2));
+
+        await usdLemma.connect(signer1).withdraw(amount.div(3), 0, 0, collateral.address);
+
+    }
+
+
     deployedContracts['USDLemma'] = {
         name: 'USDLemma',
         address: usdLemma.address
