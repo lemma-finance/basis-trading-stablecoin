@@ -35,6 +35,9 @@ module.exports = {
     local: {
       url: "http://localhost:8545",
     },
+    localDocker: {
+      url: "http://0.0.0.0:8545",
+    },
     arbitrumTestnet: {
       url: "https://arbitrum-rinkeby.infura.io/v3/" + process.env.INFURA_KEY,
       accounts: {
