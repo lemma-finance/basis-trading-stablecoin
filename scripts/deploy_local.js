@@ -114,7 +114,8 @@ async function main() {
 
     //stake USDL
     await usdLemma.approve(xUSDL.address, amount);
-    await xUSDL.deposit(amount);
+    await xUSDL.deposit(amount.div(2));
+
 
     {
         const amount = utils.parseEther("1000");
@@ -127,6 +128,10 @@ async function main() {
         await usdLemma.connect(signer1).withdraw(amount.div(3), 0, 0, collateral.address);
 
     }
+    await xUSDL.deposit(amount.div(4));
+    await usdLemma.transfer(xUSDL.address, amount.div(4));
+
+    console.log("pricePerShare", (await xUSDL.pricePerShare()).toString());
 
 
     deployedContracts['USDLemma'] = {
