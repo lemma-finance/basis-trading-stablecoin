@@ -39,7 +39,7 @@ module.exports = {
       url: "http://0.0.0.0:8545",
     },
     arbitrumTestnet: {
-      url: "https://arbitrum-rinkeby.infura.io/v3/" + process.env.INFURA_KEY,
+      url: "https://rinkeby.arbitrum.io/rpc",
       accounts: {
         mnemonic: process.env.MNEMONIC
       }
