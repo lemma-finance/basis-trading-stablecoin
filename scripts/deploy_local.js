@@ -2,9 +2,8 @@ const hre = require("hardhat");
 const { ethers, upgrades } = hre;
 const { constants, BigNumber } = ethers;
 const { utils } = require('ethers');
-const { AddressZero } = constants;
+const { AddressZero, MaxInt256, MaxUint256 } = constants;
 const { displayNicely, tokenTransfers, loadMCDEXInfo, toBigNumber, fromBigNumber, snapshot, revertToSnapshot } = require("../test/utils");
-const { MaxUint256 } = require("@ethersproject/constants");
 const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, getAccountStorage, computeAccount, normalizeBigNumberish, DECIMALS, computeAMMTrade, computeIncreasePosition, _0, _1, computeDecreasePosition, computeAMMTradeAmountByMargin } = require('@mcdex/mai3.js');
 const fs = require('fs');
 const SAVE_PREFIX = "./deployments/";
@@ -83,7 +82,7 @@ async function main() {
     //get some WETH first
     //get the keeper gas reward
 
-    const amountOfCollateralToMint = utils.parseEther("100");
+    const amountOfCollateralToMint = utils.parseEther("1000");
 
     await defaultSigner.sendTransaction({ to: collateral.address, value: amountOfCollateralToMint });
     await hasWETH.sendTransaction({ to: collateral.address, value: amountOfCollateralToMint });
@@ -132,6 +131,79 @@ async function main() {
     await usdLemma.transfer(xUSDL.address, amount.div(4));
 
     console.log("pricePerShare", (await xUSDL.pricePerShare()).toString());
+
+
+    {
+        //reBalance (funding Payment -ve)
+        //increase time
+        //to make sure that funding payment has a meaning impact
+        await hre.network.provider.request({
+            method: "evm_increaseTime",
+            params: [60 * 60 * 10]
+        }
+        );
+        await hre.network.provider.request({
+            method: "evm_mine",
+            params: []
+        }
+        );
+
+        await liquidityPool.forceToSyncState();
+
+        const fundingPNL = await mcdexLemma.getFundingPNL();
+        const realizedFundingPNL = await mcdexLemma.realizedFundingPNL();
+        let unrealizedFundingPNL = fundingPNL.sub(realizedFundingPNL);
+
+        const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+        const perpetualInfo = liquidityPoolInfo.perpetuals.get(perpetualIndex);
+        const marginChange = toBigNumber(unrealizedFundingPNL).negated();
+        const feeRate = perpetualInfo.lpFeeRate.plus(liquidityPoolInfo.vaultFeeRate).plus(perpetualInfo.operatorFeeRate);
+        const marginChangeWithFeesConsidered = marginChange.times(toBigNumber(utils.parseEther("1")).minus(feeRate));//0.07%
+        const amountWithFeesConsidered = computeAMMTradeAmountByMargin(liquidityPoolInfo, perpetualIndex, marginChangeWithFeesConsidered);
+
+        const limitPrice = amountWithFeesConsidered.isNegative() ? 0 : MaxInt256;
+        const deadline = MaxUint256;
+        await usdLemma.connect(reBalancer).reBalance(perpetualIndex, collateral.address, fromBigNumber(amountWithFeesConsidered), ethers.utils.defaultAbiCoder.encode(["int256", "uint256"], [limitPrice, deadline]));
+
+        console.log("rebalance amount", (amountWithFeesConsidered).toString());
+    }
+    {
+        //funding payment +ve
+        const MASK_USE_TARGET_LEVERAGE = 0x08000000;
+        await collateral.approve(liquidityPool.address, MaxUint256);
+        await liquidityPool.trade(perpetualIndex, defaultSigner.address, "-" + (utils.parseEther("10000")).toString(), "0", MaxUint256, AddressZero, MASK_USE_TARGET_LEVERAGE);
+        //increase time
+        //to make sure that funding payment has a meaning impact
+        await hre.network.provider.request({
+            method: "evm_increaseTime",
+            params: [60 * 60 * 10]
+        }
+        );
+        await hre.network.provider.request({
+            method: "evm_mine",
+            params: []
+        }
+        );
+
+        await liquidityPool.forceToSyncState();
+
+        const fundingPNL = await mcdexLemma.getFundingPNL();
+        const realizedFundingPNL = await mcdexLemma.realizedFundingPNL();
+        let unrealizedFundingPNL = fundingPNL.sub(realizedFundingPNL);
+
+        const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+        const perpetualInfo = liquidityPoolInfo.perpetuals.get(perpetualIndex);
+        const marginChange = toBigNumber(unrealizedFundingPNL).negated();
+        const feeRate = perpetualInfo.lpFeeRate.plus(liquidityPoolInfo.vaultFeeRate).plus(perpetualInfo.operatorFeeRate);
+        const marginChangeWithFeesConsidered = marginChange.times(toBigNumber(utils.parseEther("1")).minus(feeRate));//0.07%
+        const amountWithFeesConsidered = computeAMMTradeAmountByMargin(liquidityPoolInfo, perpetualIndex, marginChangeWithFeesConsidered);
+
+        const limitPrice = amountWithFeesConsidered.isNegative() ? 0 : MaxInt256;
+        const deadline = MaxUint256;
+        await usdLemma.connect(reBalancer).reBalance(perpetualIndex, collateral.address, fromBigNumber(amountWithFeesConsidered), ethers.utils.defaultAbiCoder.encode(["int256", "uint256"], [limitPrice, deadline]));
+
+        console.log("rebalance amount", (amountWithFeesConsidered).toString());
+    }
 
 
     deployedContracts['USDLemma'] = {
