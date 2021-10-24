@@ -5,6 +5,7 @@ import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC
 import { ERC20PermitUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/draft-ERC20PermitUpgradeable.sol";
 import { OwnableUpgradeable, ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
+import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import { IXUSDL } from "./interfaces/IXUSDL.sol";
 
 /// @author Lemma Finance
@@ -15,24 +16,42 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
 
     IERC20Upgradeable public override usdl;
 
-    function initialize(address _trustedForwarder, address _usdl) external initializer {
+    //events
+    event UpdateMinimumLock(uint256 newLock);
+    event Deposit(address indexed user, uint256 amount);
+    event Withdraw(address indexed user, uint256 amount);
+
+    address public periphery;
+
+    function initialize(
+        address _trustedForwarder,
+        address _usdl,
+        address _periphery
+    ) external initializer {
         __Ownable_init();
         __ERC20_init("xUSDLemma", "xUSDL");
         __ERC20Permit_init("xUSDLemma");
         __ERC2771Context_init(_trustedForwarder);
         usdl = IERC20Upgradeable(_usdl);
-        usdl.approve(address(usdl), type(uint256).max);
+        SafeERC20Upgradeable.safeApprove(usdl, address(usdl), type(uint256).max);
+        periphery = _periphery;
         MINIMUM_LOCK = 100;
+    }
+
+    ///@notice update periphery contract address
+    function updatePeriphery(address _periphery) external onlyOwner {
+        periphery = _periphery;
     }
 
     /// @notice updated minimum number of blocks to be locked before xUSDL tokens are unlocked
     function updateLock(uint256 lock) external onlyOwner {
         MINIMUM_LOCK = lock;
+        emit UpdateMinimumLock(lock);
     }
 
     /// @notice reset approvals for usdl contract to user usdl as needed
     function resetApprovals() external {
-        usdl.approve(address(usdl), type(uint256).max);
+        SafeERC20Upgradeable.safeApprove(usdl, address(usdl), type(uint256).max);
     }
 
     /// @notice Balance of USDL in xUSDL contract
@@ -50,20 +69,31 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
         } else {
             shares = (amount * 1e18) / pricePerShare();
         }
-
-        usdl.transferFrom(_msgSender(), address(this), amount);
-        userUnlockBlock[_msgSender()] = block.number + MINIMUM_LOCK;
+        SafeERC20Upgradeable.safeTransferFrom(usdl, _msgSender(), address(this), amount);
+        if (periphery != _msgSender()) {
+            userUnlockBlock[_msgSender()] = block.number + MINIMUM_LOCK;
+        }
         _mint(_msgSender(), shares);
+        emit Deposit(_msgSender(), amount);
     }
 
     /// @notice Withdraw USDL and burn xUSDL
     /// @param shares of xUSDL to burn
     /// @return amount Amount of USDL withdrawn
     function withdraw(uint256 shares) external override returns (uint256 amount) {
+        return withdrawTo(_msgSender(), shares);
+    }
+
+    /// @notice Withdraw USDL and burn xUSDL
+    /// @param to address of user to transfer USDL
+    /// @param shares of xUSDL to burn
+    /// @return amount Amount of USDL withdrawn
+    function withdrawTo(address to, uint256 shares) public override returns (uint256 amount) {
         require(block.number >= userUnlockBlock[_msgSender()], "xUSDL: Locked tokens");
         amount = (pricePerShare() * shares) / 1e18;
-        usdl.transfer(_msgSender(), amount);
         _burn(_msgSender(), shares);
+        SafeERC20Upgradeable.safeTransfer(usdl, to, amount);
+        emit Withdraw(_msgSender(), amount);
     }
 
     /// @notice Price per share in terms of USDL
@@ -78,6 +108,16 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
         uint256
     ) internal view override {
         require(block.number >= userUnlockBlock[from], "xUSDL: Locked tokens");
+    }
+
+    function _afterTokenTransfer(
+        address from,
+        address to,
+        uint256
+    ) internal override {
+        if (from == periphery) {
+            userUnlockBlock[to] = block.number + MINIMUM_LOCK;
+        }
     }
 
     function _msgSender()

@@ -66,7 +66,7 @@ describe('LibSafeMathExt', () => {
             expect(await libSafeMathExt.uwdiv(toWad('0.000000000000000005'), toWad('10'))).to.equal(toWad('0.000000000000000001'));
             expect(await libSafeMathExt.uwdiv(toWad('100'), toWad('1'))).to.equal(toWad('100'));
             expect(await libSafeMathExt.uwdiv(toWad('0'), toWad('1'))).to.equal(toWad('0'));
-            await expect(libSafeMathExt.uwdiv(toWad('100'), toWad('0'))).to.be.revertedWith('Error: VM Exception while processing transaction: reverted with panic code 0x12 (Division or modulo division by zero)');
+            await expect(libSafeMathExt.uwdiv(toWad('100'), toWad('0'))).to.be.reverted;
         });
 
         it('int256 half up', async () => {
@@ -113,7 +113,7 @@ describe('LibSafeMathExt', () => {
             expect(await libSafeMathExt.uwfrac(toWad('0.000000000000000001'), toWad('5'), toWad('10'))).to.equal(toWad('0.000000000000000001'));
             expect(await libSafeMathExt.uwfrac(toWad('20'), toWad('0.3'), toWad('1'))).to.equal(toWad('6'));
             expect(await libSafeMathExt.uwfrac(toWad('0'), toWad('20.1'), toWad('1'))).to.equal(toWad('0'));
-            await expect(libSafeMathExt.uwfrac(toWad('100'), toWad('1'), toWad('0'))).to.be.revertedWith('Error: VM Exception while processing transaction: reverted with panic code 0x12 (Division or modulo division by zero)');
+            await expect(libSafeMathExt.uwfrac(toWad('100'), toWad('1'), toWad('0'))).to.be.reverted;
         });
 
         it('int256 half up', async () => {

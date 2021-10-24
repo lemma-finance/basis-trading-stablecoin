@@ -33,11 +33,12 @@ describe('xUSDL', function () {
     let owner;
     let user1;
     let user2;
+    let periphery;
 
     beforeEach(async function () {
         // Get the ContractFactory and Signers here.
         let Token = await ethers.getContractFactory("Token");
-        [owner, user1, user2] = await ethers.getSigners();
+        [owner, user1, user2, periphery] = await ethers.getSigners();
 
         // To deploy our contract, we just have to call Token.deploy() and await
         // for it to be deployed(), which happens onces its transaction has been
@@ -46,11 +47,12 @@ describe('xUSDL', function () {
 
         let XUSDL = await ethers.getContractFactory("xUSDL");
 
-        this.xusdl = await upgrades.deployProxy(XUSDL, [AddressZero, this.usdl.address], { initializer: 'initialize' });
+        this.xusdl = await upgrades.deployProxy(XUSDL, [AddressZero, this.usdl.address, periphery.address], { initializer: 'initialize' });
 
         await approveMAX(this.usdl, owner, this.xusdl.address, utils.parseEther("1000"));
         await approveMAX(this.usdl, user1, this.xusdl.address, utils.parseEther("1000"));
         await approveMAX(this.usdl, user2, this.xusdl.address, utils.parseEther("1000"));
+        await approveMAX(this.usdl, periphery, this.xusdl.address, utils.parseEther("1000"));
     });
 
 
@@ -60,8 +62,9 @@ describe('xUSDL', function () {
     });
 
     it('should deposit initial correctly', async function () {
-        await this.xusdl.deposit(utils.parseEther("1000"));
+        let tx = await this.xusdl.deposit(utils.parseEther("1000"));
         expect(await balanceOf(this.xusdl, owner.address)).to.equal(utils.parseEther("1000"));
+        expect(tx).to.emit(this.xusdl, "Deposit").withArgs(owner.address, utils.parseEther("1000"));
     });
 
     it('should price per share greater than 1 when more USDL', async function () {
@@ -111,18 +114,34 @@ describe('xUSDL', function () {
 
         await mineBlocks(97);
 
-        // tx = await this.xusdl.withdraw(await balanceOf(this.xusdl, owner.address));
-        // await tx.wait();
         await expect(this.xusdl.transfer(user1.address, await balanceOf(this.xusdl, owner.address)))
             .to.be.revertedWith('xUSDL: Locked tokens');
         await expect(this.xusdl.withdraw(await balanceOf(this.xusdl, owner.address)))
             .to.be.revertedWith('xUSDL: Locked tokens');
     });
 
+    it("should revert while withdrawing & transfer before minimum lock when periphery contract deposits on behalf of an address", async function () {
+        //transfer is allowed for periphery but periphery will transfer the newly minted xUSDL to an address and that address should not be allowed be transferred until minimum lock has passed
+        await this.usdl.transfer(periphery.address, utils.parseEther("10000"));
+        await this.xusdl.connect(periphery).deposit(utils.parseEther("1000"));
+
+        let bal = await this.xusdl.balanceOf(periphery.address);
+        await this.xusdl.connect(periphery).transfer(user1.address, bal);
+
+        await mineBlocks(97);
+
+        await expect(this.xusdl.connect(user1).transfer(user1.address, await balanceOf(this.xusdl, owner.address)))
+            .to.be.revertedWith('xUSDL: Locked tokens');
+        await expect(this.xusdl.connect(user1).withdraw(await balanceOf(this.xusdl, owner.address)))
+            .to.be.revertedWith('xUSDL: Locked tokens');
+
+    });
+
     it('should withdraw & transfer after minimum lock', async function () {
         await this.xusdl.deposit(utils.parseEther("1000"));
 
         await mineBlocks(100);
+
         await expect(this.xusdl.transfer(user1.address, utils.parseEther("100")))
             .not.to.be.reverted;
         await expect(this.xusdl.withdraw(await balanceOf(this.xusdl, owner.address)))
@@ -135,10 +154,11 @@ describe('xUSDL', function () {
 
         await mineBlocks(100);
         let preBalance = await balanceOf(this.usdl, owner.address);
-        await this.xusdl.withdraw(await balanceOf(this.xusdl, owner.address));
+        let tx = await this.xusdl.withdraw(await balanceOf(this.xusdl, owner.address));
 
         let postBalance = await balanceOf(this.usdl, owner.address);
         expect(postBalance.sub(preBalance)).equal(utils.parseEther("1000"));
+        expect(tx).to.emit(this.xusdl, "Withdraw").withArgs(owner.address, utils.parseEther("1000"));
     });
 
 
@@ -149,10 +169,11 @@ describe('xUSDL', function () {
         await this.usdl.transfer(this.xusdl.address, utils.parseEther("1000"));
 
         let preBalance = await balanceOf(this.usdl, owner.address);
-        await this.xusdl.withdraw(await balanceOf(this.xusdl, owner.address));
+        let tx = await this.xusdl.withdraw(await balanceOf(this.xusdl, owner.address));
 
         let postBalance = await balanceOf(this.usdl, owner.address);
         expect(postBalance.sub(preBalance)).equal(utils.parseEther("2000"));
+        expect(tx).to.emit(this.xusdl, "Withdraw").withArgs(owner.address, utils.parseEther("2000"));
     });
 
     it('should withdraw less USDL as price per share decreases', async function () {
@@ -163,10 +184,37 @@ describe('xUSDL', function () {
         await this.usdl.removeTokens(utils.parseEther("500"), this.xusdl.address);
 
         let preBalance = await balanceOf(this.usdl, owner.address);
-        await this.xusdl.withdraw(await balanceOf(this.xusdl, owner.address));
+        let tx = await this.xusdl.withdraw(await balanceOf(this.xusdl, owner.address));
 
         let postBalance = await balanceOf(this.usdl, owner.address);
         expect(postBalance.sub(preBalance)).equal(utils.parseEther("500"));
+        expect(tx).to.emit(this.xusdl, "Withdraw").withArgs(owner.address, utils.parseEther("500"));
     });
+
+    it('should deposit and transfer from periphery without minimum blocks lock', async function () {
+
+        await this.usdl.transfer(periphery.address, utils.parseEther("10000"));
+
+        await this.xusdl.connect(periphery).deposit(utils.parseEther("1000"));
+
+        let bal = await this.xusdl.balanceOf(periphery.address);
+
+        await expect(this.xusdl.connect(periphery).transfer(owner.address, bal))
+            .not.to.be.reverted;
+    });
+
+
+    it('should withdraw to another user', async function () {
+        await this.xusdl.deposit(utils.parseEther("1000"));
+
+        await mineBlocks(100);
+
+        let preBalance = await balanceOf(this.usdl, user1.address);
+        await this.xusdl.withdrawTo(user1.address, await balanceOf(this.xusdl, owner.address));
+
+        let postBalance = await balanceOf(this.usdl, user1.address);
+        expect(postBalance.sub(preBalance)).equal(utils.parseEther("1000"));
+    });
+
 
 });

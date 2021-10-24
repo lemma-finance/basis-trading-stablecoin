@@ -59,8 +59,9 @@ async function main() {
     console.log("USDL", usdLemma.address);
     // await delay(60000);
     //deploy stackingContract
+    const peripheryContract = AddressZero;
     const XUSDL = await ethers.getContractFactory("xUSDL");
-    const xUSDL = await upgrades.deployProxy(XUSDL, [trustedForwarder.address, usdLemma.address], { initializer: 'initialize' });
+    const xUSDL = await upgrades.deployProxy(XUSDL, [trustedForwarder.address, usdLemma.address, peripheryContract], { initializer: 'initialize' });
     console.log("xUSDL", xUSDL.address);
     // await delay(60000);
 

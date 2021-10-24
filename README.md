@@ -11,3 +11,7 @@
 1. npx hardhat node
 2. cd mai-protocol-v3 && npx hardhat run scripts/deploy.ts --network local (copy the liquidityPool address to contracts/tests/MCDEXAdresses.sol)
 3. cd .. && npx hardhat test-solidity --network local
+# local deployment for graph
+1. run a local graph node (https://medium.com/blockrocket/dapp-development-with-a-local-subgraph-ganache-setup-566a4d4cbb)
+2. npx hardhat node --hostname 0.0.0.0
+3. npx hardhat run scripts/deploy_local.js --network localDocker

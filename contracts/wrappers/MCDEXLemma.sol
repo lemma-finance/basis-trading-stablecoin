@@ -6,15 +6,17 @@ import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/m
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import { Utils } from "../libraries/Utils.sol";
 import { SafeMathExt } from "../libraries/SafeMathExt.sol";
+import { IPerpetualDEXWrapper } from "../interfaces/IPerpetualDEXWrapper.sol";
 
 interface IUSDLemma {
     function lemmaTreasury() external view returns (address);
 }
 
 /// @author Lemma Finance
-contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
+contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualDEXWrapper {
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
     using Utils for int256;
@@ -38,11 +40,16 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
 
     int256 public entryFunding;
     int256 public realizedFundingPNL;
-    int256 public fundingPNLAtLastReBalance;
 
     uint256 public positionAtSettlement;
 
     uint256 public maxPosition;
+
+    //events
+    event USDLemmaUpdated(address usdlAddress);
+    event ReferrerUpdated(address referrerAddress);
+    event RebalancerUpdated(address rebalancerAddress);
+    event MaxPositionUpdated(uint256 maxPos);
 
     function initialize(
         address _trustedForwarder,
@@ -68,7 +75,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         setMaxPosition(_maxPosition);
 
         //approve collateral to
-        collateral.approve(address(liquidityPool), MAX_UINT256);
+        SafeERC20Upgradeable.safeApprove(collateral, address(liquidityPool), MAX_UINT256);
         //target leverage = 1
         liquidityPool.setTargetLeverage(perpetualIndex, address(this), 1 ether); //1
     }
@@ -77,24 +84,34 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     ///@param _usdlemma USDLemma address to set
     function setUSDLemma(address _usdlemma) public onlyOwner {
         usdLemma = _usdlemma;
+        emit USDLemmaUpdated(usdLemma);
     }
 
     ///@notice sets refferer address - only owner can set
     ///@param _referrer refferer address to set
-    function setReferrer(address _referrer) public onlyOwner {
+    function setReferrer(address _referrer) external onlyOwner {
         referrer = _referrer;
+        emit ReferrerUpdated(referrer);
     }
 
     ///@notice sets reBalncer address - only owner can set
     ///@param _reBalancer reBalancer address to set
     function setReBalancer(address _reBalancer) public onlyOwner {
         reBalancer = _reBalancer;
+        emit RebalancerUpdated(reBalancer);
     }
 
     ///@notice sets Max Positions - only owner can set
     ///@param _maxPosition reBalancer address to set
     function setMaxPosition(uint256 _maxPosition) public onlyOwner {
         maxPosition = _maxPosition;
+        emit MaxPositionUpdated(maxPosition);
+    }
+
+    /// @notice reset approvals
+    function resetApprovals() external {
+        SafeERC20Upgradeable.safeApprove(collateral, address(liquidityPool), 0);
+        SafeERC20Upgradeable.safeApprove(collateral, address(liquidityPool), MAX_UINT256);
     }
 
     //this needs to be done before the first withdrawal happens
@@ -106,7 +123,8 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
             (, , int256[39] memory nums) = liquidityPool.getPerpetualInfo(perpetualIndex);
             keeperGasReward = nums[11];
         }
-        collateral.transferFrom(
+        SafeERC20Upgradeable.safeTransferFrom(
+            collateral,
             _msgSender(),
             address(this),
             getAmountInCollateralDecimals(keeperGasReward.toUint256(), true)
@@ -117,14 +135,14 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     //go short to open
     /// @notice Open short position on dex and deposit collateral
     /// @param amount worth in USD short position which is to be opened
-    function open(uint256 amount) external {
+    /// @param collateralAmountRequired collateral amount required to open the position
+    function open(uint256 amount, uint256 collateralAmountRequired) external override {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
-        uint256 collateralRequiredAmount = getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
         require(
-            collateral.balanceOf(address(this)) >= getAmountInCollateralDecimals(collateralRequiredAmount, true),
+            collateral.balanceOf(address(this)) >= getAmountInCollateralDecimals(collateralAmountRequired, true),
             "not enough collateral"
         );
-        liquidityPool.deposit(perpetualIndex, address(this), collateralRequiredAmount.toInt256());
+        liquidityPool.deposit(perpetualIndex, address(this), collateralAmountRequired.toInt256());
 
         (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
 
@@ -136,10 +154,9 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     //go long and withdraw collateral
     /// @notice Close short position on dex and withdraw collateral
     /// @param amount worth in USD short position which is to be closed
-    function close(uint256 amount) external {
+    /// @param collateralAmountToGetBack collateral amount freed up after closing the position
+    function close(uint256 amount, uint256 collateralAmountToGetBack) external override {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
-
-        uint256 collateralAmountRequired = getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
 
         (PerpetualState perpetualState, , ) = liquidityPool.getPerpetualInfo(perpetualIndex);
 
@@ -155,10 +172,14 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
                 referrer,
                 0
             );
-            liquidityPool.withdraw(perpetualIndex, address(this), collateralAmountRequired.toInt256());
+            liquidityPool.withdraw(perpetualIndex, address(this), collateralAmountToGetBack.toInt256());
             updateEntryFunding(position, -amount.toInt256());
         }
-        collateral.transfer(usdLemma, getAmountInCollateralDecimals(collateralAmountRequired, false));
+        SafeERC20Upgradeable.safeTransfer(
+            collateral,
+            usdLemma,
+            getAmountInCollateralDecimals(collateralAmountToGetBack, false)
+        );
     }
 
     //// @notice when perpetual is in CLEARED state, withdraw the collateral
@@ -168,12 +189,13 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         liquidityPool.settle(perpetualIndex, address(this));
     }
 
-    /// @notice Collateral amount required for amount in USD to open or close position on dex
+    /// @notice Collateral amount required/to get back for amount in USD to open/close position on dex
     /// @param amount worth in USD short position which is to be closed or opened
     /// @param isShorting true if opening short position, false if closing short position
     /// @return collateralAmountRequired equivalent collateral amount
     function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
-        public
+        external
+        override
         returns (uint256 collateralAmountRequired)
     {
         liquidityPool.forceToSyncState();
@@ -183,7 +205,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         (PerpetualState perpetualState, , ) = liquidityPool.getPerpetualInfo(perpetualIndex);
 
         if (perpetualState == PerpetualState.CLEARED) {
-            require(isShorting == false, "cannot open when perpetual has settled");
+            require(!isShorting, "cannot open when perpetual has settled");
             (
                 ,
                 ,
@@ -226,7 +248,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
         address _reBalancer,
         int256 amount,
         bytes calldata data
-    ) external returns (bool) {
+    ) external override returns (bool) {
         liquidityPool.forceToSyncState();
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
         require(_reBalancer == reBalancer, "only rebalancer is allowed");
@@ -294,7 +316,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     /// @param amount Amount in 18 decimals
     /// @param roundUp If needs to round up
     /// @return decimal adjusted value
-    function getAmountInCollateralDecimals(uint256 amount, bool roundUp) public view returns (uint256) {
+    function getAmountInCollateralDecimals(uint256 amount, bool roundUp) public view override returns (uint256) {
         if (roundUp && (amount % (uint256(10**(18 - collateralDecimals))) != 0)) {
             return amount / uint256(10**(18 - collateralDecimals)) + 1;
         }
@@ -306,7 +328,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable {
     function sendMCBToTreasury() external {
         IERC20Upgradeable mcbToken = IERC20Upgradeable(0x4e352cF164E64ADCBad318C3a1e222E9EBa4Ce42);
         address lemmaTreasury = IUSDLemma(usdLemma).lemmaTreasury();
-        mcbToken.transfer(lemmaTreasury, mcbToken.balanceOf(address(this)));
+        SafeERC20Upgradeable.safeTransfer(mcbToken, lemmaTreasury, mcbToken.balanceOf(address(this)));
     }
 
     function _msgSender()
