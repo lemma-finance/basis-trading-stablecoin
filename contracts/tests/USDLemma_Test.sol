@@ -59,7 +59,7 @@ contract USDLemma_Test {
 
     function reBalance_test() public {
         prepare();
-        uint256 ethInput = getCost(1 ether);
+        uint256 ethInput = helper.getCost(liquidityPool, perpetualIndex, 1 ether);
         int256 deltaMargin = int256(ethInput);
         helper.getAmountGivenCollateral(liquidityPool, perpetualIndex, deltaMargin);
     }
