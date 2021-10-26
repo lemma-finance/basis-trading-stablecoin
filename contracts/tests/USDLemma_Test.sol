@@ -3,6 +3,7 @@ import { Test, Display } from "@giry/hardhat-test-solidity/test.sol";
 import { USDLemma, IERC20Upgradeable, SafeMathExt, SafeCastUpgradeable } from "../USDLemma.sol";
 import { MCDEXLemma, ILiquidityPool } from "../wrappers/MCDEXLemma.sol";
 import { MCDEXAdresses } from "./MCDEXAdresses.sol";
+import { Helper } from "./Helper.sol";
 import { AddressUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "hardhat/console.sol";
 
@@ -14,7 +15,8 @@ contract USDLemma_Test {
     USDLemma usdLemma;
     MCDEXLemma mcdexLemma;
     MCDEXAdresses mcdexAdresses = new MCDEXAdresses();
-    ILiquidityPool liquidityPool;
+    Helper helper = new Helper();
+    ILiquidityPool public liquidityPool = ILiquidityPool(mcdexAdresses.liquidityPool());
     address constant trustedForwarder = address(0);
     uint256 constant perpetualIndex = 0;
     uint256 constant perpetualDEXIndex = 0;
@@ -55,18 +57,12 @@ contract USDLemma_Test {
         );
     }
 
-    // function reBalance_test() public {
-    //     prepare();
-    //     uint256 amount = 100 ether;
-    //     uint256 collateralAmountRequired = mcdexLemma.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
-    //     int256 deltaMargin = int256(collateralAmountRequired).neg();
-    //     console.log("long USD");
-    //     calculateTradeByMargin(deltaMargin);
-    //     collateralAmountRequired = mcdexLemma.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
-    //     console.log("short USD");
-    //     deltaMargin = int256(collateralAmountRequired);
-    //     // calculateTradeByMargin(deltaMargin);
-    // }
+    function reBalance_test() public {
+        prepare();
+        uint256 ethInput = getCost(1 ether);
+        int256 deltaMargin = int256(ethInput);
+        helper.getAmountGivenCollateral(liquidityPool, perpetualIndex, deltaMargin);
+    }
 
     function deposit(uint256 amount) public returns (uint256 collateralAmountRequiredInDecimals) {
         uint256 collateralAmountRequired = mcdexLemma.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
@@ -79,94 +75,6 @@ contract USDLemma_Test {
         uint256 collateralAmountRequired = mcdexLemma.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
         collateralAmountRequiredInDecimals = mcdexLemma.getAmountInCollateralDecimals(collateralAmountRequired, false);
         usdLemma.withdraw(amount, perpetualDEXIndex, collateralAmountRequiredInDecimals, collateral);
-    }
-
-    function calculateTradeByMargin(int256 deltaMargin) internal returns (int256 usdAmount) {
-        logInt("deltaMargin", deltaMargin);
-
-        int256 indexPrice;
-        {
-            (, , int256[39] memory nums) = liquidityPool.getPerpetualInfo(perpetualIndex);
-            indexPrice = nums[2];
-        }
-        int256 guess = deltaMargin.wdiv(indexPrice).neg();
-
-        logInt("guess", guess);
-        bool isTraderBuy = true;
-        if (guess < 0) {
-            isTraderBuy = false;
-        }
-        //we need the answer to be 100 ether
-        //put in the guess and check if the guess costs less than deltaMargin as amount according to indexPrice is the Max amount
-        // checkTrading(guess, deltaMargin, isTraderBuy);
-        guess = findMaxAmount(guess, deltaMargin, isTraderBuy);
-        logInt("guess the end", guess);
-        uint256 marginForGuess = mcdexLemma.getCollateralAmountGivenUnderlyingAssetAmount(guess.toUint256(), true);
-        console.log("marginForGuess", marginForGuess);
-    }
-
-    function checkTrading(
-        int256 tradeAmount,
-        int256 deltaMarginToBeCheckedAgainst,
-        bool isTraderBuy
-    ) public returns (bool) {
-        if (!isTraderBuy) {
-            tradeAmount = tradeAmount.neg();
-        }
-        (int256 tradePrice, int256 totalFee, ) = liquidityPool.queryTrade(
-            perpetualIndex,
-            address(mcdexLemma),
-            tradeAmount,
-            mcdexLemma.referrer(),
-            0
-        );
-        int256 marginChange = tradeAmount.wmul(tradePrice);
-        // logInt("marginChange", marginChange);
-        // console.log("isLesser", marginChange.abs() <= deltaMarginToBeCheckedAgainst.abs());
-        return marginChange.abs() <= deltaMarginToBeCheckedAgainst.abs();
-    }
-
-    function findMaxAmount(
-        int256 guess,
-        int256 deltaMarginToBeCheckedAgainst,
-        bool isTraderBuy
-    ) internal returns (int256) {
-        //binary search
-        //TODO:make the function work
-        int256 left;
-        int256 right;
-        int256 tradeAmount = guess;
-        if (tradeAmount < 0) {
-            left = tradeAmount;
-            right = 0;
-        } else {
-            left = 0;
-            right = tradeAmount;
-        }
-        int256 maxIteration = 100;
-        int256 tolerance = 1;
-        logInt("left", left);
-        logInt("right", right);
-        while (maxIteration > 0) {
-            maxIteration -= 1;
-            guess = (left + right).wdiv(2 ether);
-            // logInt("left", left);
-            // logInt("right", right);
-            // logInt("guess", guess);
-
-            if (checkTrading(guess, deltaMarginToBeCheckedAgainst, isTraderBuy)) {
-                left = guess;
-            } else {
-                right = guess;
-            }
-            // break;
-            if ((right - left).wdiv(right) < (tolerance)) {
-                return left;
-            }
-        }
-        logInt("maxIteration", maxIteration);
-        logInt("left", left);
-        return left;
     }
 
     function calculateLeverge() internal returns (int256 leverage) {
@@ -216,10 +124,9 @@ contract USDLemma_Test {
         }
 
         console.log("leverage", leverage.toUint256());
-        // revert("yuhi");
     }
 
-    function logInt(string memory name, int256 num) internal {
+    function logInt(string memory name, int256 num) internal view {
         if (num >= 0) {
             console.log(name, ":  ", num.toUint256());
         } else {
