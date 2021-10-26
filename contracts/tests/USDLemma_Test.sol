@@ -61,7 +61,13 @@ contract USDLemma_Test {
         prepare();
         uint256 ethInput = helper.getCost(liquidityPool, perpetualIndex, 1 ether);
         int256 deltaMargin = int256(ethInput);
-        helper.getAmountGivenCollateral(liquidityPool, perpetualIndex, deltaMargin);
+        helper.getAmountGivenCollateral(liquidityPool, perpetualIndex, -deltaMargin);
+
+        {
+            uint256 ethInput = helper.getCost(liquidityPool, perpetualIndex, -1 ether);
+            int256 deltaMargin = int256(ethInput);
+            helper.getAmountGivenCollateral(liquidityPool, perpetualIndex, deltaMargin);
+        }
     }
 
     function deposit(uint256 amount) public returns (uint256 collateralAmountRequiredInDecimals) {

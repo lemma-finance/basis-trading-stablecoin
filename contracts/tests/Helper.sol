@@ -35,7 +35,7 @@ contract Helper {
         uint256 perpetualIndex,
         int256 deltaMargin
     ) public view returns (int256) {
-        //assume deltaMargin is positive
+        //assume deltaMargin is negative (means you want to go long so amount would be positive)
 
         int256 indexPrice;
         {
@@ -45,19 +45,16 @@ contract Helper {
         logInt("indexPrice", indexPrice);
         logInt("deltaMatgin", deltaMargin);
         int256 guess = deltaMargin.wdiv(indexPrice);
+        guess = guess.neg();
 
-        int256 minMaxEstimation = (guess * 1) / (100);
-        int256 min = guess - minMaxEstimation;
-        int256 max = guess + minMaxEstimation;
+        int256 minMaxEstimation = (guess * 1) / (100); //assumes that max deviation from index price and mark price is 1%
+        int256 min = deltaMargin < 0 ? guess - minMaxEstimation : guess + minMaxEstimation;
+        int256 max = deltaMargin < 0 ? guess + minMaxEstimation : guess - minMaxEstimation;
 
+        int256 amount = binarySearch(liquidityPool, perpetualIndex, min, max, deltaMargin.abs());
+        logInt("amount", amount);
         logInt("min", min);
         logInt("max", max);
-
-        int256 steps = 10**10;
-
-        int256 amount = binarySearch(liquidityPool, perpetualIndex, min, max, deltaMargin);
-        logInt("amount", amount);
-        return amount;
     }
 
     function binarySearch(
@@ -71,10 +68,12 @@ contract Helper {
         logInt("mid", mid);
         int256 cost = int256(getCost(liquidityPool, perpetualIndex, mid));
         logInt("cost", cost);
-        if ((cost - deltaMargin).abs() < 10**6) {
+        //error allowed = 10^5
+        if ((cost - deltaMargin).abs() < 10**5) {
             return mid;
         }
-        if (cost > deltaMargin) return binarySearch(liquidityPool, perpetualIndex, min, mid - 1, deltaMargin);
+        if (mid < 0 ? cost < deltaMargin : cost > deltaMargin)
+            return binarySearch(liquidityPool, perpetualIndex, min, mid - 1, deltaMargin);
 
         return binarySearch(liquidityPool, perpetualIndex, mid + 1, max, deltaMargin);
     }
