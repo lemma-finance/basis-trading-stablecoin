@@ -10,7 +10,7 @@ const exec = util.promisify(require('child_process').exec);
 const bn = require("bignumber.js");
 
 const deployMCDEXLocally = async function () {
-    // console.log("deploying MCDEX locally,please wait...");
+    console.log("deploying MCDEX locally,please wait...");
     const { stdout, stderr } = await exec("cd mai-protocol-v3/ && pwd && npx hardhat run scripts/deploy.ts --network local && cd ..  && pwd");
     if (stderr) {
         console.error(`error: ${stderr}`);

@@ -55,6 +55,7 @@ contract Helper {
         logInt("amount", amount);
         logInt("min", min);
         logInt("max", max);
+        return amount;
     }
 
     function binarySearch(
