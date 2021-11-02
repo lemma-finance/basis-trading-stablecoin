@@ -6,6 +6,9 @@ const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, Liq
 const { tokenTransfers } = require("../test/utils");
 const { MaxUint256 } = require("@ethersproject/constants");
 
+const fs = require('fs');
+const SAVE_PREFIX = "./deployments/";
+const SAVE_POSTFIX = "mainnet.deployment.js";
 
 const ZERO = BigNumber.from("0");
 //add it in prod
@@ -16,6 +19,13 @@ const printTx = async (hash) => {
     await tokenTransfers.print(hash, [], false);
 };
 const delay = ms => new Promise(res => setTimeout(res, ms));
+
+let deployedContracts = {};
+
+const save = async () => {
+    await fs.writeFileSync(SAVE_PREFIX + SAVE_POSTFIX, JSON.stringify(deployedContracts, null, 2));
+};
+
 
 async function main() {
     [defaultSigner, reBalancer, lemmaTreasury, trustedForwarder] = await ethers.getSigners();
@@ -119,6 +129,28 @@ async function main() {
     await printTx(tx.hash);
     console.log("balance of USDL", (await usdLemma.balanceOf(defaultSigner.address)).toString());
 
+    deployedContracts['USDLemma'] = {
+        name: 'USDLemma',
+        address: usdLemma.address
+    };
+
+    deployedContracts['XUSDL'] = {
+        name: 'XUSDL',
+        address: xUSDL.address
+    };
+
+    deployedContracts['MCDEXLemma'] = {
+        name: 'MCDEXLemma',
+        address: mcdexLemma.address
+    };
+
+    deployedContracts['WETH'] = {
+        name: 'WETH',
+        address: collateralAddress
+    }
+
+    await save();
+    
 }
 main()
     .then(() => process.exit(0))
