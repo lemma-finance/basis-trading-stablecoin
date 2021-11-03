@@ -35,7 +35,8 @@ async function main() {
     const ZERO = BigNumber.from("0");
     mcdexAddresses = await loadMCDEXInfo();
 
-    [defaultSigner, reBalancer, hasWETH, lemmaTreasury, trustedForwarder, signer1, signer2] = await ethers.getSigners();
+    [defaultSigner, hasWETH, lemmaTreasury, trustedForwarder, signer1, signer2] = await ethers.getSigners();
+    reBalancer = defaultSigner;
     console.log("defaultSigner", defaultSigner.address);
     // console.log(hre.network);
     const arbProvider = ethers.getDefaultProvider(hre.network.config.url);
