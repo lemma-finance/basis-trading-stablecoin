@@ -13,7 +13,6 @@ task("accounts", "Prints the list of accounts", async () => {
     console.log(account.address);
   }
 });
-
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
 
@@ -24,9 +23,9 @@ module.exports = {
   solidity: "0.8.3",
   networks: {
     hardhat: {
-      // forking: {
-      //   url: "https://kovan.infura.io/v3/" + process.env.INFURA_KEY,
-      // },
+      forking: {
+        url: "https://mainnet.infura.io/v3/" + process.env.INFURA_KEY,
+      },
       // accounts: {
       //   mnemonic: process.env.MNEMONIC
       // }
@@ -40,6 +39,13 @@ module.exports = {
     },
     arbitrumTestnet: {
       url: "https://rinkeby.arbitrum.io/rpc",
+      accounts: {
+        mnemonic: process.env.MNEMONIC
+      }
+    },
+    arbitrum: {
+      // url: "https://arbitrum-mainnet.infura.io/v3/" + process.env.INFURA_KEY,
+      url: "https://arb1.arbitrum.io/rpc",
       accounts: {
         mnemonic: process.env.MNEMONIC
       }
