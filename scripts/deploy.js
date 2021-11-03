@@ -1,9 +1,9 @@
 const hre = require("hardhat");
 const { ethers, upgrades } = hre;
-const { constants, BigNumber } = ethers;
+const { constants, BigNumber, utils } = ethers;
 const { AddressZero } = constants;
 const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, computeAMMCloseAndOpenAmountWithPrice } = require('@mcdex/mai3.js');
-const { tokenTransfers } = require("../test/utils");
+const { tokenTransfers, displayNicely } = require("../test/utils");
 const { MaxUint256 } = require("@ethersproject/constants");
 
 const fs = require('fs');
@@ -26,27 +26,37 @@ const save = async () => {
     await fs.writeFileSync(SAVE_PREFIX + SAVE_POSTFIX, JSON.stringify(deployedContracts, null, 2));
 };
 
-const opts = { gasLimit: 1000000 };
+const opts = {
+    // gasLimit: 1000000
+};
+
+const info = {
+    "arbitrumRinkebyTestnet": {
+        "trustedForwarder": "0x67454E169d613a8e9BA6b06af2D267696EAaAf41",
+        "lemmaTreasury": "0xa29bC5E0a0D12dc9928d0567cfabB258992346C6",
+        "liquidityPool": "0x95a8030ce95e40a97ecc50b04074c1d71977f23a",
+    },
+    "arbitrumOneMainnet": {
+        "trustedForwarder": "0x6271ca63d30507f2dcbf99b52787032506d75bbf",
+        "lemmaTreasury": "0xa29bC5E0a0D12dc9928d0567cfabB258992346C6",
+        "liquidityPool": "0xc7b2ad78fded2bbc74b50dc1881ce0f81a7a0cca",
+    }
+};
 
 async function main() {
-    [defaultSigner, reBalancer, lemmaTreasury, trustedForwarder] = await ethers.getSigners();
-    trustedForwarder = {
-        address: "0x67454E169d613a8e9BA6b06af2D267696EAaAf41"
-    }
-    lemmaTreasury = {
-        address: "0x67454E169d613a8e9BA6b06af2D267696EAaAf41"
-    }
+    const addresses = info.arbitrumRinkebyTestnet;
+    const maxPosition = utils.parseEther("2000000");//20M
+    const fees = 3000;//30%
+    let [defaultSigner, reBalancer] = await ethers.getSigners();
+    const trustedForwarder = addresses.trustedForwarder;
+    const lemmaTreasury = addresses.lemmaTreasury;
     console.log("defaultSigner::", defaultSigner.address);
     // console.log(hre.network);
     const arbProvider = ethers.getDefaultProvider(hre.network.config.url);
     const { chainId } = await arbProvider.getNetwork();
 
-    // const chainId = 42;//kovan
-    // const arbProvider = ethers.getDefaultProvider('https://kovan.infura.io/v3/2a1a54c3aa374385ae4531da66fdf150');
-
-
     const poolCreator = PoolCreatorFactory.connect(CHAIN_ID_TO_POOL_CREATOR_ADDRESS[chainId], arbProvider);
-    reader = ReaderFactory.connect(CHAIN_ID_TO_READER_ADDRESS[chainId], defaultSigner);
+    const reader = ReaderFactory.connect(CHAIN_ID_TO_READER_ADDRESS[chainId], defaultSigner);
     console.log("poolCreatorAddress::", poolCreator.address);
 
     const poolCount = await poolCreator.getLiquidityPoolCount();
@@ -54,32 +64,34 @@ async function main() {
     // const liquidityPools = await poolCreator.listLiquidityPools(ZERO, poolCount);
 
     // const liquidityPoolAddress = liquidityPools[0];//liquidityPool + perpetualIndex needs to be an inverse perpetual
-    const liquidityPoolAddress = "0x95a8030ce95e40a97ecc50b04074c1d71977f23a";
+    const liquidityPoolAddress = addresses.liquidityPool;
     const perpetualIndex = ZERO;
     const liquidityPool = LiquidityPoolFactory.connect(liquidityPoolAddress, defaultSigner);
     console.log("liquidity pool address", liquidityPool.address);
 
-
     //deploy mcdexLemma
     console.log(`Deploying MCDEXLemma`);
-    const maxPosition = MaxUint256;
     const MCDEXLemma = await ethers.getContractFactory("MCDEXLemma");
-    const mcdexLemma = await upgrades.deployProxy(MCDEXLemma, [trustedForwarder.address, liquidityPool.address, perpetualIndex, AddressZero, defaultSigner.address, maxPosition], { initializer: 'initialize' });
-    console.log("mcdexLemma", mcdexLemma.address);
+    const mcdexLemma = await upgrades.deployProxy(MCDEXLemma, [trustedForwarder, liquidityPool.address, perpetualIndex, AddressZero, reBalancer.address, maxPosition], { initializer: 'initialize' });
+    // console.log("mcdexLemma", mcdexLemma.address);
+    // const mcdexLemma = MCDEXLemma.attach("0x3092eD676e1C59ee5Ab6Eb4Bf19a11BcA84D67bd");
 
     // await delay(60000);
 
     const collateralAddress = await mcdexLemma.collateral();
     console.log("collateralAddress", collateralAddress);
+
     //deploy USDLemma
     const USDLemma = await ethers.getContractFactory("USDLemma");
-    const usdLemma = await upgrades.deployProxy(USDLemma, [trustedForwarder.address, collateralAddress, mcdexLemma.address], { initializer: 'initialize' });
+    const usdLemma = await upgrades.deployProxy(USDLemma, [trustedForwarder, collateralAddress, mcdexLemma.address], { initializer: 'initialize' });
+    // const usdLemma = USDLemma.attach("0xdb41ab644AbcA7f5ac579A5Cf2F41e606C2d6abc");
     console.log("USDL", usdLemma.address);
     // await delay(60000);
     //deploy stackingContract
     const peripheryContract = AddressZero;
     const XUSDL = await ethers.getContractFactory("xUSDL");
-    const xUSDL = await upgrades.deployProxy(XUSDL, [trustedForwarder.address, usdLemma.address, peripheryContract], { initializer: 'initialize' });
+    const xUSDL = await upgrades.deployProxy(XUSDL, [trustedForwarder, usdLemma.address, peripheryContract], { initializer: 'initialize' });
+    // const xUSDL = XUSDL.attach("0x57c7E0D43C05bCe429ce030132Ca40F6FA5839d7");
     console.log("xUSDL", xUSDL.address);
     // await delay(60000);
 
@@ -91,7 +103,6 @@ async function main() {
     console.log("USDL", await mcdexLemma.usdLemma());
 
     //set Fees
-    const fees = 3000;//30%
     console.log(`Setting fees`);
     tx = await usdLemma.setFees(fees, opts);
     await tx.wait();
@@ -104,7 +115,7 @@ async function main() {
 
     //set lemma treasury address
     console.log(`Setting lemma treasury`);
-    tx = await usdLemma.setLemmaTreasury(trustedForwarder.address, opts);
+    tx = await usdLemma.setLemmaTreasury(lemmaTreasury, opts);
     await tx.wait();
     // await delay(60000);
     //deposit keeper gas reward
@@ -117,8 +128,11 @@ async function main() {
     const nums = perpetualInfo.nums;
     const keeperGasReward = nums[11];
     console.log("keeperGasReward", keeperGasReward.toString());
+    console.log("balance", (await collateral.balanceOf(defaultSigner.address)).toString());
     tx = await collateral.approve(mcdexLemma.address, keeperGasReward, opts);
     await tx.wait();
+
+
     // await delay(60000);
     tx = await defaultSigner.sendTransaction({ to: collateral.address, value: keeperGasReward });
     await tx.wait();
@@ -129,6 +143,7 @@ async function main() {
 
     tx = await defaultSigner.sendTransaction({ to: collateral.address, value: ethers.utils.parseEther("0.1") });//deposit ETH to WETH contract
     await tx.wait();
+
     // await delay(60000);
     console.log("balance", (await collateral.balanceOf(defaultSigner.address)).toString());
     tx = await collateral.approve(usdLemma.address, MaxUint256, opts);
@@ -159,10 +174,10 @@ async function main() {
     deployedContracts['WETH'] = {
         name: 'WETH',
         address: collateralAddress
-    }
+    };
 
     await save();
-    
+
 }
 main()
     .then(() => process.exit(0))
