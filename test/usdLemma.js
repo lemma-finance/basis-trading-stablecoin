@@ -18,7 +18,7 @@ const printTx = async (hash) => {
 
 describe("usdLemma", async function () {
 
-    let reBalancer, hasWETH, keeperGasReward, stackingContract, lemmaTreasury, signer1, signer2;
+    let defaultSigner, reBalancer, hasWETH, keeperGasReward, stackingContract, lemmaTreasury, signer1, signer2;
 
     let liquidityPool, reader, mcdexAddresses;
     const perpetualIndex = 0; //in Kovan the 0th perp for 0th liquidity pool = inverse ETH-USD
@@ -98,7 +98,7 @@ describe("usdLemma", async function () {
         const collateralBalanceAfter = await this.collateral.balanceOf(defaultSigner.address);
         expect(collateralNeeded).to.equal(collateralBalanceBefore.sub(collateralBalanceAfter));
         expect(await this.usdLemma.balanceOf(defaultSigner.address)).to.equal(utils.parseEther("1000"));
-        expect(tx).to.emit(this.usdLemma, "DepositTo").withArgs(0,this.collateral.address, defaultSigner.address, amount, collateralNeeded);
+        expect(tx).to.emit(this.usdLemma, "DepositTo").withArgs(0, this.collateral.address, defaultSigner.address, amount, collateralNeeded);
     });
     it("should depositTo correctly", async function () {
         const collateralBalanceBefore = await this.collateral.balanceOf(defaultSigner.address);
@@ -109,7 +109,7 @@ describe("usdLemma", async function () {
         const collateralBalanceAfter = await this.collateral.balanceOf(defaultSigner.address);
         expect(collateralNeeded).to.equal(collateralBalanceBefore.sub(collateralBalanceAfter));
         expect(await this.usdLemma.balanceOf(signer1.address)).to.equal(utils.parseEther("1000"));
-        expect(tx).to.emit(this.usdLemma, "DepositTo").withArgs(0,this.collateral.address, signer1.address, amount, collateralNeeded);
+        expect(tx).to.emit(this.usdLemma, "DepositTo").withArgs(0, this.collateral.address, signer1.address, amount, collateralNeeded);
     });
 
     it("should withdraw correctly", async function () {
@@ -353,27 +353,27 @@ describe("usdLemma", async function () {
         });
     });
 
-    it("should set staking contract correctly", async function() {
+    it("should set staking contract correctly", async function () {
         let tx = await this.usdLemma.setStakingContractAddress(signer2.address);
         expect(tx).to.emit(this.usdLemma, "StakingContractUpdated").withArgs(signer2.address);
         await this.usdLemma.setStakingContractAddress(stackingContract.address);
-    })
+    });
 
-    it("should set lemma treasury correctly", async function() {
+    it("should set lemma treasury correctly", async function () {
         let tx = await this.usdLemma.setLemmaTreasury(signer2.address);
-        expect(tx).to.emit(this.usdLemma, "LemmaTreasuryUpdated").withArgs(signer2.address); 
-        await this.usdLemma.setLemmaTreasury(lemmaTreasury.address);       
-    })
+        expect(tx).to.emit(this.usdLemma, "LemmaTreasuryUpdated").withArgs(signer2.address);
+        await this.usdLemma.setLemmaTreasury(lemmaTreasury.address);
+    });
 
-    it("should set fees correctly", async function() {
+    it("should set fees correctly", async function () {
         let tx = await this.usdLemma.setFees(utils.parseEther("1000"));
         expect(tx).to.emit(this.usdLemma, "FeesUpdated").withArgs(utils.parseEther("1000"));
         await this.usdLemma.setFees(utils.parseEther("0"));
-    })
+    });
 
-    it("should add per dex wrapper correctly", async function() {
+    it("should add per dex wrapper correctly", async function () {
         let tx = await this.usdLemma.addPerpetualDEXWrapper(1, signer1.address, signer2.address);
         expect(tx).to.emit(this.usdLemma, "PerpetualDexWrapperAdded").withArgs(1, signer1.address, signer2.address);
-    })
+    });
 
 });
