@@ -27,7 +27,7 @@ const save = async () => {
 
 async function main() {
 
-    let reBalancer, trustedForwarder, hasWETH, keeperGasReward, lemmaTreasury, signer1, signer2;
+    let defaultSigner, reBalancer, trustedForwarder, hasWETH, keeperGasReward, lemmaTreasury, signer1, signer2;
 
     let liquidityPool, reader, mcdexAddresses;
     const perpetualIndex = 0; //in Kovan the 0th perp for 0th liquidity pool = inverse ETH-USD
