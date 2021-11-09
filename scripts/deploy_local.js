@@ -83,13 +83,13 @@ async function main() {
     //get some WETH first
     //get the keeper gas reward
 
-    const amountOfCollateralToMint = utils.parseEther("1000");
+    const amountOfCollateralToMint = utils.parseEther("5000");
 
     await defaultSigner.sendTransaction({ to: collateral.address, value: amountOfCollateralToMint });
     await hasWETH.sendTransaction({ to: collateral.address, value: amountOfCollateralToMint });
 
     //add liquidity to the liquidity Pool
-    const liquidityToAdd = utils.parseEther("10");
+    const liquidityToAdd = utils.parseEther("1000");
     await collateral.approve(liquidityPool.address, MaxUint256);
     await liquidityPool.addLiquidity(liquidityToAdd);
 
@@ -128,8 +128,8 @@ async function main() {
         await usdLemma.connect(signer1).withdraw(amount.div(3), 0, 0, collateral.address);
 
     }
-    await xUSDL.deposit(amount.div(4));
-    await usdLemma.transfer(xUSDL.address, amount.div(4));
+    await xUSDL.deposit(amount.div(2));
+    // await usdLemma.transfer(xUSDL.address, amount.div(4));
 
     console.log("pricePerShare", (await xUSDL.pricePerShare()).toString());
 

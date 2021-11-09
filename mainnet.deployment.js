@@ -17,6 +17,6 @@
   },
   "LemmaRouter": {
     "name": "LemmaRouter",
-      "address": "0x9BC0aA456E6caF60B0a1837c3Dc8c9019830fCD9";
+      "address": "0xf0BB2d7Ba15b8860864a810e675A00f0FE828E06";
   }
 }
