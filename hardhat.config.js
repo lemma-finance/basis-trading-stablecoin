@@ -1,6 +1,8 @@
 require("@nomiclabs/hardhat-waffle");
 require("@openzeppelin/hardhat-upgrades");
 require("@nomiclabs/hardhat-ethers");
+require("@nomiclabs/hardhat-etherscan");
+
 require("solidity-coverage");
 require("dotenv").config();
 
@@ -65,6 +67,9 @@ module.exports = {
         runs: 200
       }
     }
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_KEY
   },
   mocha: {
     timeout: 1000000 //1000 secs
