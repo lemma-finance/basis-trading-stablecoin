@@ -35,7 +35,8 @@ contract xUSDL is IXUSDL, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771Con
         usdl = IERC20Upgradeable(_usdl);
         SafeERC20Upgradeable.safeApprove(usdl, address(usdl), type(uint256).max);
         periphery = _periphery;
-        MINIMUM_LOCK = 100;
+        //removed after the deployment
+        //MINIMUM_LOCK = 100;
     }
 
     ///@notice update periphery contract address
