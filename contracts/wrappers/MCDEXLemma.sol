@@ -10,6 +10,7 @@ import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/
 import { Utils } from "../libraries/Utils.sol";
 import { SafeMathExt } from "../libraries/SafeMathExt.sol";
 import { IPerpetualDEXWrapper } from "../interfaces/IPerpetualDEXWrapper.sol";
+import { IMCBStaking } from "../interfaces/MCDEX/IMCBStaking.sol";
 
 interface IUSDLemma {
     function lemmaTreasury() external view returns (address);
@@ -329,6 +330,20 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
         IERC20Upgradeable mcbToken = IERC20Upgradeable(0x4e352cF164E64ADCBad318C3a1e222E9EBa4Ce42);
         address lemmaTreasury = IUSDLemma(usdLemma).lemmaTreasury();
         SafeERC20Upgradeable.safeTransfer(mcbToken, lemmaTreasury, mcbToken.balanceOf(address(this)));
+    }
+
+    function stakeMCB(address mcbStaking, IERC20Upgradeable mcb) external onlyOwner {
+        SafeERC20Upgradeable.safeApprove(mcb, address(mcbStaking), 0);
+        SafeERC20Upgradeable.safeApprove(mcb, address(mcbStaking), MAX_UINT256);
+        IMCBStaking(mcbStaking).stake(mcb.balanceOf(address(this)));
+    }
+
+    function unstakeMCB(address mcbStaking) external onlyOwner {
+        IMCBStaking(mcbStaking).redeem();
+    }
+
+    function restakeMCB(address mcbStaking) external onlyOwner {
+        IMCBStaking(mcbStaking).restake();
     }
 
     function _msgSender()
