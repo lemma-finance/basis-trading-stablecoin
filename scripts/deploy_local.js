@@ -83,7 +83,7 @@ async function main() {
     //get some WETH first
     //get the keeper gas reward
 
-    const amountOfCollateralToMint = utils.parseEther("5000");
+    const amountOfCollateralToMint = utils.parseEther("2000");
 
     await defaultSigner.sendTransaction({ to: collateral.address, value: amountOfCollateralToMint });
     await hasWETH.sendTransaction({ to: collateral.address, value: amountOfCollateralToMint });
@@ -129,6 +129,10 @@ async function main() {
 
     }
     await xUSDL.deposit(amount.div(2));
+
+    let periphery = defaultSigner;
+    await xUSDL.updatePeriphery(periphery.address);
+    await xUSDL.transfer(signer2.address, await xUSDL.balanceOf(defaultSigner.address));
     // await usdLemma.transfer(xUSDL.address, amount.div(4));
 
     console.log("pricePerShare", (await xUSDL.pricePerShare()).toString());
