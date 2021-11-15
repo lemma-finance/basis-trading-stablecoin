@@ -332,10 +332,13 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
         SafeERC20Upgradeable.safeTransfer(mcbToken, lemmaTreasury, mcbToken.balanceOf(address(this)));
     }
 
-    function stakeMCB(address mcbStaking, IERC20Upgradeable mcb) external onlyOwner {
+    ///@notice Stake MCB tokens from Lemma treasury in MCBStaking
+    function stakeMCB(address mcbStaking, IERC20Upgradeable mcb, uint256 amount) external onlyOwner {
         SafeERC20Upgradeable.safeApprove(mcb, address(mcbStaking), 0);
         SafeERC20Upgradeable.safeApprove(mcb, address(mcbStaking), MAX_UINT256);
-        IMCBStaking(mcbStaking).stake(mcb.balanceOf(address(this)));
+        address lemmaTreasury = IUSDLemma(usdLemma).lemmaTreasury();
+        SafeERC20Upgradeable.safeTransferFrom(mcb, lemmaTreasury, address(this), amount);
+        IMCBStaking(mcbStaking).stake(amount);
     }
 
     function unstakeMCB(address mcbStaking) external onlyOwner {

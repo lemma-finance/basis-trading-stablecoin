@@ -1,7 +1,7 @@
 const { JsonRpcProvider } = require('@ethersproject/providers');
 const { ethers } = require("hardhat");
 const { expect, util } = require("chai");
-const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, getAccountStorage, computeAccount, normalizeBigNumberish, DECIMALS, computeAMMTrade, computeIncreasePosition, _0, _1, computeDecreasePosition, computeAMMTradeAmountByMargin } = require('@mcdex/mai3.js');
+const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, getAccountStorage, computeAccount, normalizeBigNumberish, DECIMALS, computeAMMTrade, computeIncreasePosition, _0, _1, computeDecreasePosition, computeAMMTradeAmountByMargin, balanceOf } = require('@mcdex/mai3.js');
 const { utils } = require('ethers');
 const { BigNumber, constants } = ethers;
 const { AddressZero, MaxUint256, MaxInt256 } = constants;
@@ -18,6 +18,10 @@ const printTx = async (hash) => {
     await tokenTransfers.print(hash, [], false);
 };
 
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 const convertToCollateralDecimals = (numString, collateralDecimals) => {
     let decimalPos = utils.formatEther(numString).indexOf(".");
     if (decimalPos < 0) {
@@ -29,7 +33,7 @@ const convertToCollateralDecimals = (numString, collateralDecimals) => {
 
 describe("mcdexLemma", async function () {
 
-    let defaultSigner, usdLemma, reBalancer, hasWETH, keeperGasReward, signer1, signer2, usdl2;
+    let defaultSigner, usdLemma, reBalancer, hasWETH, keeperGasReward, signer1, signer2, usdl2, lemmaTreasury;
 
     let liquidityPool, reader, mcdexAddresses;
     const perpetualIndex = 0; //in Kovan the 0th perp for 0th liquidity pool = inverse ETH-USD
@@ -38,7 +42,7 @@ describe("mcdexLemma", async function () {
     let snapshotId;
     before(async function () {
         mcdexAddresses = await loadMCDEXInfo();
-        [defaultSigner, usdLemma, reBalancer, hasWETH, signer1, signer2, usdl2] = await ethers.getSigners();
+        [defaultSigner, usdLemma, reBalancer, hasWETH, signer1, signer2, usdl2, lemmaTreasury] = await ethers.getSigners();
         const poolCreatorAddress = mcdexAddresses.PoolCreator.address;
         const readerAddress = mcdexAddresses.Reader.address;
         const poolCreator = PoolCreatorFactory.connect(poolCreatorAddress, arbProvider);
@@ -495,5 +499,61 @@ describe("mcdexLemma", async function () {
         expect(tx).to.emit(this.mcdexLemma, "MaxPositionUpdated").withArgs(utils.parseEther("100000"));
         await this.mcdexLemma.setMaxPosition(MaxUint256);
     });
+
+    describe("MCB Staking", async function(){
+        before(async function() {
+
+            const MockUSDL = await ethers.getContractFactory("MockUSDL");
+
+            this.mockUSDL = await MockUSDL.deploy(lemmaTreasury.address);
+
+            const MCB = await ethers.getContractFactory("Token");
+            this.mcb = await upgrades.deployProxy(MCB, [utils.parseEther("1000000")], { initializer: 'initialize' });
+            const MCBStakingPool = await ethers.getContractFactory("MCBStaking");
+            this.mcbPool = await upgrades.deployProxy(MCBStakingPool, [this.mcb.address, 30], { initializer: 'initialize' });
+            
+            await this.mcb.transfer(lemmaTreasury.address, utils.parseEther("100000"));
+
+            await this.mcb.connect(lemmaTreasury).approve(this.mcdexLemma.address, MaxUint256);
+
+            await this.mcdexLemma.setUSDLemma(this.mockUSDL.address);
+
+
+        })
+        
+        it('should stake mcb correctly', async function() {
+            await this.mcdexLemma.stakeMCB(this.mcbPool.address, this.mcb.address, utils.parseEther("100000"));
+            let balance = await this.mcb.balanceOf(this.mcbPool.address);
+            expect(balance).to.equal(utils.parseEther("100000"));
+        })
+
+        it('should restake correctly', async function() {
+            await this.mcdexLemma.stakeMCB(this.mcbPool.address, this.mcb.address, utils.parseEther("100000"));
+            
+            await sleep(10000);
+
+            let preUnlock = await this.mcbPool.unlockTime(this.mcdexLemma.address);
+
+            await this.mcdexLemma.restakeMCB(this.mcbPool.address);
+
+            let postUnlock = await this.mcbPool.unlockTime(this.mcdexLemma.address);         
+
+            expect(postUnlock).to.gt(preUnlock);
+        })
+
+        it('should redeem correctly', async function() {
+            await this.mcdexLemma.stakeMCB(this.mcbPool.address, this.mcb.address, utils.parseEther("100000"));
+
+            await sleep(30000);
+            let preBalance = await this.mcb.balanceOf(this.mcdexLemma.address);
+
+            await this.mcdexLemma.unstakeMCB(this.mcbPool.address);
+            let postBalance = await this.mcb.balanceOf(this.mcdexLemma.address);
+
+            expect(postBalance.sub(preBalance)).to.equal(utils.parseEther("100000"));
+        })
+
+
+    })
 
 });
