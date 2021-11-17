@@ -1,3 +1,4 @@
 [submodule "mai-protocol-v3"]
 	path = mai-protocol-v3
-	url = https://github.com/yashnaman/mai-protocol-v3
+	url = https://github.com/yashnaman/mai-protocol-v3.git
+
