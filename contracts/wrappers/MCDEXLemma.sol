@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: MIT
 pragma solidity =0.8.3;
 
 import { ILiquidityPool, PerpetualState } from "../interfaces/MCDEX/ILiquidityPool.sol";
@@ -333,7 +332,11 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
     }
 
     ///@notice Stake MCB tokens from Lemma treasury in MCBStaking
-    function stakeMCB(address mcbStaking, IERC20Upgradeable mcb, uint256 amount) external onlyOwner {
+    function stakeMCB(
+        address mcbStaking,
+        IERC20Upgradeable mcb,
+        uint256 amount
+    ) external onlyOwner {
         SafeERC20Upgradeable.safeApprove(mcb, address(mcbStaking), 0);
         SafeERC20Upgradeable.safeApprove(mcb, address(mcbStaking), MAX_UINT256);
         address lemmaTreasury = IUSDLemma(usdLemma).lemmaTreasury();
