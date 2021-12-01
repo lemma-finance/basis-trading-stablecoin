@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: MIT
 pragma solidity =0.8.3;
 
 import { ILiquidityPool, PerpetualState } from "../interfaces/MCDEX/ILiquidityPool.sol";
