@@ -2,3 +2,6 @@
 	path = mai-protocol-v3
 	url = https://github.com/yashnaman/mai-protocol-v3.git
 
+[submodule "perp-lushan"]
+	path = perp-lushan
+	url = https://github.com/perpetual-protocol/perp-lushan.git

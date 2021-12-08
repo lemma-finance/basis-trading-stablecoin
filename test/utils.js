@@ -26,6 +26,25 @@ const loadMCDEXInfo = async function () {
     const data = fs.readFileSync(__dirname + '/../mai-protocol-v3/deployments/local.deployment.js', 'utf8');
     return JSON.parse(data);
 };
+
+const deployPerpLocally = async function () {
+    // console.log("deploying MCDEX locally,please wait...");
+    const { stdout, stderr } = await exec("cd perp-lushan/ && pwd && npx hardhat run scripts/deploy_local.ts && cd ..  && pwd");
+    if (stderr) {
+        console.error(`error: ${stderr}`);
+    }
+    // console.log(`output: ${stdout}`);
+    // console.log("deployment done");
+};
+
+const loadPerpLushanInfo = async function () {
+    //deploy mcdex and then load
+    await deployPerpLocally();
+    //get MCDEXAddresses
+    const data = fs.readFileSync(__dirname + '/../perp-lushan/deployments/local.deployment.js', 'utf8');
+    return JSON.parse(data);
+};
+
 const toBigNumber = (amount) => {
     const amountBN = new bn(amount.toString());
     const ONE = new bn(utils.parseEther("1").toString());
@@ -81,4 +100,4 @@ const displayNicely = function (Obj) {
     });
 };
 
-module.exports = { displayNicely, tokenTransfers, loadMCDEXInfo, toBigNumber, fromBigNumber, snapshot, revertToSnapshot };
+module.exports = { displayNicely, tokenTransfers, loadMCDEXInfo, loadPerpLushanInfo, toBigNumber, fromBigNumber, snapshot, revertToSnapshot };

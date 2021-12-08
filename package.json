@@ -10,11 +10,14 @@
   "keywords": [],
   "author": "lemma-finance",
   "devDependencies": {
+    "@eth-optimism/smock": "^1.1.10",
+    "@nomiclabs/ethereumjs-vm": "^4.2.2",
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-etherscan": "^2.1.7",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
     "@openzeppelin/contracts-upgradeable": "^4.1.0",
     "@openzeppelin/hardhat-upgrades": "^1.8.2",
+    "bignumber.js": "^9.0.1",
     "chai": "^4.3.4",
     "ethereum-waffle": "^3.4.0",
     "ethers": "^5.3.1",
@@ -25,7 +28,6 @@
   },
   "dependencies": {
     "@mcdex/mai3.js": "^0.5.90",
-    "bignumber.js": "^9.0.1",
     "colors": "^1.4.0",
     "dotenv": "^10.0.0",
     "node-notifier": "^10.0.0",
