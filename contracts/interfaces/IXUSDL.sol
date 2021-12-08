@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: MIT
 pragma solidity =0.8.3;
 
 import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
