@@ -1,24 +1,27 @@
-const { JsonRpcProvider } = require('@ethersproject/providers');
-const { ethers } = require("hardhat");
-const { expect, util } = require("chai");
-const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, getAccountStorage, computeAccount, normalizeBigNumberish, DECIMALS, computeAMMTrade, computeIncreasePosition, _0, _1, computeDecreasePosition, computeAMMTradeAmountByMargin } = require('@mcdex/mai3.js');
-const { utils } = require('ethers');
+import { JsonRpcProvider } from '@ethersproject/providers';
+import { ethers, upgrades } from "hardhat";
+import hre from "hardhat";
+import { expect, util } from "chai";
+import { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, getAccountStorage, computeAccount, normalizeBigNumberish, DECIMALS, computeAMMTrade, computeIncreasePosition, _0, _1, computeDecreasePosition, computeAMMTradeAmountByMargin } from '@mcdex/mai3.js';
+import { utils } from 'ethers';
 const { BigNumber, constants } = ethers;
 const { AddressZero, MaxUint256, MaxInt256 } = constants;
 // const mcdexAddresses = require("../mai-protocol-v3/deployments/local.deployment.json");
 
-const { displayNicely, tokenTransfers, loadMCDEXInfo, toBigNumber, fromBigNumber, snapshot, revertToSnapshot } = require("./utils");
+import { displayNicely, 
+    // tokenTransfers, 
+    loadMCDEXInfo, toBigNumber, fromBigNumber, snapshot, revertToSnapshot } from "./shared/utils";
 
-const arbProvider = new JsonRpcProvider(hre.network.config.url);
+const arbProvider = new JsonRpcProvider('http://localhost:8545');
 const MASK_USE_TARGET_LEVERAGE = 0x08000000;
 
 const bn = require("bignumber.js");
 
-const printTx = async (hash) => {
-    await tokenTransfers.print(hash, [], false);
-};
+// const printTx = async (hash: any) => {
+//     await tokenTransfers.print(hash, [], false);
+// };
 
-const convertToCollateralDecimals = (numString, collateralDecimals) => {
+const convertToCollateralDecimals = (numString: any, collateralDecimals: any) => {
     let decimalPos = utils.formatEther(numString).indexOf(".");
     if (decimalPos < 0) {
         return numString;
@@ -29,13 +32,13 @@ const convertToCollateralDecimals = (numString, collateralDecimals) => {
 
 describe("mcdexLemma", async function () {
 
-    let defaultSigner, usdLemma, reBalancer, hasWETH, keeperGasReward, signer1, signer2, usdl2;
+    let defaultSigner: any, usdLemma: any, reBalancer: any, hasWETH: any, keeperGasReward: any, signer1: any, signer2: any, usdl2: any;
 
-    let liquidityPool, reader, mcdexAddresses;
+    let liquidityPool: any, reader: any, mcdexAddresses: any;
     const perpetualIndex = 0; //in Kovan the 0th perp for 0th liquidity pool = inverse ETH-USD
     const provider = ethers.provider;
     const ZERO = BigNumber.from("0");
-    let snapshotId;
+    let snapshotId: any;
     before(async function () {
         mcdexAddresses = await loadMCDEXInfo();
         [defaultSigner, usdLemma, reBalancer, hasWETH, signer1, signer2, usdl2] = await ethers.getSigners();
@@ -271,7 +274,7 @@ describe("mcdexLemma", async function () {
             await this.collateral.approve(this.mcdexLemma.address, keeperGasReward);
             await this.mcdexLemma.depositKeeperGasReward();
 
-            let entryFunding = _0;
+            let entryFunding: any = _0;
             for (let i = 0; i <= 3; i++) {
                 //increase position
                 const collateralToTransfer = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(utils.parseEther(amount), true);
@@ -309,7 +312,7 @@ describe("mcdexLemma", async function () {
             traderInfo.entryFunding = entryFunding;
 
             const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
-            const fundingPNL = account.accountComputed.fundingPNL;
+            const fundingPNL: any = account.accountComputed.fundingPNL;
             const fundingPNLFromContract = await this.mcdexLemma.getFundingPNL();
 
             expect(BigNumber.from(fundingPNL.shiftedBy(DECIMALS).integerValue().toString())).to.be.closeTo(fundingPNLFromContract, 1000);
@@ -338,7 +341,7 @@ describe("mcdexLemma", async function () {
             for (let i = 0; i < activeAccounts; i++) {
                 await liquidityPool.connect(signer2).clear(perpetualIndex);//keeper = any account
             }
-            const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+            const liquidityPoolInfo: any = await getLiquidityPool(reader, liquidityPool.address);
             expect(liquidityPoolInfo.perpetuals.get(perpetualIndex).state).to.equal(4);//cleared
         });
         it("should not be able to deposit keeper gas reward", async function () {
@@ -363,7 +366,8 @@ describe("mcdexLemma", async function () {
             const collateralBalanceAfter = await this.collateral.balanceOf(usdLemma.address);
             let diff = collateralBalanceAfter.sub(collateralBalanceBefore);
             //usdlemma balance change == settleableMargin
-            expect(diff).to.be.closeTo(settleableMargin, utils.parseUnits("0.05", this.collateralDecimals));
+            const amt: any = utils.parseUnits("0.05", this.collateralDecimals)
+            expect(diff).to.be.closeTo(settleableMargin, amt);
         });
         it("should settle + close correctly", async function () {
             const amount = utils.parseEther("1000");
@@ -383,10 +387,11 @@ describe("mcdexLemma", async function () {
             await this.mcdexLemma.connect(usdLemma).close(amount, collateralToGetBack);
             settledDiff = (await this.collateral.balanceOf(this.mcdexLemma.address)).sub(preBalance);
             // await printTx(tx.hash);
-            expect(await this.collateral.balanceOf(this.mcdexLemma.address)).to.be.closeTo(preBalance, utils.parseUnits("0.05", this.collateralDecimals));
+            const amt: any = utils.parseUnits("0.05", this.collateralDecimals)
+            expect(await this.collateral.balanceOf(this.mcdexLemma.address)).to.be.closeTo(preBalance, amt);
             const collateralBalanceAfter = await this.collateral.balanceOf(usdLemma.address);
             //usdlemma balance change == settleableMargin
-            expect(collateralBalanceAfter.sub(collateralBalanceBefore)).to.be.closeTo(convertToCollateralDecimals(settleableMargin.toString(), this.collateralDecimals), utils.parseUnits("0.05", this.collateralDecimals));
+            expect(collateralBalanceAfter.sub(collateralBalanceBefore)).to.be.closeTo(convertToCollateralDecimals(settleableMargin.toString(), this.collateralDecimals), amt);
         });
         it("should return collateral required correctly", async function () {
             const amount = utils.parseEther("1000");
@@ -397,10 +402,11 @@ describe("mcdexLemma", async function () {
                 perpetualIndex,
                 this.mcdexLemma.address
             );
-            expect(collateralRequiredFromContractForAllAmount).to.be.closeTo(account.settleableMargin, utils.parseUnits("0.05", 18));
+            const amt: any = utils.parseUnits("0.05", 18)
+            expect(collateralRequiredFromContractForAllAmount).to.be.closeTo(account.settleableMargin, amt);
 
             const collateralRequiredForHalfAmount = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount.div(2), false);
-            expect(collateralRequiredForHalfAmount).to.be.closeTo(account.settleableMargin.div(2), utils.parseUnits("0.05", 18));
+            expect(collateralRequiredForHalfAmount).to.be.closeTo(account.settleableMargin.div(2), amt);
         });
     });
     describe("re balance", async function () {
@@ -441,21 +447,21 @@ describe("mcdexLemma", async function () {
             const unrealizedFundingPNL = fundingPNL.sub(realizedFundingPNL);
 
             const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
-            const perpetualInfo = liquidityPoolInfo.perpetuals.get(perpetualIndex);
-            const marginChange = toBigNumber(unrealizedFundingPNL).negated();
+            const perpetualInfo: any = liquidityPoolInfo.perpetuals.get(perpetualIndex);
+            const marginChange = (await toBigNumber(unrealizedFundingPNL)).negated();
             const feeRate = perpetualInfo.lpFeeRate.plus(liquidityPoolInfo.vaultFeeRate).plus(perpetualInfo.operatorFeeRate);
-            const marginChangeWithFeesConsidered = marginChange.times(toBigNumber(utils.parseEther("1")).minus(feeRate));//0.07%
+            const marginChangeWithFeesConsidered = marginChange.times((await toBigNumber(utils.parseEther("1"))).minus(feeRate));//0.07%
             const amountWithFeesConsidered = computeAMMTradeAmountByMargin(liquidityPoolInfo, perpetualIndex, marginChangeWithFeesConsidered);
 
             const limitPrice = amountWithFeesConsidered.isNegative() ? 0 : MaxInt256;
             const deadline = MaxUint256;
-            await this.mcdexLemma.connect(usdLemma).reBalance(reBalancer.address, fromBigNumber(amountWithFeesConsidered), ethers.utils.defaultAbiCoder.encode(["int256", "uint256"], [limitPrice, deadline]));
+            await this.mcdexLemma.connect(usdLemma).reBalance(reBalancer.address, await fromBigNumber(amountWithFeesConsidered), ethers.utils.defaultAbiCoder.encode(["int256", "uint256"], [limitPrice, deadline]));
             {
                 const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
                 const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
                 const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
                 //expect the leverage to be ~1
-                expect(fromBigNumber(account.accountComputed.leverage)).to.be.closeTo(utils.parseEther("1"), 1e14);
+                expect(await fromBigNumber(account.accountComputed.leverage)).to.be.closeTo(utils.parseEther("1"), 1e14);
             }
             //TODO: need to also add test to check that the trade actually happens on MCDEX via events
         });
