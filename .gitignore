@@ -21,3 +21,6 @@ coverage
 ##hardhat-deploy (dependency for solidity-test)
 deployments
 
+test2
+types
+2.js

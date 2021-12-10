@@ -1,24 +1,24 @@
-const { ethers } = require("hardhat");
-const { expect } = require("chai");
-const { utils } = require('ethers');
+import { ethers, upgrades } from "hardhat";
+import { expect, util } from "chai";
+import { utils } from 'ethers';
 const { BigNumber, constants } = ethers;
 const { AddressZero, MaxUint256, MaxInt256 } = constants;
+import hre from "hardhat";
 
-
-const approveMAX = async (erc20, signer, to, amount) => {
+const approveMAX = async (erc20: any, signer: any, to: any, amount: any) => {
     if ((await erc20.allowance(signer.address, to)).lt(amount)) {
         let tx = await erc20.connect(signer).approve(to, MaxUint256);
         await tx.wait();
     }
 };
 
-const balanceOf = async (erc20, userAddress) => {
+const balanceOf = async (erc20: any, userAddress: any) => {
     return await erc20.balanceOf(userAddress);
 };
 
 
 
-async function mineBlocks(blockNumber) {
+async function mineBlocks(blockNumber: any) {
     while (blockNumber > 0) {
         blockNumber--;
         await hre.network.provider.request({
@@ -30,10 +30,10 @@ async function mineBlocks(blockNumber) {
 
 describe('xUSDL', function () {
 
-    let owner;
-    let user1;
-    let user2;
-    let periphery;
+    let owner: any;
+    let user1: any;
+    let user2: any;
+    let periphery: any;
 
     beforeEach(async function () {
         // Get the ContractFactory and Signers here.
@@ -193,7 +193,6 @@ describe('xUSDL', function () {
         await expect(this.xusdl.connect(periphery).transfer(owner.address, bal))
             .not.to.be.reverted;
     });
-
 
     it('should withdraw to another user', async function () {
         await this.xusdl.deposit(utils.parseEther("1000"));
