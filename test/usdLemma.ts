@@ -1,20 +1,12 @@
-import { JsonRpcProvider } from '@ethersproject/providers';
 import { expect } from "chai"
-import { parseEther, parseUnits } from "ethers/lib/utils"
-import { ethers, upgrades, waffle } from "hardhat";
+import { ethers, waffle } from "hardhat";
 import { utils } from 'ethers';
 const { BigNumber, constants } = ethers;
 const { AddressZero, MaxUint256, MaxInt256 } = constants;
-import { MockProvider } from 'ethereum-waffle';
 import hre from "hardhat";
 import { getLiquidityPool, getAccountStorage, computeAccount, _0, _1, computeAMMTradeAmountByMargin } from '@mcdex/mai3.js';
-import { displayNicely, 
-    // tokenTransfers, 
-    loadMCDEXInfo, toBigNumber, fromBigNumber, snapshot, revertToSnapshot } from "./shared/utils";
+import { toBigNumber, fromBigNumber, snapshot, revertToSnapshot } from "./shared/utils";
 import { createUsdlFixture } from "./shared/fixtures"
-import { italic } from 'colors';
-const provider = new MockProvider();
-const arbProvider = new JsonRpcProvider('http://localhost:8545');
 const MASK_USE_TARGET_LEVERAGE = 0x08000000;
 
 // const printTx = async (hash) => {
@@ -230,6 +222,77 @@ describe("USDLemma", async () => {
             // }
         });
     });
+
+        // //a different way to test than the one in ./mcdexLemma.js
+    // describe("should calculate fundingPNL correctly", async function () {
+    //     beforeEach(async function () {
+    //         const amount = utils.parseEther("1000");
+    //         const collateralNeeded = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
+    //         await this.collateral.approve(this.usdLemma.address, collateralNeeded);
+    //         await this.usdLemma.deposit(amount, 0, MaxUint256, this.collateral.address);
+    //     });
+    //     it("when negative", async function () { });
+    //     it("when positive", async function () {
+    //         //short to get the PNL in positive
+    //         await liquidityPool.trade(perpetualIndex, defaultSigner.address, "-" + (utils.parseEther("10000")).toString(), "0", MaxUint256, AddressZero, MASK_USE_TARGET_LEVERAGE);
+    //     });
+    //     afterEach(async function () {
+    //         for (let i = 0; i < 10; i++) {
+    //             await hre.network.provider.request({
+    //                 method: "evm_increaseTime",
+    //                 params: [60 * 60 * 10]
+    //             }
+    //             );
+    //             await hre.network.provider.request({
+    //                 method: "evm_mine",
+    //                 params: []
+    //             }
+    //             );
+
+    //             const amount = utils.parseEther("1000");
+    //             const collateralNeeded = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
+    //             await this.collateral.approve(this.usdLemma.address, collateralNeeded);
+    //             await this.usdLemma.deposit(amount, 0, MaxUint256, this.collateral.address);
+
+    //             await this.usdLemma.withdraw(amount.div(2), 0, 0, this.collateral.address);
+
+
+    //             await liquidityPool.forceToSyncState();
+
+    //             const fundingPNLFromContract = await this.mcdexLemma.getFundingPNL();
+
+    //             {
+    //                 let entryFunding = await this.mcdexLemma.entryFunding();
+    //                 entryFunding = toBigNumber(entryFunding);
+
+
+    //                 const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
+    //                 let traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, this.mcdexLemma.address);
+    //                 {
+    //                     const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
+    //                     console.log("leverage", account.accountComputed.leverage.toString());
+    //                 }
+    //                 displayNicely(traderInfo);
+    //                 traderInfo.cashBalance = traderInfo.cashBalance.minus(toBigNumber(fundingPNLFromContract));
+    //                 traderInfo.entryFunding = entryFunding;
+    //                 displayNicely(traderInfo);
+    //                 {
+    //                     const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
+    //                     expect(toBigNumber(fundingPNLFromContract).toString()).to.equal(account.accountComputed.fundingPNL.toString());
+    //                     console.log("leverage", account.accountComputed.leverage.toString());
+    //                     //expect the leverage to be =1
+    //                     // expect(fromBigNumber(account.accountComputed.leverage)).to.equal(utils.parseEther("1"));
+    //                 }
+    //             }
+    //         }
+    //     });
+    // });
+
+    // it("should send MCB tokens to lemma treasury correctly", async function () {
+    //     // this.collateral needs to be attached to MCB token address somehow
+    //     // not possible to test without forking arbitrum state
+    //     await expect(this.mcdexLemma.sendMCBToTreasury()).to.emit(this.collateral, "Transfer").withArgs(this.mcdexLemma.address, lemmaTreasury.address, ZERO);
+    // });
 
     describe("should keep the leverage same regardless of the change in price", async function () {
         let leverage: any 
