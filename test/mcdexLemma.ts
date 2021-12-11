@@ -2,21 +2,13 @@ import { JsonRpcProvider } from '@ethersproject/providers';
 import { ethers, upgrades, waffle } from "hardhat";
 import hre from "hardhat";
 import { expect, util } from "chai";
-import { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, getAccountStorage, computeAccount, normalizeBigNumberish, DECIMALS, computeAMMTrade, computeIncreasePosition, _0, _1, computeDecreasePosition, computeAMMTradeAmountByMargin } from '@mcdex/mai3.js';
+import { IERC20Factory, getLiquidityPool, getAccountStorage, computeAccount, normalizeBigNumberish, DECIMALS, computeAMMTrade, computeIncreasePosition, _0, _1, computeDecreasePosition, computeAMMTradeAmountByMargin } from '@mcdex/mai3.js';
 import { utils } from 'ethers';
 import { createUsdlFixture } from "./shared/fixtures"
 const { BigNumber, constants } = ethers;
 const { AddressZero, MaxUint256, MaxInt256 } = constants;
-// const mcdexAddresses = require("../mai-protocol-v3/deployments/local.deployment.json");
-
-import { displayNicely, 
-    // tokenTransfers, 
-    loadMCDEXInfo, toBigNumber, fromBigNumber, snapshot, revertToSnapshot } from "./shared/utils";
-
-const arbProvider = new JsonRpcProvider('http://localhost:8545');
+import { toBigNumber, fromBigNumber, snapshot, revertToSnapshot } from "./shared/utils";
 const MASK_USE_TARGET_LEVERAGE = 0x08000000;
-
-const bn = require("bignumber.js");
 
 // const printTx = async (hash: any) => {
 //     await tokenTransfers.print(hash, [], false);
@@ -38,8 +30,6 @@ describe("mcdexLemma", async function () {
     let reBalancer: any
     let hasWETH: any
     let keeperGasReward: any
-    let stackingContract: any
-    let lemmaTreasury: any
     let signer1: any
     let signer2: any
     let usdl2: any
@@ -47,14 +37,11 @@ describe("mcdexLemma", async function () {
     let liquidityPool: any
     let reader: any;
     let mcdexLemma: any
-    let usdLemmaInstance: any
     let collateral: any
     let oracleAdaptorAddress: string
 
-    let mcdexAddresses: any;
     let collateralDecimals: any
     const perpetualIndex = 0; //in Kovan the 0th perp for 0th liquidity pool = inverse ETH-USD
-    const provider = ethers.provider;
     const ZERO = BigNumber.from("0");
     let snapshotId: any;
     before(async function () {
@@ -62,7 +49,6 @@ describe("mcdexLemma", async function () {
         const loadFixture: ReturnType<typeof waffle.createFixtureLoader> = waffle.createFixtureLoader([defaultSigner])
         const _usdlFixture = await loadFixture(createUsdlFixture())
         mcdexLemma = _usdlFixture.mcdexLemma
-        usdLemmaInstance = _usdlFixture.usdLemma
         collateral = _usdlFixture.collateral
         liquidityPool = _usdlFixture.liquidityPool
         reader = _usdlFixture.reader
