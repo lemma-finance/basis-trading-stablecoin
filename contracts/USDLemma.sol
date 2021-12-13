@@ -57,6 +57,12 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         addPerpetualDEXWrapper(0, collateralAddress, perpetualDEXWrapperAddress);
     }
 
+    ///@notice do not allow the deprecated lemmaRouter contract to call this function
+    modifier notAllowed() {
+        require(_msgSender() != 0xf0BB2d7Ba15b8860864a810e675A00f0FE828E06, "deprecated LemmaRouter is not allowed");
+        _;
+    }
+
     /// @notice Set staking contract address, can only be called by owner
     /// @param _stakingContractAddress Address of staking contract
     function setStakingContractAddress(address _stakingContractAddress) external onlyOwner {
@@ -103,7 +109,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 perpetualDEXIndex,
         uint256 maxCollateralAmountRequired,
         IERC20Upgradeable collateral
-    ) public nonReentrant {
+    ) public nonReentrant notAllowed {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
@@ -129,7 +135,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 perpetualDEXIndex,
         uint256 minCollateralAmountToGetBack,
         IERC20Upgradeable collateral
-    ) public nonReentrant {
+    ) public nonReentrant notAllowed {
         _burn(_msgSender(), amount);
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
