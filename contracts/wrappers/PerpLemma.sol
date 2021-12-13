@@ -182,6 +182,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         override
         returns (uint256 collateralAmountRequired)
     {
+        // TODO: K-Aizen Implement
         return 0;
     }
 
