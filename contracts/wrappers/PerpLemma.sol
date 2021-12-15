@@ -51,7 +51,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     IPerpVault public iPerpVault;
     IAccountBalance public iAccountBalance;
 
-    IQuoter public iUniV3Quoter;
+    IQuoter public iUniV3Router;
 
     uint256 public maxPosition;
 
@@ -69,7 +69,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         address _iClearingHouse, 
         address _iPerpVault,
         address _iAccountBalance,
-        address _iUniV3Quoter
+        address _iUniV3Router
     ) public initializer {
         baseTokenAddress = _baseToken;
         quoteTokenAddress = _quoteToken;
@@ -77,7 +77,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         usd = IERC20Upgradeable(_usd);
         iClearingHouse = IClearingHouse(_iClearingHouse);
         iPerpVault = IPerpVault(_iPerpVault);
-        iUniV3Quoter = IQuoter(_iUniV3Quoter);
+        iUniV3Router = IQuoter(_iUniV3Router);
         iAccountBalance = IAccountBalance(_iAccountBalance);
         collateralDecimals = iPerpVault.decimals(); // need to verify
         collateral.approve(_iClearingHouse, MAX_UINT256);
@@ -199,7 +199,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         if (isShorting) {
             // Need to deposit `collateralAmountRequired` of collateral to mint `amount` USD 
 
-            collateralAmountRequired = iUniV3Quoter.quoteExactInputSingle(
+            collateralAmountRequired = iUniV3Router.quoteExactInputSingle(
                 tokenIn, // token in 
                 tokenOut, // token out 
                 fee, 
@@ -209,7 +209,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         }
         else {
             // Burning `amount` USD we get `collateralAmountRequired` collateral 
-            collateralAmountRequired = iUniV3Quoter.quoteExactOutputSingle(
+            collateralAmountRequired = iUniV3Router.quoteExactOutputSingle(
                 tokenIn, 
                 tokenOut,
                 fee,
