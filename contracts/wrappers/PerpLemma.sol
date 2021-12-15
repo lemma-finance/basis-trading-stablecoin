@@ -13,6 +13,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "../libraries/TransferHelper.sol";
 import "../interfaces/Perpetual/IClearingHouse.sol";
 import "../interfaces/Perpetual/IAccountBalance.sol";
+import "../interfaces/UniswapV3/IQuoter.sol";
 import "hardhat/console.sol";
 
 interface IPerpVault {
@@ -42,12 +43,15 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     address public baseTokenAddress;
     address public quoteTokenAddress;
 
+    IERC20Upgradeable public usd; // ETH
     IERC20Upgradeable public collateral; // ETH
     uint256 public collateralDecimals;
 
     IClearingHouse public iClearingHouse;
     IPerpVault public iPerpVault;
     IAccountBalance public iAccountBalance;
+
+    IQuoter public iUniV3Quoter;
 
     uint256 public maxPosition;
 
@@ -59,17 +63,21 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
     function initialize(
         address _collateral, 
+        address _usd,
         address _baseToken,
         address _quoteToken,
         address _iClearingHouse, 
         address _iPerpVault,
-        address _iAccountBalance
+        address _iAccountBalance,
+        address _iUniV3Quoter
     ) public initializer {
         baseTokenAddress = _baseToken;
         quoteTokenAddress = _quoteToken;
         collateral = IERC20Upgradeable(_collateral);
+        usd = IERC20Upgradeable(_usd);
         iClearingHouse = IClearingHouse(_iClearingHouse);
         iPerpVault = IPerpVault(_iPerpVault);
+        iUniV3Quoter = IQuoter(_iUniV3Quoter);
         iAccountBalance = IAccountBalance(_iAccountBalance);
         collateralDecimals = iPerpVault.decimals(); // need to verify
         collateral.approve(_iClearingHouse, MAX_UINT256);
@@ -183,7 +191,32 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         returns (uint256 collateralAmountRequired)
     {
         // TODO: K-Aizen Implement
-        return 0;
+        address tokenIn = address(collateral);
+        address tokenOut = address(usd);
+        uint24 fee = 3000;
+        uint160 sqrtPriceLimitX96 = 0;
+
+        if (isShorting) {
+            // Need to deposit `collateralAmountRequired` of collateral to mint `amount` USD 
+
+            collateralAmountRequired = iUniV3Quoter.quoteExactInputSingle(
+                tokenIn, // token in 
+                tokenOut, // token out 
+                fee, 
+                amount, 
+                sqrtPriceLimitX96
+            );
+        }
+        else {
+            // Burning `amount` USD we get `collateralAmountRequired` collateral 
+            collateralAmountRequired = iUniV3Quoter.quoteExactOutputSingle(
+                tokenIn, 
+                tokenOut,
+                fee,
+                amount,
+                sqrtPriceLimitX96
+            );
+        }
     }
 
     /// @notice Rebalance position of dex based on accumulated funding, since last rebalancing
