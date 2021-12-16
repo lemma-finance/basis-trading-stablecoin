@@ -65,6 +65,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         address _iPerpVault,
         address _iAccountBalance
     ) public initializer {
+        __Ownable_init();
         baseTokenAddress = _baseToken;
         quoteTokenAddress = _quoteToken;
         collateral = IERC20Upgradeable(_collateral);
@@ -121,16 +122,16 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     /// @param collateralAmountRequired collateral amount required to open the position
     function open(uint256 amount, uint256 collateralAmountRequired) external override {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
-        require(
-            collateral.balanceOf(address(this)) >= getAmountInCollateralDecimals(collateralAmountRequired, true),
-            "not enough collateral"
-        );
+        // require(
+        //     collateral.balanceOf(address(this)) >= getAmountInCollateralDecimals(collateralAmountRequired, true),
+        //     "not enough collateral"
+        // );
 
         // TransferHelper.safeTransferFrom(address(collateral), msg.sender, address(this), amount);
         iPerpVault.deposit(address(collateral), amount);
 
-        int256 positionSize = IAccountBalance(address(iAccountBalance)).getPositionSize(address(this), baseTokenAddress);
-        require(positionSize.abs().toUint256() + amount <= maxPosition, "max position reached");
+        // int256 positionSize = IAccountBalance(address(iAccountBalance)).getPositionSize(address(this), baseTokenAddress);
+        // require(positionSize.abs().toUint256() + amount <= maxPosition, "max position reached");
 
         // create short position by giving isBaseToQuote=true
         // and amount in USD by giving isExactInput=false
@@ -146,13 +147,13 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         });
         iClearingHouse.openPosition(params);
 
-        // needs to updateEntryFunding() call  
+        // needs to updateEntryFunding() call  (need to implement)
     }
 
     function close(uint256 amount, uint256 collateralAmountToGetBack) external override {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
-        int256 positionSize = IAccountBalance(address(iAccountBalance)).getPositionSize(address(this), baseTokenAddress);
-        require (positionSize != 0);
+        // int256 positionSize = IAccountBalance(address(iAccountBalance)).getPositionSize(address(this), baseTokenAddress);
+        // require (positionSize != 0);
 
         // create short position by giving isBaseToQuote=false
         // and amount in USD by giving isExactInput=true
@@ -167,14 +168,26 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             referralCode: bytes32(0)
         });
         iClearingHouse.openPosition(params);
-        iPerpVault.withdraw(address(collateral), collateralAmountToGetBack);
+
+        iPerpVault.withdraw(address(collateral), amount);
         // needs to updateEntryFunding() call  
 
         SafeERC20Upgradeable.safeTransfer(
             collateral,
             usdLemma,
-            getAmountInCollateralDecimals(collateralAmountToGetBack, false)
+            amount
         );
+
+        // // *** when getCollateralAmountGivenUnderlyingAssetAmount ready we will use collateralAmountToGetBack instead amount i guess
+        // -> iPerpVault.withdraw(address(collateral), collateralAmountToGetBack);
+
+        // // *** needs to updateEntryFunding() call  (need to implement)
+
+        // -> SafeERC20Upgradeable.safeTransfer(
+        //     collateral,
+        //     usdLemma,
+        //     getAmountInCollateralDecimals(collateralAmountToGetBack, false)
+        // );
     }
 
     function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)

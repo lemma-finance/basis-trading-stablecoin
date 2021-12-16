@@ -29,7 +29,7 @@ const loadMCDEXInfo = async function () {
 
 const deployPerpLocally = async function () {
     // console.log("deploying MCDEX locally,please wait...");
-    const { stdout, stderr } = await exec("cd perp-lushan/ && pwd && npx hardhat run scripts/deploy_local.ts && cd ..  && pwd");
+    const { stdout, stderr } = await exec("cd perp-lushan/ && pwd && npx hardhat run scripts/deploy_local.ts --network local && cd ..  && pwd");
     if (stderr) {
         console.error(`error: ${stderr}`);
     }
