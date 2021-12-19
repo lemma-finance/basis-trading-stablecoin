@@ -1,14 +1,13 @@
-const hre = require("hardhat");
-const { ethers, waffle } = require("hardhat");
-const { expect, util, use } = require("chai");
-const {deployMockContract, MockProvider, solidity} = require('ethereum-waffle');
+const { ethers } = require("hardhat");
+const { expect, use } = require("chai");
+const {solidity} = require('ethereum-waffle');
 const { utils } = require('ethers');
 const { parseEther, parseUnits } = require("ethers/lib/utils")
-// const { BigNumber } = ethers;
 const { BigNumber } = require("@ethersproject/bignumber")
 const { loadPerpLushanInfo, snapshot, revertToSnapshot } = require("./utils");
 const bn = require("bignumber.js");
 bn.config({ EXPONENTIAL_AT: 999999, DECIMAL_PLACES: 40 })
+
 const ClearingHouseAbi = require('../perp-lushan/artifacts/contracts/test/TestClearingHouse.sol/TestClearingHouse.json')
 const OrderBookAbi = require('../perp-lushan/artifacts/contracts/OrderBook.sol/OrderBook.json')
 const ClearingHouseConfigAbi = require('../perp-lushan/artifacts/contracts/ClearingHouseConfig.sol/ClearingHouseConfig.json')
@@ -23,7 +22,6 @@ const AccountBalanceAbi = require('../perp-lushan/artifacts/contracts/AccountBal
 const MockTestAggregatorV3Abi = require('../perp-lushan/artifacts/contracts/mock/MockTestAggregatorV3.sol/MockTestAggregatorV3.json')
 const UniswapV3PoolAbi = require('../perp-lushan/artifacts/@uniswap/v3-core/contracts/UniswapV3Pool.sol/UniswapV3Pool.json')
 const UniswapV3Pool2Abi = require('../perp-lushan/artifacts/@uniswap/v3-core/contracts/UniswapV3Pool.sol/UniswapV3Pool.json');
-const { parse } = require("dotenv");
 use(solidity);
 
 function encodePriceSqrt(reserve1, reserve0) {
@@ -37,7 +35,7 @@ function encodePriceSqrt(reserve1, reserve0) {
     )
 }
 
-describe("perpLemma1", async function () {
+describe("perpLemma", async function () {
     let defaultSigner, usdLemma, reBalancer, hasWETH, keeperGasReward, signer1, signer2, usdl2;
     let perpAddresses;
     const ZERO = BigNumber.from("0");
@@ -179,6 +177,7 @@ describe("perpLemma1", async function () {
         await collateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount)
         await perpLemma.connect(usdLemma).open(leveragedAmount, collateralAmount)
         
+        let positionValue = await accountBalance.getTotalPositionValue(perpLemma.address, baseToken.address)
         // need to correct more for collateralAmountToGetBack param => close(amount, collateralAmountToGetBack)
         await expect(perpLemma.connect(usdLemma).close(positionValue.mul(-1), parseUnits("97", collateralDecimals))).to.emit(clearingHouse, 'PositionChanged')
 
