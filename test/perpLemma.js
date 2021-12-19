@@ -4,7 +4,8 @@ const { expect, util, use } = require("chai");
 const {deployMockContract, MockProvider, solidity} = require('ethereum-waffle');
 const { utils } = require('ethers');
 const { parseEther, parseUnits } = require("ethers/lib/utils")
-const { BigNumber } = ethers;
+// const { BigNumber } = ethers;
+const { BigNumber } = require("@ethersproject/bignumber")
 const { loadPerpLushanInfo, snapshot, revertToSnapshot } = require("./utils");
 const bn = require("bignumber.js");
 bn.config({ EXPONENTIAL_AT: 999999, DECIMAL_PLACES: 40 })
@@ -21,8 +22,8 @@ const QuoteTokenAbi = require('../perp-lushan/artifacts/contracts/QuoteToken.sol
 const AccountBalanceAbi = require('../perp-lushan/artifacts/contracts/AccountBalance.sol/AccountBalance.json')
 const MockTestAggregatorV3Abi = require('../perp-lushan/artifacts/contracts/mock/MockTestAggregatorV3.sol/MockTestAggregatorV3.json')
 const UniswapV3PoolAbi = require('../perp-lushan/artifacts/@uniswap/v3-core/contracts/UniswapV3Pool.sol/UniswapV3Pool.json')
-const UniswapV3Pool2Abi = require('../perp-lushan/artifacts/@uniswap/v3-core/contracts/UniswapV3Pool.sol/UniswapV3Pool.json')
-
+const UniswapV3Pool2Abi = require('../perp-lushan/artifacts/@uniswap/v3-core/contracts/UniswapV3Pool.sol/UniswapV3Pool.json');
+const { parse } = require("dotenv");
 use(solidity);
 
 function encodePriceSqrt(reserve1, reserve0) {
@@ -37,12 +38,8 @@ function encodePriceSqrt(reserve1, reserve0) {
 }
 
 describe("perpLemma1", async function () {
-    // const [admin, maker, maker2, taker, carol] = waffle.provider.getWallets()
     let defaultSigner, usdLemma, reBalancer, hasWETH, keeperGasReward, signer1, signer2, usdl2;
-    // let admin;
     let perpAddresses;
-    const perpetualIndex = 0; //in Kovan the 0th perp for 0th liquidity pool = inverse ETH-USD
-    const provider = ethers.provider;
     const ZERO = BigNumber.from("0");
     let snapshotId;
 
@@ -84,10 +81,9 @@ describe("perpLemma1", async function () {
         const mockedBaseAggregator2 = new ethers.Contract(perpAddresses.mockedBaseAggregator2.address, MockTestAggregatorV3Abi.abi, defaultSigner);
         const pool = new ethers.Contract(perpAddresses.pool.address, UniswapV3PoolAbi.abi, defaultSigner);
         const pool2 = new ethers.Contract(perpAddresses.pool2.address, UniswapV3Pool2Abi.abi, defaultSigner);
-        
         collateralDecimals = await collateral.decimals()
-        console.log("collateralDecimals: ", collateralDecimals.toString())
 
+        const maxPosition = ethers.constants.MaxUint256;
         const perpLemmaFactory = await ethers.getContractFactory("PerpLemma")
         perpLemma = await upgrades.deployProxy(perpLemmaFactory, 
             [
@@ -96,24 +92,23 @@ describe("perpLemma1", async function () {
             quoteToken.address,
             clearingHouse.address,
             vault.address,
-            accountBalance.address
+            accountBalance.address,
+            usdLemma.address,
+            maxPosition
         ], { initializer: 'initialize' });
-        await perpLemma.connect(defaultSigner).setUSDLemma(signer1.address);
         await perpLemma.connect(signer1).resetApprovals()
 
-        // await mockedBaseAggregator.setLatestRoundData(0, parseUnits("100", 6), 0, 0, 0)
-        await pool.initialize(encodePriceSqrt("151.373306858723226652", "1")) // tick = 50200 (1.0001^50200 = 151.373306858723226652)
+        await mockedBaseAggregator.setLatestRoundData(0, parseUnits("100", 6), 0, 0, 0)
+
+        await pool.initialize(encodePriceSqrt("100", "1"))
         // the initial number of oracle can be recorded is 1; thus, have to expand it
         await pool.increaseObservationCardinalityNext((2 ^ 16) - 1)
-        await pool2.initialize(encodePriceSqrt("151.373306858723226652", "1")) // tick = 50200 (1.0001^50200 = 151.373306858723226652)
-        
+        await pool2.initialize(encodePriceSqrt("100", "1")) // tick = 50200 (1.0001^50200 = 151.373306858723226652)
+
         await marketRegistry.addPool(baseToken.address, 10000)
         await marketRegistry.addPool(baseToken2.address, 10000)
         await marketRegistry.setFeeRatio(baseToken.address, 10000)
         await marketRegistry.setFeeRatio(baseToken2.address, 10000)
-
-        const marketPool = await marketRegistry.getPool(baseToken.address)
-        console.log('marketPool: ', marketPool.toString())
 
         // prepare collateral for maker
         const makerCollateralAmount = parseUnits("1000000", collateralDecimals)
@@ -126,19 +121,14 @@ describe("perpLemma1", async function () {
         await collateral.connect(signer2).approve(vault.address, ethers.constants.MaxUint256)
 
         // Deposit into vault
-        await vault.connect(signer1).deposit(collateral.address, parsedAmount)
+        // await vault.connect(signer1).deposit(collateral.address, parsedAmount)
         await vault.connect(signer2).deposit(collateral.address, parsedAmount)
-
-        // Check vault balance
-        const vaultBalance = await vault.getBalance(signer1.address)
-        console.log('vaultBalance: ', vaultBalance.toString())
-
-        await clearingHouse.connect(signer1).addLiquidity({
+        await clearingHouse.connect(signer2).addLiquidity({
             baseToken: baseToken.address,
-            base: parseEther("65.943787"),
-            quote: parseEther("10000"),
-            lowerTick: 50000,
-            upperTick: 50400,
+            base: parseEther('100'),
+            quote: parseEther('10000'),
+            lowerTick: -887200, //50000,
+            upperTick: 887200, //50400,
             minBase: 0,
             minQuote: 0,
             useTakerBalance: false,
@@ -154,24 +144,78 @@ describe("perpLemma1", async function () {
         await revertToSnapshot(snapshotId);
     });
 
-    describe("OpenPosition", () => {
-        it("openPosition using perpLemma", async () => {
-            await perpLemma.connect(signer1).resetApprovals()
-            const parsedAmount = parseUnits("100000", 6)
-            await collateral.mint(signer1.address, parsedAmount)
-            await collateral.connect(signer1).transfer(perpLemma.address, parsedAmount)
-            await perpLemma.connect(signer1).open(parsedAmount, 0)
-        });
+    it("should set addresses correctly", async function () {
+        //setUSDLemma
+        await expect(perpLemma.connect(signer1).setUSDLemma(signer1.address)).to.be.revertedWith("Ownable: caller is not the owner");
+        await perpLemma.connect(defaultSigner).setUSDLemma(signer1.address);
+        expect(await perpLemma.usdLemma()).to.equal(signer1.address);
+
+        //setReferrer
+        await expect(perpLemma.connect(signer1).setReferrer(signer1.address)).to.be.revertedWith("Ownable: caller is not the owner");
+        await perpLemma.connect(defaultSigner).setReferrer(signer1.address);
+        expect(await perpLemma.referrer()).to.equal(signer1.address);
+    });
+
+    it("should fail to open when max position is reached", async function () {
+        const amount = utils.parseEther("10000");
+        await collateral.mint(usdLemma.address, amount)
+
+        const collateralAmount = parseUnits("100", collateralDecimals) // 6 decimal
+        const parsedAmount =  collateralAmount.mul(parseEther('1')).div(BigNumber.from('1000000')) // 18 decimal
+        const leveragedAmount = parsedAmount.mul('1') // for 1x
+        await perpLemma.setMaxPosition(leveragedAmount);
+
+        await collateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount)
+        await expect(perpLemma.connect(usdLemma).open(leveragedAmount.add(1), collateralAmount)).to.be.revertedWith("max position reached");
     })
 
-    describe("OpenPosition and closePosition", () => {
-        it("openPosition using perpLemma", async () => {
-            await perpLemma.connect(signer1).resetApprovals()
-            const parsedAmount = parseUnits("100000", 6)
-            await collateral.mint(signer1.address, parsedAmount)
-            await collateral.connect(signer1).transfer(perpLemma.address, parsedAmount)
-            await perpLemma.connect(signer1).open(parsedAmount, 0)
-            await perpLemma.connect(signer1).close(parsedAmount, 0)
+    // need to correct more for collateralAmountToGetBack in close() position
+    it("should close position correctly", async function () {
+        const collateralAmount = parseUnits("100", collateralDecimals) // 6 decimal
+        const parsedAmount =  collateralAmount.mul(parseEther('1')).div(BigNumber.from('1000000')) // 18 decimal
+        const leveragedAmount = parsedAmount.mul('1') // for 1x
+
+        await collateral.mint(usdLemma.address, collateralAmount)
+        await collateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount)
+        await perpLemma.connect(usdLemma).open(leveragedAmount, collateralAmount)
+        
+        // need to correct more for collateralAmountToGetBack param => close(amount, collateralAmountToGetBack)
+        await expect(perpLemma.connect(usdLemma).close(positionValue.mul(-1), parseUnits("97", collateralDecimals))).to.emit(clearingHouse, 'PositionChanged')
+
+        // collateralAmountToGetBack = await vault.getBalance(perpLemma.address)
+        // positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address)
+        // positionValue = await accountBalance.getTotalPositionValue(perpLemma.address, baseToken.address)
+        // console.log('collateralAmountToGetBack2: ', collateralAmountToGetBack.toString(), positionSize.toString(), positionValue.toString())
+
+    })
+    
+    describe("OpenPosition", () => {
+        let collateralAmount, parsedAmount, leveragedAmount
+        beforeEach(async function () {
+            collateralAmount = parseUnits("100", collateralDecimals) // 6 decimal
+            parsedAmount =  collateralAmount.mul(parseEther('1')).div(BigNumber.from('1000000')) // 18 decimal
+            leveragedAmount = parsedAmount.mul('1') // for 1x
+            await collateral.mint(usdLemma.address, collateralAmount)
+            await collateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount)
+        });
+
+        it("openPosition => emit event PositionChanged", async () => {
+            await expect(perpLemma.connect(usdLemma).open(leveragedAmount, collateralAmount)).to.emit(clearingHouse, 'PositionChanged')
+        });
+
+        it("openPosition => leverage should be 1x", async () => {
+            await expect(perpLemma.connect(usdLemma).open(leveragedAmount, collateralAmount)).to.emit(clearingHouse, 'PositionChanged')
+
+            const depositedCollateral = await vault.getBalance(perpLemma.address)
+            const positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address)
+            const positionValue = await accountBalance.getTotalPositionValue(perpLemma.address, baseToken.address)
+            const interval = await clearingHouseConfig.getTwapInterval()
+            const indexPrice = await baseToken.getIndexPrice(interval)
+
+            const divisor = positionSize.mul(indexPrice).div(parseEther('1'))
+            const temp = depositedCollateral.mul(parseEther('1'))
+            const leverage = temp.div(divisor).mul(-1) // 979999(close to 1e6 or 1x)
+            expect(leverage).to.be.closeTo(parseUnits('1', 6), BigNumber.from('50000')); // leverage should be 1x(1e6) or close to 1e6
         });
     })
 })
