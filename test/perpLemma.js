@@ -170,7 +170,7 @@ describe("perpLemma", async function () {
     // need to correct more for collateralAmountToGetBack in close() position
     it("should close position correctly", async function () {
         const collateralAmount = parseUnits("100", collateralDecimals) // 6 decimal
-        const parsedAmount =  collateralAmount.mul(parseEther('1')).div(BigNumber.from('1000000')) // 18 decimal
+        const parsedAmount =  collateralAmount.mul(parseEther('1')).div(parseUnits('1', 6)) // 18 decimal
         const leveragedAmount = parsedAmount.mul('1') // for 1x
 
         await collateral.mint(usdLemma.address, collateralAmount)
@@ -192,7 +192,7 @@ describe("perpLemma", async function () {
         let collateralAmount, parsedAmount, leveragedAmount
         beforeEach(async function () {
             collateralAmount = parseUnits("100", collateralDecimals) // 6 decimal
-            parsedAmount =  collateralAmount.mul(parseEther('1')).div(BigNumber.from('1000000')) // 18 decimal
+            parsedAmount =  collateralAmount.mul(parseEther('1')).div(parseUnits('1', 6)) // 18 decimal
             leveragedAmount = parsedAmount.mul('1') // for 1x
             await collateral.mint(usdLemma.address, collateralAmount)
             await collateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount)
