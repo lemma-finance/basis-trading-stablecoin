@@ -22,6 +22,9 @@ const AccountBalanceAbi = require('../perp-lushan/artifacts/contracts/AccountBal
 const MockTestAggregatorV3Abi = require('../perp-lushan/artifacts/contracts/mock/MockTestAggregatorV3.sol/MockTestAggregatorV3.json')
 const UniswapV3PoolAbi = require('../perp-lushan/artifacts/@uniswap/v3-core/contracts/UniswapV3Pool.sol/UniswapV3Pool.json')
 const UniswapV3Pool2Abi = require('../perp-lushan/artifacts/@uniswap/v3-core/contracts/UniswapV3Pool.sol/UniswapV3Pool.json');
+const QuoterAbi = require('../perp-lushan/artifacts/@uniswap/v3-periphery/contracts/lens/Quoter.sol/Quoter.json')
+const SwapRouterAbi = require('../perp-lushan/artifacts/@uniswap/v3-periphery/contracts/SwapRouter.sol/SwapRouter.json')
+
 use(solidity);
 
 function encodePriceSqrt(reserve1, reserve0) {
@@ -56,8 +59,9 @@ describe("perpLemma", async function () {
     let pool2
     let mockedBaseAggregator
     let mockedBaseAggregator2
-    let collateralDecimals
+    let quoter
     let perpLemma
+    let collateralDecimals
     const lowerTick = 0
     const upperTick = 100000
 
@@ -75,10 +79,12 @@ describe("perpLemma", async function () {
         baseToken2 = new ethers.Contract(perpAddresses.baseToken2.address, BaseToken2Abi.abi, defaultSigner);
         quoteToken = new ethers.Contract(perpAddresses.quoteToken.address, QuoteTokenAbi.abi, defaultSigner);
         accountBalance = new ethers.Contract(perpAddresses.accountBalance.address, AccountBalanceAbi.abi, defaultSigner);
-        const mockedBaseAggregator = new ethers.Contract(perpAddresses.mockedBaseAggregator.address, MockTestAggregatorV3Abi.abi, defaultSigner);
-        const mockedBaseAggregator2 = new ethers.Contract(perpAddresses.mockedBaseAggregator2.address, MockTestAggregatorV3Abi.abi, defaultSigner);
-        const pool = new ethers.Contract(perpAddresses.pool.address, UniswapV3PoolAbi.abi, defaultSigner);
-        const pool2 = new ethers.Contract(perpAddresses.pool2.address, UniswapV3Pool2Abi.abi, defaultSigner);
+        mockedBaseAggregator = new ethers.Contract(perpAddresses.mockedBaseAggregator.address, MockTestAggregatorV3Abi.abi, defaultSigner);
+        mockedBaseAggregator2 = new ethers.Contract(perpAddresses.mockedBaseAggregator2.address, MockTestAggregatorV3Abi.abi, defaultSigner);
+        pool = new ethers.Contract(perpAddresses.pool.address, UniswapV3PoolAbi.abi, defaultSigner);
+        pool2 = new ethers.Contract(perpAddresses.pool2.address, UniswapV3Pool2Abi.abi, defaultSigner);
+        quoter = new ethers.Contract(perpAddresses.quoter.address, QuoterAbi.abi, defaultSigner)
+        swapRouter = new ethers.Contract(perpAddresses.swapRouter.address, SwapRouterAbi.abi, defaultSigner)
         collateralDecimals = await collateral.decimals()
 
         const maxPosition = ethers.constants.MaxUint256;
@@ -86,11 +92,13 @@ describe("perpLemma", async function () {
         perpLemma = await upgrades.deployProxy(perpLemmaFactory, 
             [
             collateral.address,
+            quoteToken.address, // vUSD
             baseToken.address,
             quoteToken.address,
             clearingHouse.address,
             vault.address,
             accountBalance.address,
+            quoter.address,
             usdLemma.address,
             maxPosition
         ], { initializer: 'initialize' });
@@ -176,7 +184,7 @@ describe("perpLemma", async function () {
         await collateral.mint(usdLemma.address, collateralAmount)
         await collateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount)
         await perpLemma.connect(usdLemma).open(leveragedAmount, collateralAmount)
-        
+
         let positionValue = await accountBalance.getTotalPositionValue(perpLemma.address, baseToken.address)
         // need to correct more for collateralAmountToGetBack param => close(amount, collateralAmountToGetBack)
         await expect(perpLemma.connect(usdLemma).close(positionValue.mul(-1), parseUnits("97", collateralDecimals))).to.emit(clearingHouse, 'PositionChanged')
@@ -200,6 +208,28 @@ describe("perpLemma", async function () {
 
         it("openPosition => emit event PositionChanged", async () => {
             await expect(perpLemma.connect(usdLemma).open(leveragedAmount, collateralAmount)).to.emit(clearingHouse, 'PositionChanged')
+        });
+
+        it("openPosition and quote Price", async () => {
+            await expect(perpLemma.connect(usdLemma).open(leveragedAmount, collateralAmount)).to.emit(clearingHouse, 'PositionChanged')
+            
+            // not sure about this approve is needed or not
+            await baseToken.approve(quoter.address, ethers.constants.MaxUint256)
+            await quoteToken.approve(quoter.address, ethers.constants.MaxUint256)
+
+            // direct call to quoter
+            const collateralToGetBack = await quoter.callStatic.quoteExactInputSingle(
+                baseToken.address,
+                quoteToken.address,
+                10000,
+                collateralAmount,
+                // -2%
+                0
+            )
+
+            // call quoter by perpLemma.sol
+            // const collateralToGetBack = await perpLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount2(collateralAmount, true, encodePriceSqrt(100, 102));
+            console.log('collateralToGetBack: ', leveragedAmount.toString(), collateralToGetBack.toString())
         });
 
         it("openPosition => leverage should be 1x", async () => {

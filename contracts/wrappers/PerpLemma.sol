@@ -63,13 +63,13 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
     function initialize(
         address _collateral, 
-        // address _usd,
+        address _usd,
         address _baseToken,
         address _quoteToken,
         address _iClearingHouse, 
         address _iPerpVault,
         address _iAccountBalance,
-        // address _iUniV3Router
+        address _iUniV3Router,
         address _usdLemma,
         uint256 _maxPosition
     ) public initializer {
@@ -79,10 +79,10 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         baseTokenAddress = _baseToken;
         quoteTokenAddress = _quoteToken;
         collateral = IERC20Upgradeable(_collateral);
-        // usd = IERC20Upgradeable(_usd);
+        usd = IERC20Upgradeable(_usd);
         iClearingHouse = IClearingHouse(_iClearingHouse);
         iPerpVault = IPerpVault(_iPerpVault);
-        // iUniV3Router = IQuoter(_iUniV3Router);
+        iUniV3Router = IQuoter(_iUniV3Router);
         iAccountBalance = IAccountBalance(_iAccountBalance);
         collateralDecimals = iPerpVault.decimals(); // need to verify
         collateral.approve(_iClearingHouse, MAX_UINT256);
@@ -211,11 +211,13 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         returns (uint256 collateralAmountRequired)
     {
         // TODO: K-Aizen Implement
-        address tokenIn = address(collateral);
-        address tokenOut = address(usd);
-        uint24 fee = 3000;
+        address tokenIn = address(baseTokenAddress);
+        address tokenOut = address(quoteTokenAddress);
+        uint24 fee = 10000;
         uint160 sqrtPriceLimitX96 = 0;
 
+        IERC20Upgradeable(baseTokenAddress).approve(address(iUniV3Router), amount);
+        IERC20Upgradeable(quoteTokenAddress).approve(address(iUniV3Router), amount);
         if (isShorting) {
             // Need to deposit `collateralAmountRequired` of collateral to mint `amount` USD 
 
