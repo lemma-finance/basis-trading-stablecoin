@@ -4,7 +4,7 @@ const {solidity} = require('ethereum-waffle');
 const { utils } = require('ethers');
 const { parseEther, parseUnits } = require("ethers/lib/utils")
 const { BigNumber } = require("@ethersproject/bignumber")
-const { loadPerpLushanInfo, snapshot, revertToSnapshot } = require("./utils");
+const { loadPerpLushanInfo, snapshot, revertToSnapshot, fromBigNumber } = require("./utils");
 const bn = require("bignumber.js");
 bn.config({ EXPONENTIAL_AT: 999999, DECIMAL_PLACES: 40 })
 
@@ -157,9 +157,16 @@ describe("perpLemma", async function () {
         expect(await perpLemma.usdLemma()).to.equal(signer1.address);
 
         //setReferrer
-        await expect(perpLemma.connect(signer1).setReferrer(signer1.address)).to.be.revertedWith("Ownable: caller is not the owner");
-        await perpLemma.connect(defaultSigner).setReferrer(signer1.address);
-        expect(await perpLemma.referrer()).to.equal(signer1.address);
+        await expect(perpLemma.connect(signer1).setReferrerCode(
+            ethers.utils.formatBytes32String("Hello World")
+        )).to.be.revertedWith("Ownable: caller is not the owner");
+
+        await perpLemma.connect(defaultSigner).setReferrerCode(
+            ethers.utils.formatBytes32String("Hello World")
+        );
+            
+        const byteCode = await perpLemma.referrerCode()
+        expect(ethers.utils.parseBytes32String(byteCode)).to.eq("Hello World")
     });
 
     it("should fail to open when max position is reached", async function () {
@@ -197,13 +204,14 @@ describe("perpLemma", async function () {
     })
     
     describe("OpenPosition", () => {
-        let collateralAmount, parsedAmount, leveragedAmount
+        let collateralmintAmount, collateralAmount, parsedAmount, leveragedAmount
         beforeEach(async function () {
+            collateralmintAmount = parseUnits("1000", collateralDecimals) // 6 decimal
             collateralAmount = parseUnits("100", collateralDecimals) // 6 decimal
             parsedAmount =  collateralAmount.mul(parseEther('1')).div(parseUnits('1', 6)) // 18 decimal
             leveragedAmount = parsedAmount.mul('1') // for 1x
-            await collateral.mint(usdLemma.address, collateralAmount)
-            await collateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount)
+            await collateral.mint(usdLemma.address, collateralmintAmount)
+            await collateral.connect(usdLemma).transfer(perpLemma.address, collateralmintAmount)
         });
 
         it("openPosition => emit event PositionChanged", async () => {
@@ -217,19 +225,19 @@ describe("perpLemma", async function () {
             await baseToken.approve(quoter.address, ethers.constants.MaxUint256)
             await quoteToken.approve(quoter.address, ethers.constants.MaxUint256)
 
-            // direct call to quoter
-            const collateralToGetBack = await quoter.callStatic.quoteExactInputSingle(
-                baseToken.address,
-                quoteToken.address,
-                10000,
-                collateralAmount,
-                // -2%
-                0
-            )
+            // // direct call to quoter
+            // const collateralToGetBack = await quoter.callStatic.quoteExactInputSingle(
+            //     baseToken.address,
+            //     quoteToken.address,
+            //     10000,
+            //     collateralAmount,
+            //     // -2%
+            //     0
+            // )
 
-            // call quoter by perpLemma.sol
-            // const collateralToGetBack = await perpLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount2(collateralAmount, true, encodePriceSqrt(100, 102));
-            console.log('collateralToGetBack: ', leveragedAmount.toString(), collateralToGetBack.toString())
+            // // call quoter by perpLemma.sol
+            // // const collateralToGetBack = await perpLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount2(collateralAmount, true, encodePriceSqrt(100, 102));
+            // console.log('collateralToGetBack: ', leveragedAmount.toString(), collateralToGetBack.toString())
         });
 
         it("openPosition => leverage should be 1x", async () => {
@@ -247,4 +255,45 @@ describe("perpLemma", async function () {
             expect(leverage).to.be.closeTo(parseUnits('1', 6), BigNumber.from('50000')); // leverage should be 1x(1e6) or close to 1e6
         });
     })
+    describe("re balance", async function () {
+        let collateralmintAmount, collateralAmount, parsedAmount, leveragedAmount
+        before(async function () {
+            await perpLemma.connect(defaultSigner).setReBalancer(reBalancer.address);
+        })
+        beforeEach(async function () {
+            collateralmintAmount = parseUnits("1000", collateralDecimals) // 6 decimal
+            collateralAmount = parseUnits("100", collateralDecimals) // 6 decimal
+            parsedAmount =  collateralAmount.mul(parseEther('1')).div(parseUnits('1', 6)) // 18 decimal
+            leveragedAmount = parsedAmount.mul('1') // for 1x
+            await collateral.mint(usdLemma.address, collateralmintAmount)
+            await collateral.connect(usdLemma).transfer(perpLemma.address, collateralmintAmount)
+        });
+
+        it("if amount is negative then it should short", async () => {
+            const sqrtPriceLimitX96 = 0;
+            const deadline = ethers.constants.MaxUint256;
+            await perpLemma.connect(usdLemma).reBalance(
+                reBalancer.address, 
+                BigNumber.from(leveragedAmount).mul(-1), // negative amount(-ve)
+                ethers.utils.defaultAbiCoder.encode(
+                    ["uint160", "uint256", "uint256"], 
+                    [sqrtPriceLimitX96, deadline, collateralAmount]
+                )
+            );
+        })
+
+        it("if amount is positive then it should long", async () => {
+            const sqrtPriceLimitX96 = 0;
+            const deadline = ethers.constants.MaxUint256;
+            await perpLemma.connect(usdLemma).reBalance(
+                reBalancer.address, 
+                BigNumber.from(leveragedAmount), // positive amount(+ve)
+                ethers.utils.defaultAbiCoder.encode(
+                    ["uint160", "uint256", "uint256"], 
+                    [sqrtPriceLimitX96, deadline, collateralAmount]
+                )
+            );
+        })
+    })
+
 })

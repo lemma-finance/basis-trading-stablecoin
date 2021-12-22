@@ -39,9 +39,9 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
     address public usdLemma;
     address public reBalancer;
-    address public referrer;
     address public baseTokenAddress;
     address public quoteTokenAddress;
+    bytes32 public referrerCode;
 
     IERC20Upgradeable public usd; // ETH
     IERC20Upgradeable public collateral; // ETH
@@ -57,7 +57,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
     //events
     event USDLemmaUpdated(address usdlAddress);
-    event ReferrerUpdated(address referrerAddress);
+    event ReferrerUpdated(bytes32 referrerCode);
     event RebalancerUpdated(address rebalancerAddress);
     event MaxPositionUpdated(uint256 maxPos);
 
@@ -96,10 +96,10 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     }
 
     ///@notice sets refferer address - only owner can set
-    ///@param _referrer refferer address to set
-    function setReferrer(address _referrer) external onlyOwner {
-        referrer = _referrer;
-        emit ReferrerUpdated(referrer);
+    ///@param _referrerCode referrerCode of address to set
+    function setReferrerCode(bytes32 _referrerCode) external onlyOwner {
+        referrerCode = _referrerCode;
+        emit ReferrerUpdated(referrerCode);
     }
 
     ///@notice sets reBalncer address - only owner can set
@@ -251,7 +251,35 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         int256 amount,
         bytes calldata data
     ) external override returns (bool) {
-        // Not implemented
+        require(_msgSender() == usdLemma, "only usdLemma is allowed");
+        require(_reBalancer == reBalancer, "only rebalancer is allowed");
+        
+        (uint160 _sqrtPriceLimitX96, uint256 _deadline, uint256 collateralAmountRequired) = abi.decode(data, (uint160, uint256, uint256));
+        
+        bool _isBaseToQuote;
+        bool _isExactInput;
+        if (amount > 0) {
+            // open long position and amount in usd
+            _isBaseToQuote = false;
+            _isExactInput = true;
+        } else {
+            // open short position and amount in usd
+            _isBaseToQuote = true;
+            _isExactInput = false;
+        }
+        
+        iPerpVault.deposit(address(collateral), collateralAmountRequired);
+        IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
+            baseToken: baseTokenAddress,
+            isBaseToQuote: _isBaseToQuote,
+            isExactInput: _isExactInput,
+            amount: uint256(amount.abs()),
+            oppositeAmountBound: 0,
+            deadline: _deadline,
+            sqrtPriceLimitX96: _sqrtPriceLimitX96,
+            referralCode: referrerCode
+        });
+        iClearingHouse.openPosition(params);
         return true;
     }
 
