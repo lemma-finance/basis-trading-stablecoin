@@ -254,7 +254,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
         require(_reBalancer == reBalancer, "only rebalancer is allowed");
         
-        (uint160 _sqrtPriceLimitX96, uint256 _deadline, uint256 collateralAmountRequired) = abi.decode(data, (uint160, uint256, uint256));
+        (uint160 _sqrtPriceLimitX96, uint256 _deadline) = abi.decode(data, (uint160, uint256));
         
         bool _isBaseToQuote;
         bool _isExactInput;
@@ -268,7 +268,6 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             _isExactInput = false;
         }
         
-        iPerpVault.deposit(address(collateral), collateralAmountRequired);
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: baseTokenAddress,
             isBaseToQuote: _isBaseToQuote,
