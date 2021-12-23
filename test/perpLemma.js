@@ -22,8 +22,9 @@ const AccountBalanceAbi = require('../perp-lushan/artifacts/contracts/AccountBal
 const MockTestAggregatorV3Abi = require('../perp-lushan/artifacts/contracts/mock/MockTestAggregatorV3.sol/MockTestAggregatorV3.json')
 const UniswapV3PoolAbi = require('../perp-lushan/artifacts/@uniswap/v3-core/contracts/UniswapV3Pool.sol/UniswapV3Pool.json')
 const UniswapV3Pool2Abi = require('../perp-lushan/artifacts/@uniswap/v3-core/contracts/UniswapV3Pool.sol/UniswapV3Pool.json');
+const UniswapV3FactoryAbi = require('../perp-lushan/artifacts/@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol/IUniswapV3Factory.json');
 const QuoterAbi = require('../perp-lushan/artifacts/@uniswap/v3-periphery/contracts/lens/Quoter.sol/Quoter.json')
-const SwapRouterAbi = require('../perp-lushan/artifacts/@uniswap/v3-periphery/contracts/SwapRouter.sol/SwapRouter.json')
+//const SwapRouterAbi = require('../perp-lushan/artifacts/@uniswap/v3-periphery/contracts/SwapRouter.sol/SwapRouter.json')
 
 use(solidity);
 
@@ -84,7 +85,8 @@ describe("perpLemma", async function () {
         pool = new ethers.Contract(perpAddresses.pool.address, UniswapV3PoolAbi.abi, defaultSigner);
         pool2 = new ethers.Contract(perpAddresses.pool2.address, UniswapV3Pool2Abi.abi, defaultSigner);
         quoter = new ethers.Contract(perpAddresses.quoter.address, QuoterAbi.abi, defaultSigner)
-        swapRouter = new ethers.Contract(perpAddresses.swapRouter.address, SwapRouterAbi.abi, defaultSigner)
+        univ3factory = new ethers.Contract(perpAddresses.univ3factory.address, UniswapV3FactoryAbi.abi, defaultSigner)
+        //swapRouter = new ethers.Contract(perpAddresses.swapRouter.address, SwapRouterAbi.abi, defaultSigner)
         collateralDecimals = await collateral.decimals()
 
         const maxPosition = ethers.constants.MaxUint256;
@@ -150,6 +152,7 @@ describe("perpLemma", async function () {
         await revertToSnapshot(snapshotId);
     });
 
+    /*
     it("should set addresses correctly", async function () {
         //setUSDLemma
         await expect(perpLemma.connect(signer1).setUSDLemma(signer1.address)).to.be.revertedWith("Ownable: caller is not the owner");
@@ -195,7 +198,8 @@ describe("perpLemma", async function () {
         // console.log('collateralAmountToGetBack2: ', collateralAmountToGetBack.toString(), positionSize.toString(), positionValue.toString())
 
     })
-    
+    */
+
     describe("OpenPosition", () => {
         let collateralAmount, parsedAmount, leveragedAmount
         beforeEach(async function () {
@@ -206,32 +210,99 @@ describe("perpLemma", async function () {
             await collateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount)
         });
 
+        /*
         it("openPosition => emit event PositionChanged", async () => {
             await expect(perpLemma.connect(usdLemma).open(leveragedAmount, collateralAmount)).to.emit(clearingHouse, 'PositionChanged')
         });
+        */
 
-        it("openPosition and quote Price", async () => {
-            await expect(perpLemma.connect(usdLemma).open(leveragedAmount, collateralAmount)).to.emit(clearingHouse, 'PositionChanged')
-            
-            // not sure about this approve is needed or not
-            await baseToken.approve(quoter.address, ethers.constants.MaxUint256)
-            await quoteToken.approve(quoter.address, ethers.constants.MaxUint256)
 
-            // direct call to quoter
-            const collateralToGetBack = await quoter.callStatic.quoteExactInputSingle(
-                baseToken.address,
+
+
+        
+        it("Identify Pool", async () => {
+            console.log("T1");
+
+            console.log("T1");
+            const temp_pool = await univ3factory.callStatic.getPool(
                 quoteToken.address,
+                baseToken.address,
+                10000
+            )
+
+            console.log("Pool");
+            console.dir(temp_pool);
+        });
+        
+
+
+        it("Approve", async () => {
+            console.log("T1");
+            // await baseToken.approve(quoter.address, ethers.constants.MaxUint256);
+            // await quoteToken.approve(quoter.address, ethers.constants.MaxUint256);
+            const temp_pool = await univ3factory.callStatic.getPool(
+                quoteToken.address,
+                baseToken.address,
+                10000
+            )
+            console.log(`Pool for token0 = ${quoteToken.address}, token1 = ${baseToken.address}, fee = 10000 --> ${temp_pool}`);
+            //console.dir(temp_pool);
+
+
+            const collateralToGetBack = await quoter.callStatic.quoteExactInputSingle(
+                quoteToken.address,
+                baseToken.address,
                 10000,
                 collateralAmount,
                 // -2%
                 0
+            );
+            console.log(`collateralToGetBack=${collateralToGetBack}`);
+        });
+
+
+
+        /*
+        it("openPosition and quote Price", async () => {
+            console.log("T1");
+            //await expect(perpLemma.connect(usdLemma).open(leveragedAmount, collateralAmount)).to.emit(clearingHouse, 'PositionChanged');
+            await expect(perpLemma.connect(usdLemma).open(leveragedAmount, collateralAmount, {gasPrice: ethers.utils.parseUnits('100', 'gwei'), gasLimit: 1000000})).to.emit(clearingHouse, 'PositionChanged');
+            console.log("T2");
+            // not sure about this approve is needed or not
+            await baseToken.approve(quoter.address, ethers.constants.MaxUint256, {gasPrice: ethers.utils.parseUnits('100', 'gwei'), gasLimit: 1000000});
+            await quoteToken.approve(quoter.address, ethers.constants.MaxUint256, {gasPrice: ethers.utils.parseUnits('100', 'gwei'), gasLimit: 1000000});
+            console.log("T3");
+
+            const temp_pool = await univ3factory.callStatic.getPool(
+                quoteToken.address,
+                baseToken.address,
+                10000
             )
+
+            console.log("Pool");
+            console.dir(temp_pool);
+
+            // await baseToken.approve(temp_pool.address, ethers.constants.MaxUint256);
+            // await quoteToken.approve(temp_pool.address, ethers.constants.MaxUint256);
+
+            // direct call to quoter
+            const collateralToGetBack = await quoter.callStatic.quoteExactInputSingle(
+                quoteToken.address,
+                baseToken.address,
+                10000,
+                collateralAmount,
+                // -2%
+                0
+            );
 
             // call quoter by perpLemma.sol
             // const collateralToGetBack = await perpLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount2(collateralAmount, true, encodePriceSqrt(100, 102));
             console.log('collateralToGetBack: ', leveragedAmount.toString(), collateralToGetBack.toString())
         });
+        */
 
+
+        /*
         it("openPosition => leverage should be 1x", async () => {
             await expect(perpLemma.connect(usdLemma).open(leveragedAmount, collateralAmount)).to.emit(clearingHouse, 'PositionChanged')
 
@@ -246,5 +317,6 @@ describe("perpLemma", async function () {
             const leverage = temp.div(divisor).mul(-1) // 979999(close to 1e6 or 1x)
             expect(leverage).to.be.closeTo(parseUnits('1', 6), BigNumber.from('50000')); // leverage should be 1x(1e6) or close to 1e6
         });
+        */
     })
 })
