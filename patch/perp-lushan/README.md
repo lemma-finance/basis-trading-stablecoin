@@ -182,10 +182,18 @@ As we need to export the `quoter` contract
 
 The Ethers interface allows to deploy and initialize at the same time using the `Factory.deploy(args)` function 
 
-The Quoter needs to 2 addresses 
+In its original version, the Quoter needs to 2 addresses 
 - the UniV3 Factory, as it exposes the API to locate a pool given the tuple `(token0, token1, fees)` and 
 - WETH9
 
+
+```solidity=
+constructor(address _factory, address _WETH9) PeripheryImmutableState(_factory, _WETH9) {}
+```
+
+As defined [here](https://github.com/Uniswap/v3-periphery/blob/7c987c2a5131193d36d51001b1b04be907b0ba06/contracts/lens/Quoter.sol#L27)
+
+However, in our case we do not need WETH9 so we can just pass ANY ADDRESS, let's use USDC for example 
 
 ```typescript=
         // deploy UniV3 factory
@@ -193,25 +201,13 @@ The Quoter needs to 2 addresses
         const uniV3Factory = (await factoryFactory.deploy()) as UniswapV3Factory
 
 +        const quoterFactory = await ethers.getContractFactory("Quoter")
-+        const quoter = (await quoterFactory.deploy(uniV3Factory.address, TODO_ADD_WETH9.address)) as Quoter
++        const quoter = (await quoterFactory.deploy(uniV3Factory.address, USDC.address)) as Quoter
 
 ```
 
-Here we need to add to pass the addresses the Quoter Constructor expects so 
-
-```solidity=
-constructor(address _factory, address _WETH9) PeripheryImmutableState(_factory, _WETH9) {}
-```
 
 
-As defined [here](https://github.com/Uniswap/v3-periphery/blob/7c987c2a5131193d36d51001b1b04be907b0ba06/contracts/lens/Quoter.sol#L27)
-
-
-TODO: Add `TODO_ADD_WETH9.address`
-
-
-
-#### 3.1.4 Return 
+#### 3.1.4 Export the `ClearingHouseFixture` interface with the Quoter Added
 
 ```typescript=
         return {
@@ -241,9 +237,11 @@ TODO: Add `TODO_ADD_WETH9.address`
 
 ## 3.2 Modifications to `scripts/deploy_local.ts`
 
-The Deployed Quoter Object is returned as an additional field in `ClearingHouseFixture` that is created by the `createClearingHouseFixture()` function that is called in the `scripts/deploy_local.ts` 
+The Deployed Quoter Contract Object is returned as an additional field in `ClearingHouseFixture` that is created by the `createClearingHouseFixture()` function that is called in the `scripts/deploy_local.ts` 
 
-Here, we just need to add the Quoter Contract to the list of deployed contracts that is maintained in the `deployedContracts[]` hashmap
+Here, we just need to add the Quoter Contract to the list of deployed contracts that is maintained in the `deployedContracts[]` hashmap that will be saved as the `deployments/local.deployment.js` file 
+
+This is the way that is used by the perp-lushan protocol to advertise its deployed contracts
 
 ```typescript=
     const loadFixture: ReturnType<typeof waffle.createFixtureLoader> = waffle.createFixtureLoader([admin])
@@ -362,7 +360,7 @@ Here, we just need to add the Quoter Contract to the list of deployed contracts 
 
 ```
 
-Technically the `deployedCntracts[]` hashmap is written in the `perp-lushan/deployments/local.deployment.js` so that it can be accessed from any other protocol integrating this one
+The `deployedCntracts[]` hashmap is written in the `perp-lushan/deployments/local.deployment.js` so that it can be accessed from any other protocol integrating this one
 
 
 
