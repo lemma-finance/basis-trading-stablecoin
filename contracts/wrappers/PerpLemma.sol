@@ -152,7 +152,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             isExactInput: false,
             amount: amount,
             oppositeAmountBound: 0,
-            deadline: block.timestamp + 300,
+            deadline: MAX_UINT256,
             sqrtPriceLimitX96: 0,
             referralCode: bytes32(0)
         });
@@ -160,10 +160,6 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
         // needs to updateEntryFunding() call  (need to implement)
     }
-
-    function c(uint256 collateralAmountToGetBack) external {
-        iPerpVault.withdraw(address(collateral), collateralAmountToGetBack);
-    } 
 
     function close(uint256 amount, uint256 collateralAmountToGetBack) external override {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
@@ -178,7 +174,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             isExactInput: true,
             amount: amount,
             oppositeAmountBound: 0,
-            deadline: block.timestamp + 300,
+            deadline: MAX_UINT256,
             sqrtPriceLimitX96: 0,
             referralCode: bytes32(0)
         });

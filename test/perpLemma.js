@@ -24,6 +24,7 @@ const UniswapV3PoolAbi = require('../perp-lushan/artifacts/@uniswap/v3-core/cont
 const UniswapV3Pool2Abi = require('../perp-lushan/artifacts/@uniswap/v3-core/contracts/UniswapV3Pool.sol/UniswapV3Pool.json');
 const QuoterAbi = require('../perp-lushan/artifacts/@uniswap/v3-periphery/contracts/lens/Quoter.sol/Quoter.json')
 const SwapRouterAbi = require('../perp-lushan/artifacts/@uniswap/v3-periphery/contracts/SwapRouter.sol/SwapRouter.json')
+const UniswapV3FactoryAbi = require('../perp-lushan/artifacts/@uniswap/v3-core/contracts/UniswapV3Factory.sol/UniswapV3Factory.json');
 
 use(solidity);
 
@@ -55,6 +56,7 @@ describe("perpLemma", async function () {
     let baseToken
     let baseToken2
     let quoteToken
+    let univ3factory
     let pool
     let pool2
     let mockedBaseAggregator
@@ -78,6 +80,7 @@ describe("perpLemma", async function () {
         baseToken = new ethers.Contract(perpAddresses.baseToken.address, BaseTokenAbi.abi, defaultSigner);
         baseToken2 = new ethers.Contract(perpAddresses.baseToken2.address, BaseToken2Abi.abi, defaultSigner);
         quoteToken = new ethers.Contract(perpAddresses.quoteToken.address, QuoteTokenAbi.abi, defaultSigner);
+        univ3factory = new ethers.Contract(perpAddresses.univ3factory.address, UniswapV3FactoryAbi.abi, defaultSigner)
         accountBalance = new ethers.Contract(perpAddresses.accountBalance.address, AccountBalanceAbi.abi, defaultSigner);
         mockedBaseAggregator = new ethers.Contract(perpAddresses.mockedBaseAggregator.address, MockTestAggregatorV3Abi.abi, defaultSigner);
         mockedBaseAggregator2 = new ethers.Contract(perpAddresses.mockedBaseAggregator2.address, MockTestAggregatorV3Abi.abi, defaultSigner);
@@ -91,16 +94,16 @@ describe("perpLemma", async function () {
         const perpLemmaFactory = await ethers.getContractFactory("PerpLemma")
         perpLemma = await upgrades.deployProxy(perpLemmaFactory, 
             [
-            collateral.address,
-            quoteToken.address, // vUSD
-            baseToken.address,
-            quoteToken.address,
-            clearingHouse.address,
-            vault.address,
-            accountBalance.address,
-            quoter.address,
-            usdLemma.address,
-            maxPosition
+                collateral.address,
+                quoteToken.address, // vUSD
+                baseToken.address,
+                quoteToken.address,
+                clearingHouse.address,
+                vault.address,
+                accountBalance.address,
+                quoter.address,
+                usdLemma.address,
+                maxPosition
         ], { initializer: 'initialize' });
         await perpLemma.connect(signer1).resetApprovals()
 
@@ -193,6 +196,7 @@ describe("perpLemma", async function () {
         await perpLemma.connect(usdLemma).open(leveragedAmount, collateralAmount)
 
         let positionValue = await accountBalance.getTotalPositionValue(perpLemma.address, baseToken.address)
+        console.log('positionValue: ', positionValue.toString())
         // need to correct more for collateralAmountToGetBack param => close(amount, collateralAmountToGetBack)
         await expect(perpLemma.connect(usdLemma).close(positionValue.mul(-1), parseUnits("97", collateralDecimals))).to.emit(clearingHouse, 'PositionChanged')
 
@@ -203,41 +207,40 @@ describe("perpLemma", async function () {
 
     })
     
+    it("Quote Price from quoteExactInputSingle", async () => {
+        const collateralAmount = parseUnits("100", collateralDecimals) // 6 decimal
+        const temp_pool = await univ3factory.callStatic.getPool(
+            quoteToken.address,
+            baseToken.address,
+            10000
+        )
+        console.log(`Pool for token0 = ${quoteToken.address}, token1 = ${baseToken.address}, fee = 10000 --> ${temp_pool}`);
+
+        const collateralToGetBack = await quoter.callStatic.quoteExactInputSingle(
+            quoteToken.address,
+            baseToken.address,
+            10000,
+            collateralAmount,
+            // -2%
+            0
+        );
+        console.log(`collateralToGetBack=${collateralToGetBack}`);
+    });
+
     describe("OpenPosition", () => {
         let collateralmintAmount, collateralAmount, parsedAmount, leveragedAmount
         beforeEach(async function () {
             collateralmintAmount = parseUnits("1000", collateralDecimals) // 6 decimal
             collateralAmount = parseUnits("100", collateralDecimals) // 6 decimal
-            parsedAmount =  collateralAmount.mul(parseEther('1')).div(parseUnits('1', 6)) // 18 decimal
+            parsedAmount =  collateralAmount.mul(parseEther('1')).div(parseUnits('1', collateralDecimals)) // 18 decimal
             leveragedAmount = parsedAmount.mul('1') // for 1x
+            console.log('leveragedAmount: ', leveragedAmount.toString())
             await collateral.mint(usdLemma.address, collateralmintAmount)
-            await collateral.connect(usdLemma).transfer(perpLemma.address, collateralmintAmount)
+            await collateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount)
         });
 
         it("openPosition => emit event PositionChanged", async () => {
-            await expect(perpLemma.connect(usdLemma).open(leveragedAmount, collateralAmount)).to.emit(clearingHouse, 'PositionChanged')
-        });
-
-        it("openPosition and quote Price", async () => {
-            await expect(perpLemma.connect(usdLemma).open(leveragedAmount, collateralAmount)).to.emit(clearingHouse, 'PositionChanged')
-            
-            // not sure about this approve is needed or not
-            await baseToken.approve(quoter.address, ethers.constants.MaxUint256)
-            await quoteToken.approve(quoter.address, ethers.constants.MaxUint256)
-
-            // // direct call to quoter
-            // const collateralToGetBack = await quoter.callStatic.quoteExactInputSingle(
-            //     baseToken.address,
-            //     quoteToken.address,
-            //     10000,
-            //     collateralAmount,
-            //     // -2%
-            //     0
-            // )
-
-            // // call quoter by perpLemma.sol
-            // // const collateralToGetBack = await perpLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount2(collateralAmount, true, encodePriceSqrt(100, 102));
-            // console.log('collateralToGetBack: ', leveragedAmount.toString(), collateralToGetBack.toString())
+            await expect(perpLemma.connect(usdLemma).open(leveragedAmount, collateralAmount)).to.emit(clearingHouse, 'PositionChanged')            
         });
 
         it("openPosition => leverage should be 1x", async () => {
@@ -250,11 +253,136 @@ describe("perpLemma", async function () {
             const indexPrice = await baseToken.getIndexPrice(interval)
 
             const divisor = positionSize.mul(indexPrice).div(parseEther('1'))
-            const temp = depositedCollateral.mul(parseEther('1'))
-            const leverage = temp.div(divisor).mul(-1) // 979999(close to 1e6 or 1x)
+            const depositedCollateralWith1e18 = depositedCollateral.mul(parseEther('1'))
+            const leverage = depositedCollateralWith1e18.div(divisor).mul(-1) // 979999(close to 1e6 or 1x)
             expect(leverage).to.be.closeTo(parseUnits('1', 6), BigNumber.from('50000')); // leverage should be 1x(1e6) or close to 1e6
         });
     })
+
+    describe("OpenPosition with 1x", () => {
+        let collateralmintAmount, collateralAmount, parsedAmount, leveragedAmount
+        beforeEach(async function () {
+            collateralmintAmount = parseUnits("1000", collateralDecimals) // 6 decimal
+            collateralAmount = parseUnits("100", collateralDecimals) // 6 decimal
+            parsedAmount =  collateralAmount.mul(parseEther('1')).div(parseUnits('1', collateralDecimals)) // 18 decimal
+            leveragedAmount = parsedAmount.mul('1') // for 1x
+            console.log('leveragedAmount: ', leveragedAmount.toString())
+            await collateral.mint(usdLemma.address, collateralmintAmount)
+            await collateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount)
+        });
+
+        it("openPosition => emit event PositionChanged", async () => {
+            const bal0 = await collateral.balanceOf(usdLemma.address)
+            console.log('\nbal0: ', bal0.toString())
+
+            await perpLemma.connect(usdLemma).open(leveragedAmount, collateralAmount)
+            
+            const accountValue = await clearingHouse.getAccountValue(perpLemma.address)
+            const marginRequirementForLiquidation = await accountBalance.getMarginRequirementForLiquidation(perpLemma.address)
+            console.log('accountValue: ', accountValue.toString())
+            console.log('marginRequirementForLiquidation: ', marginRequirementForLiquidation.toString())
+            
+            const mmRatio = await clearingHouseConfig.getMmRatio()
+            const imRatio = await clearingHouseConfig.getImRatio()
+
+            const ratioforMm = await vault.getFreeCollateralByRatio(perpLemma.address, mmRatio)
+            const ratioforIm = await vault.getFreeCollateralByRatio(perpLemma.address, imRatio)
+
+            console.log('\nmmRatio & ratioforMm', mmRatio.toString(), ratioforMm.toString())
+            console.log('imRatio & ratioforIm', imRatio.toString(), ratioforIm.toString())
+            
+            const getBalance = await vault.getBalance(perpLemma.address)
+            console.log('\ngetBalance: ', getBalance.toString())
+            const getPnlAndPendingFee = await accountBalance.getPnlAndPendingFee(perpLemma.address)
+            console.log('getPnlAndPendingFee: ', getPnlAndPendingFee.toString())
+
+            // await mockedBaseAggregator.setLatestRoundData(0, parseUnits("100", 6), 0, 0, 0)
+
+            const accountValue1 = await clearingHouse.getAccountValue(perpLemma.address)
+            const marginRequirementForLiquidation1 = await accountBalance.getMarginRequirementForLiquidation(perpLemma.address)
+            console.log('\naccountValue1: ', accountValue1.toString())
+            console.log('marginRequirementForLiquidation1: ', marginRequirementForLiquidation1.toString())
+            
+            const bal1 = await collateral.balanceOf(usdLemma.address)
+            console.log('\nbal1: ', bal1.toString())
+
+            let positionValue = await accountBalance.getTotalPositionValue(perpLemma.address, baseToken.address)
+            console.log('positionValue: ', positionValue.toString())
+            // need to correct more for collateralAmountToGetBack param => close(amount, collateralAmountToGetBack)
+            await expect(perpLemma.connect(usdLemma).close(positionValue.mul(-1), accountValue1.mul(parseUnits('1', 6)).div(parseEther('1')))).to.emit(clearingHouse, 'PositionChanged')
+
+            const bal2 = await collateral.balanceOf(usdLemma.address)
+            console.log('bal2: ', bal2.toString())
+
+            let positionValue2 = await accountBalance.getTotalPositionValue(perpLemma.address, baseToken.address)
+            console.log('positionValue2: ', positionValue2.toString())
+
+        });
+    })
+
+    describe("OpenPosition with 2x", () => {
+        let collateralmintAmount, collateralAmount, parsedAmount, leveragedAmount
+        beforeEach(async function () {
+            collateralmintAmount = parseUnits("1000", collateralDecimals) // 6 decimal
+            collateralAmount = parseUnits("100", collateralDecimals) // 6 decimal
+            parsedAmount =  collateralAmount.mul(parseEther('1')).div(parseUnits('1', collateralDecimals)) // 18 decimal
+            leveragedAmount = parsedAmount.mul('2') // for 2x
+            console.log('leveragedAmount: ', leveragedAmount.toString())
+            await collateral.mint(usdLemma.address, collateralmintAmount)
+            await collateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount)
+        });
+
+        it("openPosition => emit event PositionChanged", async () => {
+            const bal0 = await collateral.balanceOf(usdLemma.address)
+            console.log('\nbal0: ', bal0.toString())
+
+            // await expect(
+                await perpLemma.connect(usdLemma).open(leveragedAmount, collateralAmount)
+                // ).to.emit(clearingHouse, 'PositionChanged')
+            
+            const accountValue = await clearingHouse.getAccountValue(perpLemma.address)
+            const marginRequirementForLiquidation = await accountBalance.getMarginRequirementForLiquidation(perpLemma.address)
+            console.log('accountValue: ', accountValue.toString())
+            console.log('marginRequirementForLiquidation: ', marginRequirementForLiquidation.toString())
+            
+            const mmRatio = await clearingHouseConfig.getMmRatio()
+            const imRatio = await clearingHouseConfig.getImRatio()
+
+            const ratioforMm = await vault.getFreeCollateralByRatio(perpLemma.address, mmRatio)
+            const ratioforIm = await vault.getFreeCollateralByRatio(perpLemma.address, imRatio)
+
+            console.log('\nmmRatio & ratioforMm', mmRatio.toString(), ratioforMm.toString())
+            console.log('imRatio & ratioforIm', imRatio.toString(), ratioforIm.toString())
+            
+            const getBalance = await vault.getBalance(perpLemma.address)
+            console.log('\ngetBalance: ', getBalance.toString())
+            const getPnlAndPendingFee = await accountBalance.getPnlAndPendingFee(perpLemma.address)
+            console.log('getPnlAndPendingFee: ', getPnlAndPendingFee.toString())
+
+            // await mockedBaseAggregator.setLatestRoundData(0, parseUnits("100", 6), 0, 0, 0)
+
+            const accountValue1 = await clearingHouse.getAccountValue(perpLemma.address)
+            const marginRequirementForLiquidation1 = await accountBalance.getMarginRequirementForLiquidation(perpLemma.address)
+            console.log('\naccountValue1: ', accountValue1.toString())
+            console.log('marginRequirementForLiquidation1: ', marginRequirementForLiquidation1.toString())
+            
+            const bal1 = await collateral.balanceOf(usdLemma.address)
+            console.log('\nbal1: ', bal1.toString())
+
+            let positionValue = await accountBalance.getTotalPositionValue(perpLemma.address, baseToken.address)
+            console.log('positionValue: ', positionValue.toString())
+            // need to correct more for collateralAmountToGetBack param => close(amount, collateralAmountToGetBack)
+            await expect(perpLemma.connect(usdLemma).close(positionValue.mul(-1), accountValue1.mul(parseUnits('1', 6)).div(parseEther('1')))).to.emit(clearingHouse, 'PositionChanged')
+
+            const bal2 = await collateral.balanceOf(usdLemma.address)
+            console.log('bal2: ', bal2.toString())
+
+            let positionValue2 = await accountBalance.getTotalPositionValue(perpLemma.address, baseToken.address)
+            console.log('positionValue2: ', positionValue2.toString())
+
+        });
+    })
+
     describe("re balance", async function () {
         let collateralmintAmount, collateralAmount, parsedAmount, leveragedAmount
         before(async function () {
