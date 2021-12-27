@@ -22,3 +22,8 @@ coverage
 ##hardhat-deploy (dependency for solidity-test)
 deployments
 
+test2
+types
+2.js
+test/mcdexLemma-demo.ts
+test/usdLemma-demo.ts

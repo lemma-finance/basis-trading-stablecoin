@@ -1,54 +1,63 @@
-var colors = require('colors');
-const fs = require("fs");
-const hre = require("hardhat");
-const { BigNumber } = hre.ethers;
-const { utils } = require('ethers');
-const tokenTransfers = require("truffle-token-test-utils");
-tokenTransfers.setCurrentProvider(hre.network.config.url);
-const util = require('util');
+import colors from 'colors';
+import fs from "fs";
+import hre from "hardhat";
+import { utils } from 'ethers';
+// import tokenTransfers from "truffle-token-test-utils";
+import util from 'util';
+// import * as child from 'child_process';
 const exec = util.promisify(require('child_process').exec);
-const bn = require("bignumber.js");
+import bn from "bignumber.js";
 
-const deployMCDEXLocally = async function () {
+const { BigNumber } = hre.ethers;
+// tokenTransfers.setCurrentProvider(hre.ethers.providers.JsonRpcProvider)
+
+export async function deployMCDEXLocally() {
     // console.log("deploying MCDEX locally,please wait...");
     const { stdout, stderr } = await exec("cd mai-protocol-v3/ && pwd && npx hardhat run scripts/deploy.ts --network local && cd ..  && pwd");
     if (stderr) {
-        console.error(`error: ${stderr}`);
+        console.error(`error1: ${stderr}`);
     }
     // console.log(`output: ${stdout}`);
     // console.log("deployment done");
 };
 
-const loadMCDEXInfo = async function () {
+export async function loadMCDEXInfo() {
     //deploy mcdex and then load
     await deployMCDEXLocally();
     //get MCDEXAddresses
-    const data = fs.readFileSync(__dirname + '/../mai-protocol-v3/deployments/local.deployment.js', 'utf8');
+    const data = fs.readFileSync(__dirname + '/../../mai-protocol-v3/deployments/local.deployment.js', 'utf8');
+    // console.log(JSON.parse(data))
     return JSON.parse(data);
 };
-const toBigNumber = (amount) => {
+
+export async function toBigNumber(amount: any) {
     const amountBN = new bn(amount.toString());
     const ONE = new bn(utils.parseEther("1").toString());
     return amountBN.div(ONE);
 };
-const fromBigNumber = (amount) => {
+
+export async function fromBigNumber(amount: any) {
     const ONE = new bn(utils.parseEther("1").toString());
     const amountInWei = (amount.times(ONE)).integerValue(); //ignore after 18 decimals
     return BigNumber.from(amountInWei.toString());
 };
-const rpcCall = async (callType, params) => {
+
+export async function rpcCall(callType: any, params: any) {
     return await hre.network.provider.request({
         method: callType,
         params: params
     });
 };
-const snapshot = async () => {
+
+export async function snapshot() {
     return await rpcCall("evm_snapshot", []);
 };
-const revertToSnapshot = async (snapId) => {
+
+export async function revertToSnapshot(snapId: any) {
     return await rpcCall("evm_revert", [snapId]);
 };
-const displayNicely = function (Obj) {
+
+export async function displayNicely(Obj: any) {
     colors.setTheme({
         key: 'bgGreen',
         value: 'cyan',
@@ -79,6 +88,4 @@ const displayNicely = function (Obj) {
             console.log(`${key.bgGreen} : ${showValue}`);
         }
     });
-};
-
-module.exports = { displayNicely, tokenTransfers, loadMCDEXInfo, toBigNumber, fromBigNumber, snapshot, revertToSnapshot };
+}
