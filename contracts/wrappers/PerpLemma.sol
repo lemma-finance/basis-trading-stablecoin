@@ -19,7 +19,7 @@ import "hardhat/console.sol";
 interface IPerpVault {
     function deposit(address token, uint256 amount) external;
     function withdraw(address token, uint256 amountX10_D) external;
-    function _getBalance(address trader, address token) external view returns (int256);
+    function getBalance(address trader) external view returns (int256);
     function decimals() external view returns (uint8);
 }
 
@@ -134,10 +134,10 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     /// @param collateralAmountRequired collateral amount required to open the position
     function open(uint256 amount, uint256 collateralAmountRequired) external override {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
-        // require(
-        //     collateral.balanceOf(address(this)) >= getAmountInCollateralDecimals(collateralAmountRequired, true),
-        //     "not enough collateral"
-        // );
+        require(
+            collateral.balanceOf(address(this)) >= getAmountInCollateralDecimals(collateralAmountRequired, true),
+            "not enough collateral"
+        );
 
         iPerpVault.deposit(address(collateral), collateralAmountRequired);
 
@@ -145,19 +145,20 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         require(positionSize.abs().toUint256() + amount <= maxPosition, "max position reached");
 
         // create short position by giving isBaseToQuote=true
-        // and amount in USD by giving isExactInput=false
+        // and amount in eth(baseToken) by giving isExactInput=true
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: baseTokenAddress,
             isBaseToQuote: true,
-            isExactInput: false,
+            isExactInput: true,
             amount: amount,
             oppositeAmountBound: 0,
             deadline: MAX_UINT256,
             sqrtPriceLimitX96: 0,
             referralCode: bytes32(0)
         });
-        iClearingHouse.openPosition(params);
-
+        (uint256 base, uint256 quote) = iClearingHouse.openPosition(params);
+        console.log('base: ', base);
+        console.log('quote: ', quote);
         // needs to updateEntryFunding() call  (need to implement)
     }
 
@@ -167,38 +168,48 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         // require (positionSize != 0);
 
         // create long position by giving isBaseToQuote=false
-        // and amount in USD by giving isExactInput=true
+        // and amount in eth(baseToken) by giving isExactInput=false
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: baseTokenAddress,
             isBaseToQuote: false,
-            isExactInput: true,
+            isExactInput: false,
             amount: amount,
             oppositeAmountBound: 0,
             deadline: MAX_UINT256,
             sqrtPriceLimitX96: 0,
             referralCode: bytes32(0)
         });
-        iClearingHouse.openPosition(params);
+        (uint256 base, uint256 quote) = iClearingHouse.openPosition(params);
+        console.log('base-close: ', base);
+        console.log('quote-close: ', quote);
+        
+        (int256 owedRealizedPnl,int256 unrealizedPnl,uint256 pendingFee) = iAccountBalance.getPnlAndPendingFee(address(this)); // get current position value
+        console.log('owedRealizedPnl-close: ', uint256(owedRealizedPnl));
+        console.log('unrealizedPnl-close: ', uint256(unrealizedPnl));
+        console.log('pendingFee-close: ', uint256(pendingFee));
 
-        iPerpVault.withdraw(address(collateral), collateralAmountToGetBack);
-        // needs to updateEntryFunding() call  
+        console.log('collateralAmountToGetBack-close-before: ', collateralAmountToGetBack);
+        if (owedRealizedPnl > 0) {
+            console.log('Positive');
+            owedRealizedPnl = ( owedRealizedPnl * 1e6 ) / 1e18;
+            collateralAmountToGetBack = collateralAmountToGetBack + uint256(owedRealizedPnl);
+        } else {
+            console.log('Negative');
+            owedRealizedPnl = owedRealizedPnl.abs();
+            owedRealizedPnl = ( owedRealizedPnl * 1e6 ) / 1e18;
+            console.log('owedRealizedPnl-abs', uint256(owedRealizedPnl));
+            collateralAmountToGetBack = collateralAmountToGetBack - uint256(owedRealizedPnl);
+        }
+        console.log('collateralAmountToGetBack-close-after: ', collateralAmountToGetBack);
 
+        iPerpVault.withdraw(address(collateral), collateralAmountToGetBack); // withdraw closed position fund 
         SafeERC20Upgradeable.safeTransfer(
             collateral,
             usdLemma,
             collateralAmountToGetBack
         );
 
-        // // *** when getCollateralAmountGivenUnderlyingAssetAmount ready we will use collateralAmountToGetBack instead amount i guess
-        // -> iPerpVault.withdraw(address(collateral), collateralAmountToGetBack);
-
         // // *** needs to updateEntryFunding() call  (need to implement)
-
-        // -> SafeERC20Upgradeable.safeTransfer(
-        //     collateral,
-        //     usdLemma,
-        //     getAmountInCollateralDecimals(collateralAmountToGetBack, false)
-        // );
     }
 
     function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
@@ -207,16 +218,15 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         returns (uint256 collateralAmountRequired)
     {
         // TODO: K-Aizen Implement
-        address tokenIn = address(baseTokenAddress);
-        address tokenOut = address(quoteTokenAddress);
+        address tokenIn;
+        address tokenOut;
         uint24 fee = 10000;
         uint160 sqrtPriceLimitX96 = 0;
 
-        IERC20Upgradeable(baseTokenAddress).approve(address(iUniV3Router), amount);
-        IERC20Upgradeable(quoteTokenAddress).approve(address(iUniV3Router), amount);
         if (isShorting) {
+            tokenIn = address(baseTokenAddress);
+            tokenOut = address(quoteTokenAddress);
             // Need to deposit `collateralAmountRequired` of collateral to mint `amount` USD 
-
             collateralAmountRequired = iUniV3Router.quoteExactInputSingle(
                 tokenIn, // token in 
                 tokenOut, // token out 
@@ -224,16 +234,29 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
                 amount, 
                 sqrtPriceLimitX96
             );
-        }
-        else {
-            // Burning `amount` USD we get `collateralAmountRequired` collateral 
-            collateralAmountRequired = iUniV3Router.quoteExactOutputSingle(
-                tokenIn, 
-                tokenOut,
-                fee,
-                amount,
-                sqrtPriceLimitX96
-            );
+        } else {
+            int256 getBase = iAccountBalance.getBase(address(this), baseTokenAddress);
+
+            int256 getBalance = iPerpVault.getBalance(address(this));
+            getBalance = (getBalance * 1e18) / 1e6;
+
+            int256 getCollateralForAmount = (int256(amount) * getBalance) / getBase.abs();
+            collateralAmountRequired = uint256(getCollateralForAmount);
+
+            console.log('getBase: ', uint256(getBase.abs()));
+            console.log('getBalance: ', uint256(getBalance));
+            console.log('getCollateralForAmount: ', uint256(getCollateralForAmount));
+
+            // tokenIn = address(quoteTokenAddress);
+            // tokenOut = address(baseTokenAddress);
+            // // Burning `amount` USD we get `collateralAmountRequired` collateral 
+            // collateralAmountRequired = iUniV3Router.quoteExactInputSingle(
+            //     tokenIn, 
+            //     tokenOut,
+            //     fee,
+            //     amount,
+            //     sqrtPriceLimitX96
+            // );
         }
     }
 
