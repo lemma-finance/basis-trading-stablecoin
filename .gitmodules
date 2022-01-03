@@ -2,3 +2,6 @@
 	path = mai-protocol-v3
 	url = https://github.com/yashnaman/mai-protocol-v3.git
 
+[submodule "squeeth-monorepo"]
+	path = squeeth-monorepo
+	url = https://github.com/opynfinance/squeeth-monorepo

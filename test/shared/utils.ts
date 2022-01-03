@@ -29,6 +29,24 @@ export async function loadMCDEXInfo() {
     // console.log(JSON.parse(data))
     return JSON.parse(data);
 };
+export async function deploySqueethLocally() {
+    // console.log("deploying MCDEX locally,please wait...");
+    const { stdout, stderr } = await exec("cd squeeth-monorepo/packages/hardhat/ && pwd && npx hardhat deploy && cd ..  && pwd");
+    if (stderr) {
+        console.error(`error1: ${stderr}`);
+    }
+    // console.log(`output: ${stdout}`);
+    // console.log("deployment done");
+};
+
+export async function loadSqueethInfo() {
+    //deploy mcdex and then load
+    await deploySqueethLocally();
+    //get MCDEXAddresses
+    const data = fs.readFileSync(__dirname + '/../../squeeth-monorepo/packages/subgraph/config/localhost-config.json', 'utf8');
+    // console.log(JSON.parse(data))
+    return JSON.parse(data);
+};
 
 export async function toBigNumber(amount: any) {
     const amountBN = new bn(amount.toString());
