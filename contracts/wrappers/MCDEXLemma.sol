@@ -182,7 +182,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
     }
 
     //// @notice when perpetual is in CLEARED state, withdraw the collateral
-    function settle() public {
+    function settle() public override {
         (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
         positionAtSettlement = position.abs().toUint256();
         liquidityPool.settle(perpetualIndex, address(this));

@@ -22,6 +22,10 @@ interface IPerpVault {
     function withdraw(address token, uint256 amountX10_D) external;
     function getBalance(address trader) external view returns (int256);
     function decimals() external view returns (uint8);
+    function getFreeCollateralByRatio(address trader, uint24 ratio)
+        external
+        view
+        returns (int256 freeCollateralByRatio);
 }
 
 interface IUSDLemma {
@@ -267,17 +271,6 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     //// @notice when perpetual is in CLEARED state, withdraw the collateral
     function settle() public override {
         console.log("[PerpLemma settle()] Start");
-        (uint256 base, uint256 quote) = iClearingHouse.closePositionInClosedMarket(address(this), baseTokenAddress);
-
-        //int256 owedRealizedPnlX10_18 = iAccountBalance.settleOwedRealizedPnl(address(this));
-        //(int256 owedRealizedPnlX10_18, int256 unrealizedPnl, uint256 pendingFee) = iAccountBalance.getPnlAndPendingFee(address(this));
-        //console.log("[PerpLemma] owedRealizedPnlX10_18 = %s %d", (owedRealizedPnlX10_18 < 0) ? "-":"", owedRealizedPnlX10_18.abs().toUint256());
-        //console.log("[PerpLemma] unrealizedPnl = %s %d", (unrealizedPnl < 0) ? "-":"", unrealizedPnl.abs().toUint256());
-        //console.log("[PerpLemma] pendingFee = ", pendingFee);
-//
-        //int256 owedRealizedPnlX10_D = formatSettlementToken(owedRealizedPnlX10_18, iPerpVault.decimals());
-        //console.log("[PerpLemma] owedRealizedPnlX10_D = %s %d", (owedRealizedPnlX10_D < 0) ? "-":"", owedRealizedPnlX10_D.abs().toUint256());
-
         // No need to get the Owed Realized Pnl as looks like it is included in the `getFreeCollateralByRatio()` result
         // The Vault.withdraw() calls the `ClearingHouse.settleAllFunding()` here 
         // https://github.com/perpetual-protocol/perp-lushan/blob/main/contracts/Vault.sol#L150 
@@ -287,29 +280,11 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         console.log("[PerpLemma] me = ", address(this));
         console.log("[PerpLemma] freeCollateralByImRatioX10_D for imRatio %d = %s %d", imRatio, (freeCollateralByImRatioX10_D < 0) ? "-":"", freeCollateralByImRatioX10_D.abs().toUint256());
 
-        //int256 amount = owedRealizedPnlX10_D + freeCollateralByImRatioX10_D;
-        //uint256 amount = formatSettlementToken(base, iPerpVault.decimals());
-
-        //console.log("[PerpLemma] Amount = %s %d", (amount < 0) ? "-":"", amount.abs().toUint256());
-
-        //require(amount > 0, "Nothing to withdraw");
-
-        //console.log("[PerpLemma settle()] base = %d, quote = %d", base, quote);
-
-        //address settlementToken = iPerpVault.getSettlementToken();
-
-        //console.log("Settlement Token Address = ", settlementToken);
-
         // We ask to withdraw() all the free collateral
         iPerpVault.withdraw(address(collateral), freeCollateralByImRatioX10_D.abs().toUint256());
         //iPerpVault.withdraw(address(collateral), amount.abs().toUint256());
 
         console.log("[PerpLemma settle()] Vault Withdraw() DONE");
-        /*
-        (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
-        positionAtSettlement = position.abs().toUint256();
-        liquidityPool.settle(perpetualIndex, address(this));
-        */
     }
 
     /// @notice Rebalance position of dex based on accumulated funding, since last rebalancing
