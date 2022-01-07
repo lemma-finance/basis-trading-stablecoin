@@ -97,6 +97,7 @@ describe("perpLemma", async function () {
                 baseToken.address,
                 quoteToken.address,
                 clearingHouse.address,
+                clearingHouseConfig.address,
                 vault.address,
                 accountBalance.address,
                 quoter.address,
@@ -333,6 +334,123 @@ describe("perpLemma", async function () {
                 )
             );
         })
+    })
+
+
+    describe("Emergency Settlement", async function () {
+        //let collateralmintAmount, collateralAmount, parsedAmount, leveragedAmount
+
+        /*
+        before(async function () {
+
+        })
+        */
+        beforeEach(async function () {
+            // Open a Position
+
+        });
+
+        /*
+        it("Test1", async () => {
+            await expect(perpLemma.connect(usdLemma).settle()).to.be.revertedWith("CH_MNC");
+        })
+
+
+        it("Test2", async () => {
+            await expect(baseToken.connect(defaultSigner).pause(0)).to.emit(baseToken, 'StatusUpdated');
+            await expect(perpLemma.connect(usdLemma).settle()).to.be.revertedWith("CH_MNC");
+        })
+        */
+
+
+        it("Test3", async () => {
+            // 1. Mint
+            const collateralAmount = parseUnits("100", collateralDecimals) // 6 decimal
+            await collateral.mint(usdLemma.address, collateralAmount)
+            
+            const collateralUSDLemma_t0 = await collateral.balanceOf(usdLemma.address);
+            const collateralPerpLemma_t0 = await collateral.balanceOf(perpLemma.address);
+
+            console.log("Initial Balances");
+            console.log(`USDLemma Balance = ${collateralUSDLemma_t0}`); 
+            console.log(`PerpLemma Balance = ${collateralPerpLemma_t0}`);
+
+
+
+            // 2. Get amount of collateral
+            const perpPosition = parseEther('1');
+            collateralRequired_1e18 = await perpLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount2(perpPosition, true)
+            collateralRequired_1e6 = collateralRequired_1e18.mul(parseUnits('1', collateralDecimals)).div(parseEther('1'))
+            console.log(`Collateral Required to Open a short ${perpPosition} (1e18) on BaseToken (vUSD) = ${collateralRequired_1e6} (1e6) Collateral (ETH)`);
+
+            // 3. Open Position
+            // 3.1 Transfer from USDLemma (High Level Abstraction Trader)  --> PerpLemma (Backend Protocol Specific Trader)
+            await collateral.connect(usdLemma).transfer(perpLemma.address, collateralRequired_1e6);
+
+            const collateralUSDLemma_t1 = await collateral.balanceOf(usdLemma.address);
+            const collateralPerpLemma_t1 = await collateral.balanceOf(perpLemma.address);
+
+            console.log("Balances after transfer");
+            console.log(`USDLemma Balance = ${collateralUSDLemma_t1}, delta = ${collateralUSDLemma_t1 - collateralUSDLemma_t0}`); 
+            console.log(`PerpLemma Balance = ${collateralPerpLemma_t1}, delta = ${collateralPerpLemma_t1 - collateralPerpLemma_t0}`);
+
+            // 3.2 USDLemma calls PerpLemma Open to open a position at the PerpV2 Clearing House
+            await expect(perpLemma.connect(usdLemma).open(parseEther('1'), collateralRequired_1e6)).to.emit(clearingHouse, 'PositionChanged');
+
+
+
+            const collateralUSDLemma_t2 = await collateral.balanceOf(usdLemma.address);
+            const collateralPerpLemma_t2 = await collateral.balanceOf(perpLemma.address);
+
+            console.log("Balances after transfer");
+            console.log(`USDLemma Balance = ${collateralUSDLemma_t2}, delta = ${collateralUSDLemma_t2 - collateralUSDLemma_t1}`); 
+            console.log(`PerpLemma Balance = ${collateralPerpLemma_t2}, delta = ${collateralPerpLemma_t2 - collateralPerpLemma_t1}`);
+
+
+
+            console.log("Test3 Initial Balance");
+            const collateralUSDLemma_t3 = await collateral.balanceOf(usdLemma.address);
+            const collateralPerpLemma_t3 = await collateral.balanceOf(perpLemma.address);
+
+            console.log("Balances after transfer");
+            console.log(`USDLemma Balance = ${collateralUSDLemma_t3}`); 
+            console.log(`PerpLemma Balance = ${collateralPerpLemma_t3}`);
+
+
+            //await expect(baseToken.connect(defaultSigner).pause(0)).to.emit(baseToken, 'StatusUpdated');
+            //console.dir(baseToken.connect(defaultSigner).methods);
+            //const status = await baseToken.callStatic.getStatus();
+            //console.log(`Status = ${status}`);
+            //console.dir(baseToken.connect(defaultSigner)["pause(uint256)"](1));
+
+            //console.log(`Settlement Token = ${await vault.getSettlementToken()}`);
+
+            // Start with Market Open
+            expect(await baseToken.getStatus()).to.be.equal(0);
+
+            // Pause Market
+            expect(await (baseToken.connect(defaultSigner)["pause(uint256)"](0))).to.emit(baseToken, 'StatusUpdated');
+            expect(await baseToken.callStatic.getStatus()).to.be.equal(1);
+
+            // Close Market
+            expect(await (baseToken.connect(defaultSigner)["close(uint256)"](1))).to.emit(baseToken, 'StatusUpdated');
+            expect(await baseToken.callStatic.getStatus()).to.be.equal(2);
+            //await baseToken.connect(defaultSigner).close(1);
+            //await expect(baseToken.connect(defaultSigner).close()).to.emit(baseToken, 'StatusUpdated');
+
+            expect(await perpLemma.connect(usdLemma).settle()).to.emit(clearingHouse, 'PositionChanged');
+
+
+            console.log("Test3 Final Balance");
+            const collateralUSDLemma_t32 = await collateral.balanceOf(usdLemma.address);
+            const collateralPerpLemma_t32 = await collateral.balanceOf(perpLemma.address);
+
+            console.log("Balances after transfer");
+            console.log(`USDLemma Balance = ${collateralUSDLemma_t32}, delta = ${collateralUSDLemma_t32 - collateralUSDLemma_t3}`); 
+            console.log(`PerpLemma Balance = ${collateralPerpLemma_t32}, delta = ${collateralPerpLemma_t32 - collateralPerpLemma_t3}, delta with initial ${collateralPerpLemma_t32 - collateralPerpLemma_t1}`);
+        })
+
+
     })
 
 })
