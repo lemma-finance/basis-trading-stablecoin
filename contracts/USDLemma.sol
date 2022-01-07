@@ -117,6 +117,24 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         emit DepositTo(perpetualDEXIndex, address(collateral), to, amount, collateralRequired);
     }
 
+    function depositToWExactCollateral(
+        address to,
+        uint256 collateralAmount,
+        uint256 perpetualDEXIndex,
+        uint256 minUSDLToMint,
+        IERC20Upgradeable collateral
+    ) public nonReentrant {
+        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
+            perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
+        );
+        require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
+        SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), collateralAmount);
+        uint256 USDLToMint = perpDEXWrapper.openWExactCollateral(collateralAmount);
+        require(USDLToMint >= minUSDLToMint, "USDL minted too low");
+        _mint(to, USDLToMint);
+        emit DepositTo(perpetualDEXIndex, address(collateral), to, USDLToMint, collateralAmount);
+    }
+
     /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc
     /// @param to Receipent of withdrawn collateral
     /// @param amount Amount of USDL to redeem
@@ -141,6 +159,24 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         perpDEXWrapper.close(amount, collateralAmountToGetBack);
         SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmountToGetBack);
         emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, collateralAmountToGetBack);
+    }
+
+    function withdrawToWExactCollateral(
+        address to,
+        uint256 collateralAmount,
+        uint256 perpetualDEXIndex,
+        uint256 maxUSDLToBurn,
+        IERC20Upgradeable collateral
+    ) public nonReentrant {
+        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
+            perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
+        );
+        require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
+        uint256 USDLToBurn = perpDEXWrapper.closeWExactCollateral(collateralAmount);
+        require(USDLToBurn <= maxUSDLToBurn, "USDL burnt execeeds maximum");
+        _burn(_msgSender(), USDLToBurn);
+        SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmount);
+        emit WithdrawTo(perpetualDEXIndex, address(collateral), to, USDLToBurn, collateralAmount);
     }
 
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL
