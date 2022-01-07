@@ -1,4 +1,10 @@
 [submodule "mai-protocol-v3"]
 	path = mai-protocol-v3
 	url = https://github.com/yashnaman/mai-protocol-v3.git
+[submodule "perp-lushan"]
+	path = perp-lushan
+	url = https://github.com/yashnaman/perp-lushan.git
+[submodule "squeeth-monorepo"]
+	path = squeeth-monorepo
+	url = https://github.com/opynfinance/squeeth-monorepo
 
