@@ -151,6 +151,7 @@ describe("perpLemma", async function () {
         await revertToSnapshot(snapshotId);
     });
 
+    
     it("should set addresses correctly", async function () {
         //setUSDLemma
         await expect(perpLemma.connect(signer1).setUSDLemma(signer1.address)).to.be.revertedWith("Ownable: caller is not the owner");
@@ -335,7 +336,7 @@ describe("perpLemma", async function () {
             );
         })
     })
-
+    
 
     describe("Emergency Settlement", async function () {
         //let collateralmintAmount, collateralAmount, parsedAmount, leveragedAmount
@@ -379,7 +380,7 @@ describe("perpLemma", async function () {
 
             // 2. Get amount of collateral
             const perpPosition = parseEther('1');
-            collateralRequired_1e18 = await perpLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount2(perpPosition, true)
+            collateralRequired_1e18 = await perpLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(perpPosition, true)
             collateralRequired_1e6 = collateralRequired_1e18.mul(parseUnits('1', collateralDecimals)).div(parseEther('1'))
             console.log(`Collateral Required to Open a short ${perpPosition} (1e18) on BaseToken (vUSD) = ${collateralRequired_1e6} (1e6) Collateral (ETH)`);
 
@@ -441,15 +442,39 @@ describe("perpLemma", async function () {
             expect(await perpLemma.connect(usdLemma).settle()).to.emit(clearingHouse, 'PositionChanged');
 
 
-            console.log("Test3 Final Balance");
+            console.log("Balance After Settlement");
             const collateralUSDLemma_t32 = await collateral.balanceOf(usdLemma.address);
             const collateralPerpLemma_t32 = await collateral.balanceOf(perpLemma.address);
 
             console.log("Balances after transfer");
             console.log(`USDLemma Balance = ${collateralUSDLemma_t32}, delta = ${collateralUSDLemma_t32 - collateralUSDLemma_t3}`); 
             console.log(`PerpLemma Balance = ${collateralPerpLemma_t32}, delta = ${collateralPerpLemma_t32 - collateralPerpLemma_t3}, delta with initial ${collateralPerpLemma_t32 - collateralPerpLemma_t1}`);
-        })
 
+            console.log("Trying to call PerpLemma.close() after market settlement to withdraw 20%");
+            // No need to specify the expected collateral amount when the market is closed, it is computed as a percentage of the positionAtSettlement
+            await expect(perpLemma.connect(usdLemma).close(parseEther('0.2'), 0)).to.emit(collateral, 'Transfer');
+
+            const collateralUSDLemma_t33 = await collateral.balanceOf(usdLemma.address);
+            const collateralPerpLemma_t33 = await collateral.balanceOf(perpLemma.address);
+
+            console.log("Balances after transfer");
+            console.log(`USDLemma Balance = ${collateralUSDLemma_t33}, delta = ${collateralUSDLemma_t33 - collateralUSDLemma_t32}`); 
+            console.log(`PerpLemma Balance = ${collateralPerpLemma_t33}, delta = ${collateralPerpLemma_t33 - collateralPerpLemma_t32}`);
+
+            expect(await collateral.balanceOf(perpLemma.address)).to.not.equal(0);
+
+            console.log("Trying to call PerpLemma.close() after market settlement to withdraw the remaining 80%");
+            await expect(perpLemma.connect(usdLemma).close(parseEther('0.8'), 0)).to.emit(collateral, 'Transfer');
+
+            const collateralUSDLemma_t35 = await collateral.balanceOf(usdLemma.address);
+            const collateralPerpLemma_t35 = await collateral.balanceOf(perpLemma.address);
+
+            console.log("Balances after transfer");
+            console.log(`USDLemma Balance = ${collateralUSDLemma_t35}, delta = ${collateralUSDLemma_t35 - collateralUSDLemma_t33}`); 
+            console.log(`PerpLemma Balance = ${collateralPerpLemma_t35}, delta = ${collateralPerpLemma_t35 - collateralPerpLemma_t33}`);
+
+            expect(await collateral.balanceOf(perpLemma.address)).to.equal(0);
+        })
 
     })
 

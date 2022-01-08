@@ -59,6 +59,11 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
     IQuoter public iUniV3Router;
 
+    // Has the Market Settled
+    bool public hasSettled;
+    // Gets set only when Settlement has already happened 
+    uint256 public positionAtSettlement;
+
     uint256 public maxPosition;
 
     //events
@@ -94,6 +99,9 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         iAccountBalance = IAccountBalance(_iAccountBalance);
         collateralDecimals = iPerpVault.decimals(); // need to verify
         collateral.approve(_iClearingHouse, MAX_UINT256);
+
+        // NOTE: Even though it is not necessary, it is for clarity 
+        hasSettled = false;
     }
 
     ///@notice sets USDLemma address - only owner can set
@@ -142,6 +150,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     /// @param collateralAmountRequired collateral amount required to open the position
     function open(uint256 amount, uint256 collateralAmountRequired) external override {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
+        require(!hasSettled, 'Market Closed');
         require(
             collateral.balanceOf(address(this)) >= getAmountInCollateralDecimals(collateralAmountRequired, true),
             "not enough collateral"
@@ -174,6 +183,8 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
         // int256 positionSize = IAccountBalance(address(iAccountBalance)).getPositionSize(address(this), baseTokenAddress);
         // require (positionSize != 0);
+
+        if (hasSettled) return closeAfterSettlement(amount);
 
         // create long position by giving isBaseToQuote=false
         // and amount in eth(baseToken) by giving isExactInput=false
@@ -218,6 +229,20 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         );
 
         // // *** needs to updateEntryFunding() call  (need to implement)
+    }
+
+    function closeAfterSettlement(uint256 amount) internal
+    {
+        console.log("[PerpLemma closeAfterSettlement()] Start");
+        require(positionAtSettlement > 0, 'Nothing to transfer');
+        uint256 collateralAmountToGetBack = amount * collateral.balanceOf(address(this)) / positionAtSettlement;
+        SafeERC20Upgradeable.safeTransfer(
+            collateral,
+            usdLemma,
+            collateralAmountToGetBack
+        );
+
+        positionAtSettlement -= amount;
     }
 
     function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
@@ -271,6 +296,23 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     //// @notice when perpetual is in CLEARED state, withdraw the collateral
     function settle() public override {
         console.log("[PerpLemma settle()] Start");
+        int256 temp1 = iAccountBalance.getBase(address(this), baseTokenAddress);
+        console.log("[PerpLemma settle()] temp1 = %s %d", (temp1 < 0) ? "-":"", uint256(temp1.abs()));
+        
+        positionAtSettlement = temp1.abs().toUint256();
+        console.log("[PerpLemma settle()] positionAtSettlement = ", positionAtSettlement);
+
+        (uint256 base, uint256 quote) = iClearingHouse.closePositionInClosedMarket(address(this), baseTokenAddress);
+
+        //int256 owedRealizedPnlX10_18 = iAccountBalance.settleOwedRealizedPnl(address(this));
+        //(int256 owedRealizedPnlX10_18, int256 unrealizedPnl, uint256 pendingFee) = iAccountBalance.getPnlAndPendingFee(address(this));
+        //console.log("[PerpLemma] owedRealizedPnlX10_18 = %s %d", (owedRealizedPnlX10_18 < 0) ? "-":"", owedRealizedPnlX10_18.abs().toUint256());
+        //console.log("[PerpLemma] unrealizedPnl = %s %d", (unrealizedPnl < 0) ? "-":"", unrealizedPnl.abs().toUint256());
+        //console.log("[PerpLemma] pendingFee = ", pendingFee);
+//
+        //int256 owedRealizedPnlX10_D = formatSettlementToken(owedRealizedPnlX10_18, iPerpVault.decimals());
+        //console.log("[PerpLemma] owedRealizedPnlX10_D = %s %d", (owedRealizedPnlX10_D < 0) ? "-":"", owedRealizedPnlX10_D.abs().toUint256());
+
         // No need to get the Owed Realized Pnl as looks like it is included in the `getFreeCollateralByRatio()` result
         // The Vault.withdraw() calls the `ClearingHouse.settleAllFunding()` here 
         // https://github.com/perpetual-protocol/perp-lushan/blob/main/contracts/Vault.sol#L150 
@@ -280,12 +322,38 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         console.log("[PerpLemma] me = ", address(this));
         console.log("[PerpLemma] freeCollateralByImRatioX10_D for imRatio %d = %s %d", imRatio, (freeCollateralByImRatioX10_D < 0) ? "-":"", freeCollateralByImRatioX10_D.abs().toUint256());
 
+        //int256 amount = owedRealizedPnlX10_D + freeCollateralByImRatioX10_D;
+        //uint256 amount = formatSettlementToken(base, iPerpVault.decimals());
+
+        //console.log("[PerpLemma] Amount = %s %d", (amount < 0) ? "-":"", amount.abs().toUint256());
+
+        //require(amount > 0, "Nothing to withdraw");
+
+        //console.log("[PerpLemma settle()] base = %d, quote = %d", base, quote);
+
+        //address settlementToken = iPerpVault.getSettlementToken();
+
+        //console.log("Settlement Token Address = ", settlementToken);
+
         // We ask to withdraw() all the free collateral
         iPerpVault.withdraw(address(collateral), freeCollateralByImRatioX10_D.abs().toUint256());
         //iPerpVault.withdraw(address(collateral), amount.abs().toUint256());
 
+        // All the collateral is now back
+        hasSettled = true;
+
         console.log("[PerpLemma settle()] Vault Withdraw() DONE");
+
+        int256 temp2 = iAccountBalance.getBase(address(this), baseTokenAddress);
+        console.log("[PerpLemma settle()] temp2 = %s %d", (temp2 < 0) ? "-":"", uint256(temp2.abs()));
+
+        /*
+        (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
+        positionAtSettlement = position.abs().toUint256();
+        liquidityPool.settle(perpetualIndex, address(this));
+        */
     }
+
 
     /// @notice Rebalance position of dex based on accumulated funding, since last rebalancing
     /// @param _reBalancer Address of rebalancer who called function on USDL contract
