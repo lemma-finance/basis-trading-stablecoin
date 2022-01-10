@@ -351,20 +351,7 @@ describe("perpLemma", async function () {
 
         });
 
-        /*
-        it("Test1", async () => {
-            await expect(perpLemma.connect(usdLemma).settle()).to.be.revertedWith("CH_MNC");
-        })
-
-
-        it("Test2", async () => {
-            await expect(baseToken.connect(defaultSigner).pause(0)).to.emit(baseToken, 'StatusUpdated');
-            await expect(perpLemma.connect(usdLemma).settle()).to.be.revertedWith("CH_MNC");
-        })
-        */
-
-
-        it("Test3", async () => {
+        it("Test Settle and Withdraw Collateral", async () => {
             // 1. Mint
             const collateralAmount = parseUnits("100", collateralDecimals) // 6 decimal
             await collateral.mint(usdLemma.address, collateralAmount)
@@ -417,15 +404,6 @@ describe("perpLemma", async function () {
             console.log(`USDLemma Balance = ${collateralUSDLemma_t3}`); 
             console.log(`PerpLemma Balance = ${collateralPerpLemma_t3}`);
 
-
-            //await expect(baseToken.connect(defaultSigner).pause(0)).to.emit(baseToken, 'StatusUpdated');
-            //console.dir(baseToken.connect(defaultSigner).methods);
-            //const status = await baseToken.callStatic.getStatus();
-            //console.log(`Status = ${status}`);
-            //console.dir(baseToken.connect(defaultSigner)["pause(uint256)"](1));
-
-            //console.log(`Settlement Token = ${await vault.getSettlementToken()}`);
-
             // Start with Market Open
             expect(await baseToken.getStatus()).to.be.equal(0);
 
@@ -436,8 +414,6 @@ describe("perpLemma", async function () {
             // Close Market
             expect(await (baseToken.connect(defaultSigner)["close(uint256)"](1))).to.emit(baseToken, 'StatusUpdated');
             expect(await baseToken.callStatic.getStatus()).to.be.equal(2);
-            //await baseToken.connect(defaultSigner).close(1);
-            //await expect(baseToken.connect(defaultSigner).close()).to.emit(baseToken, 'StatusUpdated');
 
             expect(await perpLemma.connect(usdLemma).settle()).to.emit(clearingHouse, 'PositionChanged');
 
