@@ -235,14 +235,12 @@ describe("perpLemma", async function () {
             await perpLemma.connect(usdLemma).openWExactCollateral(parseEther('1'))
 
             let positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address)
-
             // #1    
             await expect(perpLemma.connect(usdLemma).closeWExactCollateral(positionSize.div(2))).to.emit(clearingHouse, 'PositionChanged')
             // #2
             await expect(perpLemma.connect(usdLemma).closeWExactCollateral(positionSize.div(2))).to.emit(clearingHouse, 'PositionChanged')
-
             positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address) 
-            expect(positionSize).to.be.eq(parseEther('0'))
+            expect(positionSize).to.be.closeTo(parseEther('1'), parseEther('0.1'))
         });
 
         it("openPosition => open position for short and close position for long", async () => {
@@ -251,7 +249,7 @@ describe("perpLemma", async function () {
             let positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address)
             await expect(perpLemma.connect(usdLemma).closeWExactCollateral(positionSize)).to.emit(clearingHouse, 'PositionChanged')
             positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address) 
-            expect(positionSize).to.be.eq(parseEther('0'))
+            expect(positionSize).to.be.closeTo(parseEther('1'), parseEther('0.1'))
         });
     })
 

@@ -183,6 +183,12 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     }
 
     function closeWExactCollateral(uint256 collateralAmount) external override returns (uint256 USDLToBurn) {
+        require(_msgSender() == usdLemma, "only usdLemma is allowed");
+
+        IMarketRegistry.MarketInfo memory marketInfo = iMarketRegistry.getMarketInfo(baseTokenAddress);
+        // fees cut from user's collateral by lemma for close position
+        collateralAmount = collateralAmount - ((collateralAmount * marketInfo.exchangeFeeRatio) / HUNDREAD_PERCENT);
+        
         //simillar to openWExactCollateral but for close
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: baseTokenAddress,
@@ -197,15 +203,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         (, uint256 quote) = iClearingHouse.openPosition(params);
 
         iPerpVault.withdraw(address(collateral), quote); // withdraw closed position fund
-
-        // fees cut from user's collateral by lemma for close position
-        IMarketRegistry.MarketInfo memory marketInfo = iMarketRegistry.getMarketInfo(baseTokenAddress);
-        quote = quote - ((quote * marketInfo.exchangeFeeRatio) / HUNDREAD_PERCENT);
-        console.log('quote-after-fees: ', quote);
-
-        console.log('Balance before transfer: ', collateral.balanceOf(address(this)));
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, quote);
-        console.log('Balance after transfer: ', collateral.balanceOf(address(this)));
     }
 
     function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)

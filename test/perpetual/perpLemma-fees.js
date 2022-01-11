@@ -219,7 +219,7 @@ describe("perpLemma", async function () {
                 deadline: ethers.constants.MaxUint256,
             })
         ).fee
-        console.log('fee2: ', fee.toString())      
+        console.log('fee2: ', fee2.toString())      
         expect(fee2).to.be.gt(0) // (> 0)
 
         getBase = await accountBalance.getBase(perpLemma.address, baseToken.address)
@@ -237,10 +237,10 @@ describe("perpLemma", async function () {
         console.log('depositedCollateral: ', depositedCollateral.toString())
 
         const perpBalance = await collateral.balanceOf(perpLemma.address)
-        expect(perpBalance).to.be.gt(0) // (> 0) Fees charged by perplemma
+        expect(perpBalance).to.be.eq(0) // (= 0) Fees charged by perplemma
 
-        expect(getBase).to.be.eq(0) // (= 0)
-        expect(getQuote).to.be.eq(0) // (= 0)
-        expect(positionSize).to.be.eq(0) // (= 0)
+        expect(getBase).to.be.closeTo(parseEther('1'), parseEther('0.1'))
+        expect(getQuote.mul(-1)).to.be.closeTo(parseEther('0.0099'), parseEther('0.0009'))
+        expect(positionSize).to.be.closeTo(parseEther('1'), parseEther('0.1'))
     })
 })
