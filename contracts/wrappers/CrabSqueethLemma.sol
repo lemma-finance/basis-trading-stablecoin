@@ -78,11 +78,15 @@ contract CrabSqueethLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPer
     /// @param collateralAmountRequired collateral amount required to open the position
     function open(uint256 amount, uint256 collateralAmountRequired) external override {}
 
+    function openWExactCollateral(uint256 collateralAmount) external override returns (uint256 USDLToMint) {}
+
     //go long and withdraw collateral
     /// @notice Close short position on dex and withdraw collateral
     /// @param amount worth in USD short position which is to be closed
     /// @param collateralAmountToGetBack collateral amount freed up after closing the position
     function close(uint256 amount, uint256 collateralAmountToGetBack) external override {}
+
+    function closeWExactCollateral(uint256 collateralAmount) external override returns (uint256 USDLToBurn) {}
 
     //// @notice when perpetual is in CLEARED state, withdraw the collateral
     function settle() public {}

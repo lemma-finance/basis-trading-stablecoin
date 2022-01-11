@@ -28,7 +28,11 @@ const config: HardhatUserConfig = {
       // accounts: {
       //   mnemonic: process.env.MNEMONIC
       // }
+      accounts: {
+        accountsBalance: "100000000000000000000000000", //10^26 (100M ETH)
+      },
       allowUnlimitedContractSize: true,
+
     },
     local: {
       url: "http://localhost:8545",

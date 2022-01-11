@@ -50,6 +50,10 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
     event RebalancerUpdated(address rebalancerAddress);
     event MaxPositionUpdated(uint256 maxPos);
 
+    function openWExactCollateral(uint256 collateralAmount) external override returns (uint256 USDLToMint) {}
+
+    function closeWExactCollateral(uint256 collateralAmount) external override returns (uint256 USDLToBurn) {}  
+
     function initialize(
         address _trustedForwarder,
         ILiquidityPool _liquidityPool,

@@ -2,15 +2,18 @@ import colors from 'colors';
 import fs from "fs";
 import hre from "hardhat";
 import { utils } from 'ethers';
-// import tokenTransfers from "truffle-token-test-utils";
+import tokenTransfers from "truffle-token-test-utils";
 import util from 'util';
 // import * as child from 'child_process';
 const exec = util.promisify(require('child_process').exec);
 import bn from "bignumber.js";
 
 const { BigNumber } = hre.ethers;
-// tokenTransfers.setCurrentProvider(hre.ethers.providers.JsonRpcProvider)
+tokenTransfers.setCurrentProvider("http://localhost:8545");
 
+export async function printTx(txHash: any) {
+    await tokenTransfers.print(txHash);
+}
 export async function deployMCDEXLocally() {
     // console.log("deploying MCDEX locally,please wait...");
     const { stdout, stderr } = await exec("cd mai-protocol-v3/ && pwd && npx hardhat run scripts/deploy.ts --network local && cd ..  && pwd");
@@ -30,13 +33,13 @@ export async function loadMCDEXInfo() {
     return JSON.parse(data);
 };
 export async function deploySqueethLocally() {
-    // console.log("deploying MCDEX locally,please wait...");
-    const { stdout, stderr } = await exec("cd squeeth-monorepo/packages/hardhat/ && pwd && npx hardhat deploy && cd ..  && pwd");
+    console.log("deploying squeeth locally,please wait...");
+    const { stdout, stderr } = await exec("cd squeeth-monorepo/packages/hardhat/ && pwd && npx hardhat deploy && npx hardhat run scripts/publish.js && cd ..  && pwd");
     if (stderr) {
         console.error(`error1: ${stderr}`);
     }
-    // console.log(`output: ${stdout}`);
-    // console.log("deployment done");
+    console.log(`output: ${stdout}`);
+    console.log("deployment done");
 };
 
 export async function loadSqueethInfo() {
