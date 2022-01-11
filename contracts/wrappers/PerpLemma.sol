@@ -291,14 +291,18 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
     //// @notice when perpetual is in CLEARED state, withdraw the collateral
     function settle() public override {
+        uint256 initialCollateral = collateral.balanceOf(address(this));
         positionAtSettlement = iAccountBalance.getBase(address(this), baseTokenAddress).abs().toUint256();
 
         (uint256 base, uint256 quote) = iClearingHouse.closePositionInClosedMarket(address(this), baseTokenAddress);
 
         uint24 imRatio = iClearingHouseConfig.getImRatio();
         int256 freeCollateralByImRatioX10_D = iPerpVault.getFreeCollateralByRatio(address(this), imRatio);
+        uint256 collateralAmountToWithdraw = freeCollateralByImRatioX10_D.abs().toUint256();
 
-        iPerpVault.withdraw(address(collateral), freeCollateralByImRatioX10_D.abs().toUint256());
+        iPerpVault.withdraw(address(collateral), collateralAmountToWithdraw);
+
+        require(collateral.balanceOf(address(this)) - initialCollateral == collateralAmountToWithdraw, "Withdraw failed");
 
         // All the collateral is now back
         hasSettled = true;
