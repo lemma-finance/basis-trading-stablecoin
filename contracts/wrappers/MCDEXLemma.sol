@@ -150,6 +150,10 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
         updateEntryFunding(position, amount.toInt256());
     }
 
+    function openWExactCollateral(uint256 collateralAmount) external override returns (uint256 USDLToMint) {
+        revert("not supported");
+    }
+
     //go long and withdraw collateral
     /// @notice Close short position on dex and withdraw collateral
     /// @param amount worth in USD short position which is to be closed
@@ -179,6 +183,10 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
             usdLemma,
             getAmountInCollateralDecimals(collateralAmountToGetBack, false)
         );
+    }
+
+    function closeWExactCollateral(uint256 collateralAmount) external override returns (uint256 USDLToBurn) {
+        revert("not supported");
     }
 
     //// @notice when perpetual is in CLEARED state, withdraw the collateral
