@@ -8,6 +8,7 @@ tokenTransfers.setCurrentProvider(hre.network.config.url);
 const util = require('util');
 const exec = util.promisify(require('child_process').exec);
 const bn = require("bignumber.js");
+const { parseUnits } = require('ethers/lib/utils');
 
 const deployMCDEXLocally = async function () {
     // console.log("deploying MCDEX locally,please wait...");
@@ -100,4 +101,8 @@ const displayNicely = function (Obj) {
     });
 };
 
-module.exports = { displayNicely, tokenTransfers, loadMCDEXInfo, loadPerpLushanInfo, toBigNumber, fromBigNumber, snapshot, revertToSnapshot };
+const convertToExpectedDecimals = (amount, currentDecimals, expectedDecimals) => {
+    return amount.mul(parseUnits('1', expectedDecimals)).div(parseUnits('1', currentDecimals))
+};
+
+module.exports = { convertToExpectedDecimals, displayNicely, tokenTransfers, loadMCDEXInfo, loadPerpLushanInfo, toBigNumber, fromBigNumber, snapshot, revertToSnapshot };
