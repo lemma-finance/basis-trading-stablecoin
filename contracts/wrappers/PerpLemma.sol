@@ -221,8 +221,10 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         });
         (, uint256 quote) = iClearingHouse.openPosition(params);
 
-        iPerpVault.withdraw(address(collateral), quote); // withdraw closed position fund
-        SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, quote);
+        uint256 amountToWithdraw = getAmountInCollateralDecimals(quote, true);
+
+        iPerpVault.withdraw(address(collateral), amountToWithdraw); // withdraw closed position fund
+        SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountToWithdraw);
     }
 
     function closeWExactCollateralAfterSettlement(uint256 collateralAmount) internal returns (uint256 USDLToBurn) {
