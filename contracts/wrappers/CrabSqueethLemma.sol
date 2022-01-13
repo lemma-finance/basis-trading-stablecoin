@@ -1,12 +1,16 @@
 pragma solidity =0.8.3;
 
-import { ILiquidityPool, PerpetualState } from "../interfaces/MCDEX/ILiquidityPool.sol";
 import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import { IPerpetualDEXWrapper } from "../interfaces/IPerpetualDEXWrapper.sol";
+import { ICrabStrategy } from "../interfaces/Squeeth/ICrabStrategy.sol";
+import { IController } from "../interfaces/Squeeth/IController.sol";
+import { IWETH9 } from "../interfaces/Squeeth/IWETH9.sol";
+
+import "hardhat/console.sol";
 
 /// @author Lemma Finance
 contract CrabSqueethLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualDEXWrapper {
@@ -16,11 +20,8 @@ contract CrabSqueethLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPer
     uint256 public constant MAX_UINT256 = type(uint256).max;
     int256 public constant MAX_INT256 = type(int256).max;
 
-    // address of Mai3 liquidity pool
-    ILiquidityPool public liquidityPool;
-
-    // pereptual index in the liquidity pool
-    uint256 public perpetualIndex;
+    ICrabStrategy public crabStratergy;
+    IController public powerTokenController;
 
     IERC20Upgradeable public collateral;
     uint256 public collateralDecimals;
@@ -41,11 +42,15 @@ contract CrabSqueethLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPer
 
     function initialize(
         address _trustedForwarder,
+        ICrabStrategy _crabStratergy,
         address _reBalancer,
         uint256 _maxPosition
     ) external initializer {
         __Ownable_init();
         __ERC2771Context_init(_trustedForwarder);
+        crabStratergy = _crabStratergy;
+        collateral = IERC20Upgradeable(_crabStratergy.weth());
+        powerTokenController = _crabStratergy.powerTokenController();
         setReBalancer(_reBalancer);
         setMaxPosition(_maxPosition);
     }
@@ -78,7 +83,12 @@ contract CrabSqueethLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPer
     /// @param collateralAmountRequired collateral amount required to open the position
     function open(uint256 amount, uint256 collateralAmountRequired) external override {}
 
-    function openWExactCollateral(uint256 collateralAmount) external override returns (uint256 USDLToMint) {}
+    function openWExactCollateral(uint256 collateralAmount) external override returns (uint256 USDLToMint) {
+        IWETH9(address(collateral)).withdraw(collateralAmount);
+        //TODO: find out ethToDeposit given msgValue so that there is no dust eth left
+        crabStratergy.flashDeposit{ value: collateralAmount }(20 ether);
+        //TODO: how much USDLToMint?
+    }
 
     //go long and withdraw collateral
     /// @notice Close short position on dex and withdraw collateral
@@ -86,7 +96,9 @@ contract CrabSqueethLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPer
     /// @param collateralAmountToGetBack collateral amount freed up after closing the position
     function close(uint256 amount, uint256 collateralAmountToGetBack) external override {}
 
-    function closeWExactCollateral(uint256 collateralAmount) external override returns (uint256 USDLToBurn) {}
+    function closeWExactCollateral(uint256 collateralAmount) external override returns (uint256 USDLToBurn) {
+        //crabStratergy.flashWithdraw(_crabAmount, _maxEthToPay);
+    }
 
     //// @notice when perpetual is in CLEARED state, withdraw the collateral
     function settle() public {}
@@ -153,5 +165,9 @@ contract CrabSqueethLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPer
     {
         //ERC2771ContextUpgradeable._msgData();
         return super._msgData();
+    }
+
+    receive() external payable {
+        // require(msg.sender == address(collateral), "only weth9 is allowed");
     }
 }
