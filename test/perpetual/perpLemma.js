@@ -92,12 +92,9 @@ describe("perpLemma", async function () {
         const perpLemmaFactory = await ethers.getContractFactory("PerpLemma")
         perpLemma = await upgrades.deployProxy(perpLemmaFactory, 
             [
-                collateral.address,
                 baseToken.address,
                 quoteToken.address,
                 clearingHouse.address,
-                vault.address,
-                accountBalance.address,
                 marketRegistry.address,
                 quoter.address,
                 usdLemma.address,
