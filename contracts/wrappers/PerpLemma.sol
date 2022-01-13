@@ -232,36 +232,31 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         require(_reBalancer == reBalancer, "only rebalancer is allowed");
 
         (uint160 _sqrtPriceLimitX96, uint256 _deadline) = abi.decode(data, (uint160, uint256));
-        // int256 fundingPNL = getFundingPNL();
+        int256 fundingPNL = getFundingPNL();
 
         bool _isBaseToQuote;
         bool _isExactInput;
+
+        //calculate the fees
+        IMarketRegistry.MarketInfo memory marketInfo = iMarketRegistry.getMarketInfo(baseTokenAddress);
+     
+        uint256 fees = amount.abs().toUint256() * marketInfo.exchangeFeeRatio / HUNDREAD_PERCENT;
         if (amount < 0) {
-            realizedFundingPNL -= amount;
+            realizedFundingPNL -= amount - fees.toInt256();
             // open short position and amount in eth
-            _isBaseToQuote = true;
-            _isExactInput = false;
-        } else {
-            realizedFundingPNL += amount;
-            // open long position and amount in usdc
             _isBaseToQuote = false;
             _isExactInput = true;
+        } else {
+            realizedFundingPNL += amount + fees.toInt256();
+            // open long position and amount in usd eth
+            _isBaseToQuote = true;
+            _isExactInput = true;
         }
-        // int256 difference = fundingPNL - realizedFundingPNL;
+        int256 difference = fundingPNL - realizedFundingPNL;
         //error +-10**12 is allowed in calculation
-        // require(difference.abs() <= 10**12, "not allowed");
+        require(difference.abs() <= 10**12, "not allowed");
 
-        // bool _isBaseToQuote;
-        // bool _isExactInput;
-        // if (amount > 0) {
-        //     // open long position and amount in usdc
-        //     _isBaseToQuote = false;
-        //     _isExactInput = true;
-        // } else {
-        //     // open short position and amount in usdc
-        //     _isBaseToQuote = true;
-        //     _isExactInput = false;
-        // }
+       
 
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: baseTokenAddress,
@@ -289,6 +284,9 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         return amount / uint256(10**(18 - collateralDecimals));
     }
 
+    function getFundingPNL() public view returns(int256 fundingPNL){
+        return totalFundingPNL + iExchange.getPendingFundingPayment(address(this), baseTokenAddress);
+    }
     function getCollateralAmountAfterFees(uint256 _collateralAmount) internal returns(uint256 collateralAmount) {
         IMarketRegistry.MarketInfo memory marketInfo = iMarketRegistry.getMarketInfo(baseTokenAddress);
         // fees cut from user's collateral by lemma for open or close position
