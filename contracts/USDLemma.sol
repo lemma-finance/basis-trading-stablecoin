@@ -11,6 +11,9 @@ import { Utils } from "./libraries/Utils.sol";
 import { SafeMathExt } from "./libraries/SafeMathExt.sol";
 import { IPerpetualDEXWrapper } from "./interfaces/IPerpetualDEXWrapper.sol";
 
+
+import "hardhat/console.sol";
+
 /// @author Lemma Finance
 contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
     using SafeCastUpgradeable for int256;
@@ -128,7 +131,10 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
-        SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), collateralAmount);
+        uint256 collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmount, true);
+        console.log("[USDLemma depositToWExactCollateral()] collateralAmount = %d --> %d", collateralAmount, collateralAmountToDeposit);
+        SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), collateralAmountToDeposit);
+        console.log("[USDLemma depositToWExactCollateral()] T1");
         uint256 USDLToMint = perpDEXWrapper.openWExactCollateral(collateralAmount);
         require(USDLToMint >= minUSDLToMint, "USDL minted too low");
         _mint(to, USDLToMint);
@@ -172,10 +178,14 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
+        uint256 collateralBefore = collateral.balanceOf(address(this));
         uint256 USDLToBurn = perpDEXWrapper.closeWExactCollateral(collateralAmount);
+        uint256 collateralAmountToGetBack = collateral.balanceOf(address(this)) - collateralBefore;
         require(USDLToBurn <= maxUSDLToBurn, "USDL burnt execeeds maximum");
         _burn(_msgSender(), USDLToBurn);
-        SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmount);
+        console.log("[USDLemma withdrawToWExactCollateral()] Trying to transfer ", collateralAmountToGetBack);
+        SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmountToGetBack);
+        console.log("[USDLemma withdrawToWExactCollateral()] DONE");
         emit WithdrawTo(perpetualDEXIndex, address(collateral), to, USDLToBurn, collateralAmount);
     }
 
