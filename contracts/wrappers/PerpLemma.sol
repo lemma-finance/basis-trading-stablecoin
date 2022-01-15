@@ -186,11 +186,11 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         // No Implementation
     }
 
-    function closeWExactCollateral(uint256 collateralAmount) external override returns (uint256 USDLToBurn) {
+    function closeWExactCollateral(uint256 baseAmount) external override returns (uint256 USDLToBurn) {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
 
         totalFundingPNL += iExchange.getPendingFundingPayment(address(this), baseTokenAddress);
-        collateralAmount = getCollateralAmountAfterFees(collateralAmount);
+        baseAmount = getCollateralAmountAfterFees(baseAmount);
         
         // create long for eth and short for usdc position by giving isBaseToQuote=true
         // and amount in usdc(baseToken) by giving isExactInput=true
@@ -198,7 +198,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             baseToken: baseTokenAddress,
             isBaseToQuote: true,
             isExactInput: true,
-            amount: collateralAmount,
+            amount: baseAmount,
             oppositeAmountBound: 0,
             deadline: MAX_UINT256,
             sqrtPriceLimitX96: 0,
