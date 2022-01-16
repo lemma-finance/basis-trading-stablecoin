@@ -188,7 +188,7 @@ describe("perpLemma", async function () {
         positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address) 
         // long eth and close position, withdraw collateral
         await expect(await perpLemma.connect(usdLemma).closeWExactCollateral(positionSize)).to.emit(clearingHouse, 'PositionChanged')
-    })
+    })    
 
     describe("OpenPosition", () => {
         let collateralToGetBack_1e6, collateralToGetBack_1e18
@@ -250,50 +250,50 @@ describe("perpLemma", async function () {
         });
     })
 
-    describe("re balance", async function () {
-        let collateralmintAmount, collateralAmount, parsedAmount, leveragedAmount
-        before(async function () {
-            await perpLemma.connect(defaultSigner).setReBalancer(reBalancer.address);
-        })
-        beforeEach(async function () {
-            collateralmintAmount = parseEther('1')
-            // collateralAmount = parseUnits("1000", collateralDecimals) // 6 decimal
-            // parsedAmount =  collateralAmount.mul(parseEther('1')).div(parseUnits('1', 6)) // 18 decimal
-            // leveragedAmount = parsedAmount.mul('1') // for 1x
-            await collateral.mint(usdLemma.address, collateralmintAmount)
-        });
+    // describe("re balance", async function () {
+    //     let collateralmintAmount, collateralAmount, parsedAmount, leveragedAmount
+    //     before(async function () {
+    //         await perpLemma.connect(defaultSigner).setReBalancer(reBalancer.address);
+    //     })
+    //     beforeEach(async function () {
+    //         collateralmintAmount = parseEther('1')
+    //         // collateralAmount = parseUnits("1000", collateralDecimals) // 6 decimal
+    //         // parsedAmount =  collateralAmount.mul(parseEther('1')).div(parseUnits('1', 6)) // 18 decimal
+    //         // leveragedAmount = parsedAmount.mul('1') // for 1x
+    //         await collateral.mint(usdLemma.address, collateralmintAmount)
+    //     });
 
-        it("if amount is positive then it should long", async () => {
-            const sqrtPriceLimitX96 = 0;
-            const deadline = ethers.constants.MaxUint256;
-            await collateral.connect(usdLemma).transfer(perpLemma.address, collateralmintAmount)
-            await perpLemma.connect(usdLemma).openWExactCollateral(collateralmintAmount)
-            const rebalanceAmount = parseEther('0.05') // 5% of 1 ether
-            await perpLemma.connect(usdLemma).reBalance(
-                reBalancer.address, 
-                BigNumber.from(rebalanceAmount), // positive amount(+ve)
-                ethers.utils.defaultAbiCoder.encode(
-                    ["uint160", "uint256"], 
-                    [sqrtPriceLimitX96, deadline]
-                )
-            );
-        })
+    //     it("if amount is positive then it should long", async () => {
+    //         const sqrtPriceLimitX96 = 0;
+    //         const deadline = ethers.constants.MaxUint256;
+    //         await collateral.connect(usdLemma).transfer(perpLemma.address, collateralmintAmount)
+    //         await perpLemma.connect(usdLemma).openWExactCollateral(collateralmintAmount)
+    //         const rebalanceAmount = parseEther('0.05') // 5% of 1 ether
+    //         await perpLemma.connect(usdLemma).reBalance(
+    //             reBalancer.address, 
+    //             BigNumber.from(rebalanceAmount), // positive amount(+ve)
+    //             ethers.utils.defaultAbiCoder.encode(
+    //                 ["uint160", "uint256"], 
+    //                 [sqrtPriceLimitX96, deadline]
+    //             )
+    //         );
+    //     })
 
-        it("if amount is negative then it should short", async () => {
-            const sqrtPriceLimitX96 = 0;
-            const deadline = ethers.constants.MaxUint256;
-            // await expect(perpLemma.connect(usdLemma).open(leveragedAmount, collateralAmount)).to.emit(clearingHouse, 'PositionChanged')
-            await collateral.connect(usdLemma).transfer(perpLemma.address, collateralmintAmount)
-            await perpLemma.connect(usdLemma).openWExactCollateral(collateralmintAmount)
-            const rebalanceAmount = parseEther('0.05') // 5% of 1 ether
-            await perpLemma.connect(usdLemma).reBalance(
-                reBalancer.address, 
-                BigNumber.from(rebalanceAmount).mul(-1), // negative amount(-ve)
-                ethers.utils.defaultAbiCoder.encode(
-                    ["uint160", "uint256"], 
-                    [sqrtPriceLimitX96, deadline]
-                )
-            );
-        })
-    })
+    //     it("if amount is negative then it should short", async () => {
+    //         const sqrtPriceLimitX96 = 0;
+    //         const deadline = ethers.constants.MaxUint256;
+    //         // await expect(perpLemma.connect(usdLemma).open(leveragedAmount, collateralAmount)).to.emit(clearingHouse, 'PositionChanged')
+    //         await collateral.connect(usdLemma).transfer(perpLemma.address, collateralmintAmount)
+    //         await perpLemma.connect(usdLemma).openWExactCollateral(collateralmintAmount)
+    //         const rebalanceAmount = parseEther('0.05') // 5% of 1 ether
+    //         await perpLemma.connect(usdLemma).reBalance(
+    //             reBalancer.address, 
+    //             BigNumber.from(rebalanceAmount).mul(-1), // negative amount(-ve)
+    //             ethers.utils.defaultAbiCoder.encode(
+    //                 ["uint160", "uint256"], 
+    //                 [sqrtPriceLimitX96, deadline]
+    //             )
+    //         );
+    //     })
+    // })
 })

@@ -142,6 +142,16 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     function open(uint256 amount, uint256 collateralAmountRequired) external override onlyUSDLemma {
         // No Implementation
     }
+    function close(uint256 amount, uint256 collateralAmountToGetBack) external override onlyUSDLemma {
+        // No Implementation
+    }
+
+    function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
+        external
+        override
+        returns (uint256 collateralAmountRequired) {
+        // No Implementation
+    }
 
     function openWExactCollateral(uint256 collateralAmount)
         external
@@ -182,10 +192,6 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         USDLToMint = base;
     }
 
-    function close(uint256 amount, uint256 collateralAmountToGetBack) external override onlyUSDLemma {
-        // No Implementation
-    }
-
     function closeWExactCollateral(uint256 baseAmount) external override returns (uint256 USDLToBurn) {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
 
@@ -210,14 +216,6 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, quote);
     }
 
-    function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
-        external
-        override
-        returns (uint256 collateralAmountRequired)
-    {
-        // No Implementation
-    }
-
     /// @notice Rebalance position of dex based on accumulated funding, since last rebalancing
     /// @param _reBalancer Address of rebalancer who called function on USDL contract
     /// @param amount Amount of accumulated funding fees used to rebalance by opening or closing a short position
@@ -239,24 +237,48 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
         //calculate the fees
         IMarketRegistry.MarketInfo memory marketInfo = iMarketRegistry.getMarketInfo(baseTokenAddress);
-     
         uint256 fees = amount.abs().toUint256() * marketInfo.exchangeFeeRatio / HUNDREAD_PERCENT;
+        
         if (amount < 0) {
+            console.log('Negative');
+            console.log('fees: ', fees, amount.abs().toUint256());
+
             realizedFundingPNL -= amount - fees.toInt256();
-            // open short position and amount in eth
+            
+            // open short position for eth and amount in eth
             _isBaseToQuote = false;
             _isExactInput = true;
         } else {
+            console.log('Positive');
+            console.log('fees: ', fees, amount.abs().toUint256());
+
             realizedFundingPNL += amount + fees.toInt256();
-            // open long position and amount in usd eth
+
+            // open long position for eth and amount in eth
             _isBaseToQuote = true;
-            _isExactInput = true;
+            _isExactInput = false;
         }
         int256 difference = fundingPNL - realizedFundingPNL;
-        //error +-10**12 is allowed in calculation
-        require(difference.abs() <= 10**12, "not allowed");
 
-       
+        if (amount < 0) {
+            console.log('amount is negative');
+        }
+        if (difference < 0) {
+            console.log('difference is negative');
+        }
+        if (fundingPNL < 0) {
+            console.log('fundingPNL is negative');
+        }
+        if (realizedFundingPNL < 0) {
+            console.log('realizedFundingPNL is negative');
+        }
+
+        console.log('difference: ', difference.abs().toUint256());
+        console.log('fundingPNL: ', fundingPNL.abs().toUint256());
+        console.log('realizedFundingPNL: ', realizedFundingPNL.abs().toUint256());
+
+        //error +-10**12 is allowed in calculation
+        require(difference.abs() <= 10**16, "not allowed");
 
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: baseTokenAddress,
