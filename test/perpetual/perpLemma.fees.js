@@ -38,8 +38,22 @@ function encodePriceSqrt(reserve1, reserve0) {
     )
 }
 
+async function callStaticOpenPosition(clearingHouse, signer, baseTokenAddress, _isBaseToQuote, _isExactInput, _amount) {
+    let openPositionParams = await clearingHouse.connect(signer).callStatic.openPosition({
+        baseToken: baseTokenAddress,
+        isBaseToQuote: _isBaseToQuote,
+        isExactInput: _isExactInput,
+        oppositeAmountBound: 0,
+        amount: _amount,
+        sqrtPriceLimitX96: 0,
+        deadline: ethers.constants.MaxUint256,
+        referralCode: ethers.constants.HashZero,
+    })
+    return openPositionParams
+}
+
 describe("perpLemma", async function () {
-    let defaultSigner, usdLemma, reBalancer, hasWETH, keeperGasReward, signer1, signer2, usdl2;
+    let defaultSigner, usdLemma, reBalancer, hasWETH, keeperGasReward, signer1, signer2, usdl2, longAddress;
     let perpAddresses;
     const ZERO = BigNumber.from("0");
     let snapshotId;
@@ -67,7 +81,7 @@ describe("perpLemma", async function () {
     const upperTick = 100000
 
     before(async function () {
-        [defaultSigner, usdLemma, reBalancer, hasWETH, signer1, signer2, usdl2] = await ethers.getSigners();
+        [defaultSigner, usdLemma, reBalancer, hasWETH, signer1, signer2, usdl2, longAddress] = await ethers.getSigners();
         perpAddresses = await loadPerpLushanInfo();
         clearingHouse = new ethers.Contract(perpAddresses.clearingHouse.address, ClearingHouseAbi.abi, defaultSigner)
         orderBook = new ethers.Contract(perpAddresses.orderBook.address, OrderBookAbi.abi, defaultSigner);
@@ -96,13 +110,12 @@ describe("perpLemma", async function () {
                 quoteToken.address,
                 clearingHouse.address,
                 marketRegistry.address,
-                quoter.address,
                 usdLemma.address,
                 maxPosition
         ], { initializer: 'initialize' });
         await perpLemma.connect(signer1).resetApprovals()
 
-        await mockedBaseAggregator.setLatestRoundData(0, parseUnits("1", collateralDecimals), 0, 0, 0)
+        await mockedBaseAggregator.setLatestRoundData(0, parseUnits("0.01", collateralDecimals), 0, 0, 0)
         await mockedBaseAggregator2.setLatestRoundData(0, parseUnits("100", collateralDecimals), 0, 0, 0)
 
         await pool.initialize(encodePriceSqrt("1", "100"))
@@ -123,6 +136,10 @@ describe("perpLemma", async function () {
         const parsedAmount = parseUnits("100000", collateralDecimals)
         await collateral.connect(signer1).approve(vault.address, ethers.constants.MaxUint256)
         await collateral.connect(signer2).approve(vault.address, ethers.constants.MaxUint256)
+
+        await collateral.mint(longAddress.address, parseUnits("10000000000", collateralDecimals))
+        await collateral.connect(longAddress).approve(vault.address, ethers.constants.MaxUint256)
+        await vault.connect(longAddress).deposit(collateral.address, parseUnits("10000", collateralDecimals))
 
         // Deposit into vault
         // await vault.connect(signer1).deposit(collateral.address, parsedAmount)
@@ -182,8 +199,8 @@ describe("perpLemma", async function () {
         const leverage = depositedCollateralWith1e18.div(divisor) // 979999(close to 1e6 or 1x)
 
         // console.log('indexPrice: ', indexPrice.toString())
-        console.log('ethPrice: ', ethPrice[1].toString())
-        console.log('divisor: ', divisor.toString())
+        // console.log('ethPrice: ', ethPrice[1].toString())
+        // console.log('divisor: ', divisor.toString())
         console.log('leverage: ', leverage.toString())
 
 
@@ -198,11 +215,13 @@ describe("perpLemma", async function () {
                 deadline: ethers.constants.MaxUint256,
             })
         ).fee
-        console.log('\nfee1: ', fee1.toString())
+        // console.log('\nfee1: ', fee1.toString())
         expect(fee1).to.be.gt(0) // (> 0)
 
+        baseAndQuoteValue = await callStaticOpenPosition(clearingHouse, longAddress, baseToken.address, true, true, positionSize)
+
         // long eth and close position, withdraw collateral
-        await perpLemma.connect(usdLemma).closeWExactCollateral(positionSize)
+        await perpLemma.connect(usdLemma).closeWExactCollateral(baseAndQuoteValue[1])
 
         // after close
         fee2 = (
@@ -216,7 +235,7 @@ describe("perpLemma", async function () {
                 deadline: ethers.constants.MaxUint256,
             })
         ).fee
-        console.log('fee2: ', fee2.toString())      
+        // console.log('fee2: ', fee2.toString())      
         expect(fee2).to.be.gt(0) // (> 0)
 
         getBase = await accountBalance.getBase(perpLemma.address, baseToken.address)
@@ -226,12 +245,12 @@ describe("perpLemma", async function () {
         ratioforMm1 = await vault.getFreeCollateralByRatio(perpLemma.address, 0)
         depositedCollateral = await vault.getBalance(perpLemma.address)
 
-        console.log('\ngetBase: ', getBase.toString())
-        console.log('getQuote: ', getQuote.toString())
-        console.log('positionValue: ', positionValue.toString())
-        console.log('positionSize: ', positionSize.toString())
-        console.log('ratioforMm1: ', ratioforMm1.toString())
-        console.log('depositedCollateral: ', depositedCollateral.toString())
+        // console.log('\ngetBase: ', getBase.toString())
+        // console.log('getQuote: ', getQuote.toString())
+        // console.log('positionValue: ', positionValue.toString())
+        // console.log('positionSize: ', positionSize.toString())
+        // console.log('ratioforMm1: ', ratioforMm1.toString())
+        // console.log('depositedCollateral: ', depositedCollateral.toString())
 
         const perpBalance = await collateral.balanceOf(perpLemma.address)
         expect(perpBalance).to.be.eq(0) // (= 0) Fees charged by perplemma

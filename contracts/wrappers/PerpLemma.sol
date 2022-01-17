@@ -20,13 +20,9 @@ import "hardhat/console.sol";
 
 interface IPerpVault {
     function deposit(address token, uint256 amount) external;
-
     function withdraw(address token, uint256 amountX10_D) external;
-
     function getBalance(address trader) external view returns (int256);
-
     function decimals() external view returns (uint8);
-
     function getSettlementToken() external view returns (address settlementToken);
 }
 
@@ -43,7 +39,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     bytes32 public HashZero;
     uint256 public constant MAX_UINT256 = type(uint256).max;
     int256 public constant MAX_INT256 = type(int256).max;
-    uint256 public constant HUNDREAD_PERCENT = 1000000; // 100% 
+    uint256 public constant HUNDREAD_PERCENT = 1e6; // 100% 
 
     address public usdLemma;
     address public reBalancer;
@@ -51,7 +47,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     address public quoteTokenAddress;
     bytes32 public referrerCode;
 
-    IERC20Upgradeable public collateral; // ETH
+    IERC20Upgradeable public collateral;
     uint256 public collateralDecimals;
 
     IClearingHouse public iClearingHouse;
@@ -59,7 +55,6 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     IAccountBalance public iAccountBalance;
     IMarketRegistry public iMarketRegistry;
     IExchange public iExchange;
-    IQuoter public iUniV3Router;
 
     uint256 public maxPosition;
     int256 public totalFundingPNL;
@@ -82,7 +77,6 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         address _quoteToken,
         address _iClearingHouse,
         address _iMarketRegistry,
-        address _iUniV3Router,
         address _usdLemma,
         uint256 _maxPosition
     ) public initializer {
@@ -96,7 +90,6 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         collateral = IERC20Upgradeable(iPerpVault.getSettlementToken());
         iExchange = IExchange(iClearingHouse.getExchange());
         iMarketRegistry = IMarketRegistry(_iMarketRegistry);
-        iUniV3Router = IQuoter(_iUniV3Router);
         iAccountBalance = IAccountBalance(iClearingHouse.getAccountBalance());
         collateralDecimals = iPerpVault.decimals(); // need to verify
         collateral.approve(_iClearingHouse, MAX_UINT256);
@@ -159,13 +152,13 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         onlyUSDLemma
         returns (uint256 USDLToMint)
     {
+        require(_msgSender() == usdLemma, "only usdLemma is allowed");
         require(
             collateral.balanceOf(address(this)) >= getAmountInCollateralDecimals(collateralAmount, true),
             "not enough collateral"
         );
         
         totalFundingPNL += iExchange.getPendingFundingPayment(address(this), baseTokenAddress);
-        console.log('totalFundingPNL: ', totalFundingPNL.abs().toUint256());
 
         iPerpVault.deposit(address(collateral), getAmountInCollateralDecimals(collateralAmount, true));
         collateralAmount = getCollateralAmountAfterFees(collateralAmount);
@@ -182,29 +175,27 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             sqrtPriceLimitX96: 0,
             referralCode: referrerCode
         });
-        (uint256 base, uint256 quote) = iClearingHouse.openPosition(params);
+        (uint256 base,) = iClearingHouse.openPosition(params);
 
         int256 positionSize = iAccountBalance.getTotalPositionValue(address(this), baseTokenAddress);
-        console.log(positionSize.abs().toUint256());
-        console.log(maxPosition);
         require(positionSize.abs().toUint256() <= maxPosition, "max position reached");
         //Is the fees considered internally or do we need to do it here?
         USDLToMint = base;
     }
 
-    function closeWExactCollateral(uint256 baseAmount) external override returns (uint256 USDLToBurn) {
+    function closeWExactCollateral(uint256 collateralAmount) external override returns (uint256 USDLToBurn) {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
-
-        totalFundingPNL += iExchange.getPendingFundingPayment(address(this), baseTokenAddress);
-        baseAmount = getCollateralAmountAfterFees(baseAmount);
         
+        totalFundingPNL += iExchange.getPendingFundingPayment(address(this), baseTokenAddress);
+        collateralAmount = getCollateralAmountAfterFees(collateralAmount);
+
         // create long for eth and short for usdc position by giving isBaseToQuote=true
         // and amount in usdc(baseToken) by giving isExactInput=true
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: baseTokenAddress,
             isBaseToQuote: true,
-            isExactInput: true,
-            amount: baseAmount,
+            isExactInput: false,
+            amount: collateralAmount,
             oppositeAmountBound: 0,
             deadline: MAX_UINT256,
             sqrtPriceLimitX96: 0,
@@ -243,8 +234,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             console.log('Negative');
             console.log('fees: ', fees, amount.abs().toUint256());
 
-            realizedFundingPNL -= amount - fees.toInt256();
-            
+            realizedFundingPNL -= amount- fees.toInt256();
             // open short position for eth and amount in eth
             _isBaseToQuote = false;
             _isExactInput = true;
@@ -252,8 +242,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             console.log('Positive');
             console.log('fees: ', fees, amount.abs().toUint256());
 
-            realizedFundingPNL += amount + fees.toInt256();
-
+            realizedFundingPNL += amount+ fees.toInt256();
             // open long position for eth and amount in eth
             _isBaseToQuote = true;
             _isExactInput = false;
@@ -284,7 +273,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             baseToken: baseTokenAddress,
             isBaseToQuote: _isBaseToQuote,
             isExactInput: _isExactInput,
-            amount: uint256(amount.abs()),
+            amount: uint256(difference.abs()),
             oppositeAmountBound: 0,
             deadline: _deadline,
             sqrtPriceLimitX96: _sqrtPriceLimitX96,

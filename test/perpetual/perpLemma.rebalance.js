@@ -151,7 +151,6 @@ describe("perpLemma.rebalance", async function () {
                 quoteToken.address,
                 clearingHouse.address,
                 marketRegistry.address,
-                quoter.address,
                 usdLemma.address,
                 maxPosition
         ], { initializer: 'initialize' });
