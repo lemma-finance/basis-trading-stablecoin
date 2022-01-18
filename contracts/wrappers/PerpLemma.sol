@@ -209,7 +209,8 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
         IMarketRegistry.MarketInfo memory marketInfo = iMarketRegistry.getMarketInfo(baseTokenAddress);
         // fees cut from user's collateral by lemma for close position
-        uint256 fees = ((collateralAmount * marketInfo.exchangeFeeRatio) / HUNDREAD_PERCENT)*20/10;
+        console.log("[PerpLemma closeWExactCollateral()] marketInfo.exchangeFeeRatio = ", marketInfo.exchangeFeeRatio);
+        uint256 fees = ((collateralAmount * marketInfo.exchangeFeeRatio) / HUNDREAD_PERCENT)*199/100;
         collateralAmount = collateralAmount - fees;
         console.log("[PerpLemma closeWExactCollateral()] collateralAmount = %d, Fees = %d", 
             collateralAmount, 
