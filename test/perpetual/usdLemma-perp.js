@@ -321,6 +321,7 @@ describe("perpLemma", async function () {
 
 
     describe("USDLemma OpenWExactCollateral and CloseWExactCollateral", async function () {
+        /*
         it("OpenWExactCollateral", async function () {
             // Deposit fee is expected to be 1% --> 10000 in 1e6
             const fee_perc = parseUnits('10000', 0);
@@ -406,6 +407,7 @@ describe("perpLemma", async function () {
 
 
 
+
         it("OpenWExactCollateral and CloseWExactCollateral the full position with 5 ETH", async function () {
             // Common Part
             const fee_perc = parseUnits('10000', 0);
@@ -459,7 +461,6 @@ describe("perpLemma", async function () {
             // console.log(`totalPositionSize = ${totalPositionSize}`);
         });
 
-
         it("OpenWExactCollateral and CloseWExactCollateral the full position with 100 ETH", async function () {
             // Common Part
             const fee_perc = parseUnits('10000', 0);
@@ -491,7 +492,7 @@ describe("perpLemma", async function () {
 
             const positionSize_1e18 = parseUnits((await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address)).toString(), 0);
             const positionBase_1e18 = parseUnits((await accountBalance.getBase(perpLemma.address, baseToken.address)).toString(), 0);
-            
+
             const balance0 = await collateral.balanceOf(defaultSigner.address);
             //console.log(`Withdrawing this one --> Position Quote ${positionQuote_1e18} --> ${positionQuote_1eD}`);
             const desiredCollateral_1e18 = parseUnits('-1',0).mul(positionQuote_1e18);
@@ -511,6 +512,222 @@ describe("perpLemma", async function () {
             // console.log(`recoveredCollateralPerc = ${recoveredCollateralPerc}%, restOfCollateralPerc = ${restOfCollateralPerc}%`);
             // console.log(`totalPositionSize = ${totalPositionSize}`);
         });
+        */
+
+        /*
+        it("OpenWExactCollateral and CloseWExactCollateral with FreeCollateral the full position with 1 ETH", async function () {
+            // Common Part
+            const fee_perc = parseUnits('10000', 0);
+            const fee_unit = parseUnits('1', 6);
+            const collateralDecimals = await collateral.decimals();
+            //console.log(`Collateral Decimals = ${collateralDecimals}`);
+            await collateral.mint(defaultSigner.address, parseUnits('100', collateralDecimals));
+            const collateralBalanceBefore = await collateral.balanceOf(defaultSigner.address);
+            //console.log(`Initial Balance of DefaultSigner = ${collateralBalanceBefore}`);
+
+
+            // Open Position Params 
+            const collateralNeeded_1eD = parseUnits('100', collateralDecimals);
+            const collateralNeeded_1e18 = fromD1toD2(collateralNeeded_1eD, collateralDecimals, 18);
+            //console.log(`collateralNeeded = ${collateralNeeded_1e18} --> ${collateralNeeded_1eD}`);
+
+            //const collateralNeeded = await this.mcdexLemma.getAmountInCollateralDecimals(await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true), true);
+            await collateral.connect(defaultSigner).approve(usdLemma.address, collateralNeeded_1eD);
+            await usdLemma.depositToWExactCollateral(defaultSigner.address, collateralNeeded_1e18, 0, 0, collateral.address);
+            const fee_paid = collateralNeeded_1e18.mul(fee_perc).div(fee_unit);
+            const positionQuote_1e18 = parseUnits((await accountBalance.getQuote(perpLemma.address, baseToken.address)).toString(), 0);
+            const positionQuote_1eD = fromD1toD2(positionQuote_1e18, 18, collateralDecimals);
+            expect(positionQuote_1e18).to.equal(parseUnits('-1', 0).mul(collateralNeeded_1e18.sub(fee_paid)));
+
+            // Open Done 
+            const collateralBalanceAfter = await collateral.balanceOf(defaultSigner.address);
+            //console.log(`After Open Balance of Default Signer = ${collateralBalanceAfter}`);
+            expect(collateralNeeded_1eD).to.equal(collateralBalanceBefore.sub(collateralBalanceAfter));
+
+            const positionSize_1e18 = parseUnits((await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address)).toString(), 0);
+            const positionBase_1e18 = parseUnits((await accountBalance.getBase(perpLemma.address, baseToken.address)).toString(), 0);
+
+            const balance0 = await collateral.balanceOf(defaultSigner.address);
+            //console.log(`Withdrawing this one --> Position Quote ${positionQuote_1e18} --> ${positionQuote_1eD}`);
+            const desiredCollateral_1e18 = parseUnits('-1',0).mul(positionQuote_1e18);
+            const desiredCollateral_1eD = fromD1toD2(desiredCollateral_1e18, 18, collateralDecimals);
+
+            const freeCollateral_1eD = await vault.getFreeCollateral(perpLemma.address);
+            const freeCollateral_1e18 = fromD1toD2(freeCollateral_1eD, collateralDecimals, 18);
+
+            await usdLemma.withdrawToWExactCollateral(defaultSigner.address, freeCollateral_1e18, 0, MaxInt256, collateral.address);
+            const balance1 = await collateral.balanceOf(defaultSigner.address);
+            const deltaBalance = parseUnits((balance1 - balance0).toString(), 0);
+            const recoveredCollateralPerc = (deltaBalance.toNumber() / (-1 * positionQuote_1eD.toNumber())) * 100;
+            const restOfCollateral = desiredCollateral_1eD.sub(deltaBalance);
+            const restOfCollateralPerc = (restOfCollateral.toNumber() / (-1 * positionQuote_1eD.toNumber())) * 100;
+            const totalPositionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
+
+            expect(Math.abs(restOfCollateralPerc - 1.99) < 0.000001);
+            expect(totalPositionSize).to.equal(0);
+
+            // console.log(`Delta Balance = ${deltaBalance}, desiredCollateral = ${desiredCollateral_1eD}, Delta = ${restOfCollateral}`);
+            // console.log(`recoveredCollateralPerc = ${recoveredCollateralPerc}%, restOfCollateralPerc = ${restOfCollateralPerc}%`);
+            // console.log(`totalPositionSize = ${totalPositionSize}`);
+        });
+        */
+
+
+
+
+        
+        
+        it("OpenWExactCollateral with 5 ETH and CloseWExactCollateral with 50% ETH and 50% ETH", async function () {
+            // Common Part
+            const fee_perc = parseUnits('10000', 0);
+            const fee_unit = parseUnits('1', 6);
+            const collateralDecimals = await collateral.decimals();
+            //console.log(`Collateral Decimals = ${collateralDecimals}`);
+
+            await collateral.mint(defaultSigner.address, parseUnits('5', collateralDecimals));
+            const collateralBalanceBefore = await collateral.balanceOf(defaultSigner.address);
+            //console.log(`Initial Balance of DefaultSigner = ${collateralBalanceBefore}`);
+
+
+            // Open Position Params 
+            const collateralNeeded_1eD = parseUnits('5', collateralDecimals);
+            const collateralNeeded_1e18 = fromD1toD2(collateralNeeded_1eD, collateralDecimals, 18);
+            //console.log(`collateralNeeded = ${collateralNeeded_1e18} --> ${collateralNeeded_1eD}`);
+
+            //const collateralNeeded = await this.mcdexLemma.getAmountInCollateralDecimals(await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true), true);
+            await collateral.connect(defaultSigner).approve(usdLemma.address, collateralNeeded_1eD);
+            await usdLemma.depositToWExactCollateral(defaultSigner.address, collateralNeeded_1e18, 0, 0, collateral.address);
+            const fee_paid = collateralNeeded_1e18.mul(fee_perc).div(fee_unit);
+            const positionQuote_1e18 = parseUnits((await accountBalance.getQuote(perpLemma.address, baseToken.address)).toString(), 0);
+            const positionQuote_1eD = fromD1toD2(positionQuote_1e18, 18, collateralDecimals);
+            expect(positionQuote_1e18).to.equal(parseUnits('-1', 0).mul(collateralNeeded_1e18.sub(fee_paid))); 
+
+            // Open Done 
+            const collateralBalanceAfter = await collateral.balanceOf(defaultSigner.address);
+            //console.log(`After Open Balance of Default Signer = ${collateralBalanceAfter}`);
+            expect(collateralNeeded_1eD).to.equal(collateralBalanceBefore.sub(collateralBalanceAfter));
+
+            // const positionSize_1e18 = parseUnits((await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address)).toString(), 0);
+            // const positionBase_1e18 = parseUnits((await accountBalance.getBase(perpLemma.address, baseToken.address)).toString(), 0);
+
+            const balance0 = await collateral.balanceOf(defaultSigner.address);
+            //console.log(`Withdrawing this one --> Position Quote ${positionQuote_1e18} --> ${positionQuote_1eD}`);
+            const desiredCollateral1_1e18 = ((parseUnits('-1',0).mul(positionQuote_1e18)).mul(parseUnits('50',0)).div(parseUnits('100',0)));
+            const desiredCollateral1_1eD = fromD1toD2(desiredCollateral1_1e18, 18, collateralDecimals);
+            console.log(`Trying to close with 50% of the Quote Position so ${desiredCollateral1_1eD}`);
+            await usdLemma.withdrawToWExactCollateral(defaultSigner.address, desiredCollateral1_1e18, 0, MaxInt256, collateral.address);
+            // const balance1 = await collateral.balanceOf(defaultSigner.address);
+            // const deltaBalance = parseUnits((balance1 - balance0).toString(), 0);
+            // const recoveredCollateralPerc = (deltaBalance.toNumber() / (-1 * positionQuote_1eD.toNumber())) * 100;
+            // const restOfCollateral = desiredCollateral_1eD.sub(deltaBalance);
+            // const restOfCollateralPerc = (restOfCollateral.toNumber() / (-1 * positionQuote_1eD.toNumber())) * 100;
+            // const totalPositionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
+
+            const positionQuote2_1e18 = parseUnits((await accountBalance.getQuote(perpLemma.address, baseToken.address)).toString(), 0);
+
+            //const balance0 = await collateral.balanceOf(defaultSigner.address);
+            //console.log(`Withdrawing this one --> Position Quote ${positionQuote_1e18} --> ${positionQuote_1eD}`);
+
+            // const desiredCollateral2_1e18 = ((parseUnits('-1',0).mul(positionQuote2_1e18)).mul(parseUnits('1000', 0))).div(parseUnits('1000', 0));
+            // const desiredCollateral2_1eD = fromD1toD2(desiredCollateral2_1e18, 18, collateralDecimals);
+            // const freeCollateral_1eD = await vault.getFreeCollateral(perpLemma.address);
+            // const freeCollateral_1e18 = fromD1toD2(freeCollateral_1eD, collateralDecimals, 18);
+            // console.log(`Trying to close with remaining Quote Position so ${desiredCollateral2_1eD}, while freeCollateral = ${freeCollateral_1eD}`);
+            await usdLemma.withdrawToWExactCollateral(defaultSigner.address, desiredCollateral1_1e18, 0, MaxInt256, collateral.address);
+            const balance1 = await collateral.balanceOf(defaultSigner.address);
+            const deltaBalance = parseUnits((balance1 - balance0).toString(), 0);
+            const recoveredCollateralPerc = (deltaBalance.toNumber() / (-1 * positionQuote_1eD.toNumber())) * 100;
+            const restOfCollateral = (desiredCollateral1_1eD.mul(parseUnits('2', 0))).sub(deltaBalance);
+            const restOfCollateralPerc = (restOfCollateral.toNumber() / (-1 * positionQuote_1eD.toNumber())) * 100;
+            const totalPositionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
+
+            const positionQuote3_1e18 = parseUnits((await accountBalance.getQuote(perpLemma.address, baseToken.address)).toString(), 0);
+
+            //expect(Math.abs(restOfCollateralPerc - 1.99)).to.lt(0.000001);
+            expect(totalPositionSize).to.equal(0);
+
+            console.log(`Delta Balance = ${deltaBalance}, desiredCollateral = ${desiredCollateral1_1eD.toNumber()*2}, Delta = ${restOfCollateral}`);
+            console.log(`recoveredCollateralPerc = ${recoveredCollateralPerc}%, restOfCollateralPerc = ${restOfCollateralPerc}%`);
+            console.log(`positionQuote3_1e18 = ${positionQuote3_1e18}, totalPositionSize = ${totalPositionSize}`);
+        });
+        
+
+        it("OpenWExactCollateral with 5 ETH and CloseWExactCollateral with 80% ETH and 20% ETH", async function () {
+            // Common Part
+            const fee_perc = parseUnits('10000', 0);
+            const fee_unit = parseUnits('1', 6);
+            const collateralDecimals = await collateral.decimals();
+            //console.log(`Collateral Decimals = ${collateralDecimals}`);
+
+            await collateral.mint(defaultSigner.address, parseUnits('5', collateralDecimals));
+            const collateralBalanceBefore = await collateral.balanceOf(defaultSigner.address);
+            //console.log(`Initial Balance of DefaultSigner = ${collateralBalanceBefore}`);
+
+
+            // Open Position Params 
+            const collateralNeeded_1eD = parseUnits('5', collateralDecimals);
+            const collateralNeeded_1e18 = fromD1toD2(collateralNeeded_1eD, collateralDecimals, 18);
+            //console.log(`collateralNeeded = ${collateralNeeded_1e18} --> ${collateralNeeded_1eD}`);
+
+            //const collateralNeeded = await this.mcdexLemma.getAmountInCollateralDecimals(await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true), true);
+            await collateral.connect(defaultSigner).approve(usdLemma.address, collateralNeeded_1eD);
+            await usdLemma.depositToWExactCollateral(defaultSigner.address, collateralNeeded_1e18, 0, 0, collateral.address);
+            const fee_paid = collateralNeeded_1e18.mul(fee_perc).div(fee_unit);
+            const positionQuote_1e18 = parseUnits((await accountBalance.getQuote(perpLemma.address, baseToken.address)).toString(), 0);
+            const positionQuote_1eD = fromD1toD2(positionQuote_1e18, 18, collateralDecimals);
+            expect(positionQuote_1e18).to.equal(parseUnits('-1', 0).mul(collateralNeeded_1e18.sub(fee_paid))); 
+
+            // Open Done 
+            const collateralBalanceAfter = await collateral.balanceOf(defaultSigner.address);
+            //console.log(`After Open Balance of Default Signer = ${collateralBalanceAfter}`);
+            expect(collateralNeeded_1eD).to.equal(collateralBalanceBefore.sub(collateralBalanceAfter));
+
+            // const positionSize_1e18 = parseUnits((await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address)).toString(), 0);
+            // const positionBase_1e18 = parseUnits((await accountBalance.getBase(perpLemma.address, baseToken.address)).toString(), 0);
+
+            const balance0 = await collateral.balanceOf(defaultSigner.address);
+            //console.log(`Withdrawing this one --> Position Quote ${positionQuote_1e18} --> ${positionQuote_1eD}`);
+            const desiredCollateral1_1e18 = ((parseUnits('-1',0).mul(positionQuote_1e18)).mul(parseUnits('80',0)).div(parseUnits('100',0)));
+            const desiredCollateral1_1eD = fromD1toD2(desiredCollateral1_1e18, 18, collateralDecimals);
+            console.log(`Trying to close with 50% of the Quote Position so ${desiredCollateral1_1eD}`);
+            await usdLemma.withdrawToWExactCollateral(defaultSigner.address, desiredCollateral1_1e18, 0, MaxInt256, collateral.address);
+            // const balance1 = await collateral.balanceOf(defaultSigner.address);
+            // const deltaBalance = parseUnits((balance1 - balance0).toString(), 0);
+            // const recoveredCollateralPerc = (deltaBalance.toNumber() / (-1 * positionQuote_1eD.toNumber())) * 100;
+            // const restOfCollateral = desiredCollateral_1eD.sub(deltaBalance);
+            // const restOfCollateralPerc = (restOfCollateral.toNumber() / (-1 * positionQuote_1eD.toNumber())) * 100;
+            // const totalPositionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
+
+            const positionQuote2_1e18 = parseUnits((await accountBalance.getQuote(perpLemma.address, baseToken.address)).toString(), 0);
+
+            //const balance0 = await collateral.balanceOf(defaultSigner.address);
+            //console.log(`Withdrawing this one --> Position Quote ${positionQuote_1e18} --> ${positionQuote_1eD}`);
+
+            const desiredCollateral2_1e18 = ((parseUnits('-1',0).mul(positionQuote_1e18)).mul(parseUnits('20',0)).div(parseUnits('100',0)));
+            const desiredCollateral2_1eD = fromD1toD2(desiredCollateral2_1e18, 18, collateralDecimals);
+            // const freeCollateral_1eD = await vault.getFreeCollateral(perpLemma.address);
+            // const freeCollateral_1e18 = fromD1toD2(freeCollateral_1eD, collateralDecimals, 18);
+            // console.log(`Trying to close with remaining Quote Position so ${desiredCollateral2_1eD}, while freeCollateral = ${freeCollateral_1eD}`);
+            await usdLemma.withdrawToWExactCollateral(defaultSigner.address, desiredCollateral2_1e18, 0, MaxInt256, collateral.address);
+            const balance1 = await collateral.balanceOf(defaultSigner.address);
+            const deltaBalance = parseUnits((balance1 - balance0).toString(), 0);
+            const recoveredCollateralPerc = (deltaBalance.toNumber() / (-1 * positionQuote_1eD.toNumber())) * 100;
+            const restOfCollateral = (desiredCollateral1_1eD.add(desiredCollateral2_1eD)).sub(deltaBalance);
+            const restOfCollateralPerc = (restOfCollateral.toNumber() / (-1 * positionQuote_1eD.toNumber())) * 100;
+            const totalPositionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
+
+            const positionQuote3_1e18 = parseUnits((await accountBalance.getQuote(perpLemma.address, baseToken.address)).toString(), 0);
+
+            //expect(Math.abs(restOfCollateralPerc - 1.99)).to.lt(0.000001);
+            expect(totalPositionSize).to.equal(0);
+
+            console.log(`Delta Balance = ${deltaBalance}, desiredCollateral = ${desiredCollateral1_1eD.toNumber() + desiredCollateral2_1eD.toNumber()}, Delta = ${restOfCollateral}`);
+            console.log(`recoveredCollateralPerc = ${recoveredCollateralPerc}%, restOfCollateralPerc = ${restOfCollateralPerc}%`);
+            console.log(`positionQuote3_1e18 = ${positionQuote3_1e18}, totalPositionSize = ${totalPositionSize}`);
+        });
+        
+
+
 
 
 
