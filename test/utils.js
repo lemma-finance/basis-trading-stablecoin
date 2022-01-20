@@ -46,6 +46,24 @@ const loadPerpLushanInfo = async function () {
     return JSON.parse(data);
 };
 
+const deployPerpLocallyMainnet = async function () {
+    // console.log("deploying MCDEX locally,please wait...");
+    const { stdout, stderr } = await exec("cd perp-lushan/ && pwd && npx hardhat run scripts/deploy_local_perp_mainnet.ts --network local && cd ..  && pwd");
+    if (stderr) {
+        console.error(`error: ${stderr}`);
+    }
+    // console.log(`output: ${stdout}`);
+    // console.log("deployment done");
+};
+
+const loadPerpLushanInfoMainnet = async function () {
+    //deploy mcdex and then load
+    await deployPerpLocallyMainnet();
+    //get MCDEXAddresses
+    const data = fs.readFileSync(__dirname + '/../perp-lushan/deployments/local.deployment.js', 'utf8');
+    return JSON.parse(data);
+};
+
 const toBigNumber = (amount) => {
     const amountBN = new bn(amount.toString());
     const ONE = new bn(utils.parseEther("1").toString());
@@ -105,4 +123,7 @@ const convertToExpectedDecimals = (amount, currentDecimals, expectedDecimals) =>
     return amount.mul(parseUnits('1', expectedDecimals)).div(parseUnits('1', currentDecimals))
 };
 
-module.exports = { convertToExpectedDecimals, displayNicely, tokenTransfers, loadMCDEXInfo, loadPerpLushanInfo, toBigNumber, fromBigNumber, snapshot, revertToSnapshot };
+module.exports = { convertToExpectedDecimals, displayNicely, 
+    tokenTransfers, loadMCDEXInfo, 
+    loadPerpLushanInfo, loadPerpLushanInfoMainnet, toBigNumber, 
+    fromBigNumber, snapshot, revertToSnapshot };

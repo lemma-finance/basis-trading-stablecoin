@@ -10,6 +10,7 @@ import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/
 import { Utils } from "./libraries/Utils.sol";
 import { SafeMathExt } from "./libraries/SafeMathExt.sol";
 import { IPerpetualDEXWrapper } from "./interfaces/IPerpetualDEXWrapper.sol";
+import "hardhat/console.sol";
 
 /// @author Lemma Finance
 contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
@@ -171,10 +172,11 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
-        require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
+        require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");        
         uint256 USDLToBurn = perpDEXWrapper.closeWExactCollateral(collateralAmount);
         require(USDLToBurn <= maxUSDLToBurn, "USDL burnt execeeds maximum");
         _burn(_msgSender(), USDLToBurn);
+        collateralAmount =  collateral.balanceOf(address(this));
         SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmount);
         emit WithdrawTo(perpetualDEXIndex, address(collateral), to, USDLToBurn, collateralAmount);
     }

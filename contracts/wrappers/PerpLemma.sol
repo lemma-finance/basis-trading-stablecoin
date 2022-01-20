@@ -201,8 +201,9 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             sqrtPriceLimitX96: 0,
             referralCode: referrerCode
         });
-        (, uint256 quote) = iClearingHouse.openPosition(params);
-
+        (uint256 base, uint256 quote) = iClearingHouse.openPosition(params);
+        USDLToBurn = base;
+        
         iPerpVault.withdraw(address(collateral), quote); // withdraw closed position fund
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, quote);
     }
