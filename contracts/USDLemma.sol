@@ -129,7 +129,8 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
-        SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), collateralAmount);
+        uint256 collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmount, true);
+        SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), collateralAmountToDeposit);
         uint256 USDLToMint = perpDEXWrapper.openWExactCollateral(collateralAmount);
         require(USDLToMint >= minUSDLToMint, "USDL minted too low");
         _mint(to, USDLToMint);
@@ -172,12 +173,13 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
-        require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");        
+        require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
+        uint256 collateralBefore = collateral.balanceOf(address(this));
         uint256 USDLToBurn = perpDEXWrapper.closeWExactCollateral(collateralAmount);
+        uint256 collateralAmountToGetBack = collateral.balanceOf(address(this)) - collateralBefore;
         require(USDLToBurn <= maxUSDLToBurn, "USDL burnt execeeds maximum");
         _burn(_msgSender(), USDLToBurn);
-        collateralAmount =  collateral.balanceOf(address(this));
-        SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmount);
+        SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmountToGetBack);
         emit WithdrawTo(perpetualDEXIndex, address(collateral), to, USDLToBurn, collateralAmount);
     }
 

@@ -25,9 +25,9 @@ module.exports = {
   solidity: "0.8.3",
   networks: {
     hardhat: {
-      forking: {
-        url: "https://mainnet.infura.io/v3/" + process.env.INFURA_KEY,
-      },
+      // forking: {
+      //   url: "https://mainnet.infura.io/v3/" + process.env.INFURA_KEY,
+      // },
       // accounts: {
       //   mnemonic: process.env.MNEMONIC
       // }

@@ -20,4 +20,6 @@ interface IPerpetualDEXWrapper {
     ) external returns (bool);
 
     function getAmountInCollateralDecimals(uint256 amount, bool roundUp) external view returns (uint256);
+
+    function settle() external;
 }
