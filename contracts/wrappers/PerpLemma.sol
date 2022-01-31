@@ -193,7 +193,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         });
         (uint256 base,) = iClearingHouse.openPosition(params);
 
-        int256 positionSize = iAccountBalance.getTotalPositionValue(address(this), baseTokenAddress);
+        int256 positionSize = iAccountBalance.getTotalPositionSize(address(this), baseTokenAddress);
         require(positionSize.abs().toUint256() <= maxPosition, "max position reached");
         //Is the fees considered internally or do we need to do it here?
         USDLToMint = base;
