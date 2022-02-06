@@ -53,14 +53,21 @@ contract EIP4626xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, E
         SafeERC20Upgradeable.safeApprove(usdl, address(usdl), type(uint256).max);
     }
 
+    /// @notice underlying token
     function asset() external view override returns(address) {
         return address(usdl);
     }
 
+    /// @notice totalAssets of USDL in xUSDL contract
+    /// @return totalAssets Amount of USDL
     function totalAssets() public view override returns (uint256 totalAssets) {
         totalAssets = usdl.balanceOf(address(this));
     }
 
+    /// @notice deposit and mint xUSDL in exchange of USDL
+    /// @param assets of USDL to deposit
+    /// @param receiver address of user to transfer xUSDL
+    /// @return shares total xUsdl share minted
     function deposit(uint256 assets, address receiver) external override returns(uint256 shares){
         require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
         SafeERC20Upgradeable.safeTransferFrom(usdl, _msgSender(), address(this), assets);
@@ -71,6 +78,10 @@ contract EIP4626xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, E
         emit Deposit(_msgSender(), receiver, assets, shares);
     }
 
+    /// @notice mint USDL and mint exact(i.e. uint256 shares) xUSDL in exchange of USDL
+    /// @param shares of xUSDL should mint
+    /// @param receiver address of user to transfer xUSDL
+    /// @return assets total Usdl need to deposit
     function mint(uint256 shares, address receiver) public override returns (uint256 assets) {
         require((assets = previewMint(shares)) != 0, "ZERO_SHARES");
         SafeERC20Upgradeable.safeTransferFrom(usdl, _msgSender(), address(this), assets);
@@ -81,6 +92,11 @@ contract EIP4626xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, E
         emit Deposit(_msgSender(), receiver, assets, shares);
     }
 
+    /// @notice withdraw USDL and burn xUSDL
+    /// @param assets Amount of USDL withdrawn
+    /// @param receiver address of user to transfer USDL
+    /// @param owner of xUSDL to burn
+    /// @return shares total xUsdl share burned
     function withdraw(uint256 assets, address receiver, address owner) external override returns (uint256 shares) {
         require(owner == _msgSender(), "xUSDL: Invalid Owner");
         require(block.number >= userUnlockBlock[_msgSender()], "xUSDL: Locked tokens");
@@ -90,6 +106,11 @@ contract EIP4626xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, E
         emit Withdraw(owner, receiver, assets, shares);
     }
 
+    /// @notice redeem USDL and burn xUSDL
+    /// @param shares of xUSDL should redeem
+    /// @param receiver address of user to transfer USDL
+    /// @param owner of xUSDL to burn
+    /// @return assets total Usdl need to withdraw
     function redeem(uint256 shares, address receiver, address owner) public override returns (uint256 assets) {
         require(owner == _msgSender(), "xUSDL: Invalid Owner");
         require(block.number >= userUnlockBlock[_msgSender()], "xUSDL: Locked tokens");
@@ -99,12 +120,65 @@ contract EIP4626xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, E
         emit Withdraw(owner, receiver, assets, shares);
     }
 
+    /// @notice balanceOf user in Usdl by xUsdl shares
+    /// @param user balanceOf userAddress
+    /// @return usdl balance of user
     function assetsOf(address user) public view override returns (uint256) {
         return previewRedeem(balanceOf(user));
     }
 
+    /// @notice Price per share in terms of USDL
+    /// @return price Price of 1 xUSDL in terms of USDL    
     function assetsPerShare() public view override returns (uint256 price) {
         price = (totalAssets() * 1e18) / totalSupply();
+    }
+
+    /// @notice previewDeposit how many xUsdl shared need to mint for deposit assets
+    /// @param assets of USDL to deposit
+    /// @return shares total xUsdl share minted
+    function previewDeposit(uint256 assets) public view override returns(uint256 shares) {
+        uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
+        return supply == 0 ? assets : (assets * 1e18) / assetsPerShare();
+    }
+
+    /// @notice previewWithdraw how many xUsdl burned need to mint for withdraw assets
+    /// @param assets of USDL to withdraw
+    /// @return shares total xUsdl share burned
+    function previewWithdraw(uint256 assets) public view override returns(uint256 shares) {
+        uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
+        return supply == 0 ? assets : (assets * 1e18) / assetsPerShare();
+    }
+
+    /// @notice previewMint how many Usdl need to deposit for xUsdl shares
+    /// @param shares of xUSDL to mint
+    /// @return assets total Usdl need to deposit
+    function previewMint(uint256 shares) public view override returns(uint256 assets) {
+        uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
+        return supply == 0 ? shares : shares = (assetsPerShare() * shares) / 1e18;
+    }
+
+    /// @notice previewRedeem how many Usdl need to withdraw for xUsdl burned
+    /// @param shares of xUSDL to burned
+    /// @return assets total Usdl need to withdraw
+    function previewRedeem(uint256 shares) public view override returns(uint256 assets) {
+        uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
+        return supply == 0 ? shares : shares = (assetsPerShare() * shares) / 1e18;
+    }
+
+    function maxDeposit() external view override returns(uint256 maxAssets) {
+        return type(uint256).max;
+    }
+
+    function maxWithdraw() external view override returns(uint256 maxShares) {
+        return type(uint256).max;
+    }
+
+    function maxMint() external view override returns(uint256 maxAssets) {
+        return type(uint256).max;
+    }
+
+    function maxRedeem() external view override returns(uint256 maxShares) {
+        return type(uint256).max;
     }
 
     function _msgSender()
@@ -125,40 +199,6 @@ contract EIP4626xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, E
     {
         //ERC2771ContextUpgradeable._msgData();
         return super._msgData();
-    }
-
-    function previewDeposit(uint256 assets) public view override returns(uint256 shares) {
-        uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
-        return supply == 0 ? assets : (assets * 1e18) / assetsPerShare();
-    }
-
-    function previewWithdraw(uint256 assets) public view override returns(uint256 shares) {
-        uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
-        return supply == 0 ? assets : (assets * 1e18) / assetsPerShare();
-    }
-
-    function previewMint(uint256 shares) public view override returns(uint256 assets) {
-        assets = (assetsPerShare() * shares) / 1e18;
-    }
-
-    function previewRedeem(uint256 shares) public view override returns(uint256 assets) {
-        assets = (assetsPerShare() * shares) / 1e18;
-    }
-
-    function maxDeposit() external view override returns(uint256 maxAssets) {
-        return type(uint256).max;
-    }
-
-    function maxWithdraw() external view override returns(uint256 maxShares) {
-        return type(uint256).max;
-    }
-
-    function maxMint() external view override returns(uint256 maxAssets) {
-        return type(uint256).max;
-    }
-
-    function maxRedeem() external view override returns(uint256 maxShares) {
-        return type(uint256).max;
     }
 
     function _beforeTokenTransfer(

@@ -65,6 +65,12 @@ describe('eip4626xUSDL', function () {
         return shares
     }
 
+    async function previewAmount(xusdl, shares) {
+        const assetsPerShare = await xusdl.assetsPerShare()
+        assets = assetsPerShare.mul(shares).div(parseEther('1'))
+        return assets
+    }
+
     it('should initialize correctly', async function () {
         expect(await this.xusdl.usdl()).to.equal(this.usdl.address);
         expect(await balanceOf(this.usdl, owner.address)).to.equal(utils.parseEther("1000000"));
@@ -176,7 +182,6 @@ describe('eip4626xUSDL', function () {
         expect(tx).to.emit(this.xusdl, "Withdraw").withArgs(owner.address, owner.address, utils.parseEther("1000"), share);
     });
 
-
     it('should withdraw more USDL as price per share increases', async function () {
         await this.xusdl.deposit(utils.parseEther("1000"), owner.address);
 
@@ -217,7 +222,6 @@ describe('eip4626xUSDL', function () {
             .not.to.be.reverted;
     });
 
-
     it('should withdraw to another user', async function () {
         await this.xusdl.deposit(utils.parseEther("1000"), owner.address);
         await mineBlocks(100);
@@ -227,5 +231,140 @@ describe('eip4626xUSDL', function () {
         expect(postBalance.sub(preBalance)).equal(utils.parseEther("1000"));
     });
 
+    ///////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////
+    ////////// mint and redeem functions tests ////////////
+    ///////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////
 
+    it('should mint initial correctly', async function () {
+        let tx = await this.xusdl.mint(utils.parseEther("1000"), owner.address);
+        amount = await previewAmount(this.xusdl, utils.parseEther("1000"))
+        expect(await balanceOf(this.xusdl, owner.address)).to.equal(utils.parseEther("1000"));
+        expect(tx).to.emit(this.xusdl, "Deposit").withArgs(owner.address, owner.address, amount, utils.parseEther("1000"));
+    });
+
+    it('assetsPerShare should stay the same after multiple mint in a row', async function () {
+        //pricePeShare only changes when USDL are added or removed from xUSDL without deposit or withdraw transactions
+        let tx = await this.xusdl.mint(utils.parseEther("1000"), owner.address);
+        amount = await previewAmount(this.xusdl, utils.parseEther("1000"))
+        expect(await balanceOf(this.xusdl, owner.address)).to.equal(utils.parseEther("1000"));
+        expect(tx).to.emit(this.xusdl, "Deposit").withArgs(owner.address, owner.address, amount, utils.parseEther("1000"));
+        // expect(tx).to.emit(this.xusdl, "Deposit").withArgs(owner.address, utils.parseEther("1000"));
+
+        await this.usdl.removeTokens(utils.parseEther("235"), this.xusdl.address);
+        let pricePerShareBefore = await this.xusdl.assetsPerShare();
+        await this.xusdl.mint(utils.parseEther("123"), owner.address);
+        await this.xusdl.mint(utils.parseEther("489"), owner.address);
+        await this.xusdl.mint(utils.parseEther("345"), owner.address);
+
+        let pricePerShareAfter = await this.xusdl.assetsPerShare();
+        expect(pricePerShareBefore).to.equal(pricePerShareAfter);
+    });
+
+    it('should price per share greater than 1 when more USDL', async function () {
+        await this.xusdl.mint(utils.parseEther("1000"), owner.address);
+        await this.usdl.transfer(this.xusdl.address, utils.parseEther("1000"));
+        expect(await this.xusdl.assetsPerShare()).gt(utils.parseEther("1"));
+    });
+
+    it('should price per share less than 1 when more USDL', async function () {
+        await this.xusdl.mint(utils.parseEther("1000"), owner.address);
+        await this.usdl.removeTokens(utils.parseEther("100"), this.xusdl.address);
+        expect(await this.xusdl.assetsPerShare()).lt(utils.parseEther("1"));
+    });
+
+    it('should mint less XUSDL when price per share greater than 1', async function () {
+        await this.xusdl.mint(utils.parseEther("1000"), owner.address);
+        await this.usdl.transfer(this.xusdl.address, utils.parseEther("1000"));
+        await this.usdl.transfer(user1.address, utils.parseEther("1000"));
+        await this.xusdl.connect(user1).mint(utils.parseEther("500"), user1.address);
+        expect(await balanceOf(this.xusdl, user1.address)).equal(utils.parseEther("500"));
+    });
+
+    it('should revert while redeem & transfer before minimum lock', async function () {
+        await this.xusdl.mint(utils.parseEther("1000"), owner.address);
+        await mineBlocks(97);
+
+        await expect(this.xusdl.transfer(user1.address, await balanceOf(this.xusdl, owner.address)))
+            .to.be.revertedWith('xUSDL: Locked tokens');
+        await expect(this.xusdl.redeem(await balanceOf(this.xusdl, owner.address), owner.address, owner.address))
+            .to.be.revertedWith('xUSDL: Locked tokens');
+    });
+
+    it("should revert while redeeming & transfer before minimum lock when periphery contract mints on behalf of an address", async function () {
+        //transfer is allowed for periphery but periphery will transfer the newly minted xUSDL to an address and that address should not be allowed be transferred until minimum lock has passed
+        await this.usdl.transfer(periphery.address, utils.parseEther("10000"));
+        await this.xusdl.connect(periphery).mint(utils.parseEther("1000"), periphery.address);
+
+        let bal = await this.xusdl.balanceOf(periphery.address);
+        await this.xusdl.connect(periphery).transfer(user1.address, bal);
+        await mineBlocks(97);
+
+        await expect(this.xusdl.connect(user1).transfer(user1.address, await balanceOf(this.xusdl, owner.address)))
+            .to.be.revertedWith('xUSDL: Locked tokens');
+        await expect(this.xusdl.connect(user1).redeem(await balanceOf(this.xusdl, owner.address), user1.address, user1.address))
+            .to.be.revertedWith('xUSDL: Locked tokens');
+
+    });
+
+    it('should redeem & transfer after minimum lock', async function () {
+        await this.xusdl.mint(utils.parseEther("1000"), owner.address);
+        await mineBlocks(100);
+
+        await expect(this.xusdl.transfer(user1.address, utils.parseEther("100")))
+            .not.to.be.reverted;
+        await expect(this.xusdl.redeem(await balanceOf(this.xusdl, owner.address), owner.address, owner.address))
+            .not.to.be.reverted;
+    });
+
+
+    it('should redeem more USDL as price per share increases', async function () {
+        await this.xusdl.mint(utils.parseEther("1000"), owner.address);
+
+        await mineBlocks(100);
+        await this.usdl.transfer(this.xusdl.address, utils.parseEther("1000"));
+
+        amount = await previewAmount(this.xusdl, utils.parseEther("1000"))
+        let preBalance = await balanceOf(this.usdl, owner.address);
+        let tx = await this.xusdl.redeem(utils.parseEther("1000"), owner.address, owner.address);
+
+        let postBalance = await balanceOf(this.usdl, owner.address);
+        expect(postBalance.sub(preBalance)).equal(utils.parseEther("2000"));
+        expect(tx).to.emit(this.xusdl, "Withdraw").withArgs(owner.address, owner.address, amount, utils.parseEther("1000"));
+    });
+
+    it('should redeem less USDL as price per share decreases', async function () {
+        await this.xusdl.deposit(utils.parseEther("1000"), owner.address);
+        await mineBlocks(100);
+        await this.usdl.removeTokens(utils.parseEther("500"), this.xusdl.address);
+
+        amount = await previewAmount(this.xusdl, utils.parseEther("1000"))
+        
+        let preBalance = await balanceOf(this.usdl, owner.address);
+        let tx = await this.xusdl.redeem(utils.parseEther("1000"), owner.address, owner.address);
+
+        let postBalance = await balanceOf(this.usdl, owner.address);
+        expect(postBalance.sub(preBalance)).equal(utils.parseEther("500"));
+        expect(tx).to.emit(this.xusdl, "Withdraw").withArgs(owner.address, owner.address, amount, utils.parseEther("1000"));
+
+    });
+
+    it('should mint and transfer from periphery without minimum blocks lock', async function () {
+        await this.usdl.transfer(periphery.address, utils.parseEther("10000"));
+        await this.xusdl.connect(periphery).mint(utils.parseEther("1000"), periphery.address);
+        let bal = await this.xusdl.balanceOf(periphery.address);
+        await expect(this.xusdl.connect(periphery).transfer(owner.address, bal))
+            .not.to.be.reverted;
+    });
+
+
+    it('should redeem to another user', async function () {
+        await this.xusdl.mint(utils.parseEther("1000"), owner.address);
+        await mineBlocks(100);
+        let preBalance = await balanceOf(this.usdl, user1.address);
+        await this.xusdl.redeem(await balanceOf(this.xusdl, owner.address), user1.address, owner.address);
+        let postBalance = await balanceOf(this.usdl, user1.address);
+        expect(postBalance.sub(preBalance)).equal(utils.parseEther("1000"));
+    });
 });
