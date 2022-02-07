@@ -114,7 +114,7 @@ async function main() {
 
     //stake USDL
     await usdLemma.approve(xUSDL.address, amount);
-    await xUSDL.deposit(amount.div(2));
+    await xUSDL.deposit(amount.div(2), defaultSigner.address);
 
 
     {
@@ -128,14 +128,14 @@ async function main() {
         await usdLemma.connect(signer1).withdraw(amount.div(3), 0, 0, collateral.address);
 
     }
-    await xUSDL.deposit(amount.div(2));
+    await xUSDL.deposit(amount.div(2), defaultSigner.address);
 
     let periphery = defaultSigner;
     await xUSDL.updatePeriphery(periphery.address);
     await xUSDL.transfer(signer2.address, await xUSDL.balanceOf(defaultSigner.address));
     // await usdLemma.transfer(xUSDL.address, amount.div(4));
 
-    console.log("pricePerShare", (await xUSDL.pricePerShare()).toString());
+    console.log("assetsPerShare", (await xUSDL.assetsPerShare()).toString());
 
 
     {
