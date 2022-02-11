@@ -34,6 +34,19 @@ Open perp-lushan submodule repo
         
     npx hardhat node
 
-1). open terminal-2 and run
+3). open terminal-2 and run
     
     npx hardhat test --network local
+
+4). test coverage (no need to start `npx hardhat node`)
+
+    npx hardhat coverage --network local
+
+5). ethlint check
+
+    solium -d contracts/
+
+6). slither check
+
+    slither .
+
