@@ -82,7 +82,7 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
     /// @param shares of xUSDL should mint
     /// @param receiver address of user to transfer xUSDL
     /// @return assets total Usdl need to deposit
-    function mint(uint256 shares, address receiver) public override returns (uint256 assets) {
+    function mint(uint256 shares, address receiver) external override returns (uint256 assets) {
         require((assets = previewMint(shares)) != 0, "ZERO_SHARES");
         SafeERC20Upgradeable.safeTransferFrom(usdl, _msgSender(), address(this), assets);
         if (periphery != _msgSender()) {
@@ -111,7 +111,7 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
     /// @param receiver address of user to transfer USDL
     /// @param owner of xUSDL to burn
     /// @return assets total Usdl need to withdraw
-    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256 assets) {
+    function redeem(uint256 shares, address receiver, address owner) external override returns (uint256 assets) {
         require(owner == _msgSender(), "xUSDL: Invalid Owner");
         require(block.number >= userUnlockBlock[_msgSender()], "xUSDL: Locked tokens");
         require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
@@ -123,7 +123,7 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
     /// @notice Total number of underlying assets that depositor’s shares represent.
     /// @param user balanceOf userAddress
     /// @return usdl balance of user
-    function assetsOf(address user) public view override returns (uint256) {
+    function assetsOf(address user) external view override returns (uint256) {
         return previewRedeem(balanceOf(user));
     }
 

@@ -47,7 +47,7 @@ function encodePriceSqrt(reserve1, reserve0) {
     )
 }
 
-describe("perpLemma", async function () {
+describe("usdLemma-perp", async function () {
     let defaultSigner, usdLemma, reBalancer, hasWETH, keeperGasReward, signer1, signer2, usdl2;
     let perpAddresses;
     const ZERO = BigNumber.from("0");
@@ -101,16 +101,11 @@ describe("perpLemma", async function () {
         const perpLemmaFactory = await ethers.getContractFactory("PerpLemma")
         perpLemma = await upgrades.deployProxy(perpLemmaFactory, 
             [
-                collateral.address,
                 baseToken.address,
                 quoteToken.address,
                 clearingHouse.address,
-                clearingHouseConfig.address,
-                vault.address,
-                accountBalance.address,
                 marketRegistry.address,
-                quoter.address,
-                collateral.address,         // TODO: Fix it
+                usdLemma.address,
                 maxPosition
         ], { initializer: 'initialize' });
 

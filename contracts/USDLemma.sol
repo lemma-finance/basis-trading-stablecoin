@@ -124,7 +124,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 perpetualDEXIndex,
         uint256 minUSDLToMint,
         IERC20Upgradeable collateral
-    ) public nonReentrant {
+    ) external nonReentrant {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
@@ -169,7 +169,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 perpetualDEXIndex,
         uint256 maxUSDLToBurn,
         IERC20Upgradeable collateral
-    ) public nonReentrant {
+    ) external nonReentrant {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );

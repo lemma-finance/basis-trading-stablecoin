@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity >=0.7.5;
-pragma abicoder v2;
+pragma solidity =0.8.3;
 
 /// @title Quoter Interface
 /// @notice Supports quoting the calculated amounts from exact input or exact output swaps
