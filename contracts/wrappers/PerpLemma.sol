@@ -241,8 +241,8 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     function settle() public override {
         // uint256 initialCollateral = collateral.balanceOf(address(this));
         positionAtSettlement = iAccountBalance.getBase(address(this), baseTokenAddress).abs().toUint256();
-
-        iClearingHouse.closePositionInClosedMarket(address(this), baseTokenAddress);
+        
+        iClearingHouse.quitMarket(address(this), baseTokenAddress);
 
         uint24 imRatio = iClearingHouseConfig.getImRatio();
         int256 freeCollateralByImRatioX10_D = iPerpVault.getFreeCollateralByRatio(address(this), imRatio);
@@ -250,7 +250,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         iPerpVault.withdraw(address(collateral), collateralAmountToWithdraw);
 
         // uint256 currentCollateral = collateral.balanceOf(address(this));
-        //require(currentCollateral - initialCollateral == collateralAmountToWithdraw, "Withdraw failed");
+        // require(currentCollateral - initialCollateral == collateralAmountToWithdraw, "Withdraw failed");
 
         // All the collateral is now back
         hasSettled = true;

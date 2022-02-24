@@ -153,9 +153,12 @@ describe("perpLemma", async function () {
         await mockedBaseAggregator2.setLatestRoundData(0, parseUnits("100", collateralDecimals), 0, 0, 0)
 
         await pool.initialize(encodePriceSqrt("1", "100"))
-        // the initial number of oracle can be recorded is 1; thus, have to expand it
         await pool.increaseObservationCardinalityNext((2 ^ 16) - 1)
-        await pool2.initialize(encodePriceSqrt("1", "100")) // tick = 50200 (1.0001^50200 = 151.373306858723226652)
+
+        await pool2.initialize(encodePriceSqrt("1", "100"))
+        await pool2.increaseObservationCardinalityNext((2 ^ 16) - 1)
+
+        await clearingHouseConfig.setMaxFundingRate(parseUnits('1', 6))
 
         await marketRegistry.addPool(baseToken.address, 10000)
         await marketRegistry.addPool(baseToken2.address, 10000)
@@ -202,7 +205,7 @@ describe("perpLemma", async function () {
             await collateral.mint(longAddress.address, parseUnits("10000000000", collateralDecimals))
             await collateral.connect(longAddress).approve(vault.address, ethers.constants.MaxUint256)
             await vault.connect(longAddress).deposit(collateral.address, parseUnits("10000", collateralDecimals))
-    
+
             // Deposit into vault
             await vault.connect(signer2).deposit(collateral.address, parsedAmount)
             await addLiquidity(
@@ -554,8 +557,7 @@ describe("perpLemma", async function () {
         })
     
         describe("Emergency Settlement", async function () {
-            //let collateralmintAmount, collateralAmount, parsedAmount, leveragedAmount
-            beforeEach(async function () {    
+            beforeEach(async function () {
             });
     
             it("Calling Settle() when Market is open should revert", async () => {
@@ -565,16 +567,23 @@ describe("perpLemma", async function () {
     
             it("Calling Settle() when Market is paused should revert", async () => {
                 // Pausing the market
-                expect(await (baseToken.connect(defaultSigner)["pause(uint256)"](0))).to.emit(baseToken, 'StatusUpdated').withArgs(1);
+                expect(await (baseToken.connect(defaultSigner)["pause()"]())).to.emit(baseToken, 'StatusUpdated').withArgs(1);
                 await expect(perpLemma.connect(usdLemma).settle()).to.be.revertedWith("CH_MNC");
             })
     
             it("Calling Settle() when Market is closed should work", async () => {
-                // Pausing the market
-                expect(await (baseToken.connect(defaultSigner)["pause(uint256)"](0))).to.emit(baseToken, 'StatusUpdated').withArgs(1);
+                const collateralAmount = parseEther('1')
+                await collateral.mint(usdLemma.address, collateralAmount)
+                await collateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount)
+                // Deposit collateral in eth and Short eth and long usdc 
+                await perpLemma.connect(usdLemma).openWExactCollateral(collateralAmount)
+                expect(await (baseToken.connect(defaultSigner)["pause()"]())).to.emit(baseToken, 'StatusUpdated');
                 // Closing the market
-                expect(await (baseToken.connect(defaultSigner)["close(uint256)"](1))).to.emit(baseToken, 'StatusUpdated').withArgs(2);
-                await expect(perpLemma.connect(usdLemma).settle()).to.emit(vault, "Withdrawn").withArgs(collateral.address, perpLemma.address, 0);
+                expect(await (baseToken.connect(defaultSigner)["close(uint256)"](1))).to.emit(baseToken, 'StatusUpdated');
+                
+                const lastTimestamp = (await waffle.provider.getBlock("latest")).timestamp
+                await clearingHouse.setBlockTimestamp(BigNumber.from(lastTimestamp).add(100))
+                await expect(perpLemma.connect(usdLemma).settle()).to.emit(vault, "Withdrawn").withArgs(collateral.address, perpLemma.address, parseUnits("10000000000000097", 0));
             })
     
             it("Open a Position and Calling Settle() when Market is closed should work", async () => {
@@ -602,12 +611,18 @@ describe("perpLemma", async function () {
                 positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address) 
                 expect(baseAndQuoteValue[0]).to.eq(positionSize)
 
-                expect(await (baseToken.connect(defaultSigner)["pause(uint256)"](0))).to.emit(baseToken, 'StatusUpdated').withArgs(1);
-                expect(await (baseToken.connect(defaultSigner)["close(uint256)"](1))).to.emit(baseToken, 'StatusUpdated').withArgs(2);
-                expect(await perpLemma.connect(usdLemma).settle()).to.emit(vault, "Withdrawn").withArgs(
+                expect(await (baseToken.connect(defaultSigner)["pause()"]())).to.emit(baseToken, 'StatusUpdated');
+                expect(await (baseToken.connect(defaultSigner)["close(uint256)"](1))).to.emit(baseToken, 'StatusUpdated');
+                const lastTimestamp = (await waffle.provider.getBlock("latest")).timestamp
+                await clearingHouse.setBlockTimestamp(BigNumber.from(lastTimestamp).add(100))
+
+                await expect(
+                     perpLemma.connect(usdLemma).settle()
+                    ).to.emit(vault, "Withdrawn")
+                .withArgs(
                     collateral.address, 
-                    perpLemma.address, 
-                    parseUnits("10001", 0)); // 999999
+                    perpLemma.address,
+                    parseUnits("10000000000000097", 0)); // 999999
     
                 // This is not passing as 
                 // Initial Collateral: 100000000000
@@ -642,18 +657,20 @@ describe("perpLemma", async function () {
                 expect(baseAndQuoteValue[0]).to.eq(positionSize)
 
                 // Start with Market Open
-                expect(await baseToken.getStatus()).to.be.equal(0);
+                expect(await baseToken.isOpen()).to.be.equal(true);
     
                 // Pause Market
-                expect(await (baseToken.connect(defaultSigner)["pause(uint256)"](0))).to.emit(baseToken, 'StatusUpdated');
-                expect(await baseToken.callStatic.getStatus()).to.be.equal(1);
+                expect(await (baseToken.connect(defaultSigner)["pause()"]())).to.emit(baseToken, 'StatusUpdated');
+                expect(await baseToken.callStatic.isPaused()).to.be.equal(true);
     
                 // Close Market
                 expect(await (baseToken.connect(defaultSigner)["close(uint256)"](1))).to.emit(baseToken, 'StatusUpdated');
-                expect(await baseToken.callStatic.getStatus()).to.be.equal(2);
+                expect(await baseToken.callStatic.isClosed()).to.be.equal(true);
     
-                // await perpLemma.connect(usdLemma).settle()
-                expect(await perpLemma.connect(usdLemma).settle()).to.emit(clearingHouse, 'PositionChanged');
+                const lastTimestamp = (await waffle.provider.getBlock("latest")).timestamp
+                await clearingHouse.setBlockTimestamp(BigNumber.from(lastTimestamp).add(100))
+
+                await perpLemma.connect(usdLemma).settle()
     
                 let collateralPerpLemma = await collateral.balanceOf(perpLemma.address);
                 const c1 = collateralPerpLemma*0.2

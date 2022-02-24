@@ -102,7 +102,7 @@ interface IClearingHouse {
     /// @param baseToken The address of baseToken
     /// @return base The amount of base token that is closed
     /// @return quote The amount of quote token that is closed
-    function closePositionInClosedMarket(address trader, address baseToken)
+    function quitMarket(address trader, address baseToken)
         external
         returns (uint256 base, uint256 quote);
 
