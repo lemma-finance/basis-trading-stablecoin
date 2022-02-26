@@ -42,38 +42,36 @@ module.exports = {
     arbitrumTestnet: {
       url: "https://rinkeby.arbitrum.io/rpc",
       accounts: {
-        mnemonic: process.env.MNEMONIC
-      }
+        mnemonic: process.env.MNEMONIC,
+      },
     },
     arbitrum: {
       // url: "https://arbitrum-mainnet.infura.io/v3/" + process.env.INFURA_KEY,
       url: "https://arb1.arbitrum.io/rpc",
       accounts: {
-        mnemonic: process.env.MNEMONIC
-      }
+        mnemonic: process.env.MNEMONIC,
+      },
     },
     kovan: {
       url: "https://kovan.infura.io/v3/" + process.env.INFURA_KEY,
       accounts: {
-        mnemonic: process.env.MNEMONIC
-      }
-    }
+        mnemonic: process.env.MNEMONIC,
+      },
+    },
   },
   solidity: {
     version: "0.8.3",
     settings: {
       optimizer: {
         enabled: true,
-        runs: 200
-      }
-    }
+        runs: 200,
+      },
+    },
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_KEY
+    apiKey: process.env.ETHERSCAN_KEY,
   },
   mocha: {
-    timeout: 1000000 //1000 secs
+    timeout: 1000000, //1000 secs
   },
-
 };
-

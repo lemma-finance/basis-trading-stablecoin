@@ -2,7 +2,6 @@
 pragma solidity =0.8.3;
 
 interface IExchange {
-
     /// @notice Get all the pending funding payment for a trader
     /// @return pendingFundingPayment The pending funding payment of the trader.
     /// Positive value means the trader pays funding, negative value means the trader receives funding.

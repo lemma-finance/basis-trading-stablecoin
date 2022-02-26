@@ -48,4 +48,3 @@ interface IQuoter {
         uint160 sqrtPriceLimitX96
     ) external returns (uint256 amountIn);
 }
-

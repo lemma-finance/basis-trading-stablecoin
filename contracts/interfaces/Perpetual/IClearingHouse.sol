@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity =0.8.3;
+
 // pragma abicoder v2;
 
 interface IClearingHouse {
@@ -96,15 +97,12 @@ interface IClearingHouse {
         external
         returns (uint256 deltaBase, uint256 deltaQuote);
 
-
     /// @notice Close all positions of a trader in the closed market
     /// @param trader The address of trader
     /// @param baseToken The address of baseToken
     /// @return base The amount of base token that is closed
     /// @return quote The amount of quote token that is closed
-    function quitMarket(address trader, address baseToken)
-        external
-        returns (uint256 base, uint256 quote);
+    function quitMarket(address trader, address baseToken) external returns (uint256 base, uint256 quote);
 
     function liquidate(address trader, address baseToken) external;
 

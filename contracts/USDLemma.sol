@@ -130,7 +130,12 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         );
         require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
         uint256 collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmount, true);
-        SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), collateralAmountToDeposit);
+        SafeERC20Upgradeable.safeTransferFrom(
+            collateral,
+            _msgSender(),
+            address(perpDEXWrapper),
+            collateralAmountToDeposit
+        );
         uint256 USDLToMint = perpDEXWrapper.openWExactCollateral(collateralAmount);
         require(USDLToMint >= minUSDLToMint, "USDL minted too low");
         _mint(to, USDLToMint);
