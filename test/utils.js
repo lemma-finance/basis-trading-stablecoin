@@ -50,6 +50,7 @@ const loadPerpLushanInfo = async function () {
   return JSON.parse(data);
 };
 
+// FOR ETH
 const deployPerpLocallyMainnet = async function () {
   // console.log("deploying MCDEX locally,please wait...");
   const { stdout, stderr } = await exec(
@@ -69,6 +70,31 @@ const loadPerpLushanInfoMainnet = async function () {
   const data = fs.readFileSync(__dirname + "/../perp-lushan/deployments/local.deployment.js", "utf8");
   return JSON.parse(data);
 };
+
+
+
+// FOR BTC
+const deployPerpLocallyMainnetForBTC = async function () {
+  // console.log("deploying MCDEX locally,please wait...");
+  const { stdout, stderr } = await exec(
+    "cd perp-lushan/ && pwd && npx hardhat run scripts/deploy_local_perp_mainnet_btc.ts --network local && cd ..  && pwd",
+  );
+  if (stderr) {
+    console.error(`error: ${stderr}`);
+  }
+  // console.log(`output: ${stdout}`);
+  // console.log("deployment done");
+};
+
+const loadPerpLushanInfoMainnetForBTC = async function () {
+  //deploy mcdex and then load
+  await deployPerpLocallyMainnetForBTC();
+  //get MCDEXAddresses
+  const data = fs.readFileSync(__dirname + "/../perp-lushan/deployments/local.deployment.js", "utf8");
+  return JSON.parse(data);
+};
+
+
 
 const toBigNumber = amount => {
   const amountBN = new bn(amount.toString());
@@ -134,6 +160,7 @@ module.exports = {
   loadMCDEXInfo,
   loadPerpLushanInfo,
   loadPerpLushanInfoMainnet,
+  loadPerpLushanInfoMainnetForBTC,
   toBigNumber,
   fromBigNumber,
   snapshot,
