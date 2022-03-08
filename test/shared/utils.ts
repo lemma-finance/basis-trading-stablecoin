@@ -44,7 +44,7 @@ export async function deploySqueethLocally() {
 
 export async function loadSqueethInfo() {
     //deploy mcdex and then load
-    // await deploySqueethLocally();
+    await deploySqueethLocally();
     //get MCDEXAddresses
     const data = fs.readFileSync(__dirname + '/../../squeeth-monorepo/packages/subgraph/config/localhost-config.json', 'utf8');
     // console.log(JSON.parse(data))

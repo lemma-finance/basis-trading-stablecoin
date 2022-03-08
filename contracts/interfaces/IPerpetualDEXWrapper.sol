@@ -5,9 +5,13 @@ interface IPerpetualDEXWrapper {
 
     function openWExactCollateral(uint256 collateralAmount) external returns (uint256 USDLToMint);
 
+    function openWExactCollateralForSqueeth(uint256 _ethToDeposit, uint256 msgValue) external returns (uint256 USDLToMint);
+
     function close(uint256 amount, uint256 collateralAmountToGetBack) external;
 
     function closeWExactCollateral(uint256 collateralAmount) external returns (uint256 USDLToBurn);
+
+    function closeWExactCollateralForSqueeth(uint256 _crabAmount, uint256 _maxEthToPay) external returns (uint256 USDLToBurn);
 
     function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
         external

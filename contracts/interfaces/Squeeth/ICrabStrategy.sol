@@ -10,4 +10,12 @@ interface ICrabStrategy {
     function powerTokenController() external view returns (IController);
 
     function weth() external view returns (address);
+
+    function wPowerPerp() external view returns (address);
+
+    function vaultId() external view returns(uint256);
+
+    function balanceOf(address account) external view returns(uint256);
+    
+    function totalSupply() external view returns(uint256);
 }
