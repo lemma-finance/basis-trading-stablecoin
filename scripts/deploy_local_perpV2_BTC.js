@@ -89,8 +89,9 @@ async function main() {
   perpAddressesFromBTC = await loadPerpLushanInfoMainnetForBTC();
   console.log('perpAddressesFromBTC: ', perpAddressesFromBTC)
 
-  let [defaultSigner, reBalancer, hasWETH, keeperGasReward, signer1, signer2, longAddress, lemmaTreasury] =
+  let [defaultSigner, signer1, signer2, longAddress, reBalancer, hasWETH, keeperGasReward, lemmaTreasury] =
     await ethers.getSigners();
+  
   clearingHouse = new ethers.Contract(perpAddressesFromBTC.clearingHouse2.address, ClearingHouseAbi.abi, defaultSigner);
   orderBook = new ethers.Contract(perpAddressesFromBTC.orderBook2.address, OrderBookAbi.abi, defaultSigner);
   clearingHouseConfig = new ethers.Contract(
@@ -137,7 +138,7 @@ async function main() {
   // const { chainId } = await arbProvider.getNetwork();
 
   // 1 BTC == 10000 USD
-  await mockedBaseAggregatorForBTC.setLatestRoundData(0, parseUnits("0.0001", collateralDecimals), 0, 0, 0);
+  await mockedBaseAggregatorForBTC.setLatestRoundData(0, parseUnits("0.0001", 18), 0, 0, 0);
   // await mockedBaseAggregatorForBTC2.setLatestRoundData(0, parseUnits("100", collateralDecimals), 0, 0, 0)
 
   await pool.initialize(encodePriceSqrt("1", "10000"));
