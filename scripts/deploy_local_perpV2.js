@@ -7,7 +7,6 @@ const { parseEther, parseUnits } = require("ethers/lib/utils");
 const {
   displayNicely,
   tokenTransfers,
-  loadPerpLushanInfo,
   loadPerpLushanInfoMainnet,
   toBigNumber,
   fromBigNumber,
@@ -97,7 +96,7 @@ async function main() {
   vault = new ethers.Contract(perpAddresses.vault.address, VaultAbi.abi, defaultSigner);
   exchange = new ethers.Contract(perpAddresses.exchange.address, ExchangeAbi.abi, defaultSigner);
   marketRegistry = new ethers.Contract(perpAddresses.marketRegistry.address, MarketRegistryAbi.abi, defaultSigner);
-  collateral = new ethers.Contract(perpAddresses.collateral.address, TestERC20Abi.abi, defaultSigner);
+  collateral = new ethers.Contract(perpAddresses.ethCollateral.address, TestERC20Abi.abi, defaultSigner);
   baseToken = new ethers.Contract(perpAddresses.baseToken.address, BaseTokenAbi.abi, defaultSigner);
   baseToken2 = new ethers.Contract(perpAddresses.baseToken2.address, BaseToken2Abi.abi, defaultSigner);
   quoteToken = new ethers.Contract(perpAddresses.quoteToken.address, QuoteTokenAbi.abi, defaultSigner);

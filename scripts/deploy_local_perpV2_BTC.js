@@ -7,7 +7,7 @@ const { parseEther, parseUnits } = require("ethers/lib/utils");
 const {
   displayNicely,
   tokenTransfers,
-  loadPerpLushanInfo,
+  loadPerpLushanInfoMainnet,
   loadPerpLushanInfoMainnetForBTC,
   toBigNumber,
   fromBigNumber,
@@ -83,39 +83,43 @@ function encodePriceSqrt(reserve1, reserve0) {
 
 async function main() {
   let perpAddresses;
-  perpAddresses = await loadPerpLushanInfoMainnetForBTC();
+  perpAddresses = fs.readFileSync(__dirname + '/../deployments/local.deployment.perp.js', 'utf8');
+  perpAddresses = JSON.parse(perpAddresses);
+  console.log('perpAddresses: ', perpAddresses)
+  perpAddressesFromBTC = await loadPerpLushanInfoMainnetForBTC();
+  console.log('perpAddressesFromBTC: ', perpAddressesFromBTC)
 
   let [defaultSigner, reBalancer, hasWETH, keeperGasReward, signer1, signer2, longAddress, lemmaTreasury] =
     await ethers.getSigners();
-  clearingHouse = new ethers.Contract(perpAddresses.clearingHouse.address, ClearingHouseAbi.abi, defaultSigner);
-  orderBook = new ethers.Contract(perpAddresses.orderBook.address, OrderBookAbi.abi, defaultSigner);
+  clearingHouse = new ethers.Contract(perpAddressesFromBTC.clearingHouse2.address, ClearingHouseAbi.abi, defaultSigner);
+  orderBook = new ethers.Contract(perpAddressesFromBTC.orderBook2.address, OrderBookAbi.abi, defaultSigner);
   clearingHouseConfig = new ethers.Contract(
-    perpAddresses.clearingHouseConfig.address,
+    perpAddressesFromBTC.clearingHouseConfig2.address,
     ClearingHouseConfigAbi.abi,
     defaultSigner,
   );
-  vault = new ethers.Contract(perpAddresses.vault.address, VaultAbi.abi, defaultSigner);
-  exchange = new ethers.Contract(perpAddresses.exchange.address, ExchangeAbi.abi, defaultSigner);
-  marketRegistry = new ethers.Contract(perpAddresses.marketRegistry.address, MarketRegistryAbi.abi, defaultSigner);
-  collateral = new ethers.Contract(perpAddresses.collateral.address, TestERC20Abi.abi, defaultSigner);
-  baseToken = new ethers.Contract(perpAddresses.baseToken.address, BaseTokenAbi.abi, defaultSigner);
-  baseToken2 = new ethers.Contract(perpAddresses.baseToken2.address, BaseToken2Abi.abi, defaultSigner);
-  quoteToken = new ethers.Contract(perpAddresses.quoteToken.address, QuoteTokenAbi.abi, defaultSigner);
-  univ3factory = new ethers.Contract(perpAddresses.univ3factory.address, UniswapV3FactoryAbi.abi, defaultSigner);
-  accountBalance = new ethers.Contract(perpAddresses.accountBalance.address, AccountBalanceAbi.abi, defaultSigner);
-  mockedBaseAggregator = new ethers.Contract(
-    perpAddresses.mockedBaseAggregator.address,
+  vault = new ethers.Contract(perpAddressesFromBTC.vault2.address, VaultAbi.abi, defaultSigner);
+  exchange = new ethers.Contract(perpAddressesFromBTC.exchange2.address, ExchangeAbi.abi, defaultSigner);
+  marketRegistry = new ethers.Contract(perpAddressesFromBTC.marketRegistry2.address, MarketRegistryAbi.abi, defaultSigner);
+  collateral = new ethers.Contract(perpAddressesFromBTC.btcCollateral.address, TestERC20Abi.abi, defaultSigner);
+  baseToken = new ethers.Contract(perpAddressesFromBTC.baseToken2.address, BaseTokenAbi.abi, defaultSigner);
+  // baseToken2 = new ethers.Contract(perpAddressesFromBTC.baseToken2.address, BaseToken2Abi.abi, defaultSigner);
+  quoteToken = new ethers.Contract(perpAddressesFromBTC.quoteToken2.address, QuoteTokenAbi.abi, defaultSigner);
+  univ3factory = new ethers.Contract(perpAddressesFromBTC.univ3factory2.address, UniswapV3FactoryAbi.abi, defaultSigner);
+  accountBalance = new ethers.Contract(perpAddressesFromBTC.accountBalance2.address, AccountBalanceAbi.abi, defaultSigner);
+  mockedBaseAggregatorForBTC = new ethers.Contract(
+    perpAddressesFromBTC.mockedBaseAggregatorForBTC.address,
     MockTestAggregatorV3Abi.abi,
     defaultSigner,
   );
-  mockedBaseAggregator2 = new ethers.Contract(
-    perpAddresses.mockedBaseAggregator2.address,
+  mockedBaseAggregatorForBTC2 = new ethers.Contract(
+    perpAddressesFromBTC.mockedBaseAggregatorForBTC2.address,
     MockTestAggregatorV3Abi.abi,
     defaultSigner,
   );
-  pool = new ethers.Contract(perpAddresses.pool.address, UniswapV3PoolAbi.abi, defaultSigner);
-  pool2 = new ethers.Contract(perpAddresses.pool2.address, UniswapV3Pool2Abi.abi, defaultSigner);
-  quoter = new ethers.Contract(perpAddresses.quoter.address, QuoterAbi.abi, defaultSigner);
+  pool = new ethers.Contract(perpAddressesFromBTC.pool2.address, UniswapV3PoolAbi.abi, defaultSigner);
+  // pool2 = new ethers.Contract(perpAddressesFromBTC.pool2.address, UniswapV3Pool2Abi.abi, defaultSigner);
+  // quoter = new ethers.Contract(perpAddressesFromBTC.quoter.address, QuoterAbi.abi, defaultSigner);
   collateralDecimals = await collateral.decimals();
 
   const maxPosition = ethers.constants.MaxUint256;
@@ -132,14 +136,14 @@ async function main() {
   // const arbProvider = ethers.getDefaultProvider(hre.network.config.url);
   // const { chainId } = await arbProvider.getNetwork();
 
-  // 1 BTC == 40000 USD
-  await mockedBaseAggregator.setLatestRoundData(0, parseUnits("0.0001", collateralDecimals), 0, 0, 0);
-  // await mockedBaseAggregator2.setLatestRoundData(0, parseUnits("100", collateralDecimals), 0, 0, 0)
+  // 1 BTC == 10000 USD
+  await mockedBaseAggregatorForBTC.setLatestRoundData(0, parseUnits("0.0001", collateralDecimals), 0, 0, 0);
+  // await mockedBaseAggregatorForBTC2.setLatestRoundData(0, parseUnits("100", collateralDecimals), 0, 0, 0)
 
   await pool.initialize(encodePriceSqrt("1", "10000"));
   // the initial number of oracle can be recorded is 1; thus, have to expand it
   await pool.increaseObservationCardinalityNext((2 ^ 16) - 1);
-  await pool2.initialize(encodePriceSqrt("1", "10000")); // tick = 50200 (1.0001^50200 = 151.373306858723226652)
+  // await pool2.initialize(encodePriceSqrt("1", "10000")); // tick = 50200 (1.0001^50200 = 151.373306858723226652)
 
   await marketRegistry.addPool(baseToken.address, 10000);
   // await marketRegistry.addPool(baseToken2.address, 10000)
@@ -187,20 +191,20 @@ async function main() {
   // collateral = ERC20.attach(collateralAddress);//WETH
   // console.log("collateral", collateralAddress);
 
-  const USDLemma = await ethers.getContractFactory("USDLemma");
-  const usdLemma = await upgrades.deployProxy(USDLemma, [AddressZero, collateralAddress, perpLemma.address], {
-    initializer: "initialize",
-  });
-  await perpLemma.setUSDLemma(usdLemma.address);
+  // const USDLemma = await ethers.getContractFactory("USDLemma");
+  // const usdLemma = await upgrades.deployProxy(USDLemma, [AddressZero, collateralAddress, perpLemma.address], {
+  //   initializer: "initialize",
+  // });
+  await perpLemma.setUSDLemma(perpAddresses.USDLemma.address);
 
   //deploy stackingContract
-  const XUSDL = await ethers.getContractFactory("xUSDL");
-  const peripheryAddress = AddressZero;
-  const xUSDL = await upgrades.deployProxy(XUSDL, [AddressZero, usdLemma.address, peripheryAddress], {
-    initializer: "initialize",
-  });
-  console.log("xUSDL", xUSDL.address);
-  console.log("USDLemma", await xUSDL.usdl());
+  // const XUSDL = await ethers.getContractFactory("xUSDL");
+  // const peripheryAddress = AddressZero;
+  // const xUSDL = await upgrades.deployProxy(XUSDL, [AddressZero, usdLemma.address, peripheryAddress], {
+  //   initializer: "initialize",
+  // });
+  // console.log("xUSDL", xUSDL.address);
+  // console.log("USDLemma", await xUSDL.usdl());
 
   // //deposit keeper gas reward
   // //get some WETH first
@@ -211,28 +215,28 @@ async function main() {
   // // await hasWETH.sendTransaction({ to: collateral.address, value: amountOfCollateralToMint });
 
   //set fees
-  const fees = 3000; //30%
-  await usdLemma.setFees(fees);
+  // const fees = 3000; //30%
+  // await usdLemma.setFees(fees);
   //set stacking contract address
-  await usdLemma.setStakingContractAddress(xUSDL.address);
+  // await usdLemma.setStakingContractAddress(xUSDL.address);
   //set lemma treasury address
-  await usdLemma.setLemmaTreasury(lemmaTreasury.address);
+  // await usdLemma.setLemmaTreasury(lemmaTreasury.address);
 
-  deployedContracts["USDLemma"] = {
-    name: "USDLemma",
-    address: usdLemma.address,
-  };
+  // deployedContracts["USDLemma"] = {
+  //   name: "USDLemma",
+  //   address: usdLemma.address,
+  // };
 
-  deployedContracts["XUSDL"] = {
-    name: "XUSDL",
-    address: xUSDL.address,
-  };
+  // deployedContracts["XUSDL"] = {
+  //   name: "XUSDL",
+  //   address: xUSDL.address,
+  // };
 
-  deployedContracts["PerpLemma"] = {
-    name: "PerpLemma",
+  deployedContracts["PerpLemma2"] = {
+    name: "PerpLemma2",
     address: perpLemma.address,
   };
-  deployedContracts = Object.assign(perpAddresses, deployedContracts);
+  deployedContracts = Object.assign(perpAddresses, perpAddressesFromBTC, deployedContracts);
   await save();
 }
 main()
