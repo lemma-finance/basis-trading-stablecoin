@@ -132,7 +132,7 @@ async function main() {
   // const arbProvider = ethers.getDefaultProvider(hre.network.config.url);
   // const { chainId } = await arbProvider.getNetwork();
 
-  // 1 BTC == 40000 USD
+  // 1 BTC == 10000 USD
   await mockedBaseAggregator.setLatestRoundData(0, parseUnits("0.0001", collateralDecimals), 0, 0, 0);
   // await mockedBaseAggregator2.setLatestRoundData(0, parseUnits("100", collateralDecimals), 0, 0, 0)
 

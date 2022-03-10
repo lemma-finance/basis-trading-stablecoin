@@ -179,6 +179,8 @@ describe("perpLemma", async function () {
     await marketRegistry.addPool(baseToken2.address, 10000);
     await marketRegistry.setFeeRatio(baseToken.address, 10000);
     await marketRegistry.setFeeRatio(baseToken2.address, 10000);
+    await exchange.setMaxTickCrossedWithinBlock(baseToken.address, 887272)
+
   });
 
   beforeEach(async function () {
