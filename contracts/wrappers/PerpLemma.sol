@@ -15,6 +15,7 @@ import "../interfaces/Perpetual/IClearingHouseConfig.sol";
 import "../interfaces/Perpetual/IAccountBalance.sol";
 import "../interfaces/Perpetual/IMarketRegistry.sol";
 import "../interfaces/Perpetual/IExchange.sol";
+import "hardhat/console.sol";
 
 interface IPerpVault {
     function deposit(address token, uint256 amount) external;
@@ -175,14 +176,15 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
         require(!hasSettled, "Market Closed");
+        uint256 collateralAmountToDeposit = getAmountInCollateralDecimals(collateralAmount, true);
         require(
-            collateral.balanceOf(address(this)) >= getAmountInCollateralDecimals(collateralAmount, true),
+            collateral.balanceOf(address(this)) >= collateralAmountToDeposit,
             "not enough collateral"
         );
 
         totalFundingPNL += iExchange.getPendingFundingPayment(address(this), baseTokenAddress);
 
-        iPerpVault.deposit(address(collateral), getAmountInCollateralDecimals(collateralAmount, true));
+        iPerpVault.deposit(address(collateral), collateralAmountToDeposit);
         uint256 collateralAmountForOpen = getCollateralAmountAfterFees(collateralAmount);
 
         // create long for usdc and short for eth position by giving isBaseToQuote=false
@@ -320,7 +322,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         if (roundUp && (amount % (uint256(10**(18 - collateralDecimals))) != 0)) {
             return amount / uint256(10**(18 - collateralDecimals)) + 1; // need to verify
         }
-
+        
         return amount / uint256(10**(18 - collateralDecimals));
     }
 
