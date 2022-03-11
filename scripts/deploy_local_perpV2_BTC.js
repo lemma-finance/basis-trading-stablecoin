@@ -150,6 +150,7 @@ async function main() {
   // await marketRegistry.addPool(baseToken2.address, 10000)
   await marketRegistry.setFeeRatio(baseToken.address, 10000);
   // await marketRegistry.setFeeRatio(baseToken2.address, 10000)
+  await exchange.setMaxTickCrossedWithinBlock(baseToken.address, 887272)
 
   // BTC rich address 0xE78388b4CE79068e89Bf8aA7f218eF6b9AB0e9d0
   const btcRichAddress = "0xE78388b4CE79068e89Bf8aA7f218eF6b9AB0e9d0"

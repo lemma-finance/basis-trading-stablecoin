@@ -143,6 +143,7 @@ async function main() {
   // await marketRegistry.addPool(baseToken2.address, 10000)
   await marketRegistry.setFeeRatio(baseToken.address, 10000);
   // await marketRegistry.setFeeRatio(baseToken2.address, 10000)
+  await exchange.setMaxTickCrossedWithinBlock(baseToken.address, 887272)
 
   // weth rich address 0xF977814e90dA44bFA03b6295A0616a897441aceC
   const amountOfCollateralToMint = utils.parseEther("2000");
