@@ -54,7 +54,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             // whitelist addresses can call multiple functions of USDLemma
             _;
         } else {
-            require(mutexBlock != block.number, "ReentrancyGuard: reentrant call");
+            require(mutexBlock != block.number, "Not Whitelisted address for MultipleCall");
             mutexBlock = block.number;
             _;
         }
