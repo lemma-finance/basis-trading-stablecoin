@@ -115,6 +115,11 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         hasSettled = false;
     }
 
+    function getFees(bool isMinting) external view override returns (uint256) {
+        IMarketRegistry.MarketInfo memory marketInfo = iMarketRegistry.getMarketInfo(baseTokenAddress);
+        return marketInfo.exchangeFeeRatio;        
+    }
+
     ///@notice sets USDLemma address - only owner can set
     ///@param _usdlemma USDLemma address to set
     function setUSDLemma(address _usdlemma) external onlyOwner {

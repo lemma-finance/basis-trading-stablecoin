@@ -58,6 +58,15 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         addPerpetualDEXWrapper(0, collateralAddress, perpetualDEXWrapperAddress);
     }
 
+    function getFees(uint256 dexIndex, address collateral, bool isMinting) external view returns (uint256) {
+        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
+            perpetualDEXWrappers[dexIndex][collateral]
+        );
+
+        require(address(perpDEXWrapper) != address(0), "! DEX Wrapper");
+        return perpDEXWrapper.getFees(isMinting);
+    }
+
     /// @notice Set staking contract address, can only be called by owner
     /// @param _stakingContractAddress Address of staking contract
     function setStakingContractAddress(address _stakingContractAddress) external onlyOwner {
