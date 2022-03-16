@@ -24,6 +24,9 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
 
     mapping(uint256 => mapping(address => address)) public perpetualDEXWrappers;
 
+    mapping(address => bool) private whiteListAddress;
+    uint256 mutexBlock;
+
     // events
     event DepositTo(
         uint256 indexed dexIndex,
@@ -41,15 +44,28 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     );
     event Rebalance(uint256 indexed dexIndex, address indexed collateral, int256 amount);
     event StakingContractUpdated(address indexed current);
+    event SetWhiteListAddress(address indexed account, bool indexed isWhiteList);
     event LemmaTreasuryUpdated(address indexed current);
     event FeesUpdated(uint256 newFees);
     event PerpetualDexWrapperAdded(uint256 indexed dexIndex, address indexed collateral, address dexWrapper);
+
+    modifier _onlyOneFuntionAtATime(address _account) {
+        if(whiteListAddress[_account]) {
+            // whitelist addresses can call multiple functions of USDLemma
+            _;
+        } else {
+            require(mutexBlock != block.number, "Not Whitelisted address for MultipleCall");
+            mutexBlock = block.number;
+            _;
+        }
+    }
 
     function initialize(
         address trustedForwarder,
         address collateralAddress,
         address perpetualDEXWrapperAddress
     ) external initializer {
+        mutexBlock = block.number;
         __ReentrancyGuard_init();
         __Ownable_init();
         __ERC20_init("USDLemma", "USDL");
@@ -65,6 +81,14 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
 
         require(address(perpDEXWrapper) != address(0), "! DEX Wrapper");
         return perpDEXWrapper.getFees(isMinting);
+    }
+    
+    /// @notice Set whitelist address, can only be called by owner, It will helps whitelist address to call multiple function of USDL at a time
+    /// @param _account Address of whitelist EOA or contract address
+    /// @param _isWhiteList add or remove of whitelist tag for any address
+    function setWhiteListAddress(address _account, bool _isWhiteList) external onlyOwner {
+        whiteListAddress[_account] = _isWhiteList;
+        emit SetWhiteListAddress(_account, _isWhiteList);
     }
 
     /// @notice Set staking contract address, can only be called by owner
@@ -113,7 +137,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 perpetualDEXIndex,
         uint256 maxCollateralAmountRequired,
         IERC20Upgradeable collateral
-    ) public nonReentrant {
+    ) public nonReentrant _onlyOneFuntionAtATime(_msgSender()) {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
@@ -133,7 +157,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 perpetualDEXIndex,
         uint256 minUSDLToMint,
         IERC20Upgradeable collateral
-    ) external nonReentrant {
+    ) external nonReentrant _onlyOneFuntionAtATime(_msgSender()) {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
@@ -163,7 +187,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 perpetualDEXIndex,
         uint256 minCollateralAmountToGetBack,
         IERC20Upgradeable collateral
-    ) public nonReentrant {
+    ) public nonReentrant _onlyOneFuntionAtATime(_msgSender()) {
         _burn(_msgSender(), amount);
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
@@ -183,7 +207,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 perpetualDEXIndex,
         uint256 maxUSDLToBurn,
         IERC20Upgradeable collateral
-    ) external nonReentrant {
+    ) external nonReentrant _onlyOneFuntionAtATime(_msgSender()) {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
@@ -235,7 +259,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         IERC20Upgradeable collateral,
         int256 amount,
         bytes calldata data
-    ) external {
+    ) external _onlyOneFuntionAtATime(_msgSender()) {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
