@@ -336,6 +336,10 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
         return amount / uint256(10**(18 - collateralDecimals));
     }
 
+    function getTotalPosition() external view override returns (int256) {
+        require(false, "Unimplemented");
+    }
+
     ///@notice send MCB tokens that we may get to lemmaTreasury
     function sendMCBToTreasury() external {
         IERC20Upgradeable mcbToken = IERC20Upgradeable(0x4e352cF164E64ADCBad318C3a1e222E9EBa4Ce42);

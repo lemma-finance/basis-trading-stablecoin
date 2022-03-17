@@ -82,7 +82,16 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         require(address(perpDEXWrapper) != address(0), "! DEX Wrapper");
         return perpDEXWrapper.getFees(isMinting);
     }
-    
+
+    function getTotalPosition(uint256 dexIndex, address collateral) external view returns (int256) {
+        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
+            perpetualDEXWrappers[dexIndex][collateral]
+        );
+
+        require(address(perpDEXWrapper) != address(0), "! DEX Wrapper");
+        return perpDEXWrapper.getTotalPosition();
+    }
+
     /// @notice Set whitelist address, can only be called by owner, It will helps whitelist address to call multiple function of USDL at a time
     /// @param _account Address of whitelist EOA or contract address
     /// @param _isWhiteList add or remove of whitelist tag for any address

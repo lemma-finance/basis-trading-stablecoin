@@ -324,12 +324,18 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     /// @param roundUp If needs to round up
     /// @return decimal adjusted value
     function getAmountInCollateralDecimals(uint256 amount, bool roundUp) public view override returns (uint256) {
+        console.log("getAmountInCollateralDecimals[] amount before = ", amount);
         amount = (amount * (10**18)) / (10**collateralDecimals);
+        console.log("getAmountInCollateralDecimals[] amount after = ", amount);
         if (roundUp && (amount % (uint256(10**(18 - collateralDecimals))) != 0)) {
             return amount / uint256(10**(18 - collateralDecimals)) + 1; // need to verify
         }
         
         return amount / uint256(10**(18 - collateralDecimals));
+    }
+
+    function getTotalPosition() external view override returns (int256) {
+        return iAccountBalance.getTotalPositionSize(address(this), baseTokenAddress); 
     }
 
     function getFundingPNL() public view returns (int256 fundingPNL) {
