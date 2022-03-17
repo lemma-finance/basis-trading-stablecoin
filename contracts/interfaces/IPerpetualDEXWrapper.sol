@@ -21,5 +21,7 @@ interface IPerpetualDEXWrapper {
 
     function getAmountInCollateralDecimals(uint256 amount, bool roundUp) external view returns (uint256);
 
+    function getFees(bool isMinting) external view returns (uint256);
+
     function settle() external;
 }

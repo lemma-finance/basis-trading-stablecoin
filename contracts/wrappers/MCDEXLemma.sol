@@ -79,6 +79,10 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
         liquidityPool.setTargetLeverage(perpetualIndex, address(this), 1 ether); //1
     }
 
+    function getFees(bool isMinting) external view override returns (uint256) {
+        require(false, "!unimplemented");
+    }
+
     ///@notice sets USDLemma address - only owner can set
     ///@param _usdlemma USDLemma address to set
     function setUSDLemma(address _usdlemma) public onlyOwner {
