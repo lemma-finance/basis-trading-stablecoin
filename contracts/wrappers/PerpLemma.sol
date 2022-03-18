@@ -335,7 +335,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     }
 
     function getTotalPosition() external view override returns (int256) {
-        return iAccountBalance.getTotalPositionSize(address(this), baseTokenAddress); 
+        return iAccountBalance.getTotalPositionValue(address(this), baseTokenAddress); 
     }
 
     function getFundingPNL() public view returns (int256 fundingPNL) {
