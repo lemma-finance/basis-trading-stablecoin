@@ -2,7 +2,7 @@ const { ethers } = require("hardhat");
 const { expect, use } = require("chai");
 const { solidity } = require("ethereum-waffle");
 const { utils } = require("ethers");
-const { parseEther, parseUnits } = require("ethers/lib/utils");
+const { parseEther, parseUnits, formatUnits } = require("ethers/lib/utils");
 const { BigNumber } = require("@ethersproject/bignumber");
 const { loadPerpLushanInfo, snapshot, revertToSnapshot, fromBigNumber } = require("../utils");
 const bn = require("bignumber.js");
@@ -179,7 +179,7 @@ describe("perpLemma", async function () {
     await marketRegistry.addPool(baseToken2.address, 10000);
     await marketRegistry.setFeeRatio(baseToken.address, 10000);
     await marketRegistry.setFeeRatio(baseToken2.address, 10000);
-    await exchange.setMaxTickCrossedWithinBlock(baseToken.address, 887272)
+    await exchange.setMaxTickCrossedWithinBlock(baseToken.address, 887272);
 
   });
 
@@ -188,6 +188,7 @@ describe("perpLemma", async function () {
   });
 
   afterEach(async function () {
+    await calcLeverage1();
     await revertToSnapshot(snapshotId);
   });
 
@@ -206,6 +207,17 @@ describe("perpLemma", async function () {
     // console.log('depositedCollateral: ', depositedCollateral.toString())
 
     return [leverage_in_6_Decimal, leverage_in_1];
+  }
+
+  async function calcLeverage1() {
+    let totalAbsPositionValue = await accountBalance.getTotalAbsPositionValue(perpLemma.address);
+    let accountValue = await clearingHouse.getAccountValue(perpLemma.address);
+
+    if (!totalAbsPositionValue.eq(ZERO)) {
+      const accountMarginRatio = accountValue.mul(parseUnits("1", 18)).div(totalAbsPositionValue);
+      const leverage = 1 / formatUnits(accountMarginRatio, 18);
+      console.log("leverage", leverage.toFixed(5));
+    }
   }
 
   describe("PerpLemma tests => Open, Close, fees, settlement", () => {
@@ -693,7 +705,7 @@ describe("perpLemma", async function () {
     });
 
     describe("Emergency Settlement", async function () {
-      beforeEach(async function () {});
+      beforeEach(async function () { });
 
       it("Calling Settle() when Market is open should revert", async () => {
         // By default the market is open
