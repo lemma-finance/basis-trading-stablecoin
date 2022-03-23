@@ -10,6 +10,7 @@ import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/
 import { Utils } from "./libraries/Utils.sol";
 import { SafeMathExt } from "./libraries/SafeMathExt.sol";
 import { IPerpetualDEXWrapper } from "./interfaces/IPerpetualDEXWrapper.sol";
+import { IConsulting } from "./interfaces/IConsulting.sol";
 import "hardhat/console.sol";
 
 /// @author Lemma Finance
