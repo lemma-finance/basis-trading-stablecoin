@@ -19,12 +19,23 @@ import "hardhat/console.sol";
 //     function decimals() external view returns (uint256);
 // }
 
+interface IUSDL is IUSDLemma {
+    function lemmaTreasury() external view returns (address);
+    function getFees(uint256 dexIndex, address collateral, bool isMinting) external view returns (uint256);
+    function getTotalPosition(uint256 dexIndex, address collateral) external view returns (int256);
+    function computeV() external view returns(int256);
+}
+
+
+
 
 contract Consulting {
     address public owner;
+    IUSDLemma public usdl;
 
-    constructor() {
+    constructor(address _usdl) {
         owner = msg.sender;
+        usdl = IUSDLemma(_usdl);
     }
 
     modifier onlyOwner() {
@@ -45,12 +56,15 @@ contract Consulting {
         _;
     }
 
-
+    function setUSDL(address _usdl) external onlyOwner {
+        require(_usdl != address(0), "!address");
+        usdl = IUSDLemma(_usdl);
+    }
 
     /**
       * Given minting / redeem, collateral and amount returns the fees in 1e6 format 
      */
-    function getFees(uint8 action, address collateral, uint256 amount) validAction(action) validCollateral(collateral) external returns(uint256) {
+    function getFees(uint8 action, address collateral, uint256 amount) validAction(action) validCollateral(collateral) external view returns(uint256) {
         return 1000;
     }
 

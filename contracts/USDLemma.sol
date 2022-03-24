@@ -23,6 +23,10 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     address public stakingContractAddress;
     uint256 public fees;
 
+    uint256 public maxDexIndex;
+    address[] public collaterals;
+
+
     mapping(uint256 => mapping(address => address)) public perpetualDEXWrappers;
 
     mapping(address => bool) private whiteListAddress;
@@ -75,6 +79,15 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         addPerpetualDEXWrapper(0, collateralAddress, perpetualDEXWrapperAddress);
     }
 
+    function _isCollateralPresent(address collateral) internal returns(bool) {
+        for(uint256 i=0; i < collaterals.length; ++i) {
+            if (collaterals[i] == collateral) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     function getFees(uint256 dexIndex, address collateral, bool isMinting) external view returns (uint256) {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[dexIndex][collateral]
@@ -84,7 +97,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         return perpDEXWrapper.getFees(isMinting);
     }
 
-    function getTotalPosition(uint256 dexIndex, address collateral) external view returns (int256) {
+    function getTotalPosition(uint256 dexIndex, address collateral) public view returns (int256) {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[dexIndex][collateral]
         );
@@ -132,7 +145,25 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         address perpetualDEXWrapperAddress
     ) public onlyOwner {
         perpetualDEXWrappers[perpetualDEXIndex][collateralAddress] = perpetualDEXWrapperAddress;
+
+        if( ! _isCollateralPresent(collateralAddress) ) {
+            collaterals.push(collateralAddress);
+        }
+        maxDexIndex = (maxDexIndex > perpetualDEXIndex) ? maxDexIndex : perpetualDEXIndex;
+
         emit PerpetualDexWrapperAdded(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
+    }
+
+    function computeV() public view returns(int256) {
+        int256 res = 0;
+
+        for(uint256 i=0; i < maxDexIndex; ++i) {
+            for(uint256 j=0; j < collaterals.length; ++j) {
+                res += getTotalPosition(i, collaterals[j]);
+            }
+        }
+
+        return res;
     }
 
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL
