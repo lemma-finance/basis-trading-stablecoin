@@ -179,6 +179,15 @@ describe("usdLemma-perp", async function () {
     await revertToSnapshot(snapshotId);
   });
 
+  it("should initialize correctly", async function () {
+    expect(await perpLemma.usdLemma()).to.equal(usdLemma.address);
+    expect(await usdLemma.perpetualDEXWrappers("0", collateral.address)).to.equal(perpLemma.address);
+  });
+  it("should revert when depositing with exact USDL amount", async function () {
+    await collateral.approve(usdLemma.address, ethers.constants.MaxUint256);
+    await expect(usdLemma.deposit(parseEther("1"), 0, ethers.constants.MaxUint256, collateral.address)).to.be.revertedWith("not supported");
+  });
+
   /*
     it("should set addresses correctly", async function () {
         //setUSDLemma
@@ -675,8 +684,7 @@ describe("usdLemma-perp", async function () {
       expect(totalPositionSize).to.equal(0);
 
       console.log(
-        `Delta Balance = ${deltaBalance}, desiredCollateral = ${
-          desiredCollateral1_1eD.toNumber() * 2
+        `Delta Balance = ${deltaBalance}, desiredCollateral = ${desiredCollateral1_1eD.toNumber() * 2
         }, Delta = ${restOfCollateral}`,
       );
       console.log(
@@ -781,8 +789,7 @@ describe("usdLemma-perp", async function () {
       expect(totalPositionSize).to.equal(0);
 
       console.log(
-        `Delta Balance = ${deltaBalance}, desiredCollateral = ${
-          desiredCollateral1_1eD.toNumber() + desiredCollateral2_1eD.toNumber()
+        `Delta Balance = ${deltaBalance}, desiredCollateral = ${desiredCollateral1_1eD.toNumber() + desiredCollateral2_1eD.toNumber()
         }, Delta = ${restOfCollateral}`,
       );
       console.log(
