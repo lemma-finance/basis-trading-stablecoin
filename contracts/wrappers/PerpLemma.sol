@@ -117,7 +117,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
     function getFees(bool isMinting) external view override returns (uint256) {
         IMarketRegistry.MarketInfo memory marketInfo = iMarketRegistry.getMarketInfo(baseTokenAddress);
-        return marketInfo.exchangeFeeRatio;        
+        return marketInfo.exchangeFeeRatio;
     }
 
     ///@notice sets USDLemma address - only owner can set
@@ -182,10 +182,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
         require(!hasSettled, "Market Closed");
         uint256 collateralAmountToDeposit = getAmountInCollateralDecimals(collateralAmount, true);
-        require(
-            collateral.balanceOf(address(this)) >= collateralAmountToDeposit,
-            "not enough collateral"
-        );
+        require(collateral.balanceOf(address(this)) >= collateralAmountToDeposit, "not enough collateral");
 
         totalFundingPNL += iExchange.getPendingFundingPayment(address(this), baseTokenAddress);
 
@@ -330,12 +327,12 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         if (roundUp && (amount % (uint256(10**(18 - collateralDecimals))) != 0)) {
             return amount / uint256(10**(18 - collateralDecimals)) + 1; // need to verify
         }
-        
+
         return amount / uint256(10**(18 - collateralDecimals));
     }
 
     function getTotalPosition() external view override returns (int256) {
-        return iAccountBalance.getTotalPositionValue(address(this), baseTokenAddress); 
+        return iAccountBalance.getTotalPositionValue(address(this), baseTokenAddress);
     }
 
     function getFundingPNL() public view returns (int256 fundingPNL) {

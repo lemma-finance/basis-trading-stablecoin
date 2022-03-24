@@ -50,7 +50,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     event PerpetualDexWrapperAdded(uint256 indexed dexIndex, address indexed collateral, address dexWrapper);
 
     modifier _onlyOneFuntionAtATime(address _account) {
-        if(whiteListAddress[_account]) {
+        if (whiteListAddress[_account]) {
             // whitelist addresses can call multiple functions of USDLemma
             _;
         } else {
@@ -74,19 +74,19 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         addPerpetualDEXWrapper(0, collateralAddress, perpetualDEXWrapperAddress);
     }
 
-    function getFees(uint256 dexIndex, address collateral, bool isMinting) external view returns (uint256) {
-        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
-            perpetualDEXWrappers[dexIndex][collateral]
-        );
+    function getFees(
+        uint256 dexIndex,
+        address collateral,
+        bool isMinting
+    ) external view returns (uint256) {
+        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
 
         require(address(perpDEXWrapper) != address(0), "! DEX Wrapper");
         return perpDEXWrapper.getFees(isMinting);
     }
 
     function getTotalPosition(uint256 dexIndex, address collateral) external view returns (int256) {
-        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
-            perpetualDEXWrappers[dexIndex][collateral]
-        );
+        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
 
         require(address(perpDEXWrapper) != address(0), "! DEX Wrapper");
         return perpDEXWrapper.getTotalPosition();

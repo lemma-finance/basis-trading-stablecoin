@@ -1,16 +1,16 @@
-const { ethers } = require("hardhat");
-const BigNumber = require("bignumber.js");
-const { expect } = require("chai");
+import { ethers, upgrades } from "hardhat";
+import BigNumber from "bignumber.js";
+import { expect, util } from "chai";
 
 //same tests as https://github.com/mcdexio/mai-protocol-v3/blob/master/test/LibSafeMathExt.test.ts
 //modified for solidity version 0.8.3
 const weis = new BigNumber("1000000000000000000");
-const toWad = x => {
+const toWad = (x: any) => {
   return new BigNumber(x).times(weis).toFixed(0);
 };
 
 describe("LibSafeMathExt", () => {
-  let libSafeMathExt;
+  let libSafeMathExt: any;
 
   beforeEach(async () => {
     const SafeMathExt = await ethers.getContractFactory("TestLibSafeMathExt");

@@ -83,15 +83,15 @@ function encodePriceSqrt(reserve1, reserve0) {
 
 async function main() {
   let perpAddresses;
-  perpAddresses = fs.readFileSync(__dirname + '/../deployments/local.deployment.perp.js', 'utf8');
+  perpAddresses = fs.readFileSync(__dirname + "/../deployments/local.deployment.perp.js", "utf8");
   perpAddresses = JSON.parse(perpAddresses);
-  console.log('perpAddresses: ', perpAddresses)
+  console.log("perpAddresses: ", perpAddresses);
   perpAddressesFromBTC = await loadPerpLushanInfoMainnetForBTC();
-  console.log('perpAddressesFromBTC: ', perpAddressesFromBTC)
+  console.log("perpAddressesFromBTC: ", perpAddressesFromBTC);
 
   let [defaultSigner, signer1, signer2, longAddress, reBalancer, hasWETH, keeperGasReward, lemmaTreasury] =
     await ethers.getSigners();
-  
+
   clearingHouse = new ethers.Contract(perpAddressesFromBTC.clearingHouse2.address, ClearingHouseAbi.abi, defaultSigner);
   orderBook = new ethers.Contract(perpAddressesFromBTC.orderBook2.address, OrderBookAbi.abi, defaultSigner);
   clearingHouseConfig = new ethers.Contract(
@@ -101,13 +101,25 @@ async function main() {
   );
   vault = new ethers.Contract(perpAddressesFromBTC.vault2.address, VaultAbi.abi, defaultSigner);
   exchange = new ethers.Contract(perpAddressesFromBTC.exchange2.address, ExchangeAbi.abi, defaultSigner);
-  marketRegistry = new ethers.Contract(perpAddressesFromBTC.marketRegistry2.address, MarketRegistryAbi.abi, defaultSigner);
+  marketRegistry = new ethers.Contract(
+    perpAddressesFromBTC.marketRegistry2.address,
+    MarketRegistryAbi.abi,
+    defaultSigner,
+  );
   collateral = new ethers.Contract(perpAddressesFromBTC.btcCollateral.address, TestERC20Abi.abi, defaultSigner);
   baseToken = new ethers.Contract(perpAddressesFromBTC.baseToken2.address, BaseTokenAbi.abi, defaultSigner);
   // baseToken2 = new ethers.Contract(perpAddressesFromBTC.baseToken2.address, BaseToken2Abi.abi, defaultSigner);
   quoteToken = new ethers.Contract(perpAddressesFromBTC.quoteToken2.address, QuoteTokenAbi.abi, defaultSigner);
-  univ3factory = new ethers.Contract(perpAddressesFromBTC.univ3factory2.address, UniswapV3FactoryAbi.abi, defaultSigner);
-  accountBalance = new ethers.Contract(perpAddressesFromBTC.accountBalance2.address, AccountBalanceAbi.abi, defaultSigner);
+  univ3factory = new ethers.Contract(
+    perpAddressesFromBTC.univ3factory2.address,
+    UniswapV3FactoryAbi.abi,
+    defaultSigner,
+  );
+  accountBalance = new ethers.Contract(
+    perpAddressesFromBTC.accountBalance2.address,
+    AccountBalanceAbi.abi,
+    defaultSigner,
+  );
   mockedBaseAggregatorForBTC = new ethers.Contract(
     perpAddressesFromBTC.mockedBaseAggregatorForBTC.address,
     MockTestAggregatorV3Abi.abi,
@@ -150,20 +162,20 @@ async function main() {
   // await marketRegistry.addPool(baseToken2.address, 10000)
   await marketRegistry.setFeeRatio(baseToken.address, 10000);
   // await marketRegistry.setFeeRatio(baseToken2.address, 10000)
-  await exchange.setMaxTickCrossedWithinBlock(baseToken.address, 887272)
+  await exchange.setMaxTickCrossedWithinBlock(baseToken.address, 887272);
 
   // BTC rich address 0xE78388b4CE79068e89Bf8aA7f218eF6b9AB0e9d0
-  const btcRichAddress = "0xE78388b4CE79068e89Bf8aA7f218eF6b9AB0e9d0"
+  const btcRichAddress = "0xE78388b4CE79068e89Bf8aA7f218eF6b9AB0e9d0";
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [btcRichAddress],
   });
-  let richBtcSigner = await ethers.provider.getSigner(btcRichAddress)
+  let richBtcSigner = await ethers.provider.getSigner(btcRichAddress);
 
   const amountOfCollateralToMint = parseUnits("2000", collateralDecimals); // 6 decimal
-  await collateral.connect(richBtcSigner).transfer(signer1.address, amountOfCollateralToMint)
-  await collateral.connect(richBtcSigner).transfer(signer2.address, amountOfCollateralToMint)
-  await collateral.connect(richBtcSigner).transfer(longAddress.address, amountOfCollateralToMint)
+  await collateral.connect(richBtcSigner).transfer(signer1.address, amountOfCollateralToMint);
+  await collateral.connect(richBtcSigner).transfer(signer2.address, amountOfCollateralToMint);
+  await collateral.connect(richBtcSigner).transfer(longAddress.address, amountOfCollateralToMint);
 
   console.log("signer1: ", signer1.address);
 
