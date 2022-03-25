@@ -31,11 +31,27 @@ interface IUSDL is IUSDLemma {
 
 contract Consulting {
     address public owner;
-    IUSDLemma public usdl;
+    IUSDL public usdl;
+    int256 public minMintingFee;
+    int256 public minRedeemingFee;
+    int256 public maxMintingFee;
+    int256 public maxRedeemingFee;
 
     constructor(address _usdl) {
         owner = msg.sender;
-        usdl = IUSDLemma(_usdl);
+        usdl = IUSDL(_usdl);
+
+        // minMintingFee = 0.1%
+        minMintingFee = 1e3;
+
+        // minRedeemingFee = 0.1%
+        minRedeemingFee = 1e3;
+
+        // maxMintingFee = 1%
+        maxMintingFee = 1e4;
+
+        // maxRedeemingFee = 1%
+        maxRedeemingFee = 1e4;
     }
 
     modifier onlyOwner() {
@@ -58,14 +74,28 @@ contract Consulting {
 
     function setUSDL(address _usdl) external onlyOwner {
         require(_usdl != address(0), "!address");
-        usdl = IUSDLemma(_usdl);
+        usdl = IUSDL(_usdl);
     }
 
     /**
       * Given minting / redeem, collateral and amount returns the fees in 1e6 format 
      */
-    function getFees(uint8 action, address collateral, uint256 amount) validAction(action) validCollateral(collateral) external view returns(uint256) {
-        return 1000;
+    function getFees(uint8 action, uint256 dexIndex, address collateral, uint256 amount) validAction(action) validCollateral(collateral) external view returns(uint256) {
+        int256 res = 0;
+        int256 V = usdl.computeV();
+
+        // Gap with max
+        int256 pos = usdl.getTotalPosition(dexIndex, collateral);
+
+        if( action == 0 ) {
+            // Minting 
+            res = minMintingFee + ((pos * maxMintingFee) / V);
+        } else {
+            // Redeem 
+            res = maxRedeemingFee - ((pos * maxRedeemingFee) / V) + minRedeemingFee;
+        }
+
+        return uint256(res);
     }
 
 }

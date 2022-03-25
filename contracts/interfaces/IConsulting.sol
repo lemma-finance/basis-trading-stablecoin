@@ -7,7 +7,7 @@ interface IConsulting {
     /**
       * Given minting / redeem, collateral and amount returns the fees in 1e6 format 
      */
-    function getFees(uint8 action, address collateral, uint256 amount) external returns(uint256);
+    function getFees(uint8 action, uint256 dexIndex, address collateral, uint256 amount) external returns(uint256);
 
 }
 
