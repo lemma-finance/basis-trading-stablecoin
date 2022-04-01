@@ -242,7 +242,6 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         );
         require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
         uint256 lemmaFees_pn = _getLemmaFees(0, perpetualDEXIndex, address(collateral), collateralAmount_pn);
-        uint256 collateralAmountToDeposit_cd = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmount_pn, true);
         uint256 lemmaFees_cd = perpDEXWrapper.getAmountInCollateralDecimals(lemmaFees_pn, true);
         console.log("[depositToWExactCollateral()] lemmaFees_cd = ", lemmaFees_cd);
         SafeERC20Upgradeable.safeTransferFrom(
@@ -252,16 +251,19 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             lemmaFees_cd
         );
 
+        uint256 collateralAmountAfterFees_pn = collateralAmount_pn - lemmaFees_pn;
+        uint256 collateralAmountAfterFees_cd = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmountAfterFees_pn, true);
+
         SafeERC20Upgradeable.safeTransferFrom(
             collateral,
             _msgSender(),
             address(perpDEXWrapper),
-            collateralAmountToDeposit_cd
+            collateralAmountAfterFees_cd
         );
-        uint256 USDLToMint = perpDEXWrapper.openWExactCollateral(collateralAmount_pn);
+        uint256 USDLToMint = perpDEXWrapper.openWExactCollateral(collateralAmountAfterFees_pn);
         require(USDLToMint >= minUSDLToMint, "USDL minted too low");
         _mint(to, USDLToMint);
-        emit DepositTo(perpetualDEXIndex, address(collateral), to, USDLToMint, collateralAmountToDeposit_cd);
+        emit DepositTo(perpetualDEXIndex, address(collateral), to, USDLToMint, collateralAmountAfterFees_cd);
     }
 
     /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc

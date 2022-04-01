@@ -47,7 +47,7 @@ interface IUSDLemma is IERC20Upgradeable {
     ) external;
 
     function setWhiteListAddress(address _account, bool _isWhiteList) external;
-
+    function setConsultingContract(address _consultingContract) external;
 
     function nonces(address owner) external view returns (uint256);
     function name() external view returns (string memory);

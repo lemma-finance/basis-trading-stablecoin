@@ -1,18 +1,14 @@
 pragma solidity =0.8.3;
 pragma abicoder v2;
 
-// import {Multicall} from  '@uniswap/v3-periphery/contracts/base/Multicall.sol';
-// import {IWETH9} from '@uniswap/v3-periphery/contracts/interfaces/external/IWETH9.sol';
 import {IUSDLemma} from '../interfaces/IUSDLemma.sol';
-// import {IXUSDL} from '../interfaces/IXUSDL.sol';
-// import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-// import {TransferHelper} from '@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
-// import {IPerpetualDEXWrapper} from '../interfaces/IPerpetualDEXWrapper.sol';
-// import {IUniswapV2Router} from '../interfaces/IUniswapV2Router.sol';
-// import {IGenericExchangeWrapper} from '../exchange-wrappers/interfaces/IGenericExchangeWrapper.sol';
-// import {IArbCodeExchangeWrapper} from '../exchange-wrappers/interfaces/IArbCodeExchangeWrapper.sol';
-// import "../interfaces/IPermit.sol";
-// import "../ILemmaRouter.sol";
+
+// import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+// import { ERC20PermitUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/draft-ERC20PermitUpgradeable.sol";
+import { OwnableUpgradeable, ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+// import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
+// import { IConsulting } from "../interfaces/IConsulting.sol";
+
 import "hardhat/console.sol";
 
 // interface IERC20Decimal is IERC20Upgradeable {
@@ -29,16 +25,21 @@ interface IUSDL is IUSDLemma {
 
 
 
-contract Consulting {
-    address public owner;
+contract Consulting is OwnableUpgradeable {
+    // address public owner;
     IUSDL public usdl;
     int256 public minMintingFee;
     int256 public minRedeemingFee;
     int256 public maxMintingFee;
     int256 public maxRedeemingFee;
 
-    constructor(address _usdl) {
-        owner = msg.sender;
+    function initialize(
+        address _usdl
+    ) external initializer {
+        __Ownable_init();
+        // __ERC20_init("xUSDLemma", "xUSDL");
+        // __ERC20Permit_init("xUSDLemma");
+        // __ERC2771Context_init(_trustedForwarder);
         usdl = IUSDL(_usdl);
 
         // minMintingFee = 0.1%
@@ -54,10 +55,28 @@ contract Consulting {
         maxRedeemingFee = 1e4;
     }
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "!owner");
-        _;
-    }
+
+    // constructor(address _usdl) {
+    //     owner = msg.sender;
+    //     usdl = IUSDL(_usdl);
+
+    //     // minMintingFee = 0.1%
+    //     minMintingFee = 1e3;
+
+    //     // minRedeemingFee = 0.1%
+    //     minRedeemingFee = 1e3;
+
+    //     // maxMintingFee = 1%
+    //     maxMintingFee = 1e4;
+
+    //     // maxRedeemingFee = 1%
+    //     maxRedeemingFee = 1e4;
+    // }
+
+    // modifier onlyOwner() {
+    //     require(msg.sender == owner, "!owner");
+    //     _;
+    // }
 
     modifier validAction(uint8 action) {
         require(
@@ -81,18 +100,24 @@ contract Consulting {
       * Given minting / redeem, collateral and amount returns the fees in 1e6 format 
      */
     function getFees(uint8 action, uint256 dexIndex, address collateral, uint256 amount) validAction(action) validCollateral(collateral) external view returns(uint256) {
-        int256 res = 0;
+        int256 res = (action == 0) ? minMintingFee : minRedeemingFee;
+        console.log("[Consulting Contract] Trying to compute V");
         int256 V = usdl.computeV();
+
+        // NOTE: This would be unexpected 
+        require(V >= 0, "!V");
+
+        console.log("[Consulting Contract] V = %s %d", ( V < 0 ? '-':'+' ), ( V < 0 ? uint256(-V) : uint256(V) ) );
 
         // Gap with max
         int256 pos = usdl.getTotalPosition(dexIndex, collateral);
 
         if( action == 0 ) {
             // Minting 
-            res = minMintingFee + ((pos * maxMintingFee) / V);
+            res += (V > 0) ? ((pos * maxMintingFee) / V) : int256(0);
         } else {
             // Redeem 
-            res = maxRedeemingFee - ((pos * maxRedeemingFee) / V) + minRedeemingFee;
+            res += (V > 0) ? maxRedeemingFee - ((pos * maxRedeemingFee) / V) : int256(0);
         }
 
         return uint256(res);
