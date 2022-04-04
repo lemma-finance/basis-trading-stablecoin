@@ -46,6 +46,9 @@ interface IUSDLemma is IERC20Upgradeable {
         address perpetualDEXWrapperAddress
     ) external;
 
+
+    function getFeesPerc(uint256 dexIndex, address collateral, bool isMinting) external view returns (uint256);
+
     function setWhiteListAddress(address _account, bool _isWhiteList) external;
     function setConsultingContract(address _consultingContract) external;
 

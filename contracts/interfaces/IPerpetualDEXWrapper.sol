@@ -21,9 +21,10 @@ interface IPerpetualDEXWrapper {
 
     function getAmountInCollateralDecimals(uint256 amount, bool roundUp) external view returns (uint256);
 
+    // Should return the total position for this PerpDEXWrapper (so the combination of a DEX + Collateral) in base token = USDL terms 
     function getTotalPosition() external view returns (int256);
 
-    function getFees(bool isMinting) external view returns (uint256);
+    function getFeesPerc(bool isMinting) external view returns (uint256);
 
     function settle() external;
 }

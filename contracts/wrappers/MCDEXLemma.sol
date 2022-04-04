@@ -79,7 +79,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
         liquidityPool.setTargetLeverage(perpetualIndex, address(this), 1 ether); //1
     }
 
-    function getFees(bool isMinting) external view override returns (uint256) {
+    function getFeesPerc(bool isMinting) external view override returns (uint256) {
         require(false, "!unimplemented");
     }
 

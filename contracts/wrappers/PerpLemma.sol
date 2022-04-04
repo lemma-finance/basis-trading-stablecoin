@@ -115,7 +115,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         hasSettled = false;
     }
 
-    function getFees(bool isMinting) external view override returns (uint256) {
+    function getFeesPerc(bool isMinting) external view override returns (uint256) {
         IMarketRegistry.MarketInfo memory marketInfo = iMarketRegistry.getMarketInfo(baseTokenAddress);
         return marketInfo.exchangeFeeRatio;        
     }

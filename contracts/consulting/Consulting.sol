@@ -96,10 +96,15 @@ contract Consulting is OwnableUpgradeable {
         usdl = IUSDL(_usdl);
     }
 
+
+    function getDEXFeesPerc(uint8 action, uint256 dexIndex, address collateral, uint256 amount_pn) validAction(action) validCollateral(collateral) public view returns(uint256) {
+        return usdl.getFeesPerc(dexIndex, collateral, (action == 0) ? true : false);
+    }
+
     /**
       * Given minting / redeem, collateral and amount returns the fees in 1e6 format 
      */
-    function getFees(uint8 action, uint256 dexIndex, address collateral, uint256 amount) validAction(action) validCollateral(collateral) external view returns(uint256) {
+    function getLemmaFeesPerc(uint8 action, uint256 dexIndex, address collateral, uint256 amount_pn) validAction(action) validCollateral(collateral) public view returns(uint256) {
         int256 res = (action == 0) ? minMintingFee : minRedeemingFee;
         console.log("[Consulting Contract] Trying to compute V");
         int256 V = usdl.computeV();
@@ -121,6 +126,25 @@ contract Consulting is OwnableUpgradeable {
         }
 
         return uint256(res);
+    }
+
+    function getTotalFeesPerc(uint8 action, uint256 dexIndex, address collateral, uint256 amount_pn) validAction(action) validCollateral(collateral) external view returns(uint256) {
+        console.log("[getTotalFeesPerc()] amount_pn = ", amount_pn);
+        uint256 lemmaFees_perc1e6 = getLemmaFeesPerc(action, dexIndex, collateral, amount_pn);
+        console.log("lemmaFees_perc1e6 = ", lemmaFees_perc1e6);
+        uint256 lemmaFees_pn = ( lemmaFees_perc1e6 * amount_pn ) / 1e6;
+        console.log("lemmaFees_pn = ", lemmaFees_pn);
+        uint256 amountAfterLemmaFees_pn = amount_pn - lemmaFees_pn;
+        console.log("amountAfterLemmaFees_pn = ", amountAfterLemmaFees_pn);
+        uint256 dexFees_perc1e6 = getDEXFeesPerc(action, dexIndex, collateral, amountAfterLemmaFees_pn);
+        console.log("dexFees_perc1e6 = ", dexFees_perc1e6);
+        uint256 dexFees_pn = ( dexFees_perc1e6 * amountAfterLemmaFees_pn ) / 1e6;
+        console.log("dexFees_pn = ", dexFees_pn);
+        uint256 amountAfterAllFees_pn = amountAfterLemmaFees_pn - dexFees_pn;
+        console.log("amountAfterAllFees_pn = ", amountAfterAllFees_pn);
+        uint256 res = (amount_pn - amountAfterAllFees_pn) * 1e6 / amount_pn;
+        console.log("res = ", res);
+        return res;
     }
 
 }

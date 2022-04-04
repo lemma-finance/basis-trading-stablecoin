@@ -91,13 +91,13 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         return false;
     }
 
-    function getFees(uint256 dexIndex, address collateral, bool isMinting) external view returns (uint256) {
+    function getFeesPerc(uint256 dexIndex, address collateral, bool isMinting) external view returns (uint256) {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[dexIndex][collateral]
         );
 
         require(address(perpDEXWrapper) != address(0), "! DEX Wrapper");
-        return perpDEXWrapper.getFees(isMinting);
+        return perpDEXWrapper.getFeesPerc(isMinting);
     }
 
     function getTotalPosition(uint256 dexIndex, address collateral) public view returns (int256) {
@@ -116,7 +116,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             res = 0;
         }
         else {
-            res = consultingContract.getFees(action, dexIndex, collateral, amount);
+            res = consultingContract.getLemmaFeesPerc(action, dexIndex, collateral, amount);
         }
         console.log("[_getLemmaFees()] Res = ", res);
         return res;
@@ -211,8 +211,8 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
 
         // NOTE: Now let's use the Perp numerical representation for all the collateral it supports --> so it will be converted later into the collateral decimals format that is required to safeTransfer it 
         // Q: However, it is possible different Perp protocols use a different 
-        uint256 lemmaFees_pn = _getLemmaFees(0, perpetualDEXIndex, address(collateral), collateralRequired_pn);
-
+        uint256 lemmaFees_perc1e6 = _getLemmaFees(0, perpetualDEXIndex, address(collateral), collateralRequired_pn);
+        uint256 lemmaFees_pn = (lemmaFees_perc1e6 * collateralRequired_pn) / 1e6;
         uint256 collateralRequired_cd = perpDEXWrapper.getAmountInCollateralDecimals(collateralRequired_pn, true);
         uint256 lemmaFees_cd = perpDEXWrapper.getAmountInCollateralDecimals(lemmaFees_pn, true);
 
@@ -241,7 +241,9 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
-        uint256 lemmaFees_pn = _getLemmaFees(0, perpetualDEXIndex, address(collateral), collateralAmount_pn);
+        uint256 lemmaFees_perc1e6 = _getLemmaFees(0, perpetualDEXIndex, address(collateral), collateralAmount_pn);
+        console.log("[depositToWExactCollateral()] lemmaFees_perc1e6 = ", lemmaFees_perc1e6);
+        uint256 lemmaFees_pn = ( lemmaFees_perc1e6 * collateralAmount_pn ) / 1e6;
         uint256 lemmaFees_cd = perpDEXWrapper.getAmountInCollateralDecimals(lemmaFees_pn, true);
         console.log("[depositToWExactCollateral()] lemmaFees_cd = ", lemmaFees_cd);
         SafeERC20Upgradeable.safeTransferFrom(
@@ -286,7 +288,9 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
 
         uint256 collateralAmountToGetBack_pn = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
-        uint256 lemmaFees_pn = _getLemmaFees(1, perpetualDEXIndex, address(collateral), collateralAmountToGetBack_pn);
+
+        uint256 lemmaFees_perc1e6 = _getLemmaFees(1, perpetualDEXIndex, address(collateral), collateralAmountToGetBack_pn);
+        uint256 lemmaFees_pn = (lemmaFees_perc1e6 * collateralAmountToGetBack_pn) / 1e6;
 
         uint256 collateralAmountToGetBack_cd = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmountToGetBack_pn, false);
         uint256 lemmaFees_cd = perpDEXWrapper.getAmountInCollateralDecimals(lemmaFees_pn, false);
@@ -311,7 +315,8 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
-        uint256 lemmaFees_pn = _getLemmaFees(1, perpetualDEXIndex, address(collateral), collateralAmount_pn);
+        uint256 lemmaFees_perc1e6 = _getLemmaFees(1, perpetualDEXIndex, address(collateral), collateralAmount_pn);
+        uint256 lemmaFees_pn = (lemmaFees_perc1e6 * collateralAmount_pn) / 1e6;
         uint256 lemmaFees_cd = perpDEXWrapper.getAmountInCollateralDecimals(lemmaFees_pn, false);
         uint256 collateralBefore = collateral.balanceOf(address(this));
         uint256 USDLToBurn = perpDEXWrapper.closeWExactCollateral(collateralAmount_pn);
