@@ -2,14 +2,15 @@ import colors from "colors";
 import fs from "fs";
 import hre from "hardhat";
 import { utils } from "ethers";
-// import tokenTransfers from "truffle-token-test-utils";
+import tokenTransfers from "truffle-token-test-utils";
 import util from "util";
 // import * as child from 'child_process';
 const exec = util.promisify(require("child_process").exec);
 import bn from "bignumber.js";
 
 const { BigNumber } = hre.ethers;
-// tokenTransfers.setCurrentProvider(hre.ethers.providers.JsonRpcProvider)
+tokenTransfers.setCurrentProvider(hre.ethers.providers.JsonRpcProvider)
+
 
 export async function deployMCDEXLocally() {
   // console.log("deploying MCDEX locally,please wait...");
@@ -47,7 +48,7 @@ export async function deployPerpLocally() {
 export async function loadPerpLushanInfo() {
   //deploy mcdex and then load
   await deployPerpLocally();
-  //get MCDEXAddresses
+  //get perp-lushan addresses
   const data = fs.readFileSync(__dirname + "/../../perp-lushan/deployments/local.deployment.js", "utf8");
   return JSON.parse(data);
 }

@@ -2,11 +2,12 @@ import { ethers, upgrades, waffle } from "hardhat";
 import { expect, use } from "chai";
 import { solidity } from "ethereum-waffle";
 import { utils } from "ethers";
-import { parseEther, parseUnits, formatUnits } from "ethers/lib/utils";
+import { parseEther, parseUnits, formatUnits, formatEther } from "ethers/lib/utils";
 import { BigNumber } from "@ethersproject/bignumber";
 import { loadPerpLushanInfo, snapshot, revertToSnapshot, fromBigNumber } from "../shared/utils";
 import bn from "bignumber.js";
 bn.config({ EXPONENTIAL_AT: 999999, DECIMAL_PLACES: 40 });
+
 
 import ClearingHouseAbi from "../../perp-lushan/artifacts/contracts/test/TestClearingHouse.sol/TestClearingHouse.json";
 import OrderBookAbi from "../../perp-lushan/artifacts/contracts/OrderBook.sol/OrderBook.json";
@@ -218,8 +219,8 @@ describe("perpLemma", async function () {
 
     if (!totalAbsPositionValue.eq(ZERO)) {
       const accountMarginRatio: BigNumber = accountValue.mul(parseUnits("1", 18)).div(totalAbsPositionValue);
-      const leverage: any = BigNumber.from(1).div(formatUnits(accountMarginRatio, BigNumber.from(18)));
-      console.log("leverage", leverage.toFixed(5));
+      const leverage: BigNumber = parseEther("1").mul(parseEther("1")).div(accountMarginRatio);
+      console.log("leverage", formatEther(leverage));
     }
   }
 
@@ -258,11 +259,11 @@ describe("perpLemma", async function () {
       await perpLemma.connect(defaultSigner).setUSDLemma(signer1.address);
       expect(await perpLemma.usdLemma()).to.equal(signer1.address);
       await expect(
-        perpLemma.connect(signer1).setReferrerCode(ethers.utils.formatBytes32String("Hello World")),
+        perpLemma.connect(signer1).setReferrerCode(ethers.utils.formatBytes32String("ADemoReferrerCode")),
       ).to.be.revertedWith("Ownable: caller is not the owner");
-      await perpLemma.connect(defaultSigner).setReferrerCode(ethers.utils.formatBytes32String("Hello World"));
-      const byteCode = await perpLemma.referrerCode();
-      expect(ethers.utils.parseBytes32String(byteCode)).to.eq("Hello World");
+      await perpLemma.connect(defaultSigner).setReferrerCode(ethers.utils.formatBytes32String("ADemoReferrerCode"));
+      const referrerCode = await perpLemma.referrerCode();
+      expect(ethers.utils.parseBytes32String(referrerCode)).to.eq("ADemoReferrerCode");
     });
 
     it("should fail to open when max position is reached", async function () {
@@ -275,7 +276,7 @@ describe("perpLemma", async function () {
       );
     });
 
-    it.only("should close position correctly", async function () {
+    it("should close position correctly", async function () {
       let collateralAmount = parseUnits("1", ethCollateralDecimals); // 6 decimal
       await ethCollateral.mint(usdLemma.address, collateralAmount);
 
@@ -712,7 +713,7 @@ describe("perpLemma", async function () {
     });
 
     describe("Emergency Settlement", async function () {
-      beforeEach(async function () {});
+      beforeEach(async function () { });
 
       it("Calling Settle() when Market is open should revert", async () => {
         // By default the market is open

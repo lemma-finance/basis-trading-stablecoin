@@ -197,8 +197,11 @@ describe("usdLemma-perp", async function () {
   afterEach(async function () {
     await revertToSnapshot(snapshotId);
   });
-
-  it.only("openPosition => open position for short and close position for 2 time longs, 50% & 50%", async () => {
+  it("should initialize correctly", async function () {
+    expect(await perpLemma.usdLemma()).to.equal(usdLemma.address);
+    expect(await usdLemma.perpetualDEXWrappers("0", collateral.address)).to.equal(perpLemma.address);
+  });
+  it("openPosition => open position for short and close position for 2 time longs, 50% & 50%", async () => {
     await collateral.mint(defaultSigner.address, parseUnits("5", collateralDecimals));
     let collateralAmount = parseUnits("1", collateralDecimals);
     await collateral.mint(usdLemma.address, collateralAmount);
@@ -268,7 +271,7 @@ describe("usdLemma-perp", async function () {
     expect(await collateral.balanceOf(perpLemma.address)).to.be.equal(ZERO);
   });
 
-  it.only("openPosition => open position for short and close position for 2 time longs, 80% & 20%", async () => {
+  it("openPosition => open position for short and close position for 2 time longs, 80% & 20%", async () => {
     await collateral.mint(defaultSigner.address, parseUnits("5", collateralDecimals));
     let collateralAmount = parseUnits("1", collateralDecimals);
     await collateral.mint(usdLemma.address, collateralAmount);
