@@ -201,10 +201,6 @@ describe("usdLemma-perp", async function () {
     expect(await perpLemma.usdLemma()).to.equal(usdLemma.address);
     expect(await usdLemma.perpetualDEXWrappers("0", collateral.address)).to.equal(perpLemma.address);
   });
-  it("should revert when depositing with exact USDL amount", async function () {
-    await collateral.approve(usdLemma.address, ethers.constants.MaxUint256);
-    await expect(usdLemma.deposit(parseEther("1"), 0, ethers.constants.MaxUint256, collateral.address)).to.be.revertedWith("not supported");
-  });
   it("openPosition => open position for short and close position for 2 time longs, 50% & 50%", async () => {
     await collateral.mint(defaultSigner.address, parseUnits("5", collateralDecimals));
     let collateralAmount = parseUnits("1", collateralDecimals);

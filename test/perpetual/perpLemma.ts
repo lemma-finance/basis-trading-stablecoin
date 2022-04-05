@@ -276,7 +276,7 @@ describe("perpLemma", async function () {
       );
     });
 
-    it.only("should close position correctly", async function () {
+    it("should close position correctly", async function () {
       let collateralAmount = parseUnits("1", ethCollateralDecimals); // 6 decimal
       await ethCollateral.mint(usdLemma.address, collateralAmount);
 
