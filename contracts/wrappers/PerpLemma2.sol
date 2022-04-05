@@ -46,7 +46,7 @@ interface IUSDLemma {
     function lemmaTreasury() external view returns (address);
 }
 
-contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualDEXWrapper {
+contract PerpLemma2 is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualDEXWrapper {
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
     using Utils for int256;
