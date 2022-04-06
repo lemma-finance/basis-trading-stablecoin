@@ -42,6 +42,12 @@ const config: HardhatUserConfig = {
         mnemonic: process.env.MNEMONIC,
       },
     },
+    optimismKovan: {
+      url: "https://optimism-kovan.infura.io/v3/" + process.env.INFURA_KEY,
+      accounts: {
+        mnemonic: process.env.MNEMONIC,
+      },
+    },
     arbitrum: {
       // url: "https://arbitrum-mainnet.infura.io/v3/" + process.env.INFURA_KEY,
       url: "https://arb1.arbitrum.io/rpc",

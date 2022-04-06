@@ -93,8 +93,9 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         _;
     }
 
-    //@sunnyRK do not take redudunt arguments. e.g. _collateral is not required because _iPerpVault.getSettlementToken() will return collateral address. We can remove _collateral from the arguments.
     function initialize(
+        //TODO: @sunnyRk  add trustedForwarder as an argument by uncommenting below and update in the corresponding tests
+        // address _trustedForwarder,
         address _collateral,
         address _baseToken,
         address _quoteToken,
@@ -104,7 +105,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         uint256 _maxPosition
     ) external initializer {
         __Ownable_init();
-
+        // __ERC2771Context_init(_trustedForwarder);
         usdLemma = _usdLemma;
         maxPosition = _maxPosition;
         baseTokenAddress = _baseToken;
@@ -270,7 +271,12 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountToWithdraw);
     }
 
-    function closeWExactCollateral(uint256 collateralAmountToClose) external override onlyUSDLemma returns (uint256 USDLToBurn) {
+    function closeWExactCollateral(uint256 collateralAmountToClose)
+        external
+        override
+        onlyUSDLemma
+        returns (uint256 USDLToBurn)
+    {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
 
         if (hasSettled) return closeWExactCollateralAfterSettlement(collateralAmountToClose);
@@ -334,7 +340,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         uint256 collateralAmountToWithdraw = freeCollateralByImRatioX10_D.abs().toUint256();
         // uint256 freeCollateralByImRatioX10_D = iPerpVault.getFreeCollateralByToken(address(this), address(collateral));
         // uint256 collateralAmountToWithdraw = freeCollateralByImRatioX10_D;
-        console.log('collateralAmountToWithdraw: ', collateralAmountToWithdraw);
+        console.log("collateralAmountToWithdraw: ", collateralAmountToWithdraw);
         iPerpVault.withdraw(address(collateral), collateralAmountToWithdraw);
 
         // uint256 currentCollateral = collateral.balanceOf(address(this));
