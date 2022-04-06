@@ -188,6 +188,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     function getCollateralAmountGivenUnderlyingAssetAmount(uint256 usdlToMintOrBurn, bool isShorting)
         external
         override
+        onlyUSDLemma
         returns (uint256 quote)
     {
         bool _isBaseToQuote;
@@ -229,10 +230,8 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     function openWExactCollateral(uint256 collateralAmount)
         external
         override
-        returns (
-            // onlyUSDLemma
-            uint256 USDLToMint
-        )
+        onlyUSDLemma
+        returns (uint256 USDLToMint)
     {
         // require(_msgSender() == usdLemma, "only usdLemma is allowed");
         require(!hasSettled, "Market Closed");
@@ -271,7 +270,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountToWithdraw);
     }
 
-    function closeWExactCollateral(uint256 collateralAmountToClose) external override returns (uint256 USDLToBurn) {
+    function closeWExactCollateral(uint256 collateralAmountToClose) external override onlyUSDLemma returns (uint256 USDLToBurn) {
         require(_msgSender() == usdLemma, "only usdLemma is allowed");
 
         if (hasSettled) return closeWExactCollateralAfterSettlement(collateralAmountToClose);
@@ -333,6 +332,9 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         uint24 imRatio = clearingHouseConfig.getImRatio();
         int256 freeCollateralByImRatioX10_D = iPerpVault.getFreeCollateralByRatio(address(this), imRatio);
         uint256 collateralAmountToWithdraw = freeCollateralByImRatioX10_D.abs().toUint256();
+        // uint256 freeCollateralByImRatioX10_D = iPerpVault.getFreeCollateralByToken(address(this), address(collateral));
+        // uint256 collateralAmountToWithdraw = freeCollateralByImRatioX10_D;
+        console.log('collateralAmountToWithdraw: ', collateralAmountToWithdraw);
         iPerpVault.withdraw(address(collateral), collateralAmountToWithdraw);
 
         // uint256 currentCollateral = collateral.balanceOf(address(this));
@@ -398,9 +400,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     /// @param roundUp If needs to round up
     /// @return decimal adjusted value
     function getAmountInCollateralDecimals(uint256 amount, bool roundUp) public view override returns (uint256) {
-        console.log("getAmountInCollateralDecimals[] amount before = ", amount);
-        amount = (amount * (10**18)) / (10**collateralDecimals);
-        console.log("getAmountInCollateralDecimals[] amount after = ", amount);
+        amount = (amount * (10**18)) / (10**collateralDecimals); // convert first into 18 decimals before any OPs
         if (roundUp && (amount % (uint256(10**(18 - collateralDecimals))) != 0)) {
             return amount / uint256(10**(18 - collateralDecimals)) + 1; // need to verify
         }
