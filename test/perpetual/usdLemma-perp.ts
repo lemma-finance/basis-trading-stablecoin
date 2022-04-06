@@ -73,9 +73,22 @@ async function callStaticOpenPosition(clearingHouse, signer, baseTokenAddress, _
   });
   return openPositionParams;
 }
+async function openPosition(clearingHouse, signer, baseTokenAddress, _isBaseToQuote, _isExactInput, _amount) {
+  let openPositionParams = await clearingHouse.connect(signer).openPosition({
+    baseToken: baseTokenAddress,
+    isBaseToQuote: _isBaseToQuote,
+    isExactInput: _isExactInput,
+    oppositeAmountBound: 0,
+    amount: _amount,
+    sqrtPriceLimitX96: 0,
+    deadline: ethers.constants.MaxUint256,
+    referralCode: ethers.constants.HashZero,
+  });
+  return openPositionParams;
+}
 
 describe("usdLemma-perp", async function () {
-  let defaultSigner, usdLemma, reBalancer, hasWETH, keeperGasReward, signer1, signer2, signer3, longAddress;
+  let defaultSigner, usdLemma, reBalancer, hasWETH, keeperGasReward, signer1, signer2, signer3, longAddress, maker;
   let perpAddresses: any;
   const ZERO = BigNumber.from("0");
   let snapshotId: any;
@@ -114,7 +127,7 @@ describe("usdLemma-perp", async function () {
 
 
   before(async function () {
-    [defaultSigner, usdLemma, reBalancer, hasWETH, signer1, signer2, signer3, longAddress] = await ethers.getSigners();
+    [defaultSigner, usdLemma, reBalancer, hasWETH, signer1, signer2, signer3, longAddress, maker] = await ethers.getSigners();
 
     perpAddresses = await loadPerpLushanInfo();
     clearingHouse = new ethers.Contract(perpAddresses.clearingHouse.address, ClearingHouseAbi.abi, defaultSigner);
@@ -214,46 +227,56 @@ describe("usdLemma-perp", async function () {
     await usdCollateral.mint(signer1.address, makerUSDCollateralAmount);
     await usdCollateral.mint(signer2.address, makerUSDCollateralAmount);
     await usdCollateral.mint(longAddress.address, makerUSDCollateralAmount);
+    await usdCollateral.mint(maker.address, makerUSDCollateralAmount);
 
     await usdCollateral.connect(signer1).approve(vault.address, ethers.constants.MaxUint256);
     await usdCollateral.connect(signer2).approve(vault.address, ethers.constants.MaxUint256);
     await usdCollateral.connect(longAddress).approve(vault.address, ethers.constants.MaxUint256);
+    await usdCollateral.connect(maker).approve(vault.address, ethers.constants.MaxUint256);
 
     const depositUSDAmount = parseUnits("10000000000", usdCollateralDecimals);
     await vault.connect(longAddress).deposit(usdCollateral.address, depositUSDAmount);
     await vault.connect(signer2).deposit(usdCollateral.address, depositUSDAmount);
+    await vault.connect(maker).deposit(usdCollateral.address, depositUSDAmount);
 
     // prepare ethCollateral for maker
     const makerETHCollateralAmount = parseUnits("10000000000", ethCollateralDecimals);
     await ethCollateral.mint(signer1.address, makerETHCollateralAmount);
     await ethCollateral.mint(signer2.address, makerETHCollateralAmount);
     await ethCollateral.mint(longAddress.address, makerETHCollateralAmount);
+    await ethCollateral.mint(maker.address, makerETHCollateralAmount);
 
     await ethCollateral.connect(signer1).approve(vault.address, ethers.constants.MaxUint256);
     await ethCollateral.connect(signer2).approve(vault.address, ethers.constants.MaxUint256);
     await ethCollateral.connect(longAddress).approve(vault.address, ethers.constants.MaxUint256);
+    await ethCollateral.connect(maker).approve(vault.address, ethers.constants.MaxUint256);
+
 
     const depositETHAmount = parseUnits("1000000000", ethCollateralDecimals);
     await vault.connect(longAddress).deposit(ethCollateral.address, depositETHAmount);
     await vault.connect(signer2).deposit(ethCollateral.address, depositETHAmount);
+    await vault.connect(maker).deposit(ethCollateral.address, depositETHAmount);
 
     // prepare btcCollateral for maker
     const makerBtcCollateralAmount = parseUnits("1000000", btcCollateralDecimals);
     await btcCollateral.mint(signer1.address, makerBtcCollateralAmount);
     await btcCollateral.mint(signer2.address, makerBtcCollateralAmount);
     await btcCollateral.mint(longAddress.address, makerBtcCollateralAmount);
+    await btcCollateral.mint(maker.address, makerBtcCollateralAmount);
 
     await btcCollateral.connect(signer1).approve(vault.address, ethers.constants.MaxUint256);
     await btcCollateral.connect(signer2).approve(vault.address, ethers.constants.MaxUint256);
     await btcCollateral.connect(longAddress).approve(vault.address, ethers.constants.MaxUint256);
+    await btcCollateral.connect(maker).approve(vault.address, ethers.constants.MaxUint256);
 
     const depositAmountForBtc = parseUnits("100", btcCollateralDecimals);
     await vault.connect(longAddress).deposit(btcCollateral.address, depositAmountForBtc);
     await vault.connect(signer2).deposit(btcCollateral.address, depositAmountForBtc);
+    await vault.connect(maker).deposit(btcCollateral.address, depositAmountForBtc);
 
     await addLiquidity(
       clearingHouse,
-      signer2,
+      maker,
       baseToken.address,
       parseEther("1000000000"), // usdc
       parseEther("10000000"), // eth
