@@ -173,11 +173,13 @@ describe("usdLemma-perp", async function () {
     ethCollateralDecimals = await ethCollateral.decimals();
     btcCollateralDecimals = await btcCollateral.decimals();
 
+    const trustedForwarder = ethers.constants.AddressZero;
     const maxPosition = ethers.constants.MaxUint256;
     const perpLemmaFactory = await ethers.getContractFactory("PerpLemma");
     perpLemma = await upgrades.deployProxy(
       perpLemmaFactory,
       [
+        trustedForwarder,
         ethCollateral.address,
         baseToken.address,
         quoteToken.address,

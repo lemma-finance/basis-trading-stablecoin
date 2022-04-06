@@ -95,7 +95,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
     function initialize(
         //TODO: @sunnyRk  add trustedForwarder as an argument by uncommenting below and update in the corresponding tests
-        // address _trustedForwarder,
+        address _trustedForwarder,
         address _collateral,
         address _baseToken,
         address _quoteToken,
@@ -105,7 +105,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         uint256 _maxPosition
     ) external initializer {
         __Ownable_init();
-        // __ERC2771Context_init(_trustedForwarder);
+        __ERC2771Context_init(_trustedForwarder);
         usdLemma = _usdLemma;
         maxPosition = _maxPosition;
         baseTokenAddress = _baseToken;
