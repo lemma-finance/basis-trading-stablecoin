@@ -253,20 +253,22 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     function settle() public override {
         uint256 initialCollateral = collateral.balanceOf(address(this));
         console.log("[settle()]");
-        uint256 positionAtSettlementBase = iAccountBalance.getBase(address(this), baseTokenAddress).abs().toUint256();
+        // uint256 positionAtSettlementBase = iAccountBalance.getBase(address(this), baseTokenAddress).abs().toUint256();
         uint256 positionAtSettlementQuote = iAccountBalance.getQuote(address(this), baseTokenAddress).abs().toUint256();
-        console.log("[settle()] positionAtSettlementBase = ", positionAtSettlementBase);
+        // console.log("[settle()] positionAtSettlementBase = ", positionAtSettlementBase);
 
-        // From the tests, positionAtSettlementQuote has been verified to be equal to the deposited collateralAmount - Perp Opening Fees so OK  
-        console.log("[settle()] positionAtSettlementQuote = ", positionAtSettlementQuote);
+        // // From the tests, positionAtSettlementQuote has been verified to be equal to the deposited collateralAmount - Perp Opening Fees so OK  
+        // console.log("[settle()] positionAtSettlementQuote = ", positionAtSettlementQuote);
 
         (uint256 amountBaseClosed, uint256 amountQuoteClosed) = iClearingHouse.quitMarket(address(this), baseTokenAddress);
+        positionAtSettlement = positionAtSettlementQuote;
         console.log("[settle()] amountBaseClosed = ", amountBaseClosed);
         console.log("[settle()] amountQuoteClosed = ", amountQuoteClosed);
 
         // NOTE: Apparently no need to withdraw fees when in settlement mode
         // uint256 collateralAmountForClose = getCollateralAmountAfterFees(positionAtSettlementQuote);
-        iPerpVault.withdraw(address(collateral), positionAtSettlementQuote); 
+        console.log("[settle()] positionAtSettlement = ", positionAtSettlement);
+        iPerpVault.withdraw(address(collateral), positionAtSettlement); 
         console.log("[settle()] Withdraw DONE ");
 
         // NOTE: The following does not return the correct amount
