@@ -10,7 +10,6 @@ import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/
 import { Utils } from "./libraries/Utils.sol";
 import { SafeMathExt } from "./libraries/SafeMathExt.sol";
 import { IPerpetualDEXWrapper } from "./interfaces/IPerpetualDEXWrapper.sol";
-import "hardhat/console.sol";
 
 /// @author Lemma Finance
 contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
@@ -25,7 +24,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     mapping(uint256 => mapping(address => address)) public perpetualDEXWrappers;
 
     mapping(address => bool) private whiteListAddress;
-    uint256 mutexBlock;
+    uint256 public mutexBlock;
 
     // events
     event DepositTo(
