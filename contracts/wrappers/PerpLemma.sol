@@ -201,7 +201,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             _isExactInput = true;
             if (hasSettled) return closeWExactUSDLAfterSettlement(usdlToMintOrBurn);
         }
-        totalFundingPNL += exchange.getPendingFundingPayment(address(this), baseTokenAddress);
+        totalFundingPNL = getFundingPNL();
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: baseTokenAddress,
             isBaseToQuote: _isBaseToQuote,
@@ -236,7 +236,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         uint256 collateralAmountToDeposit = getAmountInCollateralDecimals(collateralAmount, true);
         require(collateral.balanceOf(address(this)) >= collateralAmountToDeposit, "not enough collateral");
 
-        totalFundingPNL += exchange.getPendingFundingPayment(address(this), baseTokenAddress);
+        totalFundingPNL = getFundingPNL();
         iPerpVault.deposit(address(collateral), collateralAmountToDeposit);
         collateralAmountToDeposit = (collateralAmountToDeposit * (10**18)) / (10**collateralDecimals); // because vToken alsways in 18 decimals
 
@@ -276,7 +276,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
         if (hasSettled) return closeWExactCollateralAfterSettlement(collateralAmountToClose);
 
-        totalFundingPNL += exchange.getPendingFundingPayment(address(this), baseTokenAddress);
+        totalFundingPNL = getFundingPNL();
         collateralAmountToClose = (collateralAmountToClose * (10**18)) / (10**collateralDecimals); // because vToken alsways in 18 decimals
 
         //simillar to openWExactCollateral but for close
@@ -405,12 +405,6 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
     function getFundingPNL() public view returns (int256 fundingPNL) {
         return totalFundingPNL + exchange.getPendingFundingPayment(address(this), baseTokenAddress);
-    }
-
-    function getCollateralAmountAfterFees(uint256 _collateralAmount) internal returns (uint256 collateralAmount) {
-        IMarketRegistry.MarketInfo memory marketInfo = marketRegistry.getMarketInfo(baseTokenAddress);
-        // fees cut from user's collateral by lemma for open or close position
-        collateralAmount = _collateralAmount - ((_collateralAmount * marketInfo.exchangeFeeRatio) / HUNDREAD_PERCENT);
     }
 
     function _msgSender()
