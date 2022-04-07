@@ -487,7 +487,7 @@ describe("usdLemma-perp", async function () {
     expect(await vault.getBalance(perpLemma.address)).to.gt(0); // consider to be fee
     expect(await collateral.balanceOf(perpLemma.address)).to.be.equal(ZERO);
   });
-  it.only("depositTo", async () => {
+  it("depositTo", async () => {
     const collateralBalanceBefore = await collateral.balanceOf(defaultSigner.address);
     const usdlBalanceBefore = await usdLemma.balanceOf(signer1.address);
     const amount = utils.parseEther("1");
@@ -509,7 +509,7 @@ describe("usdLemma-perp", async function () {
       .withArgs(0, collateral.address, signer1.address, amount, quoteAmount);
   })
 
-  it.only("WithdrawTo", async function () {
+  it("WithdrawTo", async function () {
     const openWAmount = utils.parseEther("1");
     await collateral.approve(usdLemma.address, openWAmount);
     let [, quoteAmount] = await callStaticOpenPosition(clearingHouse, longAddress, baseToken.address, false, false, openWAmount);
