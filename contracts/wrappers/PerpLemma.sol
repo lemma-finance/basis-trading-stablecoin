@@ -94,7 +94,6 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     }
 
     function initialize(
-        //TODO: @sunnyRk  add trustedForwarder as an argument by uncommenting below and update in the corresponding tests
         address _trustedForwarder,
         address _collateral,
         address _baseToken,
@@ -203,7 +202,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             _isExactInput = true;
             if (hasSettled) return closeWExactUSDLAfterSettlement(usdlToMintOrBurn);
         }
-        totalFundingPNL += exchange.getPendingFundingPayment(address(this), baseTokenAddress);
+        totalFundingPNL = getFundingPNL();
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: baseTokenAddress,
             isBaseToQuote: _isBaseToQuote,
@@ -215,7 +214,6 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             referralCode: referrerCode
         });
         (base, quote) = clearingHouse.openPosition(params);
-        console.log("base-quote-collateralgetBack", base, quote);
     }
 
     // go short to open
@@ -239,10 +237,9 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         uint256 collateralAmountToDeposit = getAmountInCollateralDecimals(collateralAmount, true);
         require(collateral.balanceOf(address(this)) >= collateralAmountToDeposit, "not enough collateral");
 
-        totalFundingPNL += exchange.getPendingFundingPayment(address(this), baseTokenAddress);
+        totalFundingPNL = getFundingPNL();
         iPerpVault.deposit(address(collateral), collateralAmountToDeposit);
         collateralAmountToDeposit = (collateralAmountToDeposit * (10**18)) / (10**collateralDecimals); // because vToken alsways in 18 decimals
-        console.log("collateralAmountToDeposit", collateralAmountToDeposit);
 
         // create long for usdc and short for eth position by giving isBaseToQuote=false
         // and amount in eth(quoteToken) by giving isExactInput=true
@@ -257,7 +254,6 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             referralCode: referrerCode
         });
         (uint256 base, uint256 quote) = clearingHouse.openPosition(params);
-        console.log("base-quote-open: ", base, quote);
 
         int256 positionSize = accountBalance.getTotalPositionSize(address(this), baseTokenAddress);
         require(positionSize.abs().toUint256() <= maxPosition, "max position reached");
@@ -281,9 +277,8 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
         if (hasSettled) return closeWExactCollateralAfterSettlement(collateralAmountToClose);
 
-        totalFundingPNL += exchange.getPendingFundingPayment(address(this), baseTokenAddress);
+        totalFundingPNL = getFundingPNL();
         collateralAmountToClose = (collateralAmountToClose * (10**18)) / (10**collateralDecimals); // because vToken alsways in 18 decimals
-        console.log("collateralAmountToClose", collateralAmountToClose);
 
         //simillar to openWExactCollateral but for close
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
@@ -297,11 +292,9 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             referralCode: referrerCode
         });
         (uint256 base, uint256 quote) = clearingHouse.openPosition(params);
-        console.log("base-quote-close: ", base, quote);
         USDLToBurn = base;
 
         uint256 amountToWithdraw = getAmountInCollateralDecimals(quote, false);
-        console.log("amountToWithdraw", amountToWithdraw, collateralDecimals);
         iPerpVault.withdraw(address(collateral), amountToWithdraw); // withdraw closed position fund
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountToWithdraw);
     }
@@ -357,9 +350,6 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         // console.log("[settle()] collateralAmountToWithdraw = ", collateralAmountToWithdraw);
         // iPerpVault.withdraw(address(collateral), collateralAmountToWithdraw);
 
-        // uint256 currentCollateral = collateral.balanceOf(address(this));
-        // require(currentCollateral - initialCollateral == collateralAmountToWithdraw, "Withdraw failed");
-
         // All the collateral is now back
         hasSettled = true;
     }
@@ -380,6 +370,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
         (uint160 _sqrtPriceLimitX96, uint256 _deadline) = abi.decode(data, (uint160, uint256));
         int256 fundingPNL = getFundingPNL();
+        totalFundingPNL = fundingPNL;
 
         bool _isBaseToQuote;
         bool _isExactInput;
@@ -435,13 +426,6 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
     function getFundingPNL() public view returns (int256 fundingPNL) {
         return totalFundingPNL + exchange.getPendingFundingPayment(address(this), baseTokenAddress);
-    }
-
-    function getCollateralAmountAfterFees(uint256 _collateralAmount) internal returns (uint256 collateralAmount) {
-        IMarketRegistry.MarketInfo memory marketInfo = marketRegistry.getMarketInfo(baseTokenAddress);
-        // fees cut from user's collateral by lemma for open or close position
-        collateralAmount = _collateralAmount - ((_collateralAmount * marketInfo.exchangeFeeRatio) / HUNDREAD_PERCENT);
-        console.log("collateralAmount & exchangeFeeRatio: ", collateralAmount, marketInfo.exchangeFeeRatio);
     }
 
     function _msgSender()
