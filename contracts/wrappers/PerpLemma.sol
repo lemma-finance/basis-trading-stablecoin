@@ -350,6 +350,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
         (uint160 _sqrtPriceLimitX96, uint256 _deadline) = abi.decode(data, (uint160, uint256));
         int256 fundingPNL = getFundingPNL();
+        totalFundingPNL = fundingPNL;
 
         bool _isBaseToQuote;
         bool _isExactInput;

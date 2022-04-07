@@ -291,9 +291,11 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             uint256 amountBurntFromLemmaTreasury = balanceOfLemmaTreasury.min(
                 totalAmountToBurn - amountBurntFromStakingContract
             );
+            //burnFrom staking contract first
             if (amountBurntFromStakingContract > 0) {
                 _burnFrom(stakingContractAddress, amountBurntFromStakingContract);
             }
+            //burn remaining from lemma treasury (if any)
             if (amountBurntFromLemmaTreasury > 0) {
                 _burnFrom(lemmaTreasury, amountBurntFromLemmaTreasury);
             }
