@@ -32,6 +32,8 @@ interface IPerpVault {
         external
         view
         returns (int256 freeCollateralByRatio);
+
+    function getFreeCollateralByToken(address trader, address token) external view returns (uint256);
 }
 
 interface IUSDLemma {
@@ -261,7 +263,14 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         // console.log("[settle()] positionAtSettlementQuote = ", positionAtSettlementQuote);
 
         (uint256 amountBaseClosed, uint256 amountQuoteClosed) = iClearingHouse.quitMarket(address(this), baseTokenAddress);
-        positionAtSettlement = positionAtSettlementQuote;
+        // positionAtSettlement = positionAtSettlementQuote;
+        // positionAtSettlement = amountQuoteClosed;
+        iClearingHouse.settleAllFunding(address(this));
+        uint256 freeCollateral = iPerpVault.getFreeCollateralByToken(address(this), address(collateral));
+        console.log("[settle()] freeCollateral = ", freeCollateral);
+
+        positionAtSettlement = freeCollateral;
+        // positionAtSettlement = amountQuoteClosed * 10100 / 10000;
         console.log("[settle()] amountBaseClosed = ", amountBaseClosed);
         console.log("[settle()] amountQuoteClosed = ", amountQuoteClosed);
 
