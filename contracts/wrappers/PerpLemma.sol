@@ -251,15 +251,30 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
     //// @notice when perpetual is in CLEARED state, withdraw the collateral
     function settle() public override {
-        // uint256 initialCollateral = collateral.balanceOf(address(this));
-        positionAtSettlement = iAccountBalance.getBase(address(this), baseTokenAddress).abs().toUint256();
+        uint256 initialCollateral = collateral.balanceOf(address(this));
+        console.log("[settle()]");
+        uint256 positionAtSettlementBase = iAccountBalance.getBase(address(this), baseTokenAddress).abs().toUint256();
+        uint256 positionAtSettlementQuote = iAccountBalance.getQuote(address(this), baseTokenAddress).abs().toUint256();
+        console.log("[settle()] positionAtSettlementBase = ", positionAtSettlementBase);
 
-        iClearingHouse.quitMarket(address(this), baseTokenAddress);
+        // From the tests, positionAtSettlementQuote has been verified to be equal to the deposited collateralAmount - Perp Opening Fees so OK  
+        console.log("[settle()] positionAtSettlementQuote = ", positionAtSettlementQuote);
 
-        uint24 imRatio = iClearingHouseConfig.getImRatio();
-        int256 freeCollateralByImRatioX10_D = iPerpVault.getFreeCollateralByRatio(address(this), imRatio);
-        uint256 collateralAmountToWithdraw = freeCollateralByImRatioX10_D.abs().toUint256();
-        iPerpVault.withdraw(address(collateral), collateralAmountToWithdraw);
+        (uint256 amountBaseClosed, uint256 amountQuoteClosed) = iClearingHouse.quitMarket(address(this), baseTokenAddress);
+        console.log("[settle()] amountBaseClosed = ", amountBaseClosed);
+        console.log("[settle()] amountQuoteClosed = ", amountQuoteClosed);
+
+        // uint256 collateralAmountForClose = getCollateralAmountAfterFees(positionAtSettlementQuote);
+        iPerpVault.withdraw(address(collateral), positionAtSettlementQuote); 
+        console.log("[settle()] Withdraw DONE ");
+
+        // uint24 imRatio = iClearingHouseConfig.getImRatio();
+        // console.log("[settle()] imRatio = ", imRatio);
+        // int256 freeCollateralByImRatioX10_D = iPerpVault.getFreeCollateralByRatio(address(this), imRatio);
+        // console.log("[settle()] freeCollateralByImRatioX10_D = %s %d", (freeCollateralByImRatioX10_D < 0 ? "-":"+"), freeCollateralByImRatioX10_D.abs().toUint256());
+        // uint256 collateralAmountToWithdraw = freeCollateralByImRatioX10_D.abs().toUint256();
+        // console.log("[settle()] collateralAmountToWithdraw = ", collateralAmountToWithdraw);
+        // iPerpVault.withdraw(address(collateral), collateralAmountToWithdraw);
 
         // uint256 currentCollateral = collateral.balanceOf(address(this));
         // require(currentCollateral - initialCollateral == collateralAmountToWithdraw, "Withdraw failed");
