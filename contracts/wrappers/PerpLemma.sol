@@ -76,7 +76,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     // Has the Market Settled
     bool public hasSettled;
     // Gets set only when Settlement has already happened
-    uint256 public positionAtSettlement;
+    uint256 public positionAtSettlementBase;
 
     uint256 public maxPosition;
     int256 public totalFundingPNL;
@@ -308,40 +308,54 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
     function closeWExactUSDLAfterSettlement(uint256 usdlAmount) internal returns (uint256 USDLToBurn) {
         // WPL_NP : Wrapper PerpLemma, No Position at settlement --> no more USDL to Burn
-        require(positionAtSettlement > 0, "WPL_NP");
+        require(positionAtSettlementBase > 0, "WPL_NP");
         // WPL_NC : Wrapper PerpLemma, No Collateral
         require(collateral.balanceOf(address(this)) > 0, "WPL_NC");
-        uint256 amountCollateralToTransfer = (usdlAmount * collateral.balanceOf(address(this))) / positionAtSettlement;
+        uint256 amountCollateralToTransfer = (usdlAmount * collateral.balanceOf(address(this))) / positionAtSettlementBase;
         // uint256 amountCollateralToTransfer = getAmountInCollateralDecimals(collateralAmount, true);
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountCollateralToTransfer);
-        positionAtSettlement -= usdlAmount;
+        positionAtSettlementBase -= usdlAmount;
     }
 
     function closeWExactCollateralAfterSettlement(uint256 collateralAmount) internal returns (uint256 USDLToBurn) {
         // WPL_NP : Wrapper PerpLemma, No Position at settlement --> no more USDL to Burn
-        require(positionAtSettlement > 0, "WPL_NP");
+        require(positionAtSettlementBase > 0, "WPL_NP");
         // WPL_NC : Wrapper PerpLemma, No Collateral
         require(collateral.balanceOf(address(this)) > 0, "WPL_NC");
         uint256 amountCollateralToTransfer = getAmountInCollateralDecimals(collateralAmount, true);
-        USDLToBurn = (amountCollateralToTransfer * positionAtSettlement) / collateral.balanceOf(address(this));
+        USDLToBurn = (amountCollateralToTransfer * positionAtSettlementBase) / collateral.balanceOf(address(this));
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountCollateralToTransfer);
-        positionAtSettlement -= USDLToBurn;
+        positionAtSettlementBase -= USDLToBurn;
     }
-
+    
     //// @notice when perpetual is in CLEARED state, withdraw the collateral
     function settle() public override {
-        // uint256 initialCollateral = collateral.balanceOf(address(this));
-        positionAtSettlement = accountBalance.getBase(address(this), baseTokenAddress).abs().toUint256();
+        uint256 initialCollateral = collateral.balanceOf(address(this));
+        console.log("[settle()]");
+        positionAtSettlementBase = accountBalance.getBase(address(this), baseTokenAddress).abs().toUint256();
+        uint256 positionAtSettlementQuote = accountBalance.getQuote(address(this), baseTokenAddress).abs().toUint256();
+        console.log("[settle()] positionAtSettlementBase = ", positionAtSettlementBase);
 
-        clearingHouse.quitMarket(address(this), baseTokenAddress);
+        // From the tests, positionAtSettlementQuote has been verified to be equal to the deposited collateralAmount - Perp Opening Fees so OK  
+        console.log("[settle()] positionAtSettlementQuote = ", positionAtSettlementQuote);
 
-        uint24 imRatio = clearingHouseConfig.getImRatio();
-        int256 freeCollateralByImRatioX10_D = iPerpVault.getFreeCollateralByRatio(address(this), imRatio);
-        uint256 collateralAmountToWithdraw = freeCollateralByImRatioX10_D.abs().toUint256();
-        // uint256 freeCollateralByImRatioX10_D = iPerpVault.getFreeCollateralByToken(address(this), address(collateral));
-        // uint256 collateralAmountToWithdraw = freeCollateralByImRatioX10_D;
-        console.log("collateralAmountToWithdraw: ", collateralAmountToWithdraw);
-        iPerpVault.withdraw(address(collateral), collateralAmountToWithdraw);
+        (uint256 amountBaseClosed, uint256 amountQuoteClosed) = clearingHouse.quitMarket(address(this), baseTokenAddress);
+        console.log("[settle()] amountBaseClosed = ", amountBaseClosed);
+        console.log("[settle()] amountQuoteClosed = ", amountQuoteClosed);
+
+        // NOTE: Apparently no need to withdraw fees when in settlement mode
+        // uint256 collateralAmountForClose = getCollateralAmountAfterFees(positionAtSettlementQuote);
+        iPerpVault.withdraw(address(collateral), positionAtSettlementQuote); 
+        console.log("[settle()] Withdraw DONE ");
+
+        // NOTE: The following does not return the correct amount
+        // uint24 imRatio = iClearingHouseConfig.getImRatio();
+        // console.log("[settle()] imRatio = ", imRatio);
+        // int256 freeCollateralByImRatioX10_D = iPerpVault.getFreeCollateralByRatio(address(this), imRatio);
+        // console.log("[settle()] freeCollateralByImRatioX10_D = %s %d", (freeCollateralByImRatioX10_D < 0 ? "-":"+"), freeCollateralByImRatioX10_D.abs().toUint256());
+        // uint256 collateralAmountToWithdraw = freeCollateralByImRatioX10_D.abs().toUint256();
+        // console.log("[settle()] collateralAmountToWithdraw = ", collateralAmountToWithdraw);
+        // iPerpVault.withdraw(address(collateral), collateralAmountToWithdraw);
 
         // uint256 currentCollateral = collateral.balanceOf(address(this));
         // require(currentCollateral - initialCollateral == collateralAmountToWithdraw, "Withdraw failed");
@@ -349,6 +363,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         // All the collateral is now back
         hasSettled = true;
     }
+
 
     /// @notice Rebalance position of dex based on accumulated funding, since last rebalancing
     /// @param _reBalancer Address of rebalancer who called function on USDL contract
