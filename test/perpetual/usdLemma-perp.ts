@@ -70,7 +70,19 @@ async function callStaticOpenPosition(clearingHouse, signer, baseTokenAddress, _
     deadline: ethers.constants.MaxUint256,
     referralCode: ethers.constants.HashZero,
   });
-  return openPositionParams;
+  return openPositionParams;//[base,quote]
+}
+async function callStaticOpenShortPositionWithExactBase(clearingHouse, signer, baseTokenAddress, _amount) {
+  return callStaticOpenPosition(clearingHouse, signer, baseTokenAddress, true, true, _amount);
+}
+async function callStaticOpenShortPositionWithExactQuote(clearingHouse, signer, baseTokenAddress, _amount) {
+  return callStaticOpenPosition(clearingHouse, signer, baseTokenAddress, true, false, _amount);
+}
+async function callStaticOpenLongPositionWithExactBase(clearingHouse, signer, baseTokenAddress, _amount) {
+  return callStaticOpenPosition(clearingHouse, signer, baseTokenAddress, false, false, _amount);
+}
+async function callStaticOpenLongPositionWithExactQuote(clearingHouse, signer, baseTokenAddress, _amount) {
+  return callStaticOpenPosition(clearingHouse, signer, baseTokenAddress, false, true, _amount);
 }
 async function openPosition(clearingHouse, signer, baseTokenAddress, _isBaseToQuote, _isExactInput, _amount) {
   let openPositionParams = await clearingHouse.connect(signer).openPosition({
@@ -157,21 +169,21 @@ describe("usdLemma-perp", async function () {
       MockTestAggregatorV3Abi.abi,
       defaultSigner,
     );
-    mockedBaseAggregator2 = new ethers.Contract(
-      perpAddresses.mockedBaseAggregator2.address,
-      MockTestAggregatorV3Abi.abi,
-      defaultSigner,
-    );
+    // mockedBaseAggregator2 = new ethers.Contract(
+    //   perpAddresses.mockedBaseAggregator2.address,
+    //   MockTestAggregatorV3Abi.abi,
+    //   defaultSigner,
+    // );
     mockedWethPriceFeed = new ethers.Contract(
       perpAddresses.mockedWethPriceFeed.address,
       MockTestAggregatorV3Abi.abi,
       defaultSigner,
     );
-    mockedWbtcPriceFeed = new ethers.Contract(
-      perpAddresses.mockedWbtcPriceFeed.address,
-      MockTestAggregatorV3Abi.abi,
-      defaultSigner,
-    );
+    // mockedWbtcPriceFeed = new ethers.Contract(
+    //   perpAddresses.mockedWbtcPriceFeed.address,
+    //   MockTestAggregatorV3Abi.abi,
+    //   defaultSigner,
+    // );
     pool = new ethers.Contract(perpAddresses.pool.address, UniswapV3PoolAbi.abi, defaultSigner);
     pool2 = new ethers.Contract(perpAddresses.pool2.address, UniswapV3Pool2Abi.abi, defaultSigner);
     quoter = new ethers.Contract(perpAddresses.quoter.address, QuoterAbi.abi, defaultSigner);
@@ -204,15 +216,15 @@ describe("usdLemma-perp", async function () {
     // base = usd
     // quote = eth
 
-    await mockedBaseAggregator.setLatestRoundData(0, parseUnits("0.01", ethCollateralDecimals), 0, 0, 0);
-    await mockedBaseAggregator2.setLatestRoundData(0, parseUnits("100", ethCollateralDecimals), 0, 0, 0);
-    await mockedWethPriceFeed.setLatestRoundData(0, parseUnits("100", ethCollateralDecimals), 0, 0, 0);
+    await mockedBaseAggregator.setLatestRoundData(0, parseUnits("100", ethCollateralDecimals), 0, 0, 0);
+    // await mockedBaseAggregator2.setLatestRoundData(0, parseUnits("100", ethCollateralDecimals), 0, 0, 0);
+    await mockedWethPriceFeed.setLatestRoundData(0, parseUnits("0.01", ethCollateralDecimals), 0, 0, 0);
     // await mockedWbtcPriceFeed.setLatestRoundData(0, parseUnits("10000", ethCollateralDecimals), 0, 0, 0);
 
-    await pool.initialize(encodePriceSqrt("1", "100"));
+    await pool.initialize(encodePriceSqrt("100", "1"));
     await pool.increaseObservationCardinalityNext((2 ^ 16) - 1);
 
-    await pool2.initialize(encodePriceSqrt("1", "100"));
+    await pool2.initialize(encodePriceSqrt("100", "1"));
     await pool2.increaseObservationCardinalityNext((2 ^ 16) - 1);
 
     await clearingHouseConfig.setMaxFundingRate(parseUnits("1", 6));
@@ -221,7 +233,7 @@ describe("usdLemma-perp", async function () {
     await marketRegistry.addPool(baseToken2.address, 10000);
     await marketRegistry.setFeeRatio(baseToken.address, 10000);
     await marketRegistry.setFeeRatio(baseToken2.address, 10000);
-    await exchange.setMaxTickCrossedWithinBlock(baseToken.address, 887272);
+    await exchange.setMaxTickCrossedWithinBlock(baseToken.address, 887272 * 2);
 
     //add liquidity
 
@@ -280,10 +292,10 @@ describe("usdLemma-perp", async function () {
       clearingHouse,
       maker,
       baseToken.address,
-      parseEther("1000000000"), // usdc
-      parseEther("10000000"), // eth
-      -887200,
-      887200,
+      parseEther("10000000"), // vETH
+      parseEther("1000000000"), // vUSD 
+      -887200,//minimum tick
+      887200,//maximum tick
     );
 
     //also, deposit a few amount of settlement tokens from perpLemma wrapper to vault
@@ -317,21 +329,25 @@ describe("usdLemma-perp", async function () {
     const collateralBalanceBefore = await collateral.balanceOf(defaultSigner.address);
     const amount = utils.parseEther("1");
     await collateral.approve(usdLemma.address, amount);
-    const [baseAmount] = await callStaticOpenPosition(
+    const [, quoteAmount] = await callStaticOpenShortPositionWithExactBase(
       clearingHouse,
       longAddress,
       baseToken.address,
-      false,
-      true,
       amount,
     );
-    let tx = await usdLemma.depositToWExactCollateral(signer1.address, amount, 0, baseAmount, collateral.address);
+    console.log("quoteAmount", quoteAmount.toString());
+    let tx = await usdLemma.depositToWExactCollateral(signer1.address, amount, 0, quoteAmount, collateral.address);
+    //perpLemma related tests
+    const positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
+    expect(positionSize.isNegative()).to.be.true;
+    expect(amount).to.eq(positionSize.abs());
+
     const collateralBalanceAfter = await collateral.balanceOf(defaultSigner.address);
     expect(collateralBalanceBefore.sub(collateralBalanceAfter)).to.equal(amount);
-    expect(baseAmount).to.equal(await usdLemma.balanceOf(signer1.address));
+    expect(quoteAmount).to.equal(await usdLemma.balanceOf(signer1.address));
     await expect(tx)
       .to.emit(usdLemma, "DepositTo")
-      .withArgs(0, collateral.address, signer1.address, baseAmount, amount);
+      .withArgs(0, collateral.address, signer1.address, quoteAmount, amount);
     //right now there is no way to check only a subset of the emitted events in waffle: https://github.com/TrueFiEng/Waffle/issues/437
     // will need to add custom method to extract the args from the emitted events and test the following test
     // await expect(tx).to.emit(clearingHouse, "PositionChanged").withArgs(perpLemma.address, baseToken.address, baseAmount, undefined, undefined, undefined, undefined, undefined);
@@ -344,26 +360,62 @@ describe("usdLemma-perp", async function () {
     //tests for all the collateral to get back is after this test
     const amount = openWAmount.div(BigNumber.from("2"));
 
-    const [baseAmount] = await callStaticOpenPosition(
+    const [, quoteAmount] = await callStaticOpenLongPositionWithExactBase(
       clearingHouse,
       longAddress,
       baseToken.address,
-      true,
-      false,
       amount,
     );
     const collateralBalanceBefore = await collateral.balanceOf(signer1.address);
     const usdlBalanceBefore = await usdLemma.balanceOf(defaultSigner.address);
-    let tx = await usdLemma.withdrawToWExactCollateral(signer1.address, amount, 0, baseAmount, collateral.address);
+    let tx = await usdLemma.withdrawToWExactCollateral(signer1.address, amount, 0, quoteAmount, collateral.address);
     const collateralBalanceAfter = await collateral.balanceOf(signer1.address);
     const usdlBalanceAfter = await usdLemma.balanceOf(defaultSigner.address);
 
     expect(collateralBalanceAfter.sub(collateralBalanceBefore)).to.equal(amount);
-    expect(usdlBalanceBefore.sub(usdlBalanceAfter)).to.equal(baseAmount);
+    expect(usdlBalanceBefore.sub(usdlBalanceAfter)).to.equal(quoteAmount);
 
     await expect(tx)
       .to.emit(usdLemma, "WithdrawTo")
-      .withArgs(0, collateral.address, signer1.address, baseAmount, amount);
+      .withArgs(0, collateral.address, signer1.address, quoteAmount, amount);
+
+    //right now there is no way to check only a subset of the emitted events in waffle: https://github.com/TrueFiEng/Waffle/issues/437
+    // will need to add custom method to extract the args from the emitted events and test the following test
+    // await expect(tx).to.emit(clearingHouse, "PositionChanged").withArgs(perpLemma.address, baseToken.address, baseAmount, undefined, undefined, undefined, undefined, undefined);
+  });
+  it("should close entire position correctly with exact collateral", async function () {
+    const openWAmount = utils.parseEther("1");
+    await collateral.approve(usdLemma.address, openWAmount);
+    await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, collateral.address);
+
+    const positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
+    console.log("positionSize", positionSize.toString());
+
+    const usdlBalance = await usdLemma.balanceOf(defaultSigner.address);
+    const amount = usdlBalance;
+
+    const [, quoteAmount] = await callStaticOpenLongPositionWithExactBase(
+      clearingHouse,
+      longAddress,
+      baseToken.address,
+      positionSize.abs(),
+    );
+    console.log("baseAmount", quoteAmount.toString());
+    console.log("usdlBalanceBefore", usdlBalance.toString())
+
+    // //input is whatever it costs to go long on the current usdl balance
+    // const collateralBalanceBefore = await collateral.balanceOf(signer1.address);
+    // await usdLemma.approve(usdLemma.address, amount);
+    // let tx = await usdLemma.withdrawTo(signer1.address, amount, 0, 0, collateral.address);
+    // const collateralBalanceAfter = await collateral.balanceOf(signer1.address);
+    // const usdlBalanceAfter = await usdLemma.balanceOf(defaultSigner.address);
+
+    // expect(collateralBalanceAfter.sub(collateralBalanceBefore)).to.equal(0);
+    // expect(usdlBalanceAfter).to.eq(ZERO)
+
+    // await expect(tx)
+    //   .to.emit(usdLemma, "WithdrawTo")
+    //   .withArgs(0, collateral.address, signer1.address, amount, 0);
 
     //right now there is no way to check only a subset of the emitted events in waffle: https://github.com/TrueFiEng/Waffle/issues/437
     // will need to add custom method to extract the args from the emitted events and test the following test
@@ -373,70 +425,65 @@ describe("usdLemma-perp", async function () {
     await collateral.mint(defaultSigner.address, parseUnits("5", collateralDecimals));
     let collateralAmount = parseUnits("1", collateralDecimals);
     await collateral.mint(usdLemma.address, collateralAmount);
-    // collateralAmount = collateralAmount.sub(
-    //   collateralAmount.mul(BigNumber.from("10000")).div(BigNumber.from("1000000")),
-    // );
-    let baseAndQuoteValue = await callStaticOpenPosition(
+
+    let [, quoteAmount] = await callStaticOpenShortPositionWithExactBase(
       clearingHouse,
       longAddress,
       baseToken.address,
-      false,
-      true,
       collateralAmount,
     ); // index0: base/usd, index1: quote/eth
     // collateralAmount = parseUnits("1", collateralDecimals);
     await collateral.connect(defaultSigner).approve(usdLemma.address, collateralAmount);
     await usdLemma
       .connect(defaultSigner)
-      .depositToWExactCollateral(defaultSigner.address, collateralAmount, 0, baseAndQuoteValue[0], collateral.address);
+      .depositToWExactCollateral(defaultSigner.address, collateralAmount, 0, quoteAmount, collateral.address);
 
     expect(await collateral.balanceOf(perpLemma.address)).to.eq(0);
     expect(await vault.getBalance(perpLemma.address)).to.eq(parseEther("1"));
     let positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
-    expect(baseAndQuoteValue[0]).to.eq(positionSize);
+    expect(positionSize.isNegative()).to.be.true;
+    expect(collateralAmount).to.eq(positionSize.abs());
 
     // #1
-    baseAndQuoteValue = await callStaticOpenPosition(
-      clearingHouse,
-      longAddress,
-      baseToken.address,
-      true,
-      true,
-      positionSize.div(2),
-    );
-    collateralAmount = baseAndQuoteValue[1];
+    // let [baseAmount] = await callStaticOpenLongPositionWithExactBase(
+    //   clearingHouse,
+    //   longAddress,
+    //   baseToken.address,
+    //   positionSize.div(2),
+    // );
+    // collateralAmount = baseAndQuoteValue[1];
 
-    await usdLemma.withdrawToWExactCollateral(
-      defaultSigner.address,
-      collateralAmount,
-      0,
-      MaxInt256,
-      collateral.address,
-    );
+    // await usdLemma.withdrawToWExactCollateral(
+    //   defaultSigner.address,
+    //   collateralAmount,
+    //   0,
+    //   MaxInt256,
+    //   collateral.address,
+    // );
 
-    // #2
-    baseAndQuoteValue = await callStaticOpenPosition(
-      clearingHouse,
-      longAddress,
-      baseToken.address,
-      true,
-      true,
-      positionSize.div(2),
-    );
-    collateralAmount = baseAndQuoteValue[1];
+    // // #2
+    // baseAndQuoteValue = await callStaticOpenPosition(
+    //   clearingHouse,
+    //   longAddress,
+    //   baseToken.address,
+    //   true,
+    //   true,
+    //   positionSize.div(2),
+    // );
+    // collateralAmount = baseAndQuoteValue[1];
 
-    await usdLemma.withdrawToWExactCollateral(
-      defaultSigner.address,
-      collateralAmount,
-      0,
-      MaxInt256,
-      collateral.address,
-    );
+    // await usdLemma.withdrawToWExactCollateral(
+    //   defaultSigner.address,
+    //   collateralAmount,
+    //   0,
+    //   MaxInt256,
+    //   collateral.address,
+    // );
 
-    positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
-    expect(positionSize).to.closeTo(BigNumber.from("1000"), 1000);
-    expect(await vault.getBalance(perpLemma.address)).to.gt(0); // consider to be fee
-    expect(await collateral.balanceOf(perpLemma.address)).to.be.equal(ZERO);
+    // positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
+    // expect(positionSize).to.closeTo(BigNumber.from("1000"), 1000);
+    // expect(await vault.getBalance(perpLemma.address)).to.gt(0); // consider to be fee
+    // expect(await collateral.balanceOf(perpLemma.address)).to.be.equal(ZERO);
   });
   it("openPosition => open position for short and close position for 2 time longs, 80% & 20%", async () => {
     await collateral.mint(defaultSigner.address, parseUnits("5", collateralDecimals));
@@ -509,60 +556,55 @@ describe("usdLemma-perp", async function () {
     const collateralBalanceBefore = await collateral.balanceOf(defaultSigner.address);
     const usdlBalanceBefore = await usdLemma.balanceOf(signer1.address);
     const amount = utils.parseEther("1");
-    const [, quoteAmount] = await callStaticOpenPosition(
+    const [baseAmount,] = await callStaticOpenShortPositionWithExactQuote(
       clearingHouse,
       longAddress,
       baseToken.address,
-      false,
-      false,
       amount,
     );
-    await collateral.approve(usdLemma.address, quoteAmount);
-    let tx = await usdLemma.depositTo(signer1.address, amount, 0, quoteAmount, collateral.address);
+    await collateral.approve(usdLemma.address, baseAmount);
+    let tx = await usdLemma.depositTo(signer1.address, amount, 0, baseAmount, collateral.address);
     const collateralBalanceAfter = await collateral.balanceOf(defaultSigner.address);
     const usdlBalanceAfter = await usdLemma.balanceOf(signer1.address);
-    expect(collateralBalanceBefore.sub(collateralBalanceAfter)).to.equal(quoteAmount);
+    expect(collateralBalanceBefore.sub(collateralBalanceAfter)).to.equal(baseAmount);
     expect(usdlBalanceAfter.sub(usdlBalanceBefore)).to.equal(amount);
     await expect(tx)
       .to.emit(usdLemma, "DepositTo")
-      .withArgs(0, collateral.address, signer1.address, amount, quoteAmount);
+      .withArgs(0, collateral.address, signer1.address, amount, baseAmount);
   });
 
   it("WithdrawTo", async function () {
     const openWAmount = utils.parseEther("1");
     await collateral.approve(usdLemma.address, openWAmount);
-    let [, quoteAmount] = await callStaticOpenPosition(
+    let [baseAmount,] = await callStaticOpenShortPositionWithExactQuote(
       clearingHouse,
       longAddress,
       baseToken.address,
-      false,
-      false,
       openWAmount,
     );
-    let tx = await usdLemma.depositTo(defaultSigner.address, openWAmount, 0, quoteAmount, collateral.address);
-    let positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
-    let amount = positionSize;
+    await collateral.approve(usdLemma.address, baseAmount);
+    let tx = await usdLemma.depositTo(defaultSigner.address, openWAmount, 0, baseAmount, collateral.address);
 
-    let [, quoteAmount1] = await callStaticOpenPosition(
+    const usdlBalanceBefore = await usdLemma.balanceOf(defaultSigner.address);
+    let amount = usdlBalanceBefore;
+
+    let [baseAmount1,] = await callStaticOpenLongPositionWithExactQuote(
       clearingHouse,
       longAddress,
       baseToken.address,
-      true,
-      true,
       amount,
     );
     const collateralBalanceBefore = await collateral.balanceOf(signer1.address);
-    const usdlBalanceBefore = await usdLemma.balanceOf(defaultSigner.address);
     await usdLemma.approve(usdLemma.address, amount);
-    tx = await usdLemma.withdrawTo(signer1.address, amount, 0, quoteAmount1, collateral.address);
+    tx = await usdLemma.withdrawTo(signer1.address, amount, 0, baseAmount1, collateral.address);
     const collateralBalanceAfter = await collateral.balanceOf(signer1.address);
     const usdlBalanceAfter = await usdLemma.balanceOf(defaultSigner.address);
 
-    expect(collateralBalanceAfter.sub(collateralBalanceBefore)).to.equal(quoteAmount1);
+    expect(collateralBalanceAfter.sub(collateralBalanceBefore)).to.equal(baseAmount1);
     expect(usdlBalanceBefore.sub(usdlBalanceAfter)).to.equal(amount);
 
     await expect(tx)
       .to.emit(usdLemma, "WithdrawTo")
-      .withArgs(0, collateral.address, signer1.address, amount, quoteAmount1);
+      .withArgs(0, collateral.address, signer1.address, amount, baseAmount1);
   });
 });

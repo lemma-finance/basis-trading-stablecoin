@@ -185,16 +185,15 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         external
         override
         onlyUSDLemma
-        returns (uint256 quote)
+        returns (uint256 base)
     {
         bool _isBaseToQuote;
         bool _isExactInput;
-        uint256 base;
         if (isShorting) {
-            _isBaseToQuote = false;
+            _isBaseToQuote = true;
             _isExactInput = false;
         } else {
-            _isBaseToQuote = true;
+            _isBaseToQuote = false;
             _isExactInput = true;
             if (hasSettled) return closeWExactUSDLAfterSettlement(usdlToMintOrBurn);
         }
@@ -209,7 +208,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             sqrtPriceLimitX96: 0,
             referralCode: referrerCode
         });
-        (base, quote) = clearingHouse.openPosition(params);
+        (base, ) = clearingHouse.openPosition(params);
     }
 
     /// @notice Open short position for eth(quoteToken) on getCollateralAmountGivenUnderlyingAssetAmount first and deposit collateral here
@@ -241,7 +240,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         // and amount in eth(quoteToken) by giving isExactInput=true
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: baseTokenAddress,
-            isBaseToQuote: false,
+            isBaseToQuote: true,
             isExactInput: true,
             amount: collateralAmountToDeposit,
             oppositeAmountBound: 0,
@@ -249,11 +248,11 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             sqrtPriceLimitX96: 0,
             referralCode: referrerCode
         });
-        (uint256 base, uint256 quote) = clearingHouse.openPosition(params);
+        (, uint256 quote) = clearingHouse.openPosition(params);
 
         int256 positionSize = accountBalance.getTotalPositionSize(address(this), baseTokenAddress);
         require(positionSize.abs().toUint256() <= maxPosition, "max position reached");
-        USDLToMint = base;
+        USDLToMint = quote;
     }
 
     /// @notice Open long position for eth(quoteToken) on getCollateralAmountGivenUnderlyingAssetAmount first and withdraw collateral here
@@ -281,7 +280,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         //simillar to openWExactCollateral but for close
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: baseTokenAddress,
-            isBaseToQuote: true,
+            isBaseToQuote: false,
             isExactInput: false,
             amount: collateralAmountToClose,
             oppositeAmountBound: 0,
@@ -290,9 +289,9 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             referralCode: referrerCode
         });
         (uint256 base, uint256 quote) = clearingHouse.openPosition(params);
-        USDLToBurn = base;
+        USDLToBurn = quote;
 
-        uint256 amountToWithdraw = getAmountInCollateralDecimals(quote, false);
+        uint256 amountToWithdraw = getAmountInCollateralDecimals(base, false);
         iPerpVault.withdraw(address(collateral), amountToWithdraw); // withdraw closed position fund
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountToWithdraw);
     }
@@ -372,12 +371,12 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         if (amount < 0) {
             realizedFundingPNL -= amount - fees.toInt256();
             // open short position for eth and amount in eth
-            _isBaseToQuote = false;
+            _isBaseToQuote = true;
             _isExactInput = false;
         } else {
             realizedFundingPNL += amount + fees.toInt256();
             // open long position for eth and amount in eth
-            _isBaseToQuote = true;
+            _isBaseToQuote = false;
             _isExactInput = true;
         }
 
