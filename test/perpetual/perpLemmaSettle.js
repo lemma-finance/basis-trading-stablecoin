@@ -253,7 +253,7 @@ describe("perpLemma", async function () {
       });
 
       it("Calling Settle() when Market is closed should work", async () => {
-        const collateralAmount = parseEther("3");
+        const collateralAmount = parseEther("1");
         await collateral.mint(usdLemma.address, collateralAmount);
         console.log("T1");
         const balance1 = await collateral.balanceOf(perpLemma.address);
