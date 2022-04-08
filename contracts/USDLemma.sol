@@ -73,17 +73,22 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         addPerpetualDEXWrapper(0, collateralAddress, perpetualDEXWrapperAddress);
     }
 
-    function getFees(
-        uint256 dexIndex,
-        address collateral,
-        bool isMinting
-    ) external view returns (uint256) {
-        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
 
+    /// @notice Returns the fees of the underlying Perp DEX Wrapper
+    /// @param dexIndex The DEX Index to operate on 
+    /// @param collateral Collateral for the minting / redeeming operation
+    /// @param isMinting True: Minting, False: Redeeming
+    function getFees(uint256 dexIndex, address collateral, bool isMinting) external view returns (uint256) {
+        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
+            perpetualDEXWrappers[dexIndex][collateral]
+        );
         require(address(perpDEXWrapper) != address(0), "! DEX Wrapper");
         return perpDEXWrapper.getFees(isMinting);
     }
 
+    /// @notice Returns the total position in Base Token on a given DEX
+    /// @param dexIndex The DEX Index to operate on 
+    /// @param collateral Collateral for the minting / redeeming operation
     function getTotalPosition(uint256 dexIndex, address collateral) external view returns (int256) {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
 
@@ -133,7 +138,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         emit PerpetualDexWrapperAdded(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
     }
 
-    /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL
+    /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of USDL 
     /// @param to Receipent of minted USDL
     /// @param amount Amount of USDL to mint
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
@@ -159,6 +164,12 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         emit DepositTo(perpetualDEXIndex, address(collateral), to, amount, collateralRequired);
     }
 
+    /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of collateral
+    /// @param to Receipent of minted USDL
+    /// @param collateralAmount Amount of collateral to deposit
+    /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
+    /// @param minUSDLToMint Minimum USDL to mint
+    /// @param collateral Collateral to be used to mint USDL
     function depositToWExactCollateral(
         address to,
         uint256 collateralAmount,
@@ -183,7 +194,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         emit DepositTo(perpetualDEXIndex, address(collateral), to, USDLToMint, collateralAmountToDeposit);
     }
 
-    /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc
+    /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc specifying the exact amount of USDL
     /// @param to Receipent of withdrawn collateral
     /// @param amount Amount of USDL to redeem
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be closed
@@ -209,6 +220,12 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, collateralAmountToGetBack);
     }
 
+    /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc specifying the exact amount of collateral
+    /// @param to Receipent of withdrawn collateral
+    /// @param collateralAmount Amount of collateral to withdraw
+    /// @param perpetualDEXIndex Index of perpetual dex, where position will be closed
+    /// @param maxUSDLToBurn Max USDL to burn in the process
+    /// @param collateral Collateral to be used to redeem USDL
     function withdrawToWExactCollateral(
         address to,
         uint256 collateralAmount,
