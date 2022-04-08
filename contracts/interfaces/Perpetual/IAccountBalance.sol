@@ -20,4 +20,6 @@ interface IAccountBalance {
     function getBase(address trader, address baseToken) external view returns (int256 baseAmount);
 
     function getQuote(address trader, address baseToken) external view returns (int256);
+
+    function settleOwedRealizedPnl(address trader) external returns (int256);
 }

@@ -1,7 +1,8 @@
-const { ethers } = require("hardhat");
-const { expect } = require("chai");
-const { utils } = require("ethers");
-const { parseEther } = require("ethers/lib/utils");
+import { ethers, upgrades } from "hardhat";
+import hre from "hardhat";
+import { expect, util } from "chai";
+import { utils } from "ethers";
+import { parseEther, parseUnits } from "ethers/lib/utils";
 const { BigNumber, constants } = ethers;
 const { AddressZero, MaxUint256, MaxInt256 } = constants;
 
@@ -65,7 +66,7 @@ describe("eip4626xUSDL", function () {
 
   async function previewAmount(xusdl, shares) {
     const assetsPerShare = await xusdl.assetsPerShare();
-    assets = assetsPerShare.mul(shares).div(parseEther("1"));
+    let assets = assetsPerShare.mul(shares).div(parseEther("1"));
     return assets;
   }
 
@@ -76,7 +77,7 @@ describe("eip4626xUSDL", function () {
 
   it("should deposit initial correctly", async function () {
     let tx = await this.xusdl.deposit(utils.parseEther("1000"), owner.address);
-    share = await previewShare(this.xusdl, utils.parseEther("1000"));
+    let share = await previewShare(this.xusdl, utils.parseEther("1000"));
     expect(await balanceOf(this.xusdl, owner.address)).to.equal(utils.parseEther("1000"));
     expect(tx).to.emit(this.xusdl, "Deposit").withArgs(owner.address, owner.address, utils.parseEther("1000"), share);
   });
@@ -84,7 +85,7 @@ describe("eip4626xUSDL", function () {
   it("assetsPerShare should stay the same after multiple deposits in a row", async function () {
     //pricePeShare only changes when USDL are added or removed from xUSDL without deposit or withdraw transactions
     let tx = await this.xusdl.deposit(utils.parseEther("1000"), owner.address);
-    share = await previewShare(this.xusdl, utils.parseEther("1000"));
+    let share = await previewShare(this.xusdl, utils.parseEther("1000"));
     expect(await balanceOf(this.xusdl, owner.address)).to.equal(utils.parseEther("1000"));
     expect(tx).to.emit(this.xusdl, "Deposit").withArgs(owner.address, owner.address, utils.parseEther("1000"), share);
     // expect(tx).to.emit(this.xusdl, "Deposit").withArgs(owner.address, utils.parseEther("1000"));
@@ -169,7 +170,7 @@ describe("eip4626xUSDL", function () {
     await this.xusdl.deposit(utils.parseEther("1000"), owner.address);
 
     await mineBlocks(100);
-    share = await previewShare(this.xusdl, utils.parseEther("1000"));
+    let share = await previewShare(this.xusdl, utils.parseEther("1000"));
 
     let preBalance = await balanceOf(this.usdl, owner.address);
     let tx = await this.xusdl.withdraw(await balanceOf(this.xusdl, owner.address), owner.address, owner.address);
@@ -186,7 +187,7 @@ describe("eip4626xUSDL", function () {
     await mineBlocks(100);
     await this.usdl.transfer(this.xusdl.address, utils.parseEther("1000"));
 
-    share = await previewShare(this.xusdl, utils.parseEther("2000"));
+    let share = await previewShare(this.xusdl, utils.parseEther("2000"));
 
     let preBalance = await balanceOf(this.usdl, owner.address);
     let tx = await this.xusdl.withdraw(utils.parseEther("2000"), owner.address, owner.address);
@@ -201,7 +202,7 @@ describe("eip4626xUSDL", function () {
     await mineBlocks(100);
     await this.usdl.removeTokens(utils.parseEther("500"), this.xusdl.address);
 
-    share = await previewShare(this.xusdl, utils.parseEther("500"));
+    let share = await previewShare(this.xusdl, utils.parseEther("500"));
 
     let preBalance = await balanceOf(this.usdl, owner.address);
     let tx = await this.xusdl.withdraw(utils.parseEther("500"), owner.address, owner.address);
@@ -235,7 +236,7 @@ describe("eip4626xUSDL", function () {
 
   it("should mint initial correctly", async function () {
     let tx = await this.xusdl.mint(utils.parseEther("1000"), owner.address);
-    amount = await previewAmount(this.xusdl, utils.parseEther("1000"));
+    let amount = await previewAmount(this.xusdl, utils.parseEther("1000"));
     expect(await balanceOf(this.xusdl, owner.address)).to.equal(utils.parseEther("1000"));
     expect(tx).to.emit(this.xusdl, "Deposit").withArgs(owner.address, owner.address, amount, utils.parseEther("1000"));
   });
@@ -243,7 +244,7 @@ describe("eip4626xUSDL", function () {
   it("assetsPerShare should stay the same after multiple mint in a row", async function () {
     //pricePeShare only changes when USDL are added or removed from xUSDL without deposit or withdraw transactions
     let tx = await this.xusdl.mint(utils.parseEther("1000"), owner.address);
-    amount = await previewAmount(this.xusdl, utils.parseEther("1000"));
+    let amount = await previewAmount(this.xusdl, utils.parseEther("1000"));
     expect(await balanceOf(this.xusdl, owner.address)).to.equal(utils.parseEther("1000"));
     expect(tx).to.emit(this.xusdl, "Deposit").withArgs(owner.address, owner.address, amount, utils.parseEther("1000"));
     // expect(tx).to.emit(this.xusdl, "Deposit").withArgs(owner.address, utils.parseEther("1000"));
@@ -322,7 +323,7 @@ describe("eip4626xUSDL", function () {
     await mineBlocks(100);
     await this.usdl.transfer(this.xusdl.address, utils.parseEther("1000"));
 
-    amount = await previewAmount(this.xusdl, utils.parseEther("1000"));
+    let amount = await previewAmount(this.xusdl, utils.parseEther("1000"));
     let preBalance = await balanceOf(this.usdl, owner.address);
     let tx = await this.xusdl.redeem(utils.parseEther("1000"), owner.address, owner.address);
 
@@ -336,7 +337,7 @@ describe("eip4626xUSDL", function () {
     await mineBlocks(100);
     await this.usdl.removeTokens(utils.parseEther("500"), this.xusdl.address);
 
-    amount = await previewAmount(this.xusdl, utils.parseEther("1000"));
+    let amount = await previewAmount(this.xusdl, utils.parseEther("1000"));
 
     let preBalance = await balanceOf(this.usdl, owner.address);
     let tx = await this.xusdl.redeem(utils.parseEther("1000"), owner.address, owner.address);

@@ -1,28 +1,25 @@
-require("@nomiclabs/hardhat-waffle");
-require("@openzeppelin/hardhat-upgrades");
-require("@nomiclabs/hardhat-ethers");
-require("@nomiclabs/hardhat-etherscan");
+import "@nomiclabs/hardhat-waffle";
+import "@openzeppelin/hardhat-upgrades";
+import "@nomiclabs/hardhat-ethers";
+import "@nomiclabs/hardhat-etherscan";
+import "@typechain/hardhat";
+import "solidity-coverage";
+import * as dotenv from "dotenv";
 
-require("solidity-coverage");
-require("dotenv").config();
+dotenv.config();
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
-task("accounts", "Prints the list of accounts", async () => {
-  const accounts = await ethers.getSigners();
+import { HardhatUserConfig, task } from "hardhat/config";
 
+task("accounts", "Prints the list of accounts", async (args, hre) => {
+  const accounts = await hre.ethers.getSigners();
   for (const account of accounts) {
-    console.log(account.address);
+    console.log(await account.address);
   }
 });
-// You need to export an object to set up your config
-// Go to https://hardhat.org/config/ to learn more
 
-/**
- * @type import('hardhat/config').HardhatUserConfig
- */
-module.exports = {
-  solidity: "0.8.3",
+const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       // forking: {
@@ -45,6 +42,12 @@ module.exports = {
         mnemonic: process.env.MNEMONIC,
       },
     },
+    optimismKovan: {
+      url: "https://optimism-kovan.infura.io/v3/" + process.env.INFURA_KEY,
+      accounts: {
+        mnemonic: process.env.MNEMONIC,
+      },
+    },
     arbitrum: {
       // url: "https://arbitrum-mainnet.infura.io/v3/" + process.env.INFURA_KEY,
       url: "https://arb1.arbitrum.io/rpc",
@@ -59,6 +62,9 @@ module.exports = {
       },
     },
   },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_KEY,
+  },
   solidity: {
     version: "0.8.3",
     settings: {
@@ -66,12 +72,16 @@ module.exports = {
         enabled: true,
         runs: 200,
       },
+      evmVersion: "istanbul",
     },
   },
-  etherscan: {
-    apiKey: process.env.ETHERSCAN_KEY,
+  typechain: {
+    outDir: "types",
+    target: "ethers-v5",
   },
   mocha: {
     timeout: 1000000, //1000 secs
   },
 };
+
+export default config;

@@ -1,112 +1,87 @@
-const { JsonRpcProvider } = require("@ethersproject/providers");
-const { ethers } = require("hardhat");
-const { expect, util } = require("chai");
-const {
-  CHAIN_ID_TO_POOL_CREATOR_ADDRESS,
-  PoolCreatorFactory,
-  ReaderFactory,
-  LiquidityPoolFactory,
-  IERC20Factory,
-  CHAIN_ID_TO_READER_ADDRESS,
+import { expect } from "chai";
+import { ethers, waffle } from "hardhat";
+import { utils } from "ethers";
+const { BigNumber, constants } = ethers;
+const { AddressZero, MaxUint256, MaxInt256 } = constants;
+import hre from "hardhat";
+import {
   getLiquidityPool,
   getAccountStorage,
   computeAccount,
-  normalizeBigNumberish,
-  DECIMALS,
-  computeAMMTrade,
-  computeIncreasePosition,
   _0,
   _1,
-  computeDecreasePosition,
   computeAMMTradeAmountByMargin,
-} = require("@mcdex/mai3.js");
-const { utils } = require("ethers");
-const { BigNumber, constants } = ethers;
-const { AddressZero, MaxUint256, MaxInt256 } = constants;
-
-const {
-  displayNicely,
-  tokenTransfers,
-  loadMCDEXInfo,
-  toBigNumber,
-  fromBigNumber,
-  snapshot,
-  revertToSnapshot,
-} = require("./utils");
-const { italic } = require("colors");
-
-const arbProvider = new JsonRpcProvider(hre.network.config.url);
+} from "@mcdex/mai3.js";
+import { toBigNumber, fromBigNumber, snapshot, revertToSnapshot } from "./shared/utils";
+import { createUsdlFixture } from "./shared/fixtures";
 const MASK_USE_TARGET_LEVERAGE = 0x08000000;
 
-const printTx = async hash => {
-  await tokenTransfers.print(hash, [], false);
-};
+// const printTx = async (hash) => {
+//     await tokenTransfers.print(hash, [], false);
+// };
 
-describe("usdLemma", async function () {
-  let defaultSigner, reBalancer, hasWETH, keeperGasReward, stackingContract, lemmaTreasury, signer1, signer2;
+describe("USDLemma", async () => {
+  let defaultSigner: any;
+  let reBalancer: any;
+  let hasWETH: any;
+  let keeperGasReward: any;
+  let stackingContract: any;
+  let lemmaTreasury: any;
+  let signer1: any;
+  let signer2: any;
 
-  let liquidityPool, reader, mcdexAddresses;
+  // const [admin, maker, maker2, taker, carol] = provider.getWallets();
+  // const [admin, maker, maker2, taker, carol] = waffle.provider.getWallets()
+  let liquidityPool: any;
+  let reader: any;
+  let mcdexLemma: any;
+  let usdLemma: any;
+  let collateral: any;
+  let oracleAdaptorAddress: string;
+
   const perpetualIndex = 0; //in Kovan the 0th perp for 0th liquidity pool = inverse ETH-USD
   const provider = ethers.provider;
   const ZERO = BigNumber.from("0");
-  let snapshotId;
-  before(async function () {
-    mcdexAddresses = await loadMCDEXInfo();
+  let snapshotId: any;
+  before(async () => {
     [defaultSigner, reBalancer, hasWETH, stackingContract, lemmaTreasury, signer1, signer2] = await ethers.getSigners();
+    const loadFixture: ReturnType<typeof waffle.createFixtureLoader> = waffle.createFixtureLoader([defaultSigner]);
+    const _usdlFixture = await loadFixture(createUsdlFixture());
+    mcdexLemma = _usdlFixture.mcdexLemma;
+    usdLemma = _usdlFixture.usdLemma;
+    collateral = _usdlFixture.collateral;
+    liquidityPool = _usdlFixture.liquidityPool;
+    reader = _usdlFixture.reader;
+    oracleAdaptorAddress = _usdlFixture.oracleAdaptorAddress;
 
-    const poolCreatorAddress = mcdexAddresses.PoolCreator.address;
-    const readerAddress = mcdexAddresses.Reader.address;
-    const poolCreator = PoolCreatorFactory.connect(poolCreatorAddress, arbProvider);
-    reader = ReaderFactory.connect(readerAddress, defaultSigner);
-    const poolCount = await poolCreator.getLiquidityPoolCount();
-    const liquidityPools = await poolCreator.listLiquidityPools(ZERO, poolCount);
-    const liquidityPoolAddress = liquidityPools[0];
-    liquidityPool = LiquidityPoolFactory.connect(liquidityPoolAddress, defaultSigner);
     const perpetualInfo = await liquidityPool.getPerpetualInfo(perpetualIndex);
     const nums = perpetualInfo.nums;
     keeperGasReward = nums[11];
 
-    //deploy mcdexLemma
-    const maxPosition = MaxUint256;
-    const MCDEXLemma = await ethers.getContractFactory("MCDEXLemma");
-    this.mcdexLemma = await upgrades.deployProxy(
-      MCDEXLemma,
-      [AddressZero, liquidityPool.address, perpetualIndex, AddressZero, reBalancer.address, maxPosition],
-      { initializer: "initialize" },
-    );
-    this.collateralDecimals = await this.mcdexLemma.collateralDecimals();
-    const collateralAddress = await this.mcdexLemma.collateral();
-    const ERC20 = IERC20Factory.connect(collateralAddress, defaultSigner); //choose USDLemma ust because it follows IERC20 interface
-    this.collateral = ERC20.attach(collateralAddress); //WETH
-    const USDLemma = await ethers.getContractFactory("USDLemma");
-    this.usdLemma = await upgrades.deployProxy(USDLemma, [AddressZero, collateralAddress, this.mcdexLemma.address], {
-      initializer: "initialize",
-    });
-    await this.mcdexLemma.setUSDLemma(this.usdLemma.address);
-
     const amountOfCollateralToMint = utils.parseEther("100");
 
     //deposit ETH to WETH contract
-    await defaultSigner.sendTransaction({ to: this.collateral.address, value: amountOfCollateralToMint });
-    await hasWETH.sendTransaction({ to: this.collateral.address, value: amountOfCollateralToMint });
+    await defaultSigner.sendTransaction({ to: collateral.address, value: amountOfCollateralToMint });
+    await hasWETH.sendTransaction({ to: collateral.address, value: amountOfCollateralToMint });
 
     //add liquidity to the liquidity Pool
     const liquidityToAdd = utils.parseEther("10");
-    await this.collateral.approve(liquidityPool.address, MaxUint256);
+    await collateral.approve(liquidityPool.address, MaxUint256);
     await liquidityPool.addLiquidity(liquidityToAdd);
 
     //deposit the keeper gas reward
-    await this.collateral.approve(this.mcdexLemma.address, keeperGasReward);
-    await this.mcdexLemma.depositKeeperGasReward();
+    await collateral.approve(mcdexLemma.address, keeperGasReward);
+    await mcdexLemma.depositKeeperGasReward();
 
     //set fees
     const fees = 3000; //30%
-    await this.usdLemma.setFees(fees);
+    await usdLemma.setFees(fees);
     //set stacking contract address
-    await this.usdLemma.setStakingContractAddress(stackingContract.address);
+    await usdLemma.setStakingContractAddress(stackingContract.address);
     //set lemma treasury address
-    await this.usdLemma.setLemmaTreasury(lemmaTreasury.address);
+    await usdLemma.setLemmaTreasury(lemmaTreasury.address);
   });
+
   beforeEach(async function () {
     snapshotId = await snapshot();
   });
@@ -114,116 +89,111 @@ describe("usdLemma", async function () {
     await revertToSnapshot(snapshotId);
   });
   it("should initialize correctly", async function () {
-    expect(await this.mcdexLemma.usdLemma()).to.equal(this.usdLemma.address);
-    expect(await this.usdLemma.perpetualDEXWrappers("0", this.collateral.address)).to.equal(this.mcdexLemma.address);
+    expect(await mcdexLemma.usdLemma()).to.equal(usdLemma.address);
+    expect(await usdLemma.perpetualDEXWrappers("0", collateral.address)).to.equal(mcdexLemma.address);
   });
-
   it("should deposit correctly", async function () {
-    const collateralBalanceBefore = await this.collateral.balanceOf(defaultSigner.address);
+    const collateralBalanceBefore = await collateral.balanceOf(defaultSigner.address);
     const amount = utils.parseEther("1000");
-    const collateralNeeded = await this.mcdexLemma.getAmountInCollateralDecimals(
-      await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true),
+    const collateralNeeded = await mcdexLemma.getAmountInCollateralDecimals(
+      await mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true),
       true,
     );
-    await this.collateral.approve(this.usdLemma.address, collateralNeeded);
-    let tx = await this.usdLemma.deposit(amount, 0, collateralNeeded, this.collateral.address);
-    const collateralBalanceAfter = await this.collateral.balanceOf(defaultSigner.address);
+    await collateral.approve(usdLemma.address, collateralNeeded);
+    let tx = await usdLemma.deposit(amount, 0, collateralNeeded, collateral.address);
+    const collateralBalanceAfter = await collateral.balanceOf(defaultSigner.address);
     expect(collateralNeeded).to.equal(collateralBalanceBefore.sub(collateralBalanceAfter));
-    expect(await this.usdLemma.balanceOf(defaultSigner.address)).to.equal(utils.parseEther("1000"));
+    expect(await usdLemma.balanceOf(defaultSigner.address)).to.equal(utils.parseEther("1000"));
     expect(tx)
-      .to.emit(this.usdLemma, "DepositTo")
-      .withArgs(0, this.collateral.address, defaultSigner.address, amount, collateralNeeded);
+      .to.emit(usdLemma, "DepositTo")
+      .withArgs(0, collateral.address, defaultSigner.address, amount, collateralNeeded);
   });
   it("should depositTo correctly", async function () {
-    const collateralBalanceBefore = await this.collateral.balanceOf(defaultSigner.address);
+    const collateralBalanceBefore = await collateral.balanceOf(defaultSigner.address);
     const amount = utils.parseEther("1000");
-    const collateralNeeded = await this.mcdexLemma.getAmountInCollateralDecimals(
-      await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true),
+    const collateralNeeded = await mcdexLemma.getAmountInCollateralDecimals(
+      await mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true),
       true,
     );
-    await this.collateral.approve(this.usdLemma.address, collateralNeeded);
-    let tx = await this.usdLemma.depositTo(signer1.address, amount, 0, collateralNeeded, this.collateral.address);
-    const collateralBalanceAfter = await this.collateral.balanceOf(defaultSigner.address);
+    await collateral.approve(usdLemma.address, collateralNeeded);
+    let tx = await usdLemma.depositTo(signer1.address, amount, 0, collateralNeeded, collateral.address);
+    const collateralBalanceAfter = await collateral.balanceOf(defaultSigner.address);
     expect(collateralNeeded).to.equal(collateralBalanceBefore.sub(collateralBalanceAfter));
-    expect(await this.usdLemma.balanceOf(signer1.address)).to.equal(utils.parseEther("1000"));
+    expect(await usdLemma.balanceOf(signer1.address)).to.equal(utils.parseEther("1000"));
     expect(tx)
-      .to.emit(this.usdLemma, "DepositTo")
-      .withArgs(0, this.collateral.address, signer1.address, amount, collateralNeeded);
+      .to.emit(usdLemma, "DepositTo")
+      .withArgs(0, collateral.address, signer1.address, amount, collateralNeeded);
   });
-
   it("should withdraw correctly", async function () {
     const amount = utils.parseEther("1000");
-    const collateralNeeded = await this.mcdexLemma.getAmountInCollateralDecimals(
-      await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true),
+    const collateralNeeded = await mcdexLemma.getAmountInCollateralDecimals(
+      await mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true),
       true,
     );
-    await this.collateral.approve(this.usdLemma.address, collateralNeeded);
-    await this.usdLemma.deposit(amount, 0, collateralNeeded, this.collateral.address);
+    await collateral.approve(usdLemma.address, collateralNeeded);
+    await usdLemma.deposit(amount, 0, collateralNeeded, collateral.address);
 
-    const collateralBalanceBefore = await this.collateral.balanceOf(defaultSigner.address);
-    const collateralToGetBack = await this.mcdexLemma.getAmountInCollateralDecimals(
-      await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, false),
+    const collateralBalanceBefore = await collateral.balanceOf(defaultSigner.address);
+    const collateralToGetBack = await mcdexLemma.getAmountInCollateralDecimals(
+      await mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, false),
       false,
     );
-    let tx = await this.usdLemma.withdraw(amount, 0, 0, this.collateral.address);
-    const collateralBalanceAfter = await this.collateral.balanceOf(defaultSigner.address);
+    let tx = await usdLemma.withdraw(amount, 0, 0, collateral.address);
+    const collateralBalanceAfter = await collateral.balanceOf(defaultSigner.address);
     expect(collateralToGetBack).to.be.closeTo(
       collateralBalanceAfter.sub(collateralBalanceBefore),
-      await this.mcdexLemma.getAmountInCollateralDecimals(1e7, false),
+      await mcdexLemma.getAmountInCollateralDecimals(1e7, false),
     );
-    expect(await this.usdLemma.balanceOf(defaultSigner.address)).to.equal(ZERO);
+    expect(await usdLemma.balanceOf(defaultSigner.address)).to.equal(ZERO);
     expect(tx)
-      .to.emit(this.usdLemma, "WithdrawTo")
-      .withArgs(0, this.collateral.address, defaultSigner.address, amount, collateralToGetBack);
+      .to.emit(usdLemma, "WithdrawTo")
+      .withArgs(0, collateral.address, defaultSigner.address, amount, collateralToGetBack);
   });
 
   it("should withdrawTo correctly", async function () {
     const amount = utils.parseEther("1000");
-    const collateralNeeded = await this.mcdexLemma.getAmountInCollateralDecimals(
-      await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true),
+    const collateralNeeded = await mcdexLemma.getAmountInCollateralDecimals(
+      await mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true),
       true,
     );
-    await this.collateral.approve(this.usdLemma.address, collateralNeeded);
-    await this.usdLemma.deposit(amount, 0, collateralNeeded, this.collateral.address);
+    await collateral.approve(usdLemma.address, collateralNeeded);
+    await usdLemma.deposit(amount, 0, collateralNeeded, collateral.address);
 
-    const collateralBalanceBefore = await this.collateral.balanceOf(signer1.address);
-    const collateralToGetBack = await this.mcdexLemma.getAmountInCollateralDecimals(
-      await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, false),
+    const collateralBalanceBefore = await collateral.balanceOf(signer1.address);
+    const collateralToGetBack = await mcdexLemma.getAmountInCollateralDecimals(
+      await mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, false),
       false,
     );
-    let tx = await this.usdLemma.withdrawTo(signer1.address, amount, 0, 0, this.collateral.address);
-    const collateralBalanceAfter = await this.collateral.balanceOf(signer1.address);
+    let tx = await usdLemma.withdrawTo(signer1.address, amount, 0, 0, collateral.address);
+    const collateralBalanceAfter = await collateral.balanceOf(signer1.address);
     expect(collateralToGetBack).to.be.closeTo(
       collateralBalanceAfter.sub(collateralBalanceBefore),
-      await this.mcdexLemma.getAmountInCollateralDecimals(1e7, false),
+      await mcdexLemma.getAmountInCollateralDecimals(1e7, false),
     );
-    expect(await this.usdLemma.balanceOf(defaultSigner.address)).to.equal(ZERO);
+    expect(await usdLemma.balanceOf(defaultSigner.address)).to.equal(ZERO);
     expect(tx)
-      .to.emit(this.usdLemma, "WithdrawTo")
-      .withArgs(0, this.collateral.address, signer1.address, amount, collateralToGetBack);
+      .to.emit(usdLemma, "WithdrawTo")
+      .withArgs(0, collateral.address, signer1.address, amount, collateralToGetBack);
   });
   describe("re balance", async function () {
-    let lemmaTreasuryBalanceBefore;
-    let stackingContractBalanceBefore;
+    let lemmaTreasuryBalanceBefore: any;
+    let stackingContractBalanceBefore: any;
     beforeEach(async function () {
       const amount = utils.parseEther("1000");
 
-      const collateralNeeded = await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(
-        amount,
-        true,
-      );
-      await this.collateral.approve(this.usdLemma.address, collateralNeeded);
-      await this.usdLemma.deposit(amount, 0, MaxUint256, this.collateral.address);
+      const collateralNeeded = await mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
+      await collateral.approve(usdLemma.address, collateralNeeded);
+      await usdLemma.deposit(amount, 0, MaxUint256, collateral.address);
 
       //send some USDL to stackingContract and lemmaTreasury to see if they get burnt when funding Payment is negative
       stackingContractBalanceBefore = utils.parseEther("0.1");
-      await this.usdLemma.transfer(stackingContract.address, stackingContractBalanceBefore); //not enough to be able to test
+      await usdLemma.transfer(stackingContract.address, stackingContractBalanceBefore); //not enough to be able to test
 
       lemmaTreasuryBalanceBefore = amount.div(2);
-      await this.usdLemma.transfer(lemmaTreasury.address, lemmaTreasuryBalanceBefore); //enough to cover the rest of burn amount
+      await usdLemma.transfer(lemmaTreasury.address, lemmaTreasuryBalanceBefore); //enough to cover the rest of burn amount
 
-      await this.usdLemma.connect(stackingContract).approve(this.usdLemma.address, MaxUint256);
-      await this.usdLemma.connect(lemmaTreasury).approve(this.usdLemma.address, MaxUint256);
+      await usdLemma.connect(stackingContract).approve(usdLemma.address, MaxUint256);
+      await usdLemma.connect(lemmaTreasury).approve(usdLemma.address, MaxUint256);
     });
 
     it("when fundingPNL is positive", async function () {
@@ -252,15 +222,17 @@ describe("usdLemma", async function () {
 
       await liquidityPool.forceToSyncState();
 
-      const fundingPNL = await this.mcdexLemma.getFundingPNL();
-      const realizedFundingPNL = await this.mcdexLemma.realizedFundingPNL();
+      const fundingPNL = await mcdexLemma.getFundingPNL();
+      const realizedFundingPNL = await mcdexLemma.realizedFundingPNL();
       let unrealizedFundingPNL = fundingPNL.sub(realizedFundingPNL);
 
       const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
-      const perpetualInfo = liquidityPoolInfo.perpetuals.get(perpetualIndex);
-      const marginChange = toBigNumber(unrealizedFundingPNL).negated();
+      const perpetualInfo: any = liquidityPoolInfo.perpetuals.get(perpetualIndex);
+      const marginChange = (await toBigNumber(unrealizedFundingPNL)).negated();
       const feeRate = perpetualInfo.lpFeeRate.plus(liquidityPoolInfo.vaultFeeRate).plus(perpetualInfo.operatorFeeRate);
-      const marginChangeWithFeesConsidered = marginChange.times(toBigNumber(utils.parseEther("1")).minus(feeRate)); //0.07%
+      const marginChangeWithFeesConsidered = marginChange.times(
+        (await toBigNumber(utils.parseEther("1"))).minus(feeRate),
+      ); //0.07%
       const amountWithFeesConsidered = computeAMMTradeAmountByMargin(
         liquidityPoolInfo,
         perpetualIndex,
@@ -269,47 +241,40 @@ describe("usdLemma", async function () {
 
       const limitPrice = amountWithFeesConsidered.isNegative() ? 0 : MaxInt256;
       const deadline = MaxUint256;
-      let tx = await this.usdLemma
+      let tx = await usdLemma
         .connect(reBalancer)
         .reBalance(
           perpetualIndex,
-          this.collateral.address,
+          collateral.address,
           fromBigNumber(amountWithFeesConsidered),
           ethers.utils.defaultAbiCoder.encode(["int256", "uint256"], [limitPrice, deadline]),
         );
       {
         await liquidityPool.forceToSyncState();
         const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
-        const traderInfo = await getAccountStorage(
-          reader,
-          liquidityPool.address,
-          perpetualIndex,
-          this.mcdexLemma.address,
-        );
+        const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, mcdexLemma.address);
         const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
         // console.log("leverage", account.accountComputed.leverage.toString());
         //expect the leverage to be ~1
-        expect(fromBigNumber(account.accountComputed.leverage)).to.be.closeTo(utils.parseEther("1"), 1e14);
+        expect(await fromBigNumber(account.accountComputed.leverage)).to.be.closeTo(utils.parseEther("1"), 1e14);
       }
-      expect(tx).to.emit(this.usdLemma, "Rebalance");
-      const totalUSDL = fromBigNumber(amountWithFeesConsidered.absoluteValue());
+      expect(tx).to.emit(usdLemma, "Rebalance");
+      const totalUSDL = await fromBigNumber(amountWithFeesConsidered.absoluteValue());
       if (unrealizedFundingPNL.isNegative()) {
         //it should burn the right amounts
-        expect(await this.usdLemma.balanceOf(stackingContract.address)).to.equal(ZERO);
+        expect(await usdLemma.balanceOf(stackingContract.address)).to.equal(ZERO);
         //change in lemmaTreasury balance = totalUSDLToBeBurnt - amount burnt from stacking contract
-        expect(lemmaTreasuryBalanceBefore.sub(await this.usdLemma.balanceOf(lemmaTreasury.address))).to.equal(
+        expect(lemmaTreasuryBalanceBefore.sub(await usdLemma.balanceOf(lemmaTreasury.address))).to.equal(
           totalUSDL.sub(stackingContractBalanceBefore),
         );
       } else {
         //when funding payment is positive
         //mint 30% to lemmaTreasury
-        const fees = await this.usdLemma.fees();
+        const fees = await usdLemma.fees();
         const feeAmount = totalUSDL.mul(fees).div(BigNumber.from("10000"));
-        expect((await this.usdLemma.balanceOf(lemmaTreasury.address)).sub(lemmaTreasuryBalanceBefore)).to.equal(
-          feeAmount,
-        );
+        expect((await usdLemma.balanceOf(lemmaTreasury.address)).sub(lemmaTreasuryBalanceBefore)).to.equal(feeAmount);
         //rest to stackingContract
-        expect((await this.usdLemma.balanceOf(stackingContract.address)).sub(stackingContractBalanceBefore)).to.equal(
+        expect((await usdLemma.balanceOf(stackingContract.address)).sub(stackingContractBalanceBefore)).to.equal(
           totalUSDL.sub(feeAmount),
         );
       }
@@ -387,25 +352,22 @@ describe("usdLemma", async function () {
   // });
 
   describe("should keep the leverage same regardless of the change in price", async function () {
-    let leverage, currentTimestamp, oracleAdaptor;
+    let leverage: any;
+    let currentTimestamp: any;
+    let oracleAdaptor: any;
     beforeEach(async function () {
       //mint
       const amount = utils.parseEther("1000");
-      const collateralNeeded = await this.mcdexLemma.getAmountInCollateralDecimals(
-        await this.mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true),
+      const collateralNeeded = await mcdexLemma.getAmountInCollateralDecimals(
+        await mcdexLemma.callStatic.getCollateralAmountGivenUnderlyingAssetAmount(amount, true),
         true,
       );
-      await this.collateral.approve(this.usdLemma.address, collateralNeeded);
-      await this.usdLemma.deposit(amount, 0, collateralNeeded, this.collateral.address);
+      await collateral.approve(usdLemma.address, collateralNeeded);
+      await usdLemma.deposit(amount, 0, collateralNeeded, collateral.address);
 
       await liquidityPool.forceToSyncState();
       const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
-      const traderInfo = await getAccountStorage(
-        reader,
-        liquidityPool.address,
-        perpetualIndex,
-        this.mcdexLemma.address,
-      );
+      const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, mcdexLemma.address);
       const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
       leverage = account.accountComputed.leverage;
       // console.log("leverage", account.accountComputed.leverage.toString());
@@ -413,7 +375,7 @@ describe("usdLemma", async function () {
       //get oracleAdaptor contract
       const latestBlock = await provider.getBlock("latest");
       currentTimestamp = latestBlock.timestamp;
-      const oracleAdaptorAddress = mcdexAddresses.OracleAdaptor.address;
+      // const oracleAdaptorAddress = mcdexAddresses.OracleAdaptor.address;
       oracleAdaptor = new ethers.Contract(
         oracleAdaptorAddress,
         [
@@ -430,16 +392,11 @@ describe("usdLemma", async function () {
       await oracleAdaptor.setIndexPrice(utils.parseUnits("10", "14"), currentTimestamp);
 
       const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
-      const traderInfo = await getAccountStorage(
-        reader,
-        liquidityPool.address,
-        perpetualIndex,
-        this.mcdexLemma.address,
-      );
+      const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, mcdexLemma.address);
       const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
       // console.log("leverage", account.accountComputed.leverage.toString());
       //expect the leverage to be equal to leverage before change in price
-      expect(fromBigNumber(account.accountComputed.leverage)).to.be.closeTo(fromBigNumber(leverage), 1e14);
+      expect(await fromBigNumber(account.accountComputed.leverage)).to.be.closeTo(await fromBigNumber(leverage), 1e14);
     });
     it("when price decreases", async function () {
       //current price = 5*10^14 ETH per USD (2000 usd per ETH)
@@ -449,39 +406,34 @@ describe("usdLemma", async function () {
 
       await liquidityPool.forceToSyncState();
       const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
-      const traderInfo = await getAccountStorage(
-        reader,
-        liquidityPool.address,
-        perpetualIndex,
-        this.mcdexLemma.address,
-      );
+      const traderInfo = await getAccountStorage(reader, liquidityPool.address, perpetualIndex, mcdexLemma.address);
       const account = computeAccount(liquidityPoolInfo, perpetualIndex, traderInfo);
       // console.log("leverage", account.accountComputed.leverage.toString());
       //expect the leverage to be equal to leverage before change in price
-      expect(fromBigNumber(account.accountComputed.leverage)).to.be.closeTo(fromBigNumber(leverage), 1e14);
+      expect(await fromBigNumber(account.accountComputed.leverage)).to.be.closeTo(await fromBigNumber(leverage), 1e14);
     });
   });
 
   it("should set staking contract correctly", async function () {
-    let tx = await this.usdLemma.setStakingContractAddress(signer2.address);
-    expect(tx).to.emit(this.usdLemma, "StakingContractUpdated").withArgs(signer2.address);
-    await this.usdLemma.setStakingContractAddress(stackingContract.address);
+    let tx = await usdLemma.setStakingContractAddress(signer2.address);
+    expect(tx).to.emit(usdLemma, "StakingContractUpdated").withArgs(signer2.address);
+    await usdLemma.setStakingContractAddress(stackingContract.address);
   });
 
   it("should set lemma treasury correctly", async function () {
-    let tx = await this.usdLemma.setLemmaTreasury(signer2.address);
-    expect(tx).to.emit(this.usdLemma, "LemmaTreasuryUpdated").withArgs(signer2.address);
-    await this.usdLemma.setLemmaTreasury(lemmaTreasury.address);
+    let tx = await usdLemma.setLemmaTreasury(signer2.address);
+    expect(tx).to.emit(usdLemma, "LemmaTreasuryUpdated").withArgs(signer2.address);
+    await usdLemma.setLemmaTreasury(lemmaTreasury.address);
   });
 
   it("should set fees correctly", async function () {
-    let tx = await this.usdLemma.setFees(utils.parseEther("1000"));
-    expect(tx).to.emit(this.usdLemma, "FeesUpdated").withArgs(utils.parseEther("1000"));
-    await this.usdLemma.setFees(utils.parseEther("0"));
+    let tx = await usdLemma.setFees(utils.parseEther("1000"));
+    expect(tx).to.emit(usdLemma, "FeesUpdated").withArgs(utils.parseEther("1000"));
+    await usdLemma.setFees(utils.parseEther("0"));
   });
 
   it("should add per dex wrapper correctly", async function () {
-    let tx = await this.usdLemma.addPerpetualDEXWrapper(1, signer1.address, signer2.address);
-    expect(tx).to.emit(this.usdLemma, "PerpetualDexWrapperAdded").withArgs(1, signer1.address, signer2.address);
+    let tx = await usdLemma.addPerpetualDEXWrapper(1, signer1.address, signer2.address);
+    expect(tx).to.emit(usdLemma, "PerpetualDexWrapperAdded").withArgs(1, signer1.address, signer2.address);
   });
 });

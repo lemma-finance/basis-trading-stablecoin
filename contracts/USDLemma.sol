@@ -10,7 +10,6 @@ import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/
 import { Utils } from "./libraries/Utils.sol";
 import { SafeMathExt } from "./libraries/SafeMathExt.sol";
 import { IPerpetualDEXWrapper } from "./interfaces/IPerpetualDEXWrapper.sol";
-import "hardhat/console.sol";
 
 /// @author Lemma Finance
 contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
@@ -25,7 +24,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     mapping(uint256 => mapping(address => address)) public perpetualDEXWrappers;
 
     mapping(address => bool) private whiteListAddress;
-    uint256 mutexBlock;
+    uint256 public mutexBlock;
 
     // events
     event DepositTo(
@@ -50,7 +49,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     event PerpetualDexWrapperAdded(uint256 indexed dexIndex, address indexed collateral, address dexWrapper);
 
     modifier _onlyOneFuntionAtATime(address _account) {
-        if(whiteListAddress[_account]) {
+        if (whiteListAddress[_account]) {
             // whitelist addresses can call multiple functions of USDLemma
             _;
         } else {
@@ -74,6 +73,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         addPerpetualDEXWrapper(0, collateralAddress, perpetualDEXWrapperAddress);
     }
 
+
     /// @notice Returns the fees of the underlying Perp DEX Wrapper
     /// @param dexIndex The DEX Index to operate on 
     /// @param collateral Collateral for the minting / redeeming operation
@@ -82,7 +82,6 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[dexIndex][collateral]
         );
-
         require(address(perpDEXWrapper) != address(0), "! DEX Wrapper");
         return perpDEXWrapper.getFees(isMinting);
     }
@@ -91,9 +90,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @param dexIndex The DEX Index to operate on 
     /// @param collateral Collateral for the minting / redeeming operation
     function getTotalPosition(uint256 dexIndex, address collateral) external view returns (int256) {
-        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
-            perpetualDEXWrappers[dexIndex][collateral]
-        );
+        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
 
         require(address(perpDEXWrapper) != address(0), "! DEX Wrapper");
         return perpDEXWrapper.getTotalPosition();
@@ -311,9 +308,11 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             uint256 amountBurntFromLemmaTreasury = balanceOfLemmaTreasury.min(
                 totalAmountToBurn - amountBurntFromStakingContract
             );
+            //burnFrom staking contract first
             if (amountBurntFromStakingContract > 0) {
                 _burnFrom(stakingContractAddress, amountBurntFromStakingContract);
             }
+            //burn remaining from lemma treasury (if any)
             if (amountBurntFromLemmaTreasury > 0) {
                 _burnFrom(lemmaTreasury, amountBurntFromLemmaTreasury);
             }

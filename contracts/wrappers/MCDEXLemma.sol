@@ -285,9 +285,10 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
         int256 difference = fundingPNL - realizedFundingPNL;
         //error +-10**12 is allowed in calculation
         require(difference.abs() <= 10**12, "not allowed");
-
+        // (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
         liquidityPool.trade(perpetualIndex, address(this), amount, limitPrice, deadline, referrer, 0);
-
+        // need to upadteEntryFunding here as well as the position is changing here as well
+        // updateEntryFunding(position, amount);
         return true;
     }
 
