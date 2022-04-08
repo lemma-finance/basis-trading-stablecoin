@@ -130,5 +130,6 @@ interface IClearingHouse {
     function getOrderBook() external view returns (address);
 
     function getAccountBalance() external view returns (address);
+
     function settleAllFunding(address trader) external;
 }
