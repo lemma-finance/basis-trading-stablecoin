@@ -189,7 +189,6 @@ describe("usdLemma-perp", async function () {
         trustedForwarder,
         ethCollateral.address,
         baseToken.address,
-        quoteToken.address,
         clearingHouse.address,
         marketRegistry.address,
         usdLemma.address,

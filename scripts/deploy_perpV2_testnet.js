@@ -15,7 +15,7 @@ const fs = require("fs");
 const network = "testnet";
 const SAVE_PREFIX = "./deployments/";
 const SAVE_POSTFIX = ".deployment.perp.js";
-const testnetAddressesURL = "https://gist.githubusercontent.com/Wraecca/46da6fa5b5302f8aae54664c5e9039e7/raw/bd82a153f683f390fe2a65ced20ae5e197cd8304/optimism-kovan-dev1.json";
+const testnetAddressesURL = "https://metadata.perp.exchange/v2/optimism-kovan-dev1.json";
 let deployedContracts = {};
 const ZERO = BigNumber.from("0");
 const bn = require("bignumber.js");
@@ -73,7 +73,7 @@ async function main() {
     const perpLemmaFactory = await ethers.getContractFactory("PerpLemma");
     perpLemma = await upgrades.deployProxy(
         perpLemmaFactory,
-        [config[chainId].trustedForwarder, collateral.address, baseToken.address, quoteToken.address, clearingHouse.address, marketRegistry.address, AddressZero, maxPosition],
+        [config[chainId].trustedForwarder, collateral.address, baseToken.address, clearingHouse.address, marketRegistry.address, AddressZero, maxPosition],
         { initializer: "initialize" },
     );
     await delay(60000);
