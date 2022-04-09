@@ -76,9 +76,9 @@ async function main() {
         [config[chainId].trustedForwarder, collateral.address, baseToken.address, clearingHouse.address, marketRegistry.address, AddressZero, maxPosition],
         { initializer: "initialize" },
     );
-    await delay(60000);
+    await delay(10000);
     await perpLemma.connect(defaultSigner).setReBalancer(config[chainId].reBalancer);
-    await delay(60000);
+    await delay(10000);
 
     collateralDecimals = await perpLemma.collateralDecimals();
     const collateralAddress = await perpLemma.collateral();
@@ -88,9 +88,9 @@ async function main() {
     const usdLemma = await upgrades.deployProxy(USDLemma, [config[chainId].trustedForwarder, collateralAddress, perpLemma.address], {
         initializer: "initialize",
     });
-    await delay(60000);
+    await delay(10000);
     await perpLemma.setUSDLemma(usdLemma.address);
-    await delay(60000);
+    await delay(10000);
     //deploy stackingContract
     console.log("deploying xUSDL");
     const XUSDL = await ethers.getContractFactory("xUSDL");
@@ -100,17 +100,19 @@ async function main() {
     });
     console.log("xUSDL", xUSDL.address);
     console.log("USDLemma", await xUSDL.usdl());
-    await delay(60000);
+    await delay(10000);
+
+    console.log("configuring parameters");
     //set fees
     const fees = 3000; //30%
     await usdLemma.setFees(fees);
-    await delay(60000);
+    await delay(10000);
     //set stacking contract address
     await usdLemma.setStakingContractAddress(xUSDL.address);
-    await delay(60000);
+    await delay(10000);
     //set lemma treasury address
     await usdLemma.setLemmaTreasury(config[chainId].lemmaTreasury);
-    await delay(60000);
+    await delay(10000);
 
     deployedContracts["USDLemma"] = {
         name: "USDLemma",
