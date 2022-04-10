@@ -214,7 +214,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     /// @notice Open short position for eth(quoteToken) on getCollateralAmountGivenUnderlyingAssetAmount first and deposit collateral here
     /// @param collateralAmountRequired collateral amount required to open the position
     function open(uint256, uint256 collateralAmountRequired) external override onlyUSDLemma {
-        require(collateralAmountRequired > 0, "Amount should non-zero");
+        require(collateralAmountRequired > 0, "Amount should greater than zero");
         uint256 collateralAmountToDeposit = getAmountInCollateralDecimals(collateralAmountRequired, true);
         require(collateral.balanceOf(address(this)) >= collateralAmountToDeposit, "not enough collateral");
         _deposit(collateralAmountToDeposit);
@@ -258,7 +258,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     /// @notice Open long position for eth(quoteToken) on getCollateralAmountGivenUnderlyingAssetAmount first and withdraw collateral here
     /// @param collateralAmountToGetBack collateral amount to withdraw after close position
     function close(uint256, uint256 collateralAmountToGetBack) external override onlyUSDLemma {
-        require(collateralAmountToGetBack > 0, "Amount should non-zero");
+        require(collateralAmountToGetBack > 0, "Amount should greater than zero");
         uint256 amountToWithdraw = getAmountInCollateralDecimals(collateralAmountToGetBack, false);
         _withdraw(amountToWithdraw);
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountToWithdraw);
@@ -354,8 +354,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         address _reBalancer,
         int256 amount,
         bytes calldata data
-    ) external override returns (bool) {
-        require(_msgSender() == usdLemma, "only usdLemma is allowed");
+    ) external override onlyUSDLemma returns (bool) {
         require(_reBalancer == reBalancer, "only rebalancer is allowed");
 
         (uint160 _sqrtPriceLimitX96, uint256 _deadline) = abi.decode(data, (uint160, uint256));

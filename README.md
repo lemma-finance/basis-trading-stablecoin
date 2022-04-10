@@ -41,6 +41,7 @@ Open perp-lushan submodule repo
 4). test coverage (no need to start `npx hardhat node`)
 
     npx hardhat coverage --network local
+    npx hardhat coverage --testfiles "test/perpetual/perpLemma.multiCollateral.ts"  --network local
 
 5). ethlint check
 
