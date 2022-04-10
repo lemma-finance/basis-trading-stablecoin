@@ -72,8 +72,8 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
     // Gets set only when Settlement has already happened
     // NOTE: This should be equal to the amount of USDL minted depositing on that dexIndex
-    uint256 public positionAtSettlementInBase;
     uint256 public positionAtSettlementInQuote;
+    uint256 public positionAtSettlementInBase;
 
     uint256 public maxPosition;
     int256 public totalFundingPNL;
@@ -178,7 +178,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     function withdrawSettlementToken(uint256 _amount) external onlyOwner {
         require(_amount > 0, "Amount should greater than zero");
         iPerpVault.withdraw(address(usdc), _amount);
-        SafeERC20Upgradeable.safeTransfer(collateral, msg.sender, _amount);
+        SafeERC20Upgradeable.safeTransfer(usdc, msg.sender, _amount);
     }
 
     function getCollateralAmountGivenUnderlyingAssetAmount(uint256 usdlToMintOrBurn, bool isShorting)
@@ -300,14 +300,14 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     /// @param usdlAmount this method distribute collateral by exact usdlAmount
     function closeWExactUSDLAfterSettlement(uint256 usdlAmount) internal returns (uint256 USDLToBurn) {
         // WPL_NP : Wrapper PerpLemma, No Position at settlement --> no more USDL to Burn
-        require(positionAtSettlementInBase > 0, "WPL_NP");
+        require(positionAtSettlementInQuote > 0, "WPL_NP");
         // WPL_NC : Wrapper PerpLemma, No Collateral
         require(collateral.balanceOf(address(this)) > 0, "WPL_NC");
         uint256 amountCollateralToTransfer = (usdlAmount * collateral.balanceOf(address(this))) /
-            positionAtSettlementInBase;
+            positionAtSettlementInQuote;
         amountCollateralToTransfer = getAmountInCollateralDecimals(amountCollateralToTransfer, true);
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountCollateralToTransfer);
-        positionAtSettlementInBase -= usdlAmount;
+        positionAtSettlementInQuote -= usdlAmount;
         USDLToBurn = usdlAmount;
     }
 
@@ -315,18 +315,18 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     /// @param collateralAmount this method distribute collateral by exact collateral
     function closeWExactCollateralAfterSettlement(uint256 collateralAmount) internal returns (uint256 USDLToBurn) {
         // WPL_NP : Wrapper PerpLemma, No Position at settlement --> no more USDL to Burn
-        require(positionAtSettlementInBase > 0, "WPL_NP");
+        require(positionAtSettlementInQuote > 0, "WPL_NP");
         // WPL_NC : Wrapper PerpLemma, No Collateral
         require(collateral.balanceOf(address(this)) > 0, "WPL_NC");
         uint256 amountCollateralToTransfer = getAmountInCollateralDecimals(collateralAmount, true);
-        USDLToBurn = (amountCollateralToTransfer * positionAtSettlementInBase) / collateral.balanceOf(address(this));
+        USDLToBurn = (amountCollateralToTransfer * positionAtSettlementInQuote) / collateral.balanceOf(address(this));
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountCollateralToTransfer);
-        positionAtSettlementInBase -= USDLToBurn;
+        positionAtSettlementInQuote -= USDLToBurn;
     }
 
     //// @notice when perpetual is in CLEARED state, withdraw the collateral
     function settle() public override {
-        positionAtSettlementInBase = accountBalance.getBase(address(this), baseTokenAddress).abs().toUint256();
+        positionAtSettlementInQuote = accountBalance.getQuote(address(this), baseTokenAddress).abs().toUint256();
 
         // NOTE: This checks the market is in CLOSED state, otherwise revenrts
         // NOTE: For some reason, the amountQuoteClosed < freeCollateral and freeCollateral is the max withdrawable for us so this is the one we want to use to withdraw
@@ -339,8 +339,8 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
         // NOTE: This amount of free collateral is the one internally used to check for the V_NEFC error, so this is the max withdrawable
         uint256 freeCollateral = iPerpVault.getFreeCollateralByToken(address(this), address(collateral));
-        positionAtSettlementInQuote = freeCollateral;
-        iPerpVault.withdraw(address(collateral), positionAtSettlementInQuote);
+        positionAtSettlementInBase = freeCollateral;
+        iPerpVault.withdraw(address(collateral), positionAtSettlementInBase);
         // All the collateral is now back
         hasSettled = true;
     }
@@ -372,17 +372,17 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             realizedFundingPNL -= amount - fees.toInt256();
             // open short position for eth and amount in eth
             _isBaseToQuote = true;
-            _isExactInput = false;
+            _isExactInput = true;
         } else {
             realizedFundingPNL += amount + fees.toInt256();
             // open long position for eth and amount in eth
             _isBaseToQuote = false;
-            _isExactInput = true;
+            _isExactInput = false;
         }
 
         int256 difference = fundingPNL - realizedFundingPNL;
         //error +-10**12 is allowed in calculation
-        require(difference.abs() <= 10**18, "not allowed");
+        require(difference.abs() <= 10**17, "not allowed");
 
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: baseTokenAddress,

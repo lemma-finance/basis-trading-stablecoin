@@ -10,8 +10,7 @@ const exec = util.promisify(require("child_process").exec);
 import bn from "bignumber.js";
 
 const { BigNumber } = hre.ethers;
-tokenTransfers.setCurrentProvider(hre.ethers.providers.JsonRpcProvider)
-
+tokenTransfers.setCurrentProvider(hre.ethers.providers.JsonRpcProvider);
 
 export async function deployMCDEXLocally() {
   // console.log("deploying MCDEX locally,please wait...");
@@ -55,7 +54,7 @@ export async function loadPerpLushanInfo() {
 }
 export async function fetchFromURL(url) {
   try {
-    const response = await axios.get(url)
+    const response = await axios.get(url);
     return response.data;
   } catch (error) {
     console.log(error.response.body);

@@ -73,21 +73,22 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         addPerpetualDEXWrapper(0, collateralAddress, perpetualDEXWrapperAddress);
     }
 
-
     /// @notice Returns the fees of the underlying Perp DEX Wrapper
-    /// @param dexIndex The DEX Index to operate on 
+    /// @param dexIndex The DEX Index to operate on
     /// @param collateral Collateral for the minting / redeeming operation
     /// @param isMinting True: Minting, False: Redeeming
-    function getFees(uint256 dexIndex, address collateral, bool isMinting) external view returns (uint256) {
-        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
-            perpetualDEXWrappers[dexIndex][collateral]
-        );
+    function getFees(
+        uint256 dexIndex,
+        address collateral,
+        bool isMinting
+    ) external view returns (uint256) {
+        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
         require(address(perpDEXWrapper) != address(0), "! DEX Wrapper");
         return perpDEXWrapper.getFees(isMinting);
     }
 
     /// @notice Returns the total position in Base Token on a given DEX
-    /// @param dexIndex The DEX Index to operate on 
+    /// @param dexIndex The DEX Index to operate on
     /// @param collateral Collateral for the minting / redeeming operation
     function getTotalPosition(uint256 dexIndex, address collateral) external view returns (int256) {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
@@ -138,7 +139,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         emit PerpetualDexWrapperAdded(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
     }
 
-    /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of USDL 
+    /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of USDL
     /// @param to Receipent of minted USDL
     /// @param amount Amount of USDL to mint
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
