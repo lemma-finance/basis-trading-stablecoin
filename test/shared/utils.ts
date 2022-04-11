@@ -83,27 +83,6 @@ export async function loadPerpLushanInfoMainnet() {
   return JSON.parse(data);
 }
 
-// FOR BTC
-export async function deployPerpLocallyMainnetForBTC() {
-  // console.log("deploying MCDEX locally,please wait...");
-  const { stdout, stderr } = await exec(
-    "cd perp-lushan/ && pwd && npx hardhat run scripts/deploy_local_perp_mainnet_btc.ts --network local && cd ..  && pwd",
-  );
-  if (stderr) {
-    console.error(`error: ${stderr}`);
-  }
-  // console.log(`output: ${stdout}`);
-  // console.log("deployment done");
-}
-
-export async function loadPerpLushanInfoMainnetForBTC() {
-  //deploy mcdex and then load
-  await deployPerpLocallyMainnetForBTC();
-  //get MCDEXAddresses
-  const data = fs.readFileSync(__dirname + "/../../perp-lushan/deployments/local.deployment.js", "utf8");
-  return JSON.parse(data);
-}
-
 export async function toBigNumber(amount: any) {
   const amountBN = new bn(amount.toString());
   const ONE = new bn(utils.parseEther("1").toString());

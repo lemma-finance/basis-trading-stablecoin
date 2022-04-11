@@ -12,7 +12,7 @@ const {
   fromBigNumber,
   snapshot,
   revertToSnapshot,
-} = require("../test/utils");
+} = require("../test/shared/utils");
 const {
   CHAIN_ID_TO_POOL_CREATOR_ADDRESS,
   PoolCreatorFactory,
@@ -96,7 +96,8 @@ async function main() {
   vault = new ethers.Contract(perpAddresses.vault.address, VaultAbi.abi, defaultSigner);
   exchange = new ethers.Contract(perpAddresses.exchange.address, ExchangeAbi.abi, defaultSigner);
   marketRegistry = new ethers.Contract(perpAddresses.marketRegistry.address, MarketRegistryAbi.abi, defaultSigner);
-  collateral = new ethers.Contract(perpAddresses.ethCollateral.address, TestERC20Abi.abi, defaultSigner);
+  ethCollateral = new ethers.Contract(perpAddresses.ethCollateral.address, TestERC20Abi.abi, defaultSigner);
+  usdCollateral = new ethers.Contract(perpAddresses.usdCollateral.address, TestERC20Abi.abi, defaultSigner);
   baseToken = new ethers.Contract(perpAddresses.baseToken.address, BaseTokenAbi.abi, defaultSigner);
   baseToken2 = new ethers.Contract(perpAddresses.baseToken2.address, BaseToken2Abi.abi, defaultSigner);
   quoteToken = new ethers.Contract(perpAddresses.quoteToken.address, QuoteTokenAbi.abi, defaultSigner);
@@ -112,18 +113,31 @@ async function main() {
     MockTestAggregatorV3Abi.abi,
     defaultSigner,
   );
+  mockedWethPriceFeed = new ethers.Contract(
+    perpAddresses.mockedWethPriceFeed.address,
+    MockTestAggregatorV3Abi.abi,
+    defaultSigner,
+  );
   pool = new ethers.Contract(perpAddresses.pool.address, UniswapV3PoolAbi.abi, defaultSigner);
   pool2 = new ethers.Contract(perpAddresses.pool2.address, UniswapV3Pool2Abi.abi, defaultSigner);
   quoter = new ethers.Contract(perpAddresses.quoter.address, QuoterAbi.abi, defaultSigner);
-  collateralDecimals = await collateral.decimals();
 
   const maxPosition = ethers.constants.MaxUint256;
   const perpLemmaFactory = await ethers.getContractFactory("PerpLemma");
   perpLemma = await upgrades.deployProxy(
     perpLemmaFactory,
-    [baseToken.address, quoteToken.address, clearingHouse.address, marketRegistry.address, AddressZero, maxPosition],
+    [
+      AddressZero,
+      ethCollateral.address,
+      baseToken.address, 
+      clearingHouse.address, 
+      marketRegistry.address, 
+      AddressZero, // It is USDLemma contract address, it will set below by setUSDLemma
+      maxPosition
+    ],
     { initializer: "initialize" },
   );
+  ethCollateralDecimals = await perpLemma.collateralDecimals(); // collateral decimal
   await perpLemma.connect(signer1).resetApprovals();
   await perpLemma.connect(defaultSigner).setReBalancer(reBalancer.address);
 
@@ -131,41 +145,43 @@ async function main() {
   // const arbProvider = ethers.getDefaultProvider(hre.network.config.url);
   // const { chainId } = await arbProvider.getNetwork();
 
-  await mockedBaseAggregator.setLatestRoundData(0, parseUnits("0.01", collateralDecimals), 0, 0, 0);
-  // await mockedBaseAggregator2.setLatestRoundData(0, parseUnits("100", collateralDecimals), 0, 0, 0)
+  await mockedBaseAggregator.setLatestRoundData(0, parseUnits("100", 6), 0, 0, 0);
+  await mockedBaseAggregator2.setLatestRoundData(0, parseUnits("0.01", ethCollateralDecimals), 0, 0, 0);
+  await mockedWethPriceFeed.setLatestRoundData(0, parseUnits("100", ethCollateralDecimals), 0, 0, 0);
 
-  await pool.initialize(encodePriceSqrt("1", "100"));
-  // the initial number of oracle can be recorded is 1; thus, have to expand it
+  await pool.initialize(encodePriceSqrt("100", "1"));
   await pool.increaseObservationCardinalityNext((2 ^ 16) - 1);
-  await pool2.initialize(encodePriceSqrt("1", "100")); // tick = 50200 (1.0001^50200 = 151.373306858723226652)
+
+  await pool2.initialize(encodePriceSqrt("100", "1"));
+  await pool2.increaseObservationCardinalityNext((2 ^ 16) - 1);
+
+  await clearingHouseConfig.setMaxFundingRate(parseUnits("1", 6));
 
   await marketRegistry.addPool(baseToken.address, 10000);
   // await marketRegistry.addPool(baseToken2.address, 10000)
   await marketRegistry.setFeeRatio(baseToken.address, 10000);
   // await marketRegistry.setFeeRatio(baseToken2.address, 10000)
-  await exchange.setMaxTickCrossedWithinBlock(baseToken.address, 887272);
+  await exchange.setMaxTickCrossedWithinBlock(baseToken.address, 887272 * 2);
 
   // weth rich address 0xF977814e90dA44bFA03b6295A0616a897441aceC
   const amountOfCollateralToMint = utils.parseEther("2000");
 
-  console.log("signer1: ", signer1.address);
+  await signer1.sendTransaction({ to: ethCollateral.address, value: amountOfCollateralToMint });
+  await signer2.sendTransaction({ to: ethCollateral.address, value: amountOfCollateralToMint });
+  await longAddress.sendTransaction({ to: ethCollateral.address, value: amountOfCollateralToMint });
 
-  await signer1.sendTransaction({ to: collateral.address, value: amountOfCollateralToMint });
-  await signer2.sendTransaction({ to: collateral.address, value: amountOfCollateralToMint });
-  await longAddress.sendTransaction({ to: collateral.address, value: amountOfCollateralToMint });
+  await ethCollateral.connect(signer1).approve(vault.address, ethers.constants.MaxUint256);
+  await ethCollateral.connect(signer2).approve(vault.address, ethers.constants.MaxUint256);
+  await ethCollateral.connect(longAddress).approve(vault.address, ethers.constants.MaxUint256);
 
-  await collateral.connect(signer1).approve(vault.address, ethers.constants.MaxUint256);
-  await collateral.connect(signer2).approve(vault.address, ethers.constants.MaxUint256);
-  await collateral.connect(longAddress).approve(vault.address, ethers.constants.MaxUint256);
-
-  await vault.connect(signer1).deposit(collateral.address, parseUnits("1000", collateralDecimals));
-  await vault.connect(signer2).deposit(collateral.address, parseUnits("1000", collateralDecimals));
-  await vault.connect(longAddress).deposit(collateral.address, parseUnits("1000", collateralDecimals));
+  await vault.connect(signer1).deposit(ethCollateral.address, parseUnits("1000", ethCollateralDecimals));
+  await vault.connect(signer2).deposit(ethCollateral.address, parseUnits("1500", ethCollateralDecimals));
+  await vault.connect(longAddress).deposit(ethCollateral.address, parseUnits("1000", ethCollateralDecimals));
 
   await clearingHouse.connect(signer2).addLiquidity({
     baseToken: baseToken.address,
-    base: parseEther("10000"),
-    quote: parseEther("100"),
+    base: parseEther("750"),
+    quote: parseEther("75000"),
     lowerTick: -887200, //50000,
     upperTick: 887200, //50400,
     minBase: 0,
@@ -173,15 +189,23 @@ async function main() {
     useTakerBalance: false,
     deadline: ethers.constants.MaxUint256,
   });
+  
+  usdcAddress = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"; // mainnet address
+  usdcWhaleAddress = "0x06601571AA9D3E8f5f7CDd5b993192618964bAB5";
 
-  collateralDecimals = await perpLemma.collateralDecimals();
-  const collateralAddress = await perpLemma.collateral();
-  // const ERC20 = IERC20Factory.connect(collateralAddress, defaultSigner);//choose USDLemma ust because it follows IERC20 interface
-  // collateral = ERC20.attach(collateralAddress);//WETH
-  // console.log("collateral", collateralAddress);
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [usdcWhaleAddress]
+  });
+
+  const usdcWhale = await ethers.provider.getSigner(usdcWhaleAddress);
+  const depositSettlement = parseUnits("10000", 6); // usdc is settlement token
+  await usdCollateral.connect(usdcWhale).transfer(defaultSigner.address, depositSettlement)   
+  await usdCollateral.connect(defaultSigner).approve(perpLemma.address, ethers.constants.MaxUint256);
+  await perpLemma.connect(defaultSigner).depositSettlementToken(depositSettlement);
 
   const USDLemma = await ethers.getContractFactory("USDLemma");
-  const usdLemma = await upgrades.deployProxy(USDLemma, [AddressZero, collateralAddress, perpLemma.address], {
+  const usdLemma = await upgrades.deployProxy(USDLemma, [AddressZero, ethCollateral.address, perpLemma.address], {
     initializer: "initialize",
   });
   await perpLemma.setUSDLemma(usdLemma.address);
@@ -200,8 +224,8 @@ async function main() {
   // //get the keeper gas reward
 
   // // const amountOfCollateralToMint = utils.parseEther("2000");
-  // // await defaultSigner.sendTransaction({ to: collateral.address, value: amountOfCollateralToMint });
-  // // await hasWETH.sendTransaction({ to: collateral.address, value: amountOfCollateralToMint });
+  // // await defaultSigner.sendTransaction({ to: ethCollateral.address, value: amountOfCollateralToMint });
+  // // await hasWETH.sendTransaction({ to: ethCollateral.address, value: amountOfCollateralToMint });
 
   //set fees
   const fees = 3000; //30%

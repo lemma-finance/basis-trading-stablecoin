@@ -407,52 +407,6 @@ describe("perpLemma.multiCollateral", async function () {
         const depositSettlement = parseUnits("10000", usdCollateralDecimals); // usdc is settlement token
         await usdCollateral.approve(perpLemma2.address, ethers.constants.MaxUint256);
         await perpLemma2.depositSettlementToken(depositSettlement);
-
-        // const signer1Amount = parseUnits("10000", ethCollateralDecimals);
-        // await ethCollateral.mint(signer1.address, signer1Amount);
-        // await ethCollateral.connect(signer1).approve(vault.address, ethers.constants.MaxUint256);
-        // collateralAmountForETH = parseUnits("100", ethCollateralDecimals); // 6 decimal
-        // console.log('collateralAmountForETH:', collateralAmountForETH.toString(), ethCollateralDecimals)
-        // await vault.connect(signer1).deposit(ethCollateral.address, collateralAmountForETH);
-        // const a = await vault.getBalanceByToken(signer1.address, ethCollateral.address);
-        // console.log('a:', a.toString())
-
-        // await clearingHouse.connect(signer1).openPosition({
-        //   baseToken: baseToken.address,
-        //   isBaseToQuote: true,
-        //   isExactInput: true,
-        //   oppositeAmountBound: 0,
-        //   amount: parseEther('10'),
-        //   sqrtPriceLimitX96: 0,
-        //   deadline: ethers.constants.MaxUint256,
-        //   referralCode: ethers.constants.HashZero,
-        // });
-
-        // const signer2Amount = parseUnits("1000000", ethCollateralDecimals);
-        // await ethCollateral.mint(signer3.address, signer2Amount);
-        // await ethCollateral.connect(signer3).approve(vault.address, ethers.constants.MaxUint256);
-        // await vault.connect(signer3).deposit(ethCollateral.address, collateralAmountForETH);
-        // await clearingHouse.connect(signer3).openPosition({
-        //   baseToken: baseToken.address,
-        //   isBaseToQuote: true,
-        //   isExactInput: true,
-        //   oppositeAmountBound: 0,
-        //   amount: collateralAmountForETH,
-        //   sqrtPriceLimitX96: 0,
-        //   deadline: ethers.constants.MaxUint256,
-        //   referralCode: ethers.constants.HashZero,
-        // });
-
-        // await clearingHouse.connect(signer3).openPosition({
-        //   baseToken: baseToken.address,
-        //   isBaseToQuote: false,
-        //   isExactInput: false,
-        //   oppositeAmountBound: 0,
-        //   amount: collateralAmountForETH.div(2),
-        //   sqrtPriceLimitX96: 0,
-        //   deadline: ethers.constants.MaxUint256,
-        //   referralCode: ethers.constants.HashZero,
-        // });
       });
 
       it("should set addresses correctly", async function () {
@@ -1215,7 +1169,7 @@ describe("perpLemma.multiCollateral", async function () {
           await perpLemma2.connect(defaultSigner).setReBalancer(reBalancer.address);
         });
 
-        it("Forec error for USDLemma and rebalancer address", async () => {
+        it("Force error for USDLemma and rebalancer address", async () => {
           await expect(
             perpLemma2.reBalance(
               reBalancer.address,
