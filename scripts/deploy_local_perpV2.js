@@ -129,11 +129,11 @@ async function main() {
     [
       AddressZero,
       ethCollateral.address,
-      baseToken.address, 
-      clearingHouse.address, 
-      marketRegistry.address, 
+      baseToken.address,
+      clearingHouse.address,
+      marketRegistry.address,
       AddressZero, // It is USDLemma contract address, it will set below by setUSDLemma
-      maxPosition
+      maxPosition,
     ],
     { initializer: "initialize" },
   );
@@ -189,18 +189,18 @@ async function main() {
     useTakerBalance: false,
     deadline: ethers.constants.MaxUint256,
   });
-  
+
   usdcAddress = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"; // mainnet address
   usdcWhaleAddress = "0x06601571AA9D3E8f5f7CDd5b993192618964bAB5";
 
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [usdcWhaleAddress]
+    params: [usdcWhaleAddress],
   });
 
   const usdcWhale = await ethers.provider.getSigner(usdcWhaleAddress);
   const depositSettlement = parseUnits("10000", 6); // usdc is settlement token
-  await usdCollateral.connect(usdcWhale).transfer(defaultSigner.address, depositSettlement)   
+  await usdCollateral.connect(usdcWhale).transfer(defaultSigner.address, depositSettlement);
   await usdCollateral.connect(defaultSigner).approve(perpLemma.address, ethers.constants.MaxUint256);
   await perpLemma.connect(defaultSigner).depositSettlementToken(depositSettlement);
 
