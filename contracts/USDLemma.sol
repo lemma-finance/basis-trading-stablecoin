@@ -92,10 +92,12 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         return perpDEXWrapper.getTotalPosition();
     }
 
+
     /// @notice Set whitelist address, can only be called by owner, It will helps whitelist address to call multiple function of USDL at a time
     /// @param _account Address of whitelist EOA or contract address
     /// @param _isWhiteList add or remove of whitelist tag for any address
     function setWhiteListAddress(address _account, bool _isWhiteList) external onlyOwner {
+        require(_account != address(0), "!account");
         whiteListAddress[_account] = _isWhiteList;
         emit SetWhiteListAddress(_account, _isWhiteList);
     }
@@ -103,6 +105,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @notice Set staking contract address, can only be called by owner
     /// @param _stakingContractAddress Address of staking contract
     function setStakingContractAddress(address _stakingContractAddress) external onlyOwner {
+        require(_stakingContractAddress != address(0), "!stakingContractAddress");
         stakingContractAddress = _stakingContractAddress;
         emit StakingContractUpdated(stakingContractAddress);
     }
@@ -110,6 +113,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @notice Set Lemma treasury, can only be called by owner
     /// @param _lemmaTreasury Address of Lemma Treasury
     function setLemmaTreasury(address _lemmaTreasury) external onlyOwner {
+        require(_lemmaTreasury != address(0), "!lemmaTreasury");
         lemmaTreasury = _lemmaTreasury;
         emit LemmaTreasuryUpdated(lemmaTreasury);
     }
