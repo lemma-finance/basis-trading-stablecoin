@@ -104,6 +104,13 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     ) external initializer {
         __Ownable_init();
         __ERC2771Context_init(_trustedForwarder);
+
+        require(_baseToken != address(0), "!baseToken");
+        require(_quoteToken != address(0), "!quoteToken");
+        require(_iClearingHouse != address(0), "!iClearingHouse");
+        require(_iMarketRegistry != address(0), "!iMarketRegistry");
+        // require(_usdLemma != address(0), "!usdLemma");
+
         usdLemma = _usdLemma;
         maxPosition = _maxPosition;
         baseTokenAddress = _baseToken;
@@ -134,9 +141,10 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     }
 
     ///@notice sets USDLemma address - only owner can set
-    ///@param _usdlemma USDLemma address to set
-    function setUSDLemma(address _usdlemma) external onlyOwner {
-        usdLemma = _usdlemma;
+    ///@param _usdLemma USDLemma address to set
+    function setUSDLemma(address _usdLemma) external onlyOwner {
+        require(_usdLemma != address(0), "!usdLemma");
+        usdLemma = _usdLemma;
         emit USDLemmaUpdated(usdLemma);
     }
 
@@ -150,6 +158,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     ///@notice sets reBalncer address - only owner can set
     ///@param _reBalancer reBalancer address to set
     function setReBalancer(address _reBalancer) external onlyOwner {
+        require(_reBalancer != address(0), "!reBalancer");
         reBalancer = _reBalancer;
         emit RebalancerUpdated(reBalancer);
     }
