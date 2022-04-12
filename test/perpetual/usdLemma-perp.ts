@@ -70,7 +70,7 @@ async function callStaticOpenPosition(clearingHouse, signer, baseTokenAddress, _
     deadline: ethers.constants.MaxUint256,
     referralCode: ethers.constants.HashZero,
   });
-  return openPositionParams;//[base,quote]
+  return openPositionParams; //[base,quote]
 }
 async function callStaticOpenShortPositionWithExactBase(clearingHouse, signer, baseTokenAddress, _amount) {
   return callStaticOpenPosition(clearingHouse, signer, baseTokenAddress, true, true, _amount);
@@ -293,9 +293,9 @@ describe("usdLemma-perp", async function () {
       maker,
       baseToken.address,
       parseEther("10000000"), // vETH
-      parseEther("1000000000"), // vUSD 
-      -887200,//minimum tick
-      887200,//maximum tick
+      parseEther("1000000000"), // vUSD
+      -887200, //minimum tick
+      887200, //maximum tick
     );
 
     //also, deposit a few amount of settlement tokens from perpLemma wrapper to vault
@@ -401,7 +401,7 @@ describe("usdLemma-perp", async function () {
       positionSize.abs(),
     );
     console.log("baseAmount", quoteAmount.toString());
-    console.log("usdlBalanceBefore", usdlBalance.toString())
+    console.log("usdlBalanceBefore", usdlBalance.toString());
 
     // //input is whatever it costs to go long on the current usdl balance
     // const collateralBalanceBefore = await collateral.balanceOf(signer1.address);
@@ -489,7 +489,6 @@ describe("usdLemma-perp", async function () {
     //   await collateral.mint(defaultSigner.address, parseUnits("5", collateralDecimals));
     //   let collateralAmount = parseUnits("1", collateralDecimals);
     //   await collateral.mint(usdLemma.address, collateralAmount);
-
     //   let baseAndQuoteValue = await callStaticOpenPosition(
     //     clearingHouse,
     //     longAddress,
@@ -503,12 +502,10 @@ describe("usdLemma-perp", async function () {
     //   await usdLemma
     //     .connect(defaultSigner)
     //     .depositToWExactCollateral(defaultSigner.address, collateralAmount, 0, baseAndQuoteValue[0], collateral.address);
-
     //   expect(await collateral.balanceOf(perpLemma.address)).to.eq(0);
     //   expect(await vault.getBalance(perpLemma.address)).to.eq(parseEther("1"));
     //   let positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
     //   expect(baseAndQuoteValue[0]).to.eq(positionSize);
-
     //   // #1
     //   baseAndQuoteValue = await callStaticOpenPosition(
     //     clearingHouse,
@@ -519,7 +516,6 @@ describe("usdLemma-perp", async function () {
     //     positionSize.mul(80).div(100),
     //   );
     //   collateralAmount = baseAndQuoteValue[1];
-
     //   await usdLemma.withdrawToWExactCollateral(
     //     defaultSigner.address,
     //     collateralAmount,
@@ -527,7 +523,6 @@ describe("usdLemma-perp", async function () {
     //     MaxInt256,
     //     collateral.address,
     //   );
-
     //   // #2
     //   baseAndQuoteValue = await callStaticOpenPosition(
     //     clearingHouse,
@@ -538,7 +533,6 @@ describe("usdLemma-perp", async function () {
     //     positionSize.mul(20).div(100),
     //   );
     //   collateralAmount = baseAndQuoteValue[1];
-
     //   await usdLemma.withdrawToWExactCollateral(
     //     defaultSigner.address,
     //     collateralAmount,
@@ -546,7 +540,6 @@ describe("usdLemma-perp", async function () {
     //     MaxInt256,
     //     collateral.address,
     //   );
-
     //   positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
     //   expect(positionSize).to.closeTo(BigNumber.from("1000"), 1000);
     //   expect(await vault.getBalance(perpLemma.address)).to.gt(0); // consider to be fee
@@ -576,7 +569,7 @@ describe("usdLemma-perp", async function () {
   it("WithdrawTo", async function () {
     const openWAmount = utils.parseEther("1");
     await collateral.approve(usdLemma.address, openWAmount);
-    let [baseAmount,] = await callStaticOpenShortPositionWithExactQuote(
+    let [baseAmount] = await callStaticOpenShortPositionWithExactQuote(
       clearingHouse,
       longAddress,
       baseToken.address,
@@ -588,7 +581,7 @@ describe("usdLemma-perp", async function () {
     const usdlBalanceBefore = await usdLemma.balanceOf(defaultSigner.address);
     let amount = usdlBalanceBefore;
 
-    let [baseAmount1,] = await callStaticOpenLongPositionWithExactQuote(
+    let [baseAmount1] = await callStaticOpenLongPositionWithExactQuote(
       clearingHouse,
       longAddress,
       baseToken.address,

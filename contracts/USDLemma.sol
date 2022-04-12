@@ -73,21 +73,22 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         addPerpetualDEXWrapper(0, collateralAddress, perpetualDEXWrapperAddress);
     }
 
-
     /// @notice Returns the fees of the underlying Perp DEX Wrapper
-    /// @param dexIndex The DEX Index to operate on 
+    /// @param dexIndex The DEX Index to operate on
     /// @param collateral Collateral for the minting / redeeming operation
     /// @param isMinting True: Minting, False: Redeeming
-    function getFees(uint256 dexIndex, address collateral, bool isMinting) external view returns (uint256) {
-        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
-            perpetualDEXWrappers[dexIndex][collateral]
-        );
+    function getFees(
+        uint256 dexIndex,
+        address collateral,
+        bool isMinting
+    ) external view returns (uint256) {
+        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
         require(address(perpDEXWrapper) != address(0), "! DEX Wrapper");
         return perpDEXWrapper.getFees(isMinting);
     }
 
     /// @notice Returns the total position in Base Token on a given DEX
-    /// @param dexIndex The DEX Index to operate on 
+    /// @param dexIndex The DEX Index to operate on
     /// @param collateral Collateral for the minting / redeeming operation
     function getTotalPosition(uint256 dexIndex, address collateral) external view returns (int256) {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
@@ -96,10 +97,12 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         return perpDEXWrapper.getTotalPosition();
     }
 
+
     /// @notice Set whitelist address, can only be called by owner, It will helps whitelist address to call multiple function of USDL at a time
     /// @param _account Address of whitelist EOA or contract address
     /// @param _isWhiteList add or remove of whitelist tag for any address
     function setWhiteListAddress(address _account, bool _isWhiteList) external onlyOwner {
+        require(_account != address(0), "!account");
         whiteListAddress[_account] = _isWhiteList;
         emit SetWhiteListAddress(_account, _isWhiteList);
     }
@@ -107,6 +110,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @notice Set staking contract address, can only be called by owner
     /// @param _stakingContractAddress Address of staking contract
     function setStakingContractAddress(address _stakingContractAddress) external onlyOwner {
+        require(_stakingContractAddress != address(0), "!stakingContractAddress");
         stakingContractAddress = _stakingContractAddress;
         emit StakingContractUpdated(stakingContractAddress);
     }
@@ -114,6 +118,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @notice Set Lemma treasury, can only be called by owner
     /// @param _lemmaTreasury Address of Lemma Treasury
     function setLemmaTreasury(address _lemmaTreasury) external onlyOwner {
+        require(_lemmaTreasury != address(0), "!lemmaTreasury");
         lemmaTreasury = _lemmaTreasury;
         emit LemmaTreasuryUpdated(lemmaTreasury);
     }
@@ -138,7 +143,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         emit PerpetualDexWrapperAdded(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
     }
 
-    /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of USDL 
+    /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of USDL
     /// @param to Receipent of minted USDL
     /// @param amount Amount of USDL to mint
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened

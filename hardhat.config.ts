@@ -27,7 +27,8 @@ const config: HardhatUserConfig = {
       // },
       // accounts: {
       //   mnemonic: process.env.MNEMONIC
-      // }
+      // },
+      // chainId: 1,
       allowUnlimitedContractSize: true,
     },
     local: {
@@ -80,7 +81,7 @@ const config: HardhatUserConfig = {
     target: "ethers-v5",
   },
   mocha: {
-    timeout: 1000000, //1000 secs
+    timeout: 200000000, //1000 secs
   },
 };
 
