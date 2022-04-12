@@ -106,9 +106,9 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         __ERC2771Context_init(_trustedForwarder);
 
         require(_baseToken != address(0), "!baseToken");
-        require(_quoteToken != address(0), "!quoteToken");
-        require(_iClearingHouse != address(0), "!iClearingHouse");
-        require(_iMarketRegistry != address(0), "!iMarketRegistry");
+        // require(_quoteToken != address(0), "!quoteToken");
+        require(_clearingHouse != address(0), "!clearingHouse");
+        require(_marketRegistry != address(0), "marketRegistry");
         // require(_usdLemma != address(0), "!usdLemma");
 
         usdLemma = _usdLemma;
