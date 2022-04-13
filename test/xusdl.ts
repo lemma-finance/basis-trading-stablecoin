@@ -44,7 +44,7 @@ describe("eip4626xUSDL", function () {
     this.xusdl = await upgrades.deployProxy(XUSDL, [AddressZero, this.usdl.address, periphery.address], {
       initializer: "initialize",
     });
-    await this.xusdl.updateLock(100);
+    await this.xusdl.setMinimumLock(100);
 
     await approveMAX(this.usdl, owner, this.xusdl.address, utils.parseEther("1000"));
     await approveMAX(this.usdl, user1, this.xusdl.address, utils.parseEther("1000"));
@@ -74,6 +74,18 @@ describe("eip4626xUSDL", function () {
     expect(await this.xusdl.usdl()).to.equal(this.usdl.address);
     expect(await balanceOf(this.usdl, owner.address)).to.equal(utils.parseEther("1000000"));
   });
+  it("should set periphery address correctly", async function () {
+    await expect(this.xusdl.connect(user1).setPeriphery(user2.address)).to.be.revertedWith("Ownable: caller is not the owner");
+    let tx = await this.xusdl.setPeriphery(user2.address);
+    expect(tx).to.emit(this.xusdl, "PeripheryUpdated").withArgs(user2.address);
+    expect(await this.xusdl.periphery()).to.equal(user2.address);
+  });
+  it("should set lock correctly", async function () {
+    await expect(this.xusdl.connect(user1).setMinimumLock(200)).to.be.revertedWith("Ownable: caller is not the owner");
+    let tx = await this.xusdl.setMinimumLock(200);
+    expect(tx).to.emit(this.xusdl, "LockUpdated").withArgs(200);
+    expect(await this.xusdl.minimumLock()).to.equal(200);
+  })
 
   it("should deposit initial correctly", async function () {
     let tx = await this.xusdl.deposit(utils.parseEther("1000"), owner.address);
