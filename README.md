@@ -15,14 +15,9 @@ https://docs.lemma.finance/smart-contracts/core-contracts
 Open perp-lushan submodule repo  
 1). cd perp-lushan  
 2). npm install  
-3). open `Quoter.sol` file =>  node_modules/@uniswap/v3-periphery/contracts/lens/Quoter.sol  
+3). npm run build
+4). cd .. 
 
-    - open Quoter.sol file and replace code with below gist
-        https://gist.github.com/sunnyRK/465f05c9a5f97d8b9c377968ce3296c4
-
-4). npm run build
-5). cd .. 
-    
 
 # Run
 
