@@ -5,6 +5,7 @@
 4. cd mai-protocol-v3/
 5. npm install
 6. cd ..
+7. npm run compile
 7. npx hardhat node
 8. npx hardhat test --network local
 
