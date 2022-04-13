@@ -45,11 +45,4 @@ interface IEIP4626 {
         address receiver,
         address owner
     ) external returns (uint256 assets);
-
-    // Lemma Specific
-    function userUnlockBlock(address usr) external view returns (uint256);
-
-    function MINIMUM_LOCK() external view returns (uint256);
-
-    function usdl() external view returns (IERC20Upgradeable);
 }
