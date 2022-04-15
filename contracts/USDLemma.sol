@@ -24,7 +24,9 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     mapping(uint256 => mapping(address => address)) public perpetualDEXWrappers;
 
     mapping(address => bool) private whiteListAddress;
-    uint256 public mutexBlock;
+    uint256 public lastBlockNumber;
+    address lastTXOrigin;
+    uint256 lastGasLeft;
 
     // events
     event DepositTo(
@@ -53,9 +55,27 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             // whitelist addresses can call multiple functions of USDLemma
             _;
         } else {
-            require(mutexBlock != block.number, "Not Whitelisted address for MultipleCall");
-            mutexBlock = block.number;
-            _;
+            // No whitelisted address
+            if (block.number > lastBlockNumber) {
+                // First call of a new block --> allowed
+                lastBlockNumber = block.number;
+                _;
+                lastGasLeft = gasleft();
+            }
+            else {
+                // This is not a new block so let's check if the tx.origin is different from the last one, if so we are good since the same TX would have the same tx.origin 
+                if (tx.origin != lastTXOrigin) {
+                    lastTXOrigin = tx.origin;
+                    _;
+                    lastGasLeft = gasleft();
+                }
+                else {
+                    // This is not the first call of a block and the tx.origin is the same, as an indicator this is a new TX we check its gasLeft() is greater than the last recorded one
+                    require( gasleft() > lastGasLeft, "! Whitelisted Address" );
+                    _;
+                    lastGasLeft = gasleft();
+                }
+            }
         }
     }
 
@@ -64,7 +84,10 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         address collateralAddress,
         address perpetualDEXWrapperAddress
     ) external initializer {
-        mutexBlock = block.number;
+        lastBlockNumber = block.number;
+        lastTXOrigin = address(0);
+        lastGasLeft = type(uint256).max;
+
         __ReentrancyGuard_init();
         __Ownable_init();
         __ERC20_init("USDLemma", "USDL");
