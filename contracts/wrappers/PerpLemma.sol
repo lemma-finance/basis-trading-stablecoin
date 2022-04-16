@@ -61,7 +61,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
     IClearingHouse public clearingHouse;
     IClearingHouseConfig public clearingHouseConfig;
-    IPerpVault public iPerpVault;
+    IPerpVault public perpVault;
     IAccountBalance public accountBalance;
     IMarketRegistry public marketRegistry;
     IExchange public exchange;
@@ -117,13 +117,13 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
         clearingHouse = IClearingHouse(_clearingHouse);
         clearingHouseConfig = IClearingHouseConfig(clearingHouse.getClearingHouseConfig());
-        iPerpVault = IPerpVault(clearingHouse.getVault());
+        perpVault = IPerpVault(clearingHouse.getVault());
         exchange = IExchange(clearingHouse.getExchange());
         accountBalance = IAccountBalance(clearingHouse.getAccountBalance());
 
         marketRegistry = IMarketRegistry(_marketRegistry);
 
-        usdc = IERC20Decimals(iPerpVault.getSettlementToken());
+        usdc = IERC20Decimals(perpVault.getSettlementToken());
         collateral = IERC20Decimals(_collateral);
         collateralDecimals = collateral.decimals(); // need to verify
         collateral.approve(_clearingHouse, MAX_UINT256);
@@ -131,8 +131,8 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         // NOTE: Even though it is not necessary, it is for clarity
         hasSettled = false;
 
-        SafeERC20Upgradeable.safeApprove(collateral, address(iPerpVault), MAX_UINT256);
-        SafeERC20Upgradeable.safeApprove(usdc, address(iPerpVault), MAX_UINT256);
+        SafeERC20Upgradeable.safeApprove(collateral, address(perpVault), MAX_UINT256);
+        SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
     }
 
     function getFees(bool isMinting) external view override returns (uint256) {
@@ -171,22 +171,22 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
     /// @notice reset approvals
     function resetApprovals() external {
-        SafeERC20Upgradeable.safeApprove(collateral, address(iPerpVault), 0);
-        SafeERC20Upgradeable.safeApprove(collateral, address(iPerpVault), MAX_UINT256);
+        SafeERC20Upgradeable.safeApprove(collateral, address(perpVault), 0);
+        SafeERC20Upgradeable.safeApprove(collateral, address(perpVault), MAX_UINT256);
 
-        SafeERC20Upgradeable.safeApprove(usdc, address(iPerpVault), 0);
-        SafeERC20Upgradeable.safeApprove(usdc, address(iPerpVault), MAX_UINT256);
+        SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), 0);
+        SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
     }
 
     function depositSettlementToken(uint256 _amount) external onlyOwner {
         require(_amount > 0, "Amount should greater than zero");
         SafeERC20Upgradeable.safeTransferFrom(usdc, msg.sender, address(this), _amount);
-        iPerpVault.deposit(address(usdc), _amount);
+        perpVault.deposit(address(usdc), _amount);
     }
 
     function withdrawSettlementToken(uint256 _amount) external onlyOwner {
         require(_amount > 0, "Amount should greater than zero");
-        iPerpVault.withdraw(address(usdc), _amount);
+        perpVault.withdraw(address(usdc), _amount);
         SafeERC20Upgradeable.safeTransfer(usdc, msg.sender, _amount);
     }
 
@@ -242,7 +242,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         require(collateral.balanceOf(address(this)) >= collateralAmountToDeposit, "not enough collateral");
 
         totalFundingPNL = getFundingPNL();
-        iPerpVault.deposit(address(collateral), collateralAmountToDeposit);
+        perpVault.deposit(address(collateral), collateralAmountToDeposit);
         collateralAmountToDeposit = convert1e_18(collateralAmountToDeposit); // because vToken alsways in 18 decimals
 
         // create long for usdc and short for eth position by giving isBaseToQuote=false
@@ -301,7 +301,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         USDLToBurn = quote;
 
         uint256 amountToWithdraw = getAmountInCollateralDecimals(base, false);
-        iPerpVault.withdraw(address(collateral), amountToWithdraw); // withdraw closed position fund
+        perpVault.withdraw(address(collateral), amountToWithdraw); // withdraw closed position fund
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountToWithdraw);
     }
 
@@ -347,9 +347,9 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         settleAllFunding();
 
         // NOTE: This amount of free collateral is the one internally used to check for the V_NEFC error, so this is the max withdrawable
-        uint256 freeCollateral = iPerpVault.getFreeCollateralByToken(address(this), address(collateral));
+        uint256 freeCollateral = perpVault.getFreeCollateralByToken(address(this), address(collateral));
         positionAtSettlementInBase = freeCollateral;
-        iPerpVault.withdraw(address(collateral), positionAtSettlementInBase);
+        perpVault.withdraw(address(collateral), positionAtSettlementInBase);
         // All the collateral is now back
         hasSettled = true;
     }
@@ -468,11 +468,11 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
     /// @notice to deposit collateral in vault for short or open position
     function _deposit(uint256 collateralAmount) internal {
-        iPerpVault.deposit(address(collateral), collateralAmount);
+        perpVault.deposit(address(collateral), collateralAmount);
     }
 
     /// @notice to withdrae collateral from vault after long or close position
     function _withdraw(uint256 amountToWithdraw) internal {
-        iPerpVault.withdraw(address(collateral), amountToWithdraw); // withdraw closed position fund
+        perpVault.withdraw(address(collateral), amountToWithdraw); // withdraw closed position fund
     }
 }
