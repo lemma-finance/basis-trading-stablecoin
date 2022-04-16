@@ -150,7 +150,15 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
         (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
 
         require(position.abs().toUint256() + amount <= maxPosition, "max position reached");
-        int256 updatedPosition = liquidityPool.trade(perpetualIndex, address(this), amount.toInt256(), MAX_INT256, MAX_UINT256, referrer, 0);
+        int256 updatedPosition = liquidityPool.trade(
+            perpetualIndex,
+            address(this),
+            amount.toInt256(),
+            MAX_INT256,
+            MAX_UINT256,
+            referrer,
+            0
+        );
         updateEntryFunding(updatedPosition, amount.toInt256());
     }
 

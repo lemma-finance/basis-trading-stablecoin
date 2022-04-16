@@ -97,7 +97,6 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         return perpDEXWrapper.getTotalPosition();
     }
 
-
     /// @notice Set whitelist address, can only be called by owner, It will helps whitelist address to call multiple function of USDL at a time
     /// @param _account Address of whitelist EOA or contract address
     /// @param _isWhiteList add or remove of whitelist tag for any address
