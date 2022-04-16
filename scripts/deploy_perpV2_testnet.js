@@ -123,6 +123,9 @@ async function main() {
   //set lemma treasury address
   await usdLemma.setLemmaTreasury(config[chainId].lemmaTreasury);
   await delay(10000);
+  //set minimum lock
+  await xUSDL.setMinimumLock("100");
+  await delay(10000);
 
   deployedContracts["USDLemma"] = {
     name: "USDLemma",

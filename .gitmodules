@@ -1,7 +1,9 @@
 [submodule "mai-protocol-v3"]
 	path = mai-protocol-v3
-	url = https://github.com/yashnaman/mai-protocol-v3.git
+	url = git@github.com:yashnaman/mai-protocol-v3.git
+	branch = 72d510e29134a73651e6325ca85f59245eef4713
 
 [submodule "perp-lushan"]
 	path = perp-lushan
-	url = https://github.com/yashnaman/perp-lushan.git
+	url = git@github.com:yashnaman/perp-lushan.git
+	branch = f91926a724ec3b33e66ecec8ce42879cdb2a4540
