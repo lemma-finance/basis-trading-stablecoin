@@ -372,6 +372,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         bool _isBaseToQuote;
         bool _isExactInput;
 
+        int256 fundingPNL = amount + realizedFundingPNL; // if => rebalanceAmonut = fundingPNL - realizedFundingPNL
         realizedFundingPNL += amount;
         if (amount < 0) {
             // open long position for eth and amount in vUSD
@@ -383,7 +384,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             _isExactInput = false;
         }
 
-        int256 difference = totalFundingPNL - realizedFundingPNL;
+        int256 difference = fundingPNL - realizedFundingPNL;
         //error +-10**12 is allowed in calculation
         require(difference.abs() <= 10**12, "not allowed");
 

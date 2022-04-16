@@ -1199,15 +1199,15 @@ describe("perpLemma.multiCollateral", async function () {
           let fundingPNL = await perpLemma2.getFundingPNL();
           let realizedFundingPnl = await perpLemma2.realizedFundingPNL();
           let rebalanceAmount = fundingPNL.sub(realizedFundingPnl);
-
+          
           await perpLemma2
             .connect(usdLemma)
             .reBalance(
               reBalancer.address,
               rebalanceAmount,
               ethers.utils.defaultAbiCoder.encode(
-                ["uint160", "uint256", "int256"],
-                [sqrtPriceLimitX96, deadline, fundingPNL],
+                ["uint160", "uint256"],
+                [sqrtPriceLimitX96, deadline],
               ),
             );
           let checkPrice_after = await checkAndSyncPrice();
@@ -1250,8 +1250,8 @@ describe("perpLemma.multiCollateral", async function () {
               reBalancer.address,
               rebalanceAmount,
               ethers.utils.defaultAbiCoder.encode(
-                ["uint160", "uint256", "int256"],
-                [sqrtPriceLimitX96, deadline, fundingPNL],
+                ["uint160", "uint256"],
+                [sqrtPriceLimitX96, deadline],
               ),
             );
           checkPrice_after = await checkAndSyncPrice();
@@ -1280,8 +1280,8 @@ describe("perpLemma.multiCollateral", async function () {
               reBalancer.address,
               rebalanceAmount,
               ethers.utils.defaultAbiCoder.encode(
-                ["uint160", "uint256", "int256"],
-                [sqrtPriceLimitX96, deadline, fundingPNL],
+                ["uint160", "uint256"],
+                [sqrtPriceLimitX96, deadline],
               ),
             );
 
@@ -1317,8 +1317,8 @@ describe("perpLemma.multiCollateral", async function () {
               reBalancer.address,
               rebalanceAmount,
               ethers.utils.defaultAbiCoder.encode(
-                ["uint160", "uint256", "int256"],
-                [sqrtPriceLimitX96, deadline, fundingPNL],
+                ["uint160", "uint256"],
+                [sqrtPriceLimitX96, deadline],
               ),
             );
           let checkPrice_after = await checkAndSyncPrice();
@@ -1354,8 +1354,8 @@ describe("perpLemma.multiCollateral", async function () {
               reBalancer.address,
               rebalanceAmount,
               ethers.utils.defaultAbiCoder.encode(
-                ["uint160", "uint256", "int256"],
-                [sqrtPriceLimitX96, deadline, fundingPNL],
+                ["uint160", "uint256"],
+                [sqrtPriceLimitX96, deadline],
               ),
             );
           let checkPrice_after = await checkAndSyncPrice();
@@ -1389,8 +1389,8 @@ describe("perpLemma.multiCollateral", async function () {
               reBalancer.address,
               rebalanceAmount,
               ethers.utils.defaultAbiCoder.encode(
-                ["uint160", "uint256", "int256"],
-                [sqrtPriceLimitX96, deadline, fundingPNL],
+                ["uint160", "uint256"],
+                [sqrtPriceLimitX96, deadline],
               ),
             );
 
