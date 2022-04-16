@@ -956,7 +956,7 @@ describe("perpLemma.multiCollateral", async function () {
       });
 
       describe("Emergency Settlement", async function () {
-        beforeEach(async function () {});
+        beforeEach(async function () { });
 
         it("Calling Settle() when Market is open should revert", async () => {
           // By default the market is open
@@ -1160,7 +1160,7 @@ describe("perpLemma.multiCollateral", async function () {
         });
       });
 
-      describe.only("Rebalance Tests", () => {
+      describe("Rebalance Tests", () => {
         const sqrtPriceLimitX96 = 0;
         const deadline = ethers.constants.MaxUint256;
         before(async function () {
