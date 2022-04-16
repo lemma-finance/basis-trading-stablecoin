@@ -344,7 +344,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             baseTokenAddress
         );
         // NOTE: Settle pending funding rates
-        clearingHouse.settleAllFunding(address(this));
+        settleAllFunding();
 
         // NOTE: This amount of free collateral is the one internally used to check for the V_NEFC error, so this is the max withdrawable
         uint256 freeCollateral = iPerpVault.getFreeCollateralByToken(address(this), address(collateral));
@@ -357,7 +357,8 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     /// @notice Rebalance position of dex based on accumulated funding, since last rebalancing
     /// @param _reBalancer Address of rebalancer who called function on USDL contract
     /// @param amount Amount of accumulated funding fees used to rebalance by opening or closing a short position
-    /// @param data Abi encoded data to call respective perpetual function, contains limitPrice and deadline
+    /// NOTE: amount will be in vUSD or as quoteToken
+    /// @param data Abi encoded data to call respective perpetual function, contains limitPrice, deadline and fundingPNL(while calling rebalance)
     /// @return True if successful, False if unsuccessful
     function reBalance(
         address _reBalancer,
@@ -366,31 +367,33 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     ) external override onlyUSDLemma returns (bool) {
         require(_reBalancer == reBalancer, "only rebalancer is allowed");
 
-        (uint160 _sqrtPriceLimitX96, uint256 _deadline) = abi.decode(data, (uint160, uint256));
-        int256 fundingPNL = getFundingPNL();
+        (uint160 _sqrtPriceLimitX96, uint256 _deadline, int256 fundingPNL) = abi.decode(
+            data,
+            (uint160, uint256, int256)
+        );
         totalFundingPNL = fundingPNL;
 
         bool _isBaseToQuote;
         bool _isExactInput;
-        //calculate the fees
-        IMarketRegistry.MarketInfo memory marketInfo = marketRegistry.getMarketInfo(baseTokenAddress);
-        uint256 fees = (amount.abs().toUint256() * marketInfo.exchangeFeeRatio) / HUNDREAD_PERCENT;
 
+        // // calculate the fees
+        // IMarketRegistry.MarketInfo memory marketInfo = marketRegistry.getMarketInfo(baseTokenAddress);
+        // uint256 fees = (amount.abs().toUint256() * marketInfo.exchangeFeeRatio) / HUNDREAD_PERCENT;
+
+        realizedFundingPNL += amount;
         if (amount < 0) {
-            realizedFundingPNL -= amount - fees.toInt256();
-            // open short position for eth and amount in eth
-            _isBaseToQuote = true;
+            // open long position for eth and amount in vUSD
+            _isBaseToQuote = false;
             _isExactInput = true;
         } else {
-            realizedFundingPNL += amount + fees.toInt256();
-            // open long position for eth and amount in eth
-            _isBaseToQuote = false;
+            // open short position for eth and amount in vUSD
+            _isBaseToQuote = true;
             _isExactInput = false;
         }
 
         int256 difference = fundingPNL - realizedFundingPNL;
         //error +-10**12 is allowed in calculation
-        require(difference.abs() <= 10**17, "not allowed");
+        require(difference.abs() <= 10**12, "not allowed");
 
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: baseTokenAddress,
@@ -404,6 +407,12 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         });
         clearingHouse.openPosition(params);
         return true;
+    }
+
+    /// @notice settleAllFunding will getPendingFundingPayment of perpLemma wrapper and then settle funding
+    function settleAllFunding() public {
+        totalFundingPNL = getFundingPNL();
+        clearingHouse.settleAllFunding(address(this));
     }
 
     /// @notice Get Amount in collateral decimals, provided amount is in 18 decimals
