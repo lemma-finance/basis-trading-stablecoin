@@ -367,18 +367,10 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     ) external override onlyUSDLemma returns (bool) {
         require(_reBalancer == reBalancer, "only rebalancer is allowed");
 
-        (uint160 _sqrtPriceLimitX96, uint256 _deadline, int256 fundingPNL) = abi.decode(
-            data,
-            (uint160, uint256, int256)
-        );
-        totalFundingPNL = fundingPNL;
+        (uint160 _sqrtPriceLimitX96, uint256 _deadline) = abi.decode(data, (uint160, uint256));
 
         bool _isBaseToQuote;
         bool _isExactInput;
-
-        // // calculate the fees
-        // IMarketRegistry.MarketInfo memory marketInfo = marketRegistry.getMarketInfo(baseTokenAddress);
-        // uint256 fees = (amount.abs().toUint256() * marketInfo.exchangeFeeRatio) / HUNDREAD_PERCENT;
 
         realizedFundingPNL += amount;
         if (amount < 0) {
@@ -391,9 +383,11 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             _isExactInput = false;
         }
 
-        int256 difference = fundingPNL - realizedFundingPNL;
+        int256 difference = totalFundingPNL - realizedFundingPNL;
         //error +-10**12 is allowed in calculation
         require(difference.abs() <= 10**12, "not allowed");
+
+        totalFundingPNL = getFundingPNL();
 
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: baseTokenAddress,
