@@ -274,17 +274,17 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     }
 
     /// @notice Open long position for eth(quoteToken) first and withdraw collateral here
-    /// @param collateralAmountToClose collateral amount require to close or long position
-    function closeWExactCollateral(uint256 collateralAmountToClose)
+    /// @param collateralAmount collateral amount require to close or long position
+    function closeWExactCollateral(uint256 collateralAmount)
         external
         override
         onlyUSDLemma
         returns (uint256 USDLToBurn)
     {
-        if (hasSettled) return closeWExactCollateralAfterSettlement(collateralAmountToClose);
+        if (hasSettled) return closeWExactCollateralAfterSettlement(collateralAmount);
 
         totalFundingPNL = getFundingPNL();
-        collateralAmountToClose = convert1e_18(collateralAmountToClose); // because vToken alsways in 18 decimals
+        uint256 collateralAmountToClose = convert1e_18(collateralAmount); // because vToken alsways in 18 decimals
 
         //simillar to openWExactCollateral but for close
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
@@ -300,7 +300,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         (uint256 base, uint256 quote) = clearingHouse.openPosition(params);
         USDLToBurn = quote;
 
-        uint256 amountToWithdraw = getAmountInCollateralDecimals(base, false);
+        uint256 amountToWithdraw = getAmountInCollateralDecimals(collateralAmount, false);
         perpVault.withdraw(address(collateral), amountToWithdraw); // withdraw closed position fund
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountToWithdraw);
     }
