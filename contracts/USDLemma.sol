@@ -26,6 +26,10 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     mapping(address => bool) private whiteListAddress;
     uint256 public mutexBlock;
 
+
+    // Record of the contracts that are expempted by Lemma fees for minting and redeeming operations 
+    mapping(address => bool) feesExemption; 
+
     // events
     event DepositTo(
         uint256 indexed dexIndex,
@@ -143,6 +147,23 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         emit PerpetualDexWrapperAdded(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
     }
 
+    function getLemmaFees(uint256 dexIndex, IERC20Upgradeable collateral, uint256 amount, bool isMinting) public returns(uint256) {
+        // TODO: Replace with calls to consulting contract
+        return fees * amount / 1e6;
+    }
+
+    function _takeFees(uint256 dexIndex, IERC20Upgradeable collateral, uint256 amount, bool isMinting) internal returns(uint256) {
+        if (feesExemption[_msgSender()]) return amount;
+        uint256 absFees = getLemmaFees(dexIndex, collateral, amount, isMinting);
+
+        // // If minting, we take fees from the input collateral 
+        // // If redeeming, first we get collateral to this contract and then take the fees from ourselves before transfering the rest to the `to` address
+        // address from = (isMinting) ? _msgSender() : address(this);
+        SafeERC20Upgradeable.safeTransferFrom(collateral, address(this), address(lemmaTreasury), absFees);
+
+        return amount - absFees;
+    }
+
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of USDL
     /// @param to Receipent of minted USDL
     /// @param amount Amount of USDL to mint
@@ -163,7 +184,13 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 collateralRequired = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
         collateralRequired = perpDEXWrapper.getAmountInCollateralDecimals(collateralRequired, true);
         require(collateralRequired <= maxCollateralAmountRequired, "collateral required execeeds maximum");
-        SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), collateralRequired);
+
+        // NOTE: Since the Collateral is not exact here, we can add the required minting fees on top of the collateral required by the Perp to open the given position
+        uint256 totalCollateralRequired = collateralRequired + getLemmaFees(perpetualDEXIndex, collateral, amount, true);
+
+        SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), totalCollateralRequired);
+        _takeFees(perpetualDEXIndex, collateral, amount, true);
+
         perpDEXWrapper.open(amount, collateralRequired);
         _mint(to, amount);
         emit DepositTo(perpetualDEXIndex, address(collateral), to, amount, collateralRequired);
@@ -193,10 +220,13 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             address(perpDEXWrapper),
             collateralAmountToDeposit
         );
-        uint256 USDLToMint = perpDEXWrapper.openWExactCollateral(collateralAmount);
+
+        // NOTE: Since the collateral is exact here, we can't add the fees so we need to withdraw them from the specified amount and open with the rest
+        uint256 netCollateral = _takeFees(perpetualDEXIndex, collateral, collateralAmountToDeposit, true);
+        uint256 USDLToMint = perpDEXWrapper.openWExactCollateral(netCollateral);
         require(USDLToMint >= minUSDLToMint, "USDL minted too low");
         _mint(to, USDLToMint);
-        emit DepositTo(perpetualDEXIndex, address(collateral), to, USDLToMint, collateralAmountToDeposit);
+        emit DepositTo(perpetualDEXIndex, address(collateral), to, USDLToMint, netCollateral);
     }
 
     /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc specifying the exact amount of USDL
@@ -219,10 +249,11 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
         uint256 collateralAmountToGetBack = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
         collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmountToGetBack, false);
-        require(collateralAmountToGetBack >= minCollateralAmountToGetBack, "collateral got back is too low");
         perpDEXWrapper.close(amount, collateralAmountToGetBack);
-        SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmountToGetBack);
-        emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, collateralAmountToGetBack);
+        uint256 netCollateralToGetBack = _takeFees(perpetualDEXIndex, collateral, amount, false);
+        require(netCollateralToGetBack >= minCollateralAmountToGetBack, "collateral got back is too low");
+        SafeERC20Upgradeable.safeTransfer(collateral, to, netCollateralToGetBack);
+        emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, netCollateralToGetBack);
     }
 
     /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc specifying the exact amount of collateral
@@ -244,6 +275,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
         uint256 collateralBefore = collateral.balanceOf(address(this));
         uint256 USDLToBurn = perpDEXWrapper.closeWExactCollateral(collateralAmount);
+        uint256 netCollateralToGetBack = _takeFees(perpetualDEXIndex, collateral, collateralAmount, false);
         uint256 collateralAmountToGetBack = collateral.balanceOf(address(this)) - collateralBefore;
         require(USDLToBurn <= maxUSDLToBurn, "USDL burnt execeeds maximum");
         _burn(_msgSender(), USDLToBurn);
