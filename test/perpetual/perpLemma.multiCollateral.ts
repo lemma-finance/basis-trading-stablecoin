@@ -957,7 +957,7 @@ describe("perpLemma.multiCollateral", async function () {
       });
 
       describe("Emergency Settlement", async function () {
-        beforeEach(async function () {});
+        beforeEach(async function () { });
 
         it("Calling Settle() when Market is open should revert", async () => {
           // By default the market is open
