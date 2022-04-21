@@ -15,6 +15,7 @@ import "../interfaces/Perpetual/IClearingHouseConfig.sol";
 import "../interfaces/Perpetual/IAccountBalance.sol";
 import "../interfaces/Perpetual/IMarketRegistry.sol";
 import "../interfaces/Perpetual/IExchange.sol";
+import "hardhat/console.sol";
 
 interface IERC20Decimals is IERC20Upgradeable {
     function decimals() external view returns (uint8);
@@ -66,7 +67,6 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     IMarketRegistry public marketRegistry;
     IExchange public exchange;
     IERC20Decimals public collateral;
-    IERC20Decimals public usdc;
 
     uint256 public collateralDecimals;
 
@@ -106,10 +106,8 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         __ERC2771Context_init(_trustedForwarder);
 
         require(_baseToken != address(0), "!baseToken");
-        // require(_quoteToken != address(0), "!quoteToken");
         require(_clearingHouse != address(0), "!clearingHouse");
         require(_marketRegistry != address(0), "marketRegistry");
-        // require(_usdLemma != address(0), "!usdLemma");
 
         usdLemma = _usdLemma;
         maxPosition = _maxPosition;
@@ -123,8 +121,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
         marketRegistry = IMarketRegistry(_marketRegistry);
 
-        usdc = IERC20Decimals(perpVault.getSettlementToken());
-        collateral = IERC20Decimals(_collateral);
+        collateral = IERC20Decimals(perpVault.getSettlementToken());
         collateralDecimals = collateral.decimals(); // need to verify
         collateral.approve(_clearingHouse, MAX_UINT256);
 
@@ -132,7 +129,6 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         hasSettled = false;
 
         SafeERC20Upgradeable.safeApprove(collateral, address(perpVault), MAX_UINT256);
-        SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
     }
 
     function getFees(bool isMinting) external view override returns (uint256) {
@@ -173,24 +169,9 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     function resetApprovals() external {
         SafeERC20Upgradeable.safeApprove(collateral, address(perpVault), 0);
         SafeERC20Upgradeable.safeApprove(collateral, address(perpVault), MAX_UINT256);
-
-        SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), 0);
-        SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
     }
 
-    function depositSettlementToken(uint256 _amount) external onlyOwner {
-        require(_amount > 0, "Amount should greater than zero");
-        SafeERC20Upgradeable.safeTransferFrom(usdc, msg.sender, address(this), _amount);
-        perpVault.deposit(address(usdc), _amount);
-    }
-
-    function withdrawSettlementToken(uint256 _amount) external onlyOwner {
-        require(_amount > 0, "Amount should greater than zero");
-        perpVault.withdraw(address(usdc), _amount);
-        SafeERC20Upgradeable.safeTransfer(usdc, msg.sender, _amount);
-    }
-
-    function getCollateralAmountGivenUnderlyingAssetAmount(uint256 usdlToMintOrBurn, bool isShorting)
+    function getCollateralAmountGivenUnderlyingAssetAmount(uint256 usdlToMintOrBurn, bool isLong)
         external
         override
         onlyUSDLemma
@@ -198,11 +179,11 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     {
         bool _isBaseToQuote;
         bool _isExactInput;
-        if (isShorting) {
-            _isBaseToQuote = true;
+        if (isLong) {
+            _isBaseToQuote = false;
             _isExactInput = false;
         } else {
-            _isBaseToQuote = false;
+            _isBaseToQuote = true;
             _isExactInput = true;
             if (hasSettled) return closeWExactUSDLAfterSettlement(usdlToMintOrBurn);
         }
@@ -249,7 +230,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         // and amount in eth(quoteToken) by giving isExactInput=true
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: baseTokenAddress,
-            isBaseToQuote: true,
+            isBaseToQuote: false,
             isExactInput: true,
             amount: collateralAmountToDeposit,
             oppositeAmountBound: 0,
@@ -257,7 +238,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             sqrtPriceLimitX96: 0,
             referralCode: referrerCode
         });
-        (, uint256 quote) = clearingHouse.openPosition(params);
+        (uint256 base, uint256 quote) = clearingHouse.openPosition(params);
 
         int256 positionSize = accountBalance.getTotalPositionSize(address(this), baseTokenAddress);
         require(positionSize.abs().toUint256() <= maxPosition, "max position reached");
@@ -289,7 +270,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         //simillar to openWExactCollateral but for close
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: baseTokenAddress,
-            isBaseToQuote: false,
+            isBaseToQuote: true,
             isExactInput: false,
             amount: collateralAmountToClose,
             oppositeAmountBound: 0,
@@ -335,8 +316,6 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
     //// @notice when perpetual is in CLEARED state, withdraw the collateral
     function settle() public override {
-        positionAtSettlementInQuote = accountBalance.getQuote(address(this), baseTokenAddress).abs().toUint256();
-
         // NOTE: This checks the market is in CLOSED state, otherwise revenrts
         // NOTE: For some reason, the amountQuoteClosed < freeCollateral and freeCollateral is the max withdrawable for us so this is the one we want to use to withdraw
         (uint256 amountBaseClosed, uint256 amountQuoteClosed) = clearingHouse.quitMarket(
@@ -347,9 +326,8 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         settleAllFunding();
 
         // NOTE: This amount of free collateral is the one internally used to check for the V_NEFC error, so this is the max withdrawable
-        uint256 freeCollateral = perpVault.getFreeCollateralByToken(address(this), address(collateral));
-        positionAtSettlementInBase = freeCollateral;
-        perpVault.withdraw(address(collateral), positionAtSettlementInBase);
+        positionAtSettlementInQuote = perpVault.getFreeCollateralByToken(address(this), address(collateral));
+        perpVault.withdraw(address(collateral), positionAtSettlementInQuote);
         // All the collateral is now back
         hasSettled = true;
     }
@@ -374,12 +352,12 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
         realizedFundingPNL += amount;
         if (amount < 0) {
-            // open long position for eth and amount in vUSD
-            _isBaseToQuote = false;
+            // open short position for eth and amount in vETH
+            _isBaseToQuote = true;
             _isExactInput = true;
         } else {
-            // open short position for eth and amount in vUSD
-            _isBaseToQuote = true;
+            // open long position for eth and amount in vETH
+            _isBaseToQuote = false;
             _isExactInput = false;
         }
 
