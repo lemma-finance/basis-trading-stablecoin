@@ -79,13 +79,13 @@ describe("eip4626xUSDL", function () {
       "Ownable: caller is not the owner",
     );
     let tx = await this.xusdl.setPeriphery(user2.address);
-    expect(tx).to.emit(this.xusdl, "PeripheryUpdated").withArgs(user2.address);
+    await expect(tx).to.emit(this.xusdl, "PeripheryUpdated").withArgs(user2.address);
     expect(await this.xusdl.periphery()).to.equal(user2.address);
   });
   it("should set lock correctly", async function () {
     await expect(this.xusdl.connect(user1).setMinimumLock(200)).to.be.revertedWith("Ownable: caller is not the owner");
     let tx = await this.xusdl.setMinimumLock(200);
-    expect(tx).to.emit(this.xusdl, "LockUpdated").withArgs(200);
+    await expect(tx).to.emit(this.xusdl, "MinimumLockUpdated").withArgs(200);
     expect(await this.xusdl.minimumLock()).to.equal(200);
   });
 

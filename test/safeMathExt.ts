@@ -115,9 +115,7 @@ describe("LibSafeMathExt", () => {
       );
       expect(await libSafeMathExt["wdiv(int256,int256)"](toWad("100"), toWad("-1"))).to.equal(toWad("-100"));
       expect(await libSafeMathExt["wdiv(int256,int256)"](toWad("0"), toWad("-1"))).to.equal(toWad("0"));
-      await expect(libSafeMathExt["wdiv(int256,int256)"](toWad("100"), toWad("0"))).to.be.revertedWith(
-        "roundHalfUp only supports y > 0",
-      );
+      await expect(libSafeMathExt["wdiv(int256,int256)"](toWad("100"), toWad("0"))).to.be.reverted;
     });
 
     it("int256 ceil", async () => {
@@ -137,9 +135,7 @@ describe("LibSafeMathExt", () => {
       ).to.equal(toWad("0"));
       expect(await libSafeMathExt["wdiv(int256,int256,uint8)"](toWad("100"), toWad("-1"), 0)).to.equal(toWad("-100"));
       expect(await libSafeMathExt["wdiv(int256,int256,uint8)"](toWad("0"), toWad("-1"), 0)).to.equal(toWad("0"));
-      await expect(libSafeMathExt["wdiv(int256,int256,uint8)"](toWad("100"), toWad("0"), 0)).to.be.revertedWith(
-        "division by zero",
-      );
+      await expect(libSafeMathExt["wdiv(int256,int256,uint8)"](toWad("100"), toWad("0"), 0)).to.be.reverted;
     });
 
     it("int256 floor", async () => {
@@ -159,9 +155,7 @@ describe("LibSafeMathExt", () => {
       ).to.equal(toWad("-0.000000000000000001"));
       expect(await libSafeMathExt["wdiv(int256,int256,uint8)"](toWad("100"), toWad("-1"), 1)).to.equal(toWad("-100"));
       expect(await libSafeMathExt["wdiv(int256,int256,uint8)"](toWad("0"), toWad("-1"), 1)).to.equal(toWad("0"));
-      await expect(libSafeMathExt["wdiv(int256,int256,uint8)"](toWad("100"), toWad("0"), 1)).to.be.revertedWith(
-        "division by zero",
-      );
+      await expect(libSafeMathExt["wdiv(int256,int256,uint8)"](toWad("100"), toWad("0"), 1)).to.be.reverted;
     });
   });
 
@@ -203,7 +197,7 @@ describe("LibSafeMathExt", () => {
       );
       await expect(
         libSafeMathExt["wfrac(int256,int256,int256)"](toWad("-100"), toWad("1"), toWad("0")),
-      ).to.be.revertedWith("roundHalfUp only supports y > 0");
+      ).to.be.reverted;
     });
 
     it("int256 ceil", async () => {
@@ -253,7 +247,7 @@ describe("LibSafeMathExt", () => {
       ).to.equal(toWad("0"));
       await expect(
         libSafeMathExt["wfrac(int256,int256,int256,uint8)"](toWad("-100"), toWad("1"), toWad("0"), 0),
-      ).to.be.revertedWith("division by zero");
+      ).to.be.reverted;
     });
 
     it("int256 down", async () => {
@@ -303,7 +297,7 @@ describe("LibSafeMathExt", () => {
       ).to.equal(toWad("0"));
       await expect(
         libSafeMathExt["wfrac(int256,int256,int256,uint8)"](toWad("-100"), toWad("1"), toWad("0"), 1),
-      ).to.be.revertedWith("division by zero");
+      ).to.be.reverted;
     });
   });
 
