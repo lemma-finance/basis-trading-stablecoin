@@ -986,7 +986,7 @@ describe("perpLemma.multiCollateral", async function () {
       });
 
       describe("Emergency Settlement", async function () {
-        beforeEach(async function () {});
+        beforeEach(async function () { });
 
         it("Calling Settle() when Market is open should revert", async () => {
           // By default the market is open
@@ -1266,11 +1266,30 @@ describe("perpLemma.multiCollateral", async function () {
           let totalFundingPNL = await perpLemma2.totalFundingPNL();
           let realizedFundingPnl = await perpLemma2.realizedFundingPNL();
           let rebalanceAmount = totalFundingPNL.sub(realizedFundingPnl);
-          let ethPrice = BigNumber.from(checkPrice_before[0])
-            .mul(parseEther("1"))
-            .div(parseUnits("1", usdCollateralDecimals));
-          let usdcPriceInEth = new bn("1").dividedBy(ethPrice.toString()).multipliedBy(1e36).toFixed(0);
-          let rebalanceAmountInEth = rebalanceAmount.mul(usdcPriceInEth).div(parseEther("1"));
+          let rebalanceAmountInEth;
+          if (rebalanceAmount.gt(ZERO)) {
+            let baseAndQuoteValue = await callStaticOpenPosition(
+              clearingHouse,
+              longAddress,
+              baseToken.address,
+              false,
+              true,
+              rebalanceAmount,
+            ); //long eth (increase our position as ETHL is getting minted)
+            rebalanceAmountInEth = baseAndQuoteValue[0];
+
+          } else {
+            let baseAndQuoteValue = await callStaticOpenPosition(
+              clearingHouse,
+              longAddress,
+              baseToken.address,
+              true,
+              false,
+              rebalanceAmount.abs(),
+            ); //short (decrease our position as ETHL is getting burnt)
+            rebalanceAmountInEth = baseAndQuoteValue[0];
+            rebalanceAmountInEth = BigNumber.from("-" + rebalanceAmountInEth.toString());//negative amount 
+          }
 
           await perpLemma2
             .connect(usdLemma)
@@ -1285,10 +1304,13 @@ describe("perpLemma.multiCollateral", async function () {
 
           console.log("fundingPNL: ", fundingPNL.toString());
           console.log("totalFundingPNL: ", totalFundingPNL.toString());
-          console.log("realizedFundingPnl: ", realizedFundingPnl.toString());
+          console.log("realizedFundingPnl ", realizedFundingPnl.toString());
+          //print realizedFundingPnl funding pnl now
+          console.log("realizedFundingPnlAfter: ", (await perpLemma2.realizedFundingPNL()).toString());
+          //print total funding pnl now
+          console.log("totalFundingPNL: ", (await perpLemma2.totalFundingPNL()).toString());
           console.log("rebalanceAmount: ", rebalanceAmount.toString());
           console.log("rebalanceAmountInEth: ", rebalanceAmountInEth.toString());
-          console.log("usdcPriceInEth: ", usdcPriceInEth.toString());
           console.log("leverage_before: ", leverage_before.toString());
           console.log("leverage_after:  ", leverage_after.toString());
           console.log("checkPrice_before: ", checkPrice_before.toString());
