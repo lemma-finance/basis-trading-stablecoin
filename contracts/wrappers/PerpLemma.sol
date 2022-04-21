@@ -360,11 +360,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             _isBaseToQuote = false;
             _isExactInput = false;
         }
-
-        int256 difference = totalFundingPNL - realizedFundingPNL;
-        //error +-10**12 is allowed in calculation
-        require(difference.abs() <= 10**12, "not allowed");
-
+        int256 fundingPNL = totalFundingPNL;
         totalFundingPNL = getFundingPNL();
 
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
@@ -377,7 +373,17 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             sqrtPriceLimitX96: _sqrtPriceLimitX96,
             referralCode: referrerCode
         });
-        clearingHouse.openPosition(params);
+        (, uint256 quote) = clearingHouse.openPosition(params);
+
+        if (amount < 0) {
+            realizedFundingPNL -= int256(quote);
+        } else {
+            realizedFundingPNL += int256(quote);
+        }
+        int256 difference = fundingPNL - realizedFundingPNL;
+        //error +-10**12 is allowed in calculation
+        require(difference.abs() <= 10**12, "not allowed");
+
         return true;
     }
 
