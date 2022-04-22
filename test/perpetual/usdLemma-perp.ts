@@ -378,7 +378,7 @@ describe("usdLemma-perp", async function () {
     const usdlBalance = await usdLemma.balanceOf(defaultSigner.address);
     const amount = usdlBalance;
 
-    const [baseAmount,] = await callStaticOpenLongPositionWithExactQuote(
+    const [baseAmount, ] = await callStaticOpenLongPositionWithExactQuote(
       clearingHouse,
       longAddress,
       baseToken.address,

@@ -6,8 +6,8 @@
     "esModuleInterop": true,
     "outDir": "dist"
   },
-  "include": ["./scripts", "./test"],
-  "files": [
-    "./hardhat.config.ts"
-  ]
+  // "include": ["./perp_lushan/typechain"],
+  // "files": [
+  //   "./hardhat.config.ts"
+  // ]
 }

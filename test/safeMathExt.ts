@@ -195,9 +195,7 @@ describe("LibSafeMathExt", () => {
       expect(await libSafeMathExt["wfrac(int256,int256,int256)"](toWad("0"), toWad("-20.1"), toWad("-1"))).to.equal(
         toWad("0"),
       );
-      await expect(
-        libSafeMathExt["wfrac(int256,int256,int256)"](toWad("-100"), toWad("1"), toWad("0")),
-      ).to.be.reverted;
+      await expect(libSafeMathExt["wfrac(int256,int256,int256)"](toWad("-100"), toWad("1"), toWad("0"))).to.be.reverted;
     });
 
     it("int256 ceil", async () => {
@@ -245,9 +243,8 @@ describe("LibSafeMathExt", () => {
       expect(
         await libSafeMathExt["wfrac(int256,int256,int256,uint8)"](toWad("0"), toWad("-20.1"), toWad("-1"), 0),
       ).to.equal(toWad("0"));
-      await expect(
-        libSafeMathExt["wfrac(int256,int256,int256,uint8)"](toWad("-100"), toWad("1"), toWad("0"), 0),
-      ).to.be.reverted;
+      await expect(libSafeMathExt["wfrac(int256,int256,int256,uint8)"](toWad("-100"), toWad("1"), toWad("0"), 0)).to.be
+        .reverted;
     });
 
     it("int256 down", async () => {
@@ -295,9 +292,8 @@ describe("LibSafeMathExt", () => {
       expect(
         await libSafeMathExt["wfrac(int256,int256,int256,uint8)"](toWad("0"), toWad("-20.1"), toWad("-1"), 1),
       ).to.equal(toWad("0"));
-      await expect(
-        libSafeMathExt["wfrac(int256,int256,int256,uint8)"](toWad("-100"), toWad("1"), toWad("0"), 1),
-      ).to.be.reverted;
+      await expect(libSafeMathExt["wfrac(int256,int256,int256,uint8)"](toWad("-100"), toWad("1"), toWad("0"), 1)).to.be
+        .reverted;
     });
   });
 
