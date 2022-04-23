@@ -1008,7 +1008,7 @@ describe("perpLemma.multiCollateral", async function () {
       });
 
       describe("Emergency Settlement", async function () {
-        beforeEach(async function () {});
+        beforeEach(async function () { });
 
         it("Force Error: closeWExactUSDLAfterSettlement", async function () {
           await perpLemma.setHasSettled(true);

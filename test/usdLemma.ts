@@ -175,7 +175,7 @@ describe("USDLemma", async () => {
       .to.emit(usdLemma, "WithdrawTo")
       .withArgs(0, collateral.address, signer1.address, amount, collateralToGetBack);
   });
-  describe.only("re balance", async function () {
+  describe("re balance", async function () {
     let lemmaTreasuryBalanceBefore: any;
     let stackingContractBalanceBefore: any;
     beforeEach(async function () {
@@ -206,7 +206,7 @@ describe("USDLemma", async () => {
         MASK_USE_TARGET_LEVERAGE,
       );
     });
-    it("when fundingPNL is negative", async function () {});
+    it("when fundingPNL is negative", async function () { });
     afterEach(async function () {
       //increase time
       //to make sure that funding payment has a meaning impact
