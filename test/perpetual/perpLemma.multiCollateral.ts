@@ -290,7 +290,6 @@ describe("perpLemma.multiCollateral", async function () {
     // console.log('interval', interval.toString())
 
     if (!positionSize.eq(ZERO)) {
-      // const leverage_in_6_Decimal = depositedCollateral.mul(ethPrice2).div(quote);
       const leverage = depositedCollateral.mul(ethPrice2).div(quote);
       return leverage;
     }
@@ -374,7 +373,7 @@ describe("perpLemma.multiCollateral", async function () {
     });
 
     it("check fees", async function () {
-      const fees = await perpLemma.getFees(true);
+      const fees = await perpLemma.getFees();
       expect(fees).to.eq(10000);
     });
 
@@ -1008,7 +1007,7 @@ describe("perpLemma.multiCollateral", async function () {
       });
 
       describe("Emergency Settlement", async function () {
-        beforeEach(async function () { });
+        beforeEach(async function () {});
 
         it("Force Error: closeWExactUSDLAfterSettlement", async function () {
           await perpLemma.setHasSettled(true);

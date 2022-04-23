@@ -1,17 +1,10 @@
 pragma solidity =0.8.3;
 
 import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import {
-    ERC20PermitUpgradeable
-} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/draft-ERC20PermitUpgradeable.sol";
-import {
-    OwnableUpgradeable,
-    ContextUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { ERC20PermitUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/draft-ERC20PermitUpgradeable.sol";
+import { OwnableUpgradeable, ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
-import {
-    ReentrancyGuardUpgradeable
-} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import { Utils } from "./libraries/Utils.sol";
@@ -83,15 +76,10 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @notice Returns the fees of the underlying Perp DEX Wrapper
     /// @param dexIndex The DEX Index to operate on
     /// @param collateral Collateral for the minting / redeeming operation
-    /// @param isMinting True: Minting, False: Redeeming
-    function getFees(
-        uint256 dexIndex,
-        address collateral,
-        bool isMinting
-    ) external view returns (uint256) {
+    function getFees(uint256 dexIndex, address collateral) external view returns (uint256) {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
         require(address(perpDEXWrapper) != address(0), "! DEX Wrapper");
-        return perpDEXWrapper.getFees(isMinting);
+        return perpDEXWrapper.getFees();
     }
 
     /// @notice Returns the total position in Base Token on a given DEX
@@ -162,8 +150,9 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 maxCollateralAmountRequired,
         IERC20Upgradeable collateral
     ) public nonReentrant _onlyOneFuntionAtATime(_msgSender()) {
-        IPerpetualDEXWrapper perpDEXWrapper =
-            IPerpetualDEXWrapper(perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]);
+        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
+            perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
+        );
         require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
         uint256 collateralRequired = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
         collateralRequired = perpDEXWrapper.getAmountInCollateralDecimals(collateralRequired, true);
@@ -187,8 +176,9 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 minUSDLToMint,
         IERC20Upgradeable collateral
     ) external nonReentrant _onlyOneFuntionAtATime(_msgSender()) {
-        IPerpetualDEXWrapper perpDEXWrapper =
-            IPerpetualDEXWrapper(perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]);
+        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
+            perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
+        );
         require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
         uint256 collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmount, true);
         SafeERC20Upgradeable.safeTransferFrom(
@@ -217,8 +207,9 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         IERC20Upgradeable collateral
     ) public nonReentrant _onlyOneFuntionAtATime(_msgSender()) {
         _burn(_msgSender(), amount);
-        IPerpetualDEXWrapper perpDEXWrapper =
-            IPerpetualDEXWrapper(perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]);
+        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
+            perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
+        );
         require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
         uint256 collateralAmountToGetBack = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
         collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmountToGetBack, false);
@@ -241,8 +232,9 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 maxUSDLToBurn,
         IERC20Upgradeable collateral
     ) external nonReentrant _onlyOneFuntionAtATime(_msgSender()) {
-        IPerpetualDEXWrapper perpDEXWrapper =
-            IPerpetualDEXWrapper(perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]);
+        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
+            perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
+        );
         require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
         uint256 collateralBefore = collateral.balanceOf(address(this));
         uint256 USDLToBurn = perpDEXWrapper.closeWExactCollateral(collateralAmount);
@@ -292,8 +284,9 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         int256 amount,
         bytes calldata data
     ) external _onlyOneFuntionAtATime(_msgSender()) {
-        IPerpetualDEXWrapper perpDEXWrapper =
-            IPerpetualDEXWrapper(perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]);
+        IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
+            perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
+        );
         require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
         require(perpDEXWrapper.reBalance(_msgSender(), amount, data), "rebalance not done");
         //burn or mint from the staker contract
@@ -305,13 +298,15 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             _mint(stakingContractAddress, amountToStakingContract);
         } else {
             uint256 totalAmountToBurn = amount.neg().toUint256();
-            uint256 balanceOfStakingContract =
-                balanceOf(stakingContractAddress).min(allowance(stakingContractAddress, address(this)));
+            uint256 balanceOfStakingContract = balanceOf(stakingContractAddress).min(
+                allowance(stakingContractAddress, address(this))
+            );
             uint256 balanceOfLemmaTreasury = balanceOf(lemmaTreasury).min(allowance(lemmaTreasury, address(this)));
 
             uint256 amountBurntFromStakingContract = balanceOfStakingContract.min(totalAmountToBurn);
-            uint256 amountBurntFromLemmaTreasury =
-                balanceOfLemmaTreasury.min(totalAmountToBurn - amountBurntFromStakingContract);
+            uint256 amountBurntFromLemmaTreasury = balanceOfLemmaTreasury.min(
+                totalAmountToBurn - amountBurntFromStakingContract
+            );
             //burnFrom staking contract first
             if (amountBurntFromStakingContract > 0) {
                 _burnFrom(stakingContractAddress, amountBurntFromStakingContract);
@@ -338,7 +333,9 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     function _burnFrom(address account, uint256 amount) internal {
         uint256 currentAllowance = allowance(account, address(this));
         require(currentAllowance >= amount, "ERC20: burn amount exceeds allowance");
-        unchecked { _approve(account, address(this), currentAllowance - amount); }
+        unchecked {
+            _approve(account, address(this), currentAllowance - amount);
+        }
         _burn(account, amount);
     }
 

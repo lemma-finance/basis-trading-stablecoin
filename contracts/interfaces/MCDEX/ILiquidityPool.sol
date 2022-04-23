@@ -8,7 +8,13 @@ pragma solidity =0.8.3;
  *          - EMERGENCY:    Perpetual is unsafe and only clear is available;
  *          - CLEARED:      All margin account is cleared. Trade could withdraw remaining margin balance.
  */
-enum PerpetualState { INVALID, INITIALIZING, NORMAL, EMERGENCY, CLEARED }
+enum PerpetualState {
+    INVALID,
+    INITIALIZING,
+    NORMAL,
+    EMERGENCY,
+    CLEARED
+}
 
 interface ILiquidityPool {
     /**

@@ -206,7 +206,7 @@ describe("USDLemma", async () => {
         MASK_USE_TARGET_LEVERAGE,
       );
     });
-    it("when fundingPNL is negative", async function () { });
+    it("when fundingPNL is negative", async function () {});
     afterEach(async function () {
       //increase time
       //to make sure that funding payment has a meaning impact

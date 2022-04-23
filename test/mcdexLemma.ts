@@ -336,7 +336,7 @@ describe("mcdexLemma", async function () {
   // });
 
   describe("should calculate fundingPNL correctly", async function () {
-    it("when negative", async function () { });
+    it("when negative", async function () {});
     it("when positive", async function () {
       //short to get the PNL in positive
       await liquidityPool.trade(
@@ -561,7 +561,7 @@ describe("mcdexLemma", async function () {
         MASK_USE_TARGET_LEVERAGE,
       );
     });
-    it("when fundingPNL is negative", async function () { });
+    it("when fundingPNL is negative", async function () {});
     afterEach(async function () {
       //increase time
       //to make sure that funding payment has a meaning impact

@@ -290,9 +290,9 @@ describe("usdLemma-perp", async function () {
   });
 
   it("getFees", async function () {
-    await expect(usdLemma.getFees(0, AddressZero, true)).to.be.revertedWith("! DEX Wrapper");
-    await expect(usdLemma.getFees(100, AddressZero, true)).to.be.revertedWith("! DEX Wrapper");
-    const fees = await usdLemma.getFees(0, ethCollateral.address, true);
+    await expect(usdLemma.getFees(0, AddressZero)).to.be.revertedWith("! DEX Wrapper");
+    await expect(usdLemma.getFees(100, AddressZero)).to.be.revertedWith("! DEX Wrapper");
+    const fees = await usdLemma.getFees(0, ethCollateral.address);
     expect(fees).to.eq(10000);
   });
 

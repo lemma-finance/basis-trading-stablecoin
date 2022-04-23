@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.3;
 
-import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
@@ -10,49 +9,20 @@ import { Utils } from "../libraries/Utils.sol";
 import { SafeMathExt } from "../libraries/SafeMathExt.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "../libraries/TransferHelper.sol";
+import "../interfaces/IERC20Decimals.sol";
 import "../interfaces/Perpetual/IClearingHouse.sol";
 import "../interfaces/Perpetual/IClearingHouseConfig.sol";
 import "../interfaces/Perpetual/IAccountBalance.sol";
 import "../interfaces/Perpetual/IMarketRegistry.sol";
 import "../interfaces/Perpetual/IExchange.sol";
-
-interface IERC20Decimals is IERC20Upgradeable {
-    function decimals() external view returns (uint8);
-}
-
-interface IPerpVault {
-    function deposit(address token, uint256 amount) external;
-
-    function withdraw(address token, uint256 amountX10_D) external;
-
-    function getBalance(address trader) external view returns (int256);
-
-    function decimals() external view returns (uint8);
-
-    function getSettlementToken() external view returns (address settlementToken);
-
-    function getFreeCollateral(address trader) external view returns (uint256);
-
-    function getFreeCollateralByRatio(address trader, uint24 ratio)
-        external
-        view
-        returns (int256 freeCollateralByRatio);
-
-    function getFreeCollateralByToken(address trader, address token) external view returns (uint256);
-}
-
-interface IUSDLemma {
-    function lemmaTreasury() external view returns (address);
-}
+import "../interfaces/Perpetual/IPerpVault.sol";
+import "../interfaces/Perpetual/IUSDLemma.sol";
 
 contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualDEXWrapper {
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
     using Utils for int256;
     using SafeMathExt for int256;
-
-    uint256 public constant MAX_UINT256 = type(uint256).max;
-    uint256 public constant HUNDREAD_PERCENT = 1e6; // 100%
 
     address public usdLemma;
     address public reBalancer;
@@ -68,6 +38,8 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     IERC20Decimals public collateral;
     IERC20Decimals public usdc;
 
+    uint256 public constant MAX_UINT256 = type(uint256).max;
+    uint256 public maxPosition;
     uint256 public collateralDecimals;
 
     // Gets set only when Settlement has already happened
@@ -75,14 +47,13 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     uint256 public positionAtSettlementInQuote;
     uint256 public positionAtSettlementInBase;
 
-    uint256 public maxPosition;
     int256 public totalFundingPNL;
     int256 public realizedFundingPNL;
 
     // Has the Market Settled
     bool public hasSettled;
 
-    //events
+    // events
     event USDLemmaUpdated(address usdlAddress);
     event ReferrerUpdated(bytes32 referrerCode);
     event RebalancerUpdated(address rebalancerAddress);
@@ -106,10 +77,8 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         __ERC2771Context_init(_trustedForwarder);
 
         require(_baseToken != address(0), "!baseToken");
-        // require(_quoteToken != address(0), "!quoteToken");
         require(_clearingHouse != address(0), "!clearingHouse");
         require(_marketRegistry != address(0), "!marketRegistry");
-        // require(_usdLemma != address(0), "!usdLemma");
 
         usdLemma = _usdLemma;
         maxPosition = _maxPosition;
@@ -135,9 +104,15 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
     }
 
-    function getFees(bool isMinting) external view override returns (uint256) {
+    /// @notice getFees fees charge by perpV2 protocol for each trade
+    function getFees() external view override returns (uint256) {
         IMarketRegistry.MarketInfo memory marketInfo = marketRegistry.getMarketInfo(baseTokenAddress);
         return marketInfo.exchangeFeeRatio;
+    }
+
+    /// @notice getTotalPosition in terms of quoteToken(in our case eth)
+    function getTotalPosition() external view override returns (int256) {
+        return accountBalance.getTotalPositionValue(address(this), baseTokenAddress);
     }
 
     ///@notice sets USDLemma address - only owner can set
@@ -173,23 +148,34 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     function resetApprovals() external {
         SafeERC20Upgradeable.safeApprove(collateral, address(perpVault), 0);
         SafeERC20Upgradeable.safeApprove(collateral, address(perpVault), MAX_UINT256);
-
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), 0);
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
     }
 
+    /// @notice depositSettlementToken is used to deposit settlement token USDC into perp vault
+    /// @param _amount USDC amount need to deposit into perp vault
     function depositSettlementToken(uint256 _amount) external onlyOwner {
         require(_amount > 0, "Amount should greater than zero");
         SafeERC20Upgradeable.safeTransferFrom(usdc, msg.sender, address(this), _amount);
         perpVault.deposit(address(usdc), _amount);
     }
 
+    /// @notice withdrawSettlementToken is used to withdraw settlement token USDC from perp vault
+    /// @param _amount USDC amount need to withdraw from perp vault
     function withdrawSettlementToken(uint256 _amount) external onlyOwner {
         require(_amount > 0, "Amount should greater than zero");
         perpVault.withdraw(address(usdc), _amount);
         SafeERC20Upgradeable.safeTransfer(usdc, msg.sender, _amount);
     }
 
+    /// METHODS WITH EXACT USDL or vUSD(quote or vUSD) 
+    /// 1). getCollateralAmountGivenUnderlyingAssetAmount and open
+    /// 2). getCollateralAmountGivenUnderlyingAssetAmount and close
+
+    /// @notice getCollateralAmountGivenUnderlyingAssetAmount will create short or long position and give base(ethCollateral need to eposit or withdraw into clearingHpuse)
+    /// @notice after this function it will call open() or close() position in same transacction by USDLemma contract
+    /// @param usdlToMintOrBurn is for exact amount of USDL will use to create a short or long position instead ethCollateral
+    /// @param isShorting is bool for need to do short or long
     function getCollateralAmountGivenUnderlyingAssetAmount(uint256 usdlToMintOrBurn, bool isShorting)
         external
         override
@@ -199,9 +185,11 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         bool _isBaseToQuote;
         bool _isExactInput;
         if (isShorting) {
+            // open short position for eth and amount in vUSD
             _isBaseToQuote = true;
             _isExactInput = false;
         } else {
+            // open long position for eth and amount in vUSD
             _isBaseToQuote = false;
             _isExactInput = true;
             if (hasSettled) return closeWExactUSDLAfterSettlement(usdlToMintOrBurn);
@@ -220,7 +208,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         (base, ) = clearingHouse.openPosition(params);
     }
 
-    /// @notice Open short position for eth(quoteToken) on getCollateralAmountGivenUnderlyingAssetAmount first and deposit collateral here
+    /// @notice Open short position for eth(quoteToken) on getCollateralAmountGivenUnderlyingAssetAmount first using exact amount of USDL(or vUSD you can say) and deposit collateral here
     /// @param collateralAmountRequired collateral amount required to open the position
     function open(uint256, uint256 collateralAmountRequired) external override onlyUSDLemma {
         require(collateralAmountRequired > 0, "Amount should greater than zero");
@@ -228,6 +216,19 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         require(collateral.balanceOf(address(this)) >= collateralAmountToDeposit, "not enough collateral");
         _deposit(collateralAmountToDeposit);
     }
+
+    /// @notice Open long position for eth(quoteToken) on getCollateralAmountGivenUnderlyingAssetAmount first using exact amount of USDL(or vUSD you can say) and withdraw collateral here
+    /// @param collateralAmountToGetBack collateral amount to withdraw after close position
+    function close(uint256, uint256 collateralAmountToGetBack) external override onlyUSDLemma {
+        require(collateralAmountToGetBack > 0, "Amount should greater than zero");
+        uint256 amountToWithdraw = getAmountInCollateralDecimals(collateralAmountToGetBack, false);
+        _withdraw(amountToWithdraw);
+        SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountToWithdraw);
+    }
+
+    /// METHODS WITH EXACT COLLATERAL(Base or Eth) 
+    /// 1). openWExactCollateral
+    /// 2). closeWExactCollateral
 
     /// @notice Open short position for eth(quoteToken) first and deposit collateral here
     /// @param collateralAmount collateral amount required to open the position
@@ -264,15 +265,6 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         USDLToMint = quote;
     }
 
-    /// @notice Open long position for eth(quoteToken) on getCollateralAmountGivenUnderlyingAssetAmount first and withdraw collateral here
-    /// @param collateralAmountToGetBack collateral amount to withdraw after close position
-    function close(uint256, uint256 collateralAmountToGetBack) external override onlyUSDLemma {
-        require(collateralAmountToGetBack > 0, "Amount should greater than zero");
-        uint256 amountToWithdraw = getAmountInCollateralDecimals(collateralAmountToGetBack, false);
-        _withdraw(amountToWithdraw);
-        SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountToWithdraw);
-    }
-
     /// @notice Open long position for eth(quoteToken) first and withdraw collateral here
     /// @param collateralAmount collateral amount require to close or long position
     function closeWExactCollateral(uint256 collateralAmount)
@@ -303,34 +295,6 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         uint256 amountToWithdraw = getAmountInCollateralDecimals(collateralAmount, false);
         perpVault.withdraw(address(collateral), amountToWithdraw); // withdraw closed position fund
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountToWithdraw);
-    }
-
-    /// @notice closeWExactUSDLAfterSettlement is use to distribute collateral using on pro rata based user's share(USDL).
-    /// @param usdlAmount this method distribute collateral by exact usdlAmount
-    function closeWExactUSDLAfterSettlement(uint256 usdlAmount) internal returns (uint256 USDLToBurn) {
-        // WPL_NP : Wrapper PerpLemma, No Position at settlement --> no more USDL to Burn
-        require(positionAtSettlementInQuote > 0, "WPL_NP");
-        // WPL_NC : Wrapper PerpLemma, No Collateral
-        require(collateral.balanceOf(address(this)) > 0, "WPL_NC");
-        uint256 amountCollateralToTransfer = (usdlAmount * collateral.balanceOf(address(this))) /
-            positionAtSettlementInQuote;
-        amountCollateralToTransfer = getAmountInCollateralDecimals(amountCollateralToTransfer, true);
-        SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountCollateralToTransfer);
-        positionAtSettlementInQuote -= usdlAmount;
-        USDLToBurn = usdlAmount;
-    }
-
-    /// @notice closeWExactCollateralAfterSettlement is use to distribute collateral using on pro rata based user's share(USDL).
-    /// @param collateralAmount this method distribute collateral by exact collateral
-    function closeWExactCollateralAfterSettlement(uint256 collateralAmount) internal returns (uint256 USDLToBurn) {
-        // WPL_NP : Wrapper PerpLemma, No Position at settlement --> no more USDL to Burn
-        require(positionAtSettlementInQuote > 0, "WPL_NP");
-        // WPL_NC : Wrapper PerpLemma, No Collateral
-        require(collateral.balanceOf(address(this)) > 0, "WPL_NC");
-        uint256 amountCollateralToTransfer = getAmountInCollateralDecimals(collateralAmount, true);
-        USDLToBurn = (amountCollateralToTransfer * positionAtSettlementInQuote) / collateral.balanceOf(address(this));
-        SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountCollateralToTransfer);
-        positionAtSettlementInQuote -= USDLToBurn;
     }
 
     //// @notice when perpetual is in CLEARED state, withdraw the collateral
@@ -409,6 +373,12 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         clearingHouse.settleAllFunding(address(this));
     }
 
+    /// @notice Get funding PnL for this address till now
+    /// @return fundingPNL Funding PnL accumulated till now
+    function getFundingPNL() public view returns (int256 fundingPNL) {
+        return totalFundingPNL + exchange.getPendingFundingPayment(address(this), baseTokenAddress);
+    }
+
     /// @notice Get Amount in collateral decimals, provided amount is in 18 decimals
     /// @param amount Amount in 18 decimals
     /// @param roundUp If needs to round up
@@ -421,21 +391,50 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         return amount1e18 / uint256(10**(18 - collateralDecimals));
     }
 
+    /// INTERNAL METHODS
+
+    /// @notice to deposit collateral in vault for short or open position
+    function _deposit(uint256 collateralAmount) internal {
+        perpVault.deposit(address(collateral), collateralAmount);
+    }
+
+    /// @notice to withdrae collateral from vault after long or close position
+    function _withdraw(uint256 amountToWithdraw) internal {
+        perpVault.withdraw(address(collateral), amountToWithdraw); // withdraw closed position fund
+    }
+
+    /// @notice closeWExactUSDLAfterSettlement is use to distribute collateral using on pro rata based user's share(USDL).
+    /// @param usdlAmount this method distribute collateral by exact usdlAmount
+    function closeWExactUSDLAfterSettlement(uint256 usdlAmount) internal returns (uint256 USDLToBurn) {
+        // WPL_NP : Wrapper PerpLemma, No Position at settlement --> no more USDL to Burn
+        require(positionAtSettlementInQuote > 0, "WPL_NP");
+        // WPL_NC : Wrapper PerpLemma, No Collateral
+        require(collateral.balanceOf(address(this)) > 0, "WPL_NC");
+        uint256 amountCollateralToTransfer = (usdlAmount * collateral.balanceOf(address(this))) /
+            positionAtSettlementInQuote;
+        amountCollateralToTransfer = getAmountInCollateralDecimals(amountCollateralToTransfer, true);
+        SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountCollateralToTransfer);
+        positionAtSettlementInQuote -= usdlAmount;
+        USDLToBurn = usdlAmount;
+    }
+
+    /// @notice closeWExactCollateralAfterSettlement is use to distribute collateral using on pro rata based user's share(USDL).
+    /// @param collateralAmount this method distribute collateral by exact collateral
+    function closeWExactCollateralAfterSettlement(uint256 collateralAmount) internal returns (uint256 USDLToBurn) {
+        // WPL_NP : Wrapper PerpLemma, No Position at settlement --> no more USDL to Burn
+        require(positionAtSettlementInQuote > 0, "WPL_NP");
+        // WPL_NC : Wrapper PerpLemma, No Collateral
+        require(collateral.balanceOf(address(this)) > 0, "WPL_NC");
+        uint256 amountCollateralToTransfer = getAmountInCollateralDecimals(collateralAmount, true);
+        USDLToBurn = (amountCollateralToTransfer * positionAtSettlementInQuote) / collateral.balanceOf(address(this));
+        SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountCollateralToTransfer);
+        positionAtSettlementInQuote -= USDLToBurn;
+    }
+
     /// @notice convert provided amount is in 18 decimals
     /// @param amount need to convert in 18 decimals
-    function convert1e_18(uint256 amount) public view returns (uint256) {
+    function convert1e_18(uint256 amount) internal view returns (uint256) {
         return amount = (amount * (10**18)) / (10**collateralDecimals);
-    }
-
-    /// @notice getTotalPosition in terms of quoteToken(in our case eth)
-    function getTotalPosition() external view override returns (int256) {
-        return accountBalance.getTotalPositionValue(address(this), baseTokenAddress);
-    }
-
-    /// @notice Get funding PnL for this address till now
-    /// @return fundingPNL Funding PnL accumulated till now
-    function getFundingPNL() public view returns (int256 fundingPNL) {
-        return totalFundingPNL + exchange.getPendingFundingPayment(address(this), baseTokenAddress);
     }
 
     function _msgSender()
@@ -445,7 +444,6 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         override(ContextUpgradeable, ERC2771ContextUpgradeable)
         returns (address sender)
     {
-        //ERC2771ContextUpgradeable._msgSender();
         return super._msgSender();
     }
 
@@ -456,17 +454,6 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         override(ContextUpgradeable, ERC2771ContextUpgradeable)
         returns (bytes calldata)
     {
-        //ERC2771ContextUpgradeable._msgData();
         return super._msgData();
-    }
-
-    /// @notice to deposit collateral in vault for short or open position
-    function _deposit(uint256 collateralAmount) internal {
-        perpVault.deposit(address(collateral), collateralAmount);
-    }
-
-    /// @notice to withdrae collateral from vault after long or close position
-    function _withdraw(uint256 amountToWithdraw) internal {
-        perpVault.withdraw(address(collateral), amountToWithdraw); // withdraw closed position fund
     }
 }
