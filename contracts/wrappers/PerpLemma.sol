@@ -207,17 +207,16 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             if (hasSettled) return closeWExactUSDLAfterSettlement(usdlToMintOrBurn);
         }
         totalFundingPNL = getFundingPNL();
-        IClearingHouse.OpenPositionParams memory params =
-            IClearingHouse.OpenPositionParams({
-                baseToken: baseTokenAddress,
-                isBaseToQuote: _isBaseToQuote,
-                isExactInput: _isExactInput,
-                amount: usdlToMintOrBurn,
-                oppositeAmountBound: 0,
-                deadline: MAX_UINT256,
-                sqrtPriceLimitX96: 0,
-                referralCode: referrerCode
-            });
+        IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
+            baseToken: baseTokenAddress,
+            isBaseToQuote: _isBaseToQuote,
+            isExactInput: _isExactInput,
+            amount: usdlToMintOrBurn,
+            oppositeAmountBound: 0,
+            deadline: MAX_UINT256,
+            sqrtPriceLimitX96: 0,
+            referralCode: referrerCode
+        });
         (base, ) = clearingHouse.openPosition(params);
     }
 
@@ -248,17 +247,16 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
         // create long for usdc and short for eth position by giving isBaseToQuote=false
         // and amount in eth(quoteToken) by giving isExactInput=true
-        IClearingHouse.OpenPositionParams memory params =
-            IClearingHouse.OpenPositionParams({
-                baseToken: baseTokenAddress,
-                isBaseToQuote: true,
-                isExactInput: true,
-                amount: collateralAmountToDeposit,
-                oppositeAmountBound: 0,
-                deadline: MAX_UINT256,
-                sqrtPriceLimitX96: 0,
-                referralCode: referrerCode
-            });
+        IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
+            baseToken: baseTokenAddress,
+            isBaseToQuote: true,
+            isExactInput: true,
+            amount: collateralAmountToDeposit,
+            oppositeAmountBound: 0,
+            deadline: MAX_UINT256,
+            sqrtPriceLimitX96: 0,
+            referralCode: referrerCode
+        });
         (, uint256 quote) = clearingHouse.openPosition(params);
 
         int256 positionSize = accountBalance.getTotalPositionSize(address(this), baseTokenAddress);
@@ -289,17 +287,16 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         uint256 collateralAmountToClose = convert1e_18(collateralAmount); // because vToken alsways in 18 decimals
 
         //simillar to openWExactCollateral but for close
-        IClearingHouse.OpenPositionParams memory params =
-            IClearingHouse.OpenPositionParams({
-                baseToken: baseTokenAddress,
-                isBaseToQuote: false,
-                isExactInput: false,
-                amount: collateralAmountToClose,
-                oppositeAmountBound: 0,
-                deadline: MAX_UINT256,
-                sqrtPriceLimitX96: 0,
-                referralCode: referrerCode
-            });
+        IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
+            baseToken: baseTokenAddress,
+            isBaseToQuote: false,
+            isExactInput: false,
+            amount: collateralAmountToClose,
+            oppositeAmountBound: 0,
+            deadline: MAX_UINT256,
+            sqrtPriceLimitX96: 0,
+            referralCode: referrerCode
+        });
         (uint256 base, uint256 quote) = clearingHouse.openPosition(params);
         USDLToBurn = quote;
 
@@ -315,8 +312,8 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         require(positionAtSettlementInQuote > 0, "WPL_NP");
         // WPL_NC : Wrapper PerpLemma, No Collateral
         require(collateral.balanceOf(address(this)) > 0, "WPL_NC");
-        uint256 amountCollateralToTransfer =
-            (usdlAmount * collateral.balanceOf(address(this))) / positionAtSettlementInQuote;
+        uint256 amountCollateralToTransfer = (usdlAmount * collateral.balanceOf(address(this))) /
+            positionAtSettlementInQuote;
         amountCollateralToTransfer = getAmountInCollateralDecimals(amountCollateralToTransfer, true);
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountCollateralToTransfer);
         positionAtSettlementInQuote -= usdlAmount;
@@ -342,8 +339,10 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
         // NOTE: This checks the market is in CLOSED state, otherwise revenrts
         // NOTE: For some reason, the amountQuoteClosed < freeCollateral and freeCollateral is the max withdrawable for us so this is the one we want to use to withdraw
-        (uint256 amountBaseClosed, uint256 amountQuoteClosed) =
-            clearingHouse.quitMarket(address(this), baseTokenAddress);
+        (uint256 amountBaseClosed, uint256 amountQuoteClosed) = clearingHouse.quitMarket(
+            address(this),
+            baseTokenAddress
+        );
         // NOTE: Settle pending funding rates
         settleAllFunding();
 
@@ -390,17 +389,16 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
         totalFundingPNL = getFundingPNL();
 
-        IClearingHouse.OpenPositionParams memory params =
-            IClearingHouse.OpenPositionParams({
-                baseToken: baseTokenAddress,
-                isBaseToQuote: _isBaseToQuote,
-                isExactInput: _isExactInput,
-                amount: uint256(amount.abs()),
-                oppositeAmountBound: 0,
-                deadline: _deadline,
-                sqrtPriceLimitX96: _sqrtPriceLimitX96,
-                referralCode: referrerCode
-            });
+        IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
+            baseToken: baseTokenAddress,
+            isBaseToQuote: _isBaseToQuote,
+            isExactInput: _isExactInput,
+            amount: uint256(amount.abs()),
+            oppositeAmountBound: 0,
+            deadline: _deadline,
+            sqrtPriceLimitX96: _sqrtPriceLimitX96,
+            referralCode: referrerCode
+        });
         clearingHouse.openPosition(params);
         return true;
     }

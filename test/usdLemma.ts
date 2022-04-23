@@ -13,7 +13,7 @@ import {
   computeAMMTradeAmountByMargin,
 } from "@mcdex/mai3.js";
 import { toBigNumber, fromBigNumber, snapshot, revertToSnapshot } from "./shared/utils";
-import { createUsdlFixture } from "./shared/fixtures";
+import { createUsdlFixture } from "./shared/mcdexFixtures";
 const MASK_USE_TARGET_LEVERAGE = 0x08000000;
 
 // const printTx = async (hash) => {
@@ -175,7 +175,7 @@ describe("USDLemma", async () => {
       .to.emit(usdLemma, "WithdrawTo")
       .withArgs(0, collateral.address, signer1.address, amount, collateralToGetBack);
   });
-  describe("re balance", async function () {
+  describe.only("re balance", async function () {
     let lemmaTreasuryBalanceBefore: any;
     let stackingContractBalanceBefore: any;
     beforeEach(async function () {
@@ -195,7 +195,6 @@ describe("USDLemma", async () => {
       await usdLemma.connect(stackingContract).approve(usdLemma.address, MaxUint256);
       await usdLemma.connect(lemmaTreasury).approve(usdLemma.address, MaxUint256);
     });
-
     it("when fundingPNL is positive", async function () {
       await liquidityPool.trade(
         perpetualIndex,
