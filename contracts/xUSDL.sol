@@ -5,19 +5,19 @@ import { ERC20PermitUpgradeable } from "@openzeppelin/contracts-upgradeable/toke
 import { OwnableUpgradeable, ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import { IXUSDL } from "./interfaces/IXUSDL.sol";
 import { IEIP4626 } from "./interfaces/eip4626/IEIP4626.sol";
 
 /// @author Lemma Finance
 contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
-    uint256 public override MINIMUM_LOCK;
+    uint256 public minimumLock;
 
-    mapping(address => uint256) public override userUnlockBlock;
+    mapping(address => uint256) public userUnlockBlock;
 
-    IERC20Upgradeable public override usdl;
+    IERC20Upgradeable public usdl;
 
     //events
-    event UpdateMinimumLock(uint256 newLock);
+    event MinimumLockUpdated(uint256 newLock);
+    event PeripheryUpdated(address newPeriphery);
 
     address public periphery;
 
@@ -32,20 +32,19 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
         __ERC2771Context_init(_trustedForwarder);
         usdl = IERC20Upgradeable(_usdl);
         SafeERC20Upgradeable.safeApprove(usdl, address(usdl), type(uint256).max);
-        periphery = _periphery;
-        //removed after the deployment
-        //MINIMUM_LOCK = 100;
+        setPeriphery(_periphery);
     }
 
     ///@notice update periphery contract address
-    function updatePeriphery(address _periphery) external onlyOwner {
+    function setPeriphery(address _periphery) public onlyOwner {
         periphery = _periphery;
+        emit PeripheryUpdated(_periphery);
     }
 
     /// @notice updated minimum number of blocks to be locked before xUSDL tokens are unlocked
-    function updateLock(uint256 lock) external onlyOwner {
-        MINIMUM_LOCK = lock;
-        emit UpdateMinimumLock(lock);
+    function setMinimumLock(uint256 _minimumLock) external onlyOwner {
+        minimumLock = _minimumLock;
+        emit MinimumLockUpdated(_minimumLock);
     }
 
     /// @notice reset approvals for usdl contract to user usdl as needed
@@ -72,7 +71,7 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
         require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
         SafeERC20Upgradeable.safeTransferFrom(usdl, _msgSender(), address(this), assets);
         if (periphery != _msgSender()) {
-            userUnlockBlock[_msgSender()] = block.number + MINIMUM_LOCK;
+            userUnlockBlock[_msgSender()] = block.number + minimumLock;
         }
         _mint(receiver, shares);
         emit Deposit(_msgSender(), receiver, assets, shares);
@@ -86,7 +85,7 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
         require((assets = previewMint(shares)) != 0, "ZERO_SHARES");
         SafeERC20Upgradeable.safeTransferFrom(usdl, _msgSender(), address(this), assets);
         if (periphery != _msgSender()) {
-            userUnlockBlock[_msgSender()] = block.number + MINIMUM_LOCK;
+            userUnlockBlock[_msgSender()] = block.number + minimumLock;
         }
         _mint(receiver, shares);
         emit Deposit(_msgSender(), receiver, assets, shares);
@@ -222,7 +221,7 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
         uint256
     ) internal override {
         if (from == periphery) {
-            userUnlockBlock[to] = block.number + MINIMUM_LOCK;
+            userUnlockBlock[to] = block.number + minimumLock;
         }
     }
 }

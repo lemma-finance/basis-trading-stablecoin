@@ -17,7 +17,7 @@ import {
   computeAMMTradeAmountByMargin,
 } from "@mcdex/mai3.js";
 import { utils } from "ethers";
-import { createUsdlFixture } from "./shared/fixtures";
+import { createUsdlFixture } from "./shared/mcdexFixtures";
 const { BigNumber, constants } = ethers;
 const { AddressZero, MaxUint256, MaxInt256 } = constants;
 import { toBigNumber, fromBigNumber, snapshot, revertToSnapshot } from "./shared/utils";

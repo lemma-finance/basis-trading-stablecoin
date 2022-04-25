@@ -76,15 +76,10 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @notice Returns the fees of the underlying Perp DEX Wrapper
     /// @param dexIndex The DEX Index to operate on
     /// @param collateral Collateral for the minting / redeeming operation
-    /// @param isMinting True: Minting, False: Redeeming
-    function getFees(
-        uint256 dexIndex,
-        address collateral,
-        bool isMinting
-    ) external view returns (uint256) {
+    function getFees(uint256 dexIndex, address collateral) external view returns (uint256) {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
         require(address(perpDEXWrapper) != address(0), "! DEX Wrapper");
-        return perpDEXWrapper.getFees(isMinting);
+        return perpDEXWrapper.getFees();
     }
 
     /// @notice Returns the total position in Base Token on a given DEX
@@ -101,6 +96,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @param _account Address of whitelist EOA or contract address
     /// @param _isWhiteList add or remove of whitelist tag for any address
     function setWhiteListAddress(address _account, bool _isWhiteList) external onlyOwner {
+        require(_account != address(0), "!account");
         whiteListAddress[_account] = _isWhiteList;
         emit SetWhiteListAddress(_account, _isWhiteList);
     }
@@ -108,6 +104,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @notice Set staking contract address, can only be called by owner
     /// @param _stakingContractAddress Address of staking contract
     function setStakingContractAddress(address _stakingContractAddress) external onlyOwner {
+        require(_stakingContractAddress != address(0), "!stakingContractAddress");
         stakingContractAddress = _stakingContractAddress;
         emit StakingContractUpdated(stakingContractAddress);
     }
@@ -115,6 +112,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @notice Set Lemma treasury, can only be called by owner
     /// @param _lemmaTreasury Address of Lemma Treasury
     function setLemmaTreasury(address _lemmaTreasury) external onlyOwner {
+        require(_lemmaTreasury != address(0), "!lemmaTreasury");
         lemmaTreasury = _lemmaTreasury;
         emit LemmaTreasuryUpdated(lemmaTreasury);
     }

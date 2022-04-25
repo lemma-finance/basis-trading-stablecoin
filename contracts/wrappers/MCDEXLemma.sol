@@ -79,7 +79,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
         liquidityPool.setTargetLeverage(perpetualIndex, address(this), 1 ether); //1
     }
 
-    function getFees(bool isMinting) external view override returns (uint256) {
+    function getFees() external view override returns (uint256) {
         require(false, "!unimplemented");
     }
 
@@ -150,8 +150,16 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
         (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
 
         require(position.abs().toUint256() + amount <= maxPosition, "max position reached");
-        liquidityPool.trade(perpetualIndex, address(this), amount.toInt256(), MAX_INT256, MAX_UINT256, referrer, 0);
-        updateEntryFunding(position, amount.toInt256());
+        int256 updatedPosition = liquidityPool.trade(
+            perpetualIndex,
+            address(this),
+            amount.toInt256(),
+            MAX_INT256,
+            MAX_UINT256,
+            referrer,
+            0
+        );
+        updateEntryFunding(updatedPosition, amount.toInt256());
     }
 
     function openWExactCollateral(uint256 collateralAmount) external override returns (uint256 USDLToMint) {
