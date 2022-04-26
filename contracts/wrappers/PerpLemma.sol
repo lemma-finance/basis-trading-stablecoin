@@ -168,7 +168,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         SafeERC20Upgradeable.safeTransfer(usdc, msg.sender, _amount);
     }
 
-    /// METHODS WITH EXACT USDL or vUSD(quote or vUSD) 
+    /// METHODS WITH EXACT USDL or vUSD(quote or vUSD)
     /// 1). getCollateralAmountGivenUnderlyingAssetAmount and open
     /// 2). getCollateralAmountGivenUnderlyingAssetAmount and close
 
@@ -226,7 +226,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountToWithdraw);
     }
 
-    /// METHODS WITH EXACT COLLATERAL(Base or Eth) 
+    /// METHODS WITH EXACT COLLATERAL(Base or Eth)
     /// 1). openWExactCollateral
     /// 2). closeWExactCollateral
 

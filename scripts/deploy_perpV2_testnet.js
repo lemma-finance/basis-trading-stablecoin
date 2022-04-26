@@ -53,8 +53,10 @@ async function main() {
   vault = new ethers.Contract(contracts.Vault.address, VaultAbi.abi, defaultSigner);
   exchange = new ethers.Contract(contracts.Exchange.address, ExchangeAbi.abi, defaultSigner);
   marketRegistry = new ethers.Contract(contracts.MarketRegistry.address, MarketRegistryAbi.abi, defaultSigner);
-  collateral = new ethers.Contract(externalContracts.WETH9, TestERC20Abi.abi, defaultSigner);
+  collateral = new ethers.Contract(collaterals[2].address, TestERC20Abi.abi, defaultSigner);//WETH
+  collateral2 = new ethers.Contract(collaterals[1].address, TestERC20Abi.abi, defaultSigner);//WBTC
   baseToken = new ethers.Contract(contracts.vETH.address, BaseTokenAbi.abi, defaultSigner);
+  baseToken2 = new ethers.Contract(contracts.vBTC.address, TestERC20Abi.abi, defaultSigner);
   quoteToken = new ethers.Contract(contracts.QuoteToken.address, QuoteTokenAbi.abi, defaultSigner);
   accountBalance = new ethers.Contract(contracts.AccountBalance.address, AccountBalanceAbi.abi, defaultSigner);
 
@@ -95,7 +97,23 @@ async function main() {
     },
   );
   await delay(10000);
-  await perpLemma.setUSDLemma(usdLemma.address);
+  console.log("deploying perpLemma2");
+  perpLemma2 = await upgrades.deployProxy(
+    perpLemmaFactory,
+    [
+      config[chainId].trustedForwarder,
+      collateral2.address,
+      baseToken2.address,
+      clearingHouse.address,
+      marketRegistry.address,
+      usdLemma.address,
+      maxPosition,
+    ],
+    { initializer: "initialize" },
+  );
+  await delay(10000);
+  console.log("adding the second perplemma wrapper in usdllemma");
+  await usdLemma.addPerpetualDEXWrapper(1, collateral2.address, perpLemma2.address);
   await delay(10000);
   //deploy stackingContract
   console.log("deploying xUSDL");

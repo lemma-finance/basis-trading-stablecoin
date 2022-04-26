@@ -223,21 +223,21 @@ describe("perpLemma.multiCollateral", async function () {
     // base = usd
     // quote = eth
 
-    await mockedBaseAggregator.setLatestRoundData(0, parseUnits("100", 6), 0, 0, 0);
-    await mockedBaseAggregator2.setLatestRoundData(0, parseUnits("0.01", ethCollateralDecimals), 0, 0, 0);
-    await mockedWethPriceFeed.setLatestRoundData(0, parseUnits("100", ethCollateralDecimals), 0, 0, 0);
+    // await mockedBaseAggregator.setLatestRoundData(0, parseUnits("100", 6), 0, 0, 0);
+    // await mockedBaseAggregator2.setLatestRoundData(0, parseUnits("0.01", ethCollateralDecimals), 0, 0, 0);
+    // await mockedWethPriceFeed.setLatestRoundData(0, parseUnits("100", ethCollateralDecimals), 0, 0, 0);
 
-    await pool.initialize(encodePriceSqrt("100", "1"));
-    await pool.increaseObservationCardinalityNext((2 ^ 16) - 1);
+    // await pool.initialize(encodePriceSqrt("100", "1"));
+    // await pool.increaseObservationCardinalityNext((2 ^ 16) - 1);
 
-    await pool2.initialize(encodePriceSqrt("100", "1"));
-    await pool2.increaseObservationCardinalityNext((2 ^ 16) - 1);
+    // await pool2.initialize(encodePriceSqrt("100", "1"));
+    // await pool2.increaseObservationCardinalityNext((2 ^ 16) - 1);
 
-    await clearingHouseConfig.setMaxFundingRate(parseUnits("1", 6));
+    // await clearingHouseConfig.setMaxFundingRate(parseUnits("1", 6));
 
-    await marketRegistry.addPool(baseToken.address, 10000);
-    await marketRegistry.setFeeRatio(baseToken.address, 10000);
-    await exchange.setMaxTickCrossedWithinBlock(baseToken.address, 887272 * 2);
+    // await marketRegistry.addPool(baseToken.address, 10000);
+    // await marketRegistry.setFeeRatio(baseToken.address, 10000);
+    // await exchange.setMaxTickCrossedWithinBlock(baseToken.address, 887272 * 2);
   });
 
   beforeEach(async function () {
@@ -1007,7 +1007,7 @@ describe("perpLemma.multiCollateral", async function () {
       });
 
       describe("Emergency Settlement", async function () {
-        beforeEach(async function () {});
+        beforeEach(async function () { });
 
         it("Force Error: closeWExactUSDLAfterSettlement", async function () {
           await perpLemma.setHasSettled(true);
