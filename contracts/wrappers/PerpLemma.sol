@@ -76,9 +76,9 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         __Ownable_init();
         __ERC2771Context_init(_trustedForwarder);
 
-        require(_baseToken != address(0), "!baseToken");
-        require(_clearingHouse != address(0), "!clearingHouse");
-        require(_marketRegistry != address(0), "!marketRegistry");
+        require(_baseToken != address(0), "BaseToken should not ZERO address");
+        require(_clearingHouse != address(0), "ClearingHouse should not ZERO address");
+        require(_marketRegistry != address(0), "MarketRegistry should not ZERO address");
 
         usdLemma = _usdLemma;
         maxPosition = _maxPosition;
@@ -118,7 +118,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     ///@notice sets USDLemma address - only owner can set
     ///@param _usdLemma USDLemma address to set
     function setUSDLemma(address _usdLemma) external onlyOwner {
-        require(_usdLemma != address(0), "!usdLemma");
+        require(_usdLemma != address(0), "UsdLemma should not ZERO address");
         usdLemma = _usdLemma;
         emit USDLemmaUpdated(usdLemma);
     }
@@ -133,7 +133,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     ///@notice sets reBalncer address - only owner can set
     ///@param _reBalancer reBalancer address to set
     function setReBalancer(address _reBalancer) external onlyOwner {
-        require(_reBalancer != address(0), "!reBalancer");
+        require(_reBalancer != address(0), "ReBalancer should not ZERO address");
         reBalancer = _reBalancer;
         emit RebalancerUpdated(reBalancer);
     }
@@ -213,7 +213,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     function open(uint256, uint256 collateralAmountRequired) external override onlyUSDLemma {
         require(collateralAmountRequired > 0, "Amount should greater than zero");
         uint256 collateralAmountToDeposit = getAmountInCollateralDecimals(collateralAmountRequired, true);
-        require(collateral.balanceOf(address(this)) >= collateralAmountToDeposit, "not enough collateral");
+        require(collateral.balanceOf(address(this)) >= collateralAmountToDeposit, "Not enough collateral to Open");
         _deposit(collateralAmountToDeposit);
     }
 
@@ -240,7 +240,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     {
         require(!hasSettled, "Market Closed");
         uint256 collateralAmountToDeposit = getAmountInCollateralDecimals(collateralAmount, true);
-        require(collateral.balanceOf(address(this)) >= collateralAmountToDeposit, "not enough collateral");
+        require(collateral.balanceOf(address(this)) >= collateralAmountToDeposit, "Not enough collateral for openWExactCollateral");
 
         totalFundingPNL = getFundingPNL();
         perpVault.deposit(address(collateral), collateralAmountToDeposit);
@@ -407,9 +407,9 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     /// @param usdlAmount this method distribute collateral by exact usdlAmount
     function closeWExactUSDLAfterSettlement(uint256 usdlAmount) internal returns (uint256 USDLToBurn) {
         // WPL_NP : Wrapper PerpLemma, No Position at settlement --> no more USDL to Burn
-        require(positionAtSettlementInQuote > 0, "WPL_NP");
+        require(positionAtSettlementInQuote > 0, "Settled vUSD position amount should not ZERO");
         // WPL_NC : Wrapper PerpLemma, No Collateral
-        require(collateral.balanceOf(address(this)) > 0, "WPL_NC");
+        require(collateral.balanceOf(address(this)) > 0, "Settled collateral amount should not ZERO");
         uint256 amountCollateralToTransfer = (usdlAmount * collateral.balanceOf(address(this))) /
             positionAtSettlementInQuote;
         amountCollateralToTransfer = getAmountInCollateralDecimals(amountCollateralToTransfer, true);
@@ -422,9 +422,9 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     /// @param collateralAmount this method distribute collateral by exact collateral
     function closeWExactCollateralAfterSettlement(uint256 collateralAmount) internal returns (uint256 USDLToBurn) {
         // WPL_NP : Wrapper PerpLemma, No Position at settlement --> no more USDL to Burn
-        require(positionAtSettlementInQuote > 0, "WPL_NP");
+        require(positionAtSettlementInQuote > 0, "Settled vUSD position amount should not ZERO");
         // WPL_NC : Wrapper PerpLemma, No Collateral
-        require(collateral.balanceOf(address(this)) > 0, "WPL_NC");
+        require(collateral.balanceOf(address(this)) > 0, "Settled collateral amount should not ZERO");
         uint256 amountCollateralToTransfer = getAmountInCollateralDecimals(collateralAmount, true);
         USDLToBurn = (amountCollateralToTransfer * positionAtSettlementInQuote) / collateral.balanceOf(address(this));
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountCollateralToTransfer);
