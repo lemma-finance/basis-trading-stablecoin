@@ -138,6 +138,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         emit RebalancerUpdated(reBalancer);
     }
 
+    ///@notice sets maximum position the wrapper can take (in terms of base) - only owner can set
     ///@param _maxPosition reBalancer address to set
     function setMaxPosition(uint256 _maxPosition) external onlyOwner {
         maxPosition = _maxPosition;
@@ -168,7 +169,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         SafeERC20Upgradeable.safeTransfer(usdc, msg.sender, _amount);
     }
 
-    /// METHODS WITH EXACT USDL or vUSD(quote or vUSD) 
+    /// METHODS WITH EXACT USDL or vUSD(quote or vUSD)
     /// 1). getCollateralAmountGivenUnderlyingAssetAmount and open
     /// 2). getCollateralAmountGivenUnderlyingAssetAmount and close
 
@@ -226,7 +227,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountToWithdraw);
     }
 
-    /// METHODS WITH EXACT COLLATERAL(Base or Eth) 
+    /// METHODS WITH EXACT COLLATERAL(Base or Eth)
     /// 1). openWExactCollateral
     /// 2). closeWExactCollateral
 
@@ -240,7 +241,10 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     {
         require(!hasSettled, "Market Closed");
         uint256 collateralAmountToDeposit = getAmountInCollateralDecimals(collateralAmount, true);
-        require(collateral.balanceOf(address(this)) >= collateralAmountToDeposit, "Not enough collateral for openWExactCollateral");
+        require(
+            collateral.balanceOf(address(this)) >= collateralAmountToDeposit,
+            "Not enough collateral for openWExactCollateral"
+        );
 
         totalFundingPNL = getFundingPNL();
         perpVault.deposit(address(collateral), collateralAmountToDeposit);
@@ -289,7 +293,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
             sqrtPriceLimitX96: 0,
             referralCode: referrerCode
         });
-        (uint256 base, uint256 quote) = clearingHouse.openPosition(params);
+        (, uint256 quote) = clearingHouse.openPosition(params);
         USDLToBurn = quote;
 
         uint256 amountToWithdraw = getAmountInCollateralDecimals(collateralAmount, false);
@@ -301,12 +305,9 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     function settle() public override {
         positionAtSettlementInQuote = accountBalance.getQuote(address(this), baseTokenAddress).abs().toUint256();
 
-        // NOTE: This checks the market is in CLOSED state, otherwise revenrts
+        // NOTE: This checks the market is in CLOSED state, otherwise reverts
         // NOTE: For some reason, the amountQuoteClosed < freeCollateral and freeCollateral is the max withdrawable for us so this is the one we want to use to withdraw
-        (uint256 amountBaseClosed, uint256 amountQuoteClosed) = clearingHouse.quitMarket(
-            address(this),
-            baseTokenAddress
-        );
+        clearingHouse.quitMarket(address(this), baseTokenAddress);
         // NOTE: Settle pending funding rates
         settleAllFunding();
 

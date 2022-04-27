@@ -274,7 +274,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
-        require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
+        require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         require(perpDEXWrapper.reBalance(_msgSender(), amount, data), "rebalance not done");
         //burn or mint from the staker contract
         if (amount >= 0) {
