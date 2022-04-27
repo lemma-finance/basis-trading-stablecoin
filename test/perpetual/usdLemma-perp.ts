@@ -290,8 +290,8 @@ describe("usdLemma-perp", async function () {
   });
 
   it("getFees", async function () {
-    await expect(usdLemma.getFees(0, AddressZero)).to.be.revertedWith("! DEX Wrapper");
-    await expect(usdLemma.getFees(100, AddressZero)).to.be.revertedWith("! DEX Wrapper");
+    await expect(usdLemma.getFees(0, AddressZero)).to.be.revertedWith("DEX Wrapper should not ZERO address");
+    await expect(usdLemma.getFees(100, AddressZero)).to.be.revertedWith("DEX Wrapper should not ZERO address");
     const fees = await usdLemma.getFees(0, ethCollateral.address);
     expect(fees).to.eq(10000);
   });
@@ -300,7 +300,7 @@ describe("usdLemma-perp", async function () {
     const openWAmount = utils.parseEther("1");
     await ethCollateral.approve(usdLemma.address, openWAmount);
     await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
-    await expect(usdLemma.getTotalPosition(0, AddressZero)).to.be.revertedWith("! DEX Wrapper");
+    await expect(usdLemma.getTotalPosition(0, AddressZero)).to.be.revertedWith("DEX Wrapper should not ZERO address");
     const position = await usdLemma.getTotalPosition(0, ethCollateral.address);
     expect(position).to.eq(parseEther("100").mul(-1));
   });
@@ -309,51 +309,30 @@ describe("usdLemma-perp", async function () {
     await expect(usdLemma.connect(signer1).setWhiteListAddress(signer1.address, true)).to.be.revertedWith(
       "Ownable: caller is not the owner",
     );
-    await expect(usdLemma.setWhiteListAddress(AddressZero, true)).to.be.revertedWith("!account");
-
-    const TestLemmaSwapFactory = await ethers.getContractFactory("TestLemmaSwap");
-    const testLemmaSwap = await TestLemmaSwapFactory.deploy(usdLemma.address);
-
-    const openWAmount = utils.parseEther("1");
-    await ethCollateral.approve(usdLemma.address, openWAmount);
-    let [baseAmount, quoteAMount] = await callStaticOpenShortPositionWithExactQuote(
-      clearingHouse,
-      longAddress,
-      baseToken.address,
-      openWAmount,
-    );
-    await ethCollateral.approve(testLemmaSwap.address, baseAmount);
-    await expect(
-      testLemmaSwap.multicall(defaultSigner.address, quoteAMount, 0, baseAmount, 0, ethCollateral.address),
-    ).to.be.revertedWith("Not Whitelisted address for MultipleCall");
-    await usdLemma.setWhiteListAddress(testLemmaSwap.address, true);
-
-    // after whitelist it will not revert
-    await testLemmaSwap.multicall(defaultSigner.address, quoteAMount, 0, baseAmount, 0, ethCollateral.address);
+    await expect(usdLemma.setWhiteListAddress(AddressZero, true)).to.be.revertedWith("Account should not ZERO address");
+    await usdLemma.setWhiteListAddress(signer1.address, true);
   });
 
   it("setStakingContractAddress", async function () {
     await expect(usdLemma.connect(signer1).setStakingContractAddress(signer1.address)).to.be.revertedWith(
       "Ownable: caller is not the owner",
     );
-    await expect(usdLemma.setStakingContractAddress(AddressZero)).to.be.revertedWith("!stakingContractAddress");
+    await expect(usdLemma.setStakingContractAddress(AddressZero)).to.be.revertedWith("StakingContractAddress should not ZERO address");
     await usdLemma.setStakingContractAddress(signer1.address);
     const stakingContractAddress = await usdLemma.stakingContractAddress();
     expect(stakingContractAddress).to.eq(signer1.address);
   });
   it("setLemmaTreasury", async function () {
-    await expect(usdLemma.connect(signer1).setLemmaTreasury(signer1.address)).to.be.revertedWith(
-      "Ownable: caller is not the owner",
-    );
-    await expect(usdLemma.setLemmaTreasury(AddressZero)).to.be.revertedWith("!lemmaTreasury");
+    await expect(usdLemma.connect(signer1).setLemmaTreasury(signer1.address)
+    ).to.be.revertedWith("Ownable: caller is not the owner",);
+    await expect(usdLemma.setLemmaTreasury(AddressZero)).to.be.revertedWith("LemmaTreasury should not ZERO address");
     await usdLemma.setLemmaTreasury(signer1.address);
     const lemmaTreasury = await usdLemma.lemmaTreasury();
     expect(lemmaTreasury).to.eq(signer1.address);
   });
   it("setFees", async function () {
-    await expect(usdLemma.connect(signer1).setFees(signer1.address)).to.be.revertedWith(
-      "Ownable: caller is not the owner",
-    );
+    await expect(usdLemma.connect(signer1).setFees(signer1.address)
+    ).to.be.revertedWith("Ownable: caller is not the owner",);
     await usdLemma.setFees(100);
     const fees = await usdLemma.fees();
     expect(fees).to.eq(100);
