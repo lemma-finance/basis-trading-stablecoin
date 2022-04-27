@@ -80,6 +80,7 @@ async function main() {
     ],
     { initializer: "initialize" },
   );
+  console.log("perpLemma-weth: ", perpLemma.address);
   await delay(10000);
   await perpLemma.connect(defaultSigner).setReBalancer(config[chainId].reBalancer);
   await delay(10000);
@@ -111,6 +112,7 @@ async function main() {
     ],
     { initializer: "initialize" },
   );
+  console.log("perpLemma-wbtc: ", perpLemma2.address);
   await delay(10000);
   console.log("adding the second perplemma wrapper in usdllemma");
   await usdLemma.addPerpetualDEXWrapper(1, collateral2.address, perpLemma2.address);
@@ -126,8 +128,9 @@ async function main() {
       initializer: "initialize",
     },
   );
+  const usdl = await xUSDL.usdl(); 
   console.log("xUSDL", xUSDL.address);
-  console.log("USDLemma", await xUSDL.usdl());
+  console.log("USDLemma", usdl);
   await delay(10000);
 
   console.log("configuring parameters");
@@ -158,6 +161,11 @@ async function main() {
   deployedContracts["PerpLemma"] = {
     name: "PerpLemma",
     address: perpLemma.address,
+  };
+
+  deployedContracts["PerpLemma2"] = {
+    name: "PerpLemma2",
+    address: perpLemma2.address,
   };
   deployedContracts = Object.assign(contracts, deployedContracts);
   await save(network);

@@ -385,11 +385,11 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     /// @param roundUp If needs to round up
     /// @return decimal adjusted value
     function getAmountInCollateralDecimals(uint256 amount, bool roundUp) public view override returns (uint256) {
-        uint256 amount1e18 = convert1e_18(amount); // convert first into 18 decimals before any OPs
+        amount = convert1e_18(amount); // convert first into 18 decimals before any OPs
         if (roundUp && (amount % (uint256(10**(18 - collateralDecimals))) != 0)) {
-            return amount1e18 / uint256(10**(18 - collateralDecimals)) + 1; // need to verify
+            return amount / uint256(10**(18 - collateralDecimals)) + 1; // need to verify
         }
-        return amount1e18 / uint256(10**(18 - collateralDecimals));
+        return amount / uint256(10**(18 - collateralDecimals));
     }
 
     /// INTERNAL METHODS
