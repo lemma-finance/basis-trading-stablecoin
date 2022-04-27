@@ -110,7 +110,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         return marketInfo.exchangeFeeRatio;
     }
 
-    /// @notice getTotalPosition in terms of quoteToken(in our case eth)
+    /// @notice getTotalPosition in terms of quoteToken(in our case vUSD)
     function getTotalPosition() external view override returns (int256) {
         return accountBalance.getTotalPositionValue(address(this), baseTokenAddress);
     }
@@ -209,7 +209,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         (base, ) = clearingHouse.openPosition(params);
     }
 
-    /// @notice Open short position for eth(quoteToken) on getCollateralAmountGivenUnderlyingAssetAmount first using exact amount of USDL(or vUSD you can say) and deposit collateral here
+    /// @notice Open short position for eth(baseToken) on getCollateralAmountGivenUnderlyingAssetAmount first using exact amount of USDL(or vUSD you can say) and deposit collateral here
     /// @param collateralAmountRequired collateral amount required to open the position
     function open(uint256, uint256 collateralAmountRequired) external override onlyUSDLemma {
         require(collateralAmountRequired > 0, "Amount should greater than zero");
@@ -218,7 +218,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         _deposit(collateralAmountToDeposit);
     }
 
-    /// @notice Open long position for eth(quoteToken) on getCollateralAmountGivenUnderlyingAssetAmount first using exact amount of USDL(or vUSD you can say) and withdraw collateral here
+    /// @notice Open long position for eth(baseToken) on getCollateralAmountGivenUnderlyingAssetAmount first using exact amount of USDL(or vUSD you can say) and withdraw collateral here
     /// @param collateralAmountToGetBack collateral amount to withdraw after close position
     function close(uint256, uint256 collateralAmountToGetBack) external override onlyUSDLemma {
         require(collateralAmountToGetBack > 0, "Amount should greater than zero");
@@ -231,7 +231,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     /// 1). openWExactCollateral
     /// 2). closeWExactCollateral
 
-    /// @notice Open short position for eth(quoteToken) first and deposit collateral here
+    /// @notice Open short position for eth(baseToken) first and deposit collateral here
     /// @param collateralAmount collateral amount required to open the position
     function openWExactCollateral(uint256 collateralAmount)
         external
@@ -250,8 +250,8 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         perpVault.deposit(address(collateral), collateralAmountToDeposit);
         collateralAmountToDeposit = convert1e_18(collateralAmountToDeposit); // because vToken alsways in 18 decimals
 
-        // create long for usdc and short for eth position by giving isBaseToQuote=false
-        // and amount in eth(quoteToken) by giving isExactInput=true
+        // create long for usdc and short for eth position by giving isBaseToQuote=true
+        // and amount in eth(baseToken) by giving isExactInput=true
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: baseTokenAddress,
             isBaseToQuote: true,
@@ -269,7 +269,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         USDLToMint = quote;
     }
 
-    /// @notice Open long position for eth(quoteToken) first and withdraw collateral here
+    /// @notice Open long position for eth(baseToken) first and withdraw collateral here
     /// @param collateralAmount collateral amount require to close or long position
     function closeWExactCollateral(uint256 collateralAmount)
         external
