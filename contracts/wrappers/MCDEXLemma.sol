@@ -162,7 +162,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
         updateEntryFunding(updatedPosition, amount.toInt256());
     }
 
-    function openWExactCollateral(uint256 collateralAmount) external override returns (uint256 USDLToMint) {
+    function openWExactCollateral(uint256) external override returns (uint256) {
         revert("not supported");
     }
 
@@ -197,7 +197,7 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
         );
     }
 
-    function closeWExactCollateral(uint256 collateralAmount) external override returns (uint256 USDLToBurn) {
+    function closeWExactCollateral(uint256) external override returns (uint256) {
         revert("not supported");
     }
 
