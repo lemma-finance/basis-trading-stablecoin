@@ -123,7 +123,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         emit USDLemmaUpdated(usdLemma);
     }
 
-    ///@notice sets refferer address - only owner can set
+    ///@notice sets refferer code - only owner can set
     ///@param _referrerCode referrerCode of address to set
     function setReferrerCode(bytes32 _referrerCode) external onlyOwner {
         referrerCode = _referrerCode;
@@ -153,7 +153,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
     }
 
-    /// @notice depositSettlementToken is used to deposit settlement token USDC into perp vault
+    /// @notice depositSettlementToken is used to deposit settlement token USDC into perp vault - only owner can deposit
     /// @param _amount USDC amount need to deposit into perp vault
     function depositSettlementToken(uint256 _amount) external onlyOwner {
         require(_amount > 0, "Amount should greater than zero");
@@ -161,7 +161,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         perpVault.deposit(address(usdc), _amount);
     }
 
-    /// @notice withdrawSettlementToken is used to withdraw settlement token USDC from perp vault
+    /// @notice withdrawSettlementToken is used to withdraw settlement token USDC from perp vault - only owner can withdraw
     /// @param _amount USDC amount need to withdraw from perp vault
     function withdrawSettlementToken(uint256 _amount) external onlyOwner {
         require(_amount > 0, "Amount should greater than zero");
@@ -280,7 +280,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         if (hasSettled) return closeWExactCollateralAfterSettlement(collateralAmount);
 
         totalFundingPNL = getFundingPNL();
-        uint256 collateralAmountToClose = convert1e_18(collateralAmount); // because vToken alsways in 18 decimals
+        uint256 collateralAmountToClose = convert1e_18(collateralAmount); // because vTokens are always in 18 decimals
 
         //simillar to openWExactCollateral but for close
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
@@ -404,7 +404,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         perpVault.withdraw(address(collateral), amountToWithdraw); // withdraw closed position fund
     }
 
-    /// @notice closeWExactUSDLAfterSettlement is use to distribute collateral using on pro rata based user's share(USDL).
+    /// @notice closeWExactUSDLAfterSettlement is used to distribute collateral using on pro rata based user's share(USDL).
     /// @param usdlAmount this method distribute collateral by exact usdlAmount
     function closeWExactUSDLAfterSettlement(uint256 usdlAmount) internal returns (uint256 USDLToBurn) {
         // WPL_NP : Wrapper PerpLemma, No Position at settlement --> no more USDL to Burn
@@ -422,9 +422,9 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     /// @notice closeWExactCollateralAfterSettlement is use to distribute collateral using on pro rata based user's share(USDL).
     /// @param collateralAmount this method distribute collateral by exact collateral
     function closeWExactCollateralAfterSettlement(uint256 collateralAmount) internal returns (uint256 USDLToBurn) {
-        // WPL_NP : Wrapper PerpLemma, No Position at settlement --> no more USDL to Burn
+        //No Position at settlement --> no more USDL to Burn
         require(positionAtSettlementInQuote > 0, "Settled vUSD position amount should not ZERO");
-        // WPL_NC : Wrapper PerpLemma, No Collateral
+        //No collateral --> no more collateralt to give out
         require(collateral.balanceOf(address(this)) > 0, "Settled collateral amount should not ZERO");
         uint256 amountCollateralToTransfer = getAmountInCollateralDecimals(collateralAmount, true);
         USDLToBurn = (amountCollateralToTransfer * positionAtSettlementInQuote) / collateral.balanceOf(address(this));

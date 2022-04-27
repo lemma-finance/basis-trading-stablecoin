@@ -111,7 +111,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         emit FeesUpdated(fees);
     }
 
-    /// @notice Add address for perpetual dex wrapper for perpetual index and collateral, can only be called by owner
+    /// @notice Add address for perpetual dex wrapper for perpetual index and collateral - can only be called by owner
     /// @param perpetualDEXIndex, index of perpetual dex
     /// @param collateralAddress, address of collateral to be used in the dex
     /// @param perpetualDEXWrapperAddress, address of perpetual dex wrapper
