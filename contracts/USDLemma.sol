@@ -107,6 +107,8 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @notice Set Fees, can only be called by owner
     /// @param _fees Fees taken by the protocol
     function setFees(uint256 _fees) external onlyOwner {
+        // Fees can be between 0% and 0.5% 
+        require(_fees <= 50, "Fees to high");
         fees = _fees;
         emit FeesUpdated(fees);
     }
