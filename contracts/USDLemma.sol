@@ -142,9 +142,8 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         uint256 collateralRequired1e_18 = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
+        require(collateralRequired1e_18 <= maxCollateralAmountRequired, "collateral required execeeds maximum");
         uint256 collateralRequired = perpDEXWrapper.getAmountInCollateralDecimals(collateralRequired1e_18, false);
-        maxCollateralAmountRequired = perpDEXWrapper.getAmountInCollateralDecimals(maxCollateralAmountRequired, false);
-        require(collateralRequired <= maxCollateralAmountRequired, "collateral required execeeds maximum");
         SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), collateralRequired);
         perpDEXWrapper.open(amount, collateralRequired1e_18);
         _mint(to, amount);
@@ -200,10 +199,9 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         uint256 collateralAmountToGetBack1e_18 = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
-        uint256 collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmountToGetBack1e_18, false);
-        minCollateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimals(minCollateralAmountToGetBack, false);
-        require(collateralAmountToGetBack >= minCollateralAmountToGetBack, "collateral got back is too low");
+        require(collateralAmountToGetBack1e_18 >= minCollateralAmountToGetBack, "collateral got back is too low");
         perpDEXWrapper.close(amount, collateralAmountToGetBack1e_18);
+        uint256 collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmountToGetBack1e_18, false);
         SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmountToGetBack);
         emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, collateralAmountToGetBack);
     }
