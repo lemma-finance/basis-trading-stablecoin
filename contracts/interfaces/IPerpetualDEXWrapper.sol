@@ -10,9 +10,15 @@ interface IPerpetualDEXWrapper {
 
     function closeWExactCollateral(uint256 collateralAmount) external returns (uint256 USDLToBurn);
 
-    function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting) external returns (uint256 collateralAmountRequired);
+    function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
+        external
+        returns (uint256 collateralAmountRequired);
 
-    function reBalance(address _reBalancer, int256 amount, bytes calldata data) external returns (bool);
+    function reBalance(
+        address _reBalancer,
+        int256 amount,
+        bytes calldata data
+    ) external returns (bool);
 
     function getTotalPosition() external view returns (int256);
 
