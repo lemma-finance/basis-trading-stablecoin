@@ -141,11 +141,12 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
-        uint256 collateralRequired = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
-        collateralRequired = perpDEXWrapper.getAmountInCollateralDecimals(collateralRequired, true);
+        uint256 collateralRequired1e_18 = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
+        uint256 collateralRequired = perpDEXWrapper.getAmountInCollateralDecimals(collateralRequired1e_18, false);
+        maxCollateralAmountRequired = perpDEXWrapper.getAmountInCollateralDecimals(maxCollateralAmountRequired, false);
         require(collateralRequired <= maxCollateralAmountRequired, "collateral required execeeds maximum");
         SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), collateralRequired);
-        perpDEXWrapper.open(amount, collateralRequired);
+        perpDEXWrapper.open(amount, collateralRequired1e_18);
         _mint(to, amount);
         emit DepositTo(perpetualDEXIndex, address(collateral), to, amount, collateralRequired);
     }
@@ -167,7 +168,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
-        uint256 collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmount, true);
+        uint256 collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmount, false);
         SafeERC20Upgradeable.safeTransferFrom(
             collateral,
             _msgSender(),
@@ -198,10 +199,11 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
-        uint256 collateralAmountToGetBack = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
-        collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmountToGetBack, false);
+        uint256 collateralAmountToGetBack1e_18 = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
+        uint256 collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmountToGetBack1e_18, false);
+        minCollateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimals(minCollateralAmountToGetBack, false);
         require(collateralAmountToGetBack >= minCollateralAmountToGetBack, "collateral got back is too low");
-        perpDEXWrapper.close(amount, collateralAmountToGetBack);
+        perpDEXWrapper.close(amount, collateralAmountToGetBack1e_18);
         SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmountToGetBack);
         emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, collateralAmountToGetBack);
     }
@@ -223,13 +225,12 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
-        uint256 collateralBefore = collateral.balanceOf(address(this));
         uint256 USDLToBurn = perpDEXWrapper.closeWExactCollateral(collateralAmount);
-        uint256 collateralAmountToGetBack = collateral.balanceOf(address(this)) - collateralBefore;
         require(USDLToBurn <= maxUSDLToBurn, "USDL burnt execeeds maximum");
         _burn(_msgSender(), USDLToBurn);
-        SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmountToGetBack);
-        emit WithdrawTo(perpetualDEXIndex, address(collateral), to, USDLToBurn, collateralAmountToGetBack);
+        collateralAmount = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmount, false);
+        SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmount);
+        emit WithdrawTo(perpetualDEXIndex, address(collateral), to, USDLToBurn, collateralAmount);
     }
 
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL
