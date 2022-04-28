@@ -694,7 +694,7 @@ describe("usdLemma-perp", async function () {
     await ethCollateral.approve(usdLemma.address, baseAmount);
     await expect(
       usdLemma.depositTo(defaultSigner.address, openWAmount, 0, 1, ethCollateral.address),
-    ).to.be.revertedWith("collateral required exceeds maximum");
+    ).to.be.revertedWith("collateral required execeeds maximum");
   });
   it("Force Error, withdrawTo", async function () {
     const openWAmount = utils.parseEther("1");
