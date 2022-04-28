@@ -214,6 +214,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     function open(uint256, uint256 collateralAmountRequired) external override onlyUSDLemma {
         require(collateralAmountRequired > 0, "Amount should greater than zero");
         uint256 collateralAmountToDeposit = getAmountInCollateralDecimals(collateralAmountRequired, false);
+        require(collateralAmountToDeposit > 0, "Amount should greater than zero");
         require(collateral.balanceOf(address(this)) >= collateralAmountToDeposit, "Not enough collateral to Open");
         _deposit(collateralAmountToDeposit);
     }
@@ -223,6 +224,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     function close(uint256, uint256 collateralAmountToGetBack) external override onlyUSDLemma {
         require(collateralAmountToGetBack > 0, "Amount should greater than zero");
         uint256 amountToWithdraw = getAmountInCollateralDecimals(collateralAmountToGetBack, false);
+        require(amountToWithdraw > 0, "Amount should greater than zero");
         _withdraw(amountToWithdraw);
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountToWithdraw);
     }
@@ -413,6 +415,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         uint256 amountCollateralToTransfer = (usdlAmount * collateral.balanceOf(address(this))) /
             positionAtSettlementInQuote;
         amountCollateralToTransfer = getAmountInCollateralDecimals(amountCollateralToTransfer, false);
+        require(amountCollateralToTransfer > 0, "Amount should greater than zero");
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountCollateralToTransfer);
         positionAtSettlementInQuote -= usdlAmount;
         USDLToBurn = usdlAmount;
@@ -426,6 +429,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         //No collateral --> no more collateralt to give out
         require(collateral.balanceOf(address(this)) > 0, "Settled collateral amount should not ZERO");
         uint256 amountCollateralToTransfer = getAmountInCollateralDecimals(collateralAmount, false);
+        require(amountCollateralToTransfer > 0, "Amount should greater than zero");
         USDLToBurn = (amountCollateralToTransfer * positionAtSettlementInQuote) / collateral.balanceOf(address(this));
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountCollateralToTransfer);
         positionAtSettlementInQuote -= USDLToBurn;
