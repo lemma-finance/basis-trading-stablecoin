@@ -94,7 +94,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
         usdc = IERC20Decimals(perpVault.getSettlementToken());
         collateral = IERC20Decimals(_collateral);
-        collateralDecimals = collateral.decimals(); // need to verify
+        collateralDecimals = collateral.decimals(); 
         SafeERC20Upgradeable.safeApprove(collateral, _clearingHouse, MAX_UINT256);
 
         // NOTE: Even though it is not necessary, it is for clarity
