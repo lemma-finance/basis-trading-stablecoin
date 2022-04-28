@@ -317,22 +317,26 @@ describe("usdLemma-perp", async function () {
     await expect(usdLemma.connect(signer1).setStakingContractAddress(signer1.address)).to.be.revertedWith(
       "Ownable: caller is not the owner",
     );
-    await expect(usdLemma.setStakingContractAddress(AddressZero)).to.be.revertedWith("StakingContractAddress should not ZERO address");
+    await expect(usdLemma.setStakingContractAddress(AddressZero)).to.be.revertedWith(
+      "StakingContractAddress should not ZERO address",
+    );
     await usdLemma.setStakingContractAddress(signer1.address);
     const stakingContractAddress = await usdLemma.stakingContractAddress();
     expect(stakingContractAddress).to.eq(signer1.address);
   });
   it("setLemmaTreasury", async function () {
-    await expect(usdLemma.connect(signer1).setLemmaTreasury(signer1.address)
-    ).to.be.revertedWith("Ownable: caller is not the owner",);
+    await expect(usdLemma.connect(signer1).setLemmaTreasury(signer1.address)).to.be.revertedWith(
+      "Ownable: caller is not the owner",
+    );
     await expect(usdLemma.setLemmaTreasury(AddressZero)).to.be.revertedWith("LemmaTreasury should not ZERO address");
     await usdLemma.setLemmaTreasury(signer1.address);
     const lemmaTreasury = await usdLemma.lemmaTreasury();
     expect(lemmaTreasury).to.eq(signer1.address);
   });
   it("setFees", async function () {
-    await expect(usdLemma.connect(signer1).setFees(signer1.address)
-    ).to.be.revertedWith("Ownable: caller is not the owner",);
+    await expect(usdLemma.connect(signer1).setFees(signer1.address)).to.be.revertedWith(
+      "Ownable: caller is not the owner",
+    );
     await usdLemma.setFees(100);
     const fees = await usdLemma.fees();
     expect(fees).to.eq(100);
@@ -563,7 +567,7 @@ describe("usdLemma-perp", async function () {
             100,
             ethers.utils.defaultAbiCoder.encode(["uint160", "uint256"], [sqrtPriceLimitX96, deadline]),
           ),
-      ).to.be.revertedWith("inavlid DEX/collateral"); // when dex index is not valid
+      ).to.be.revertedWith("invalid DEX/collateral"); // when dex index is not valid
     });
 
     it("when fundingPNL is negative(-ve)", async function () {
@@ -674,10 +678,10 @@ describe("usdLemma-perp", async function () {
 
   it("Force Error, depositTo", async function () {
     await expect(usdLemma.depositTo(defaultSigner.address, 100, 100, 100, ethCollateral.address)).to.be.revertedWith(
-      "inavlid DEX/collateral",
+      "invalid DEX/collateral",
     ); // when dex index is not valid
     await expect(usdLemma.depositTo(defaultSigner.address, 100, 0, 100, AddressZero)).to.be.revertedWith(
-      "inavlid DEX/collateral",
+      "invalid DEX/collateral",
     ); //when collateral address is not valid
     const openWAmount = utils.parseEther("1");
     await ethCollateral.approve(usdLemma.address, openWAmount);
@@ -709,10 +713,10 @@ describe("usdLemma-perp", async function () {
 
     await usdLemma.approve(usdLemma.address, 100);
     await expect(usdLemma.withdrawTo(defaultSigner.address, 100, 100, 100, ethCollateral.address)).to.be.revertedWith(
-      "inavlid DEX/collateral",
+      "invalid DEX/collateral",
     ); // when dex index is not valid
     await expect(usdLemma.withdrawTo(defaultSigner.address, 100, 0, 100, AddressZero)).to.be.revertedWith(
-      "inavlid DEX/collateral",
+      "invalid DEX/collateral",
     ); //when collateral address is not valid
 
     let amount = usdlBalanceBefore;
@@ -735,10 +739,10 @@ describe("usdLemma-perp", async function () {
     const openWAmount = utils.parseEther("1");
     await expect(
       usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 120, 0, ethCollateral.address),
-    ).to.be.revertedWith("inavlid DEX/collateral"); // when dex index is not valid
+    ).to.be.revertedWith("invalid DEX/collateral"); // when dex index is not valid
     await expect(
       usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, AddressZero),
-    ).to.be.revertedWith("inavlid DEX/collateral"); //when collateral address is not valid
+    ).to.be.revertedWith("invalid DEX/collateral"); //when collateral address is not valid
 
     await ethCollateral.approve(usdLemma.address, openWAmount);
     await expect(
@@ -768,10 +772,10 @@ describe("usdLemma-perp", async function () {
 
     await expect(
       usdLemma.withdrawToWExactCollateral(defaultSigner.address, openWAmount, 120, 0, ethCollateral.address),
-    ).to.be.revertedWith("inavlid DEX/collateral"); // when dex index is not valid
+    ).to.be.revertedWith("invalid DEX/collateral"); // when dex index is not valid
     await expect(
       usdLemma.withdrawToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, AddressZero),
-    ).to.be.revertedWith("inavlid DEX/collateral"); //when collateral address is not valid
+    ).to.be.revertedWith("invalid DEX/collateral"); //when collateral address is not valid
 
     await usdLemma.approve(usdLemma.address, openWAmount);
     await expect(

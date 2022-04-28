@@ -53,8 +53,8 @@ async function main() {
   vault = new ethers.Contract(contracts.Vault.address, VaultAbi.abi, defaultSigner);
   exchange = new ethers.Contract(contracts.Exchange.address, ExchangeAbi.abi, defaultSigner);
   marketRegistry = new ethers.Contract(contracts.MarketRegistry.address, MarketRegistryAbi.abi, defaultSigner);
-  collateral = new ethers.Contract(collaterals[2].address, TestERC20Abi.abi, defaultSigner);//WETH
-  collateral2 = new ethers.Contract(collaterals[1].address, TestERC20Abi.abi, defaultSigner);//WBTC
+  collateral = new ethers.Contract(collaterals[2].address, TestERC20Abi.abi, defaultSigner); //WETH
+  collateral2 = new ethers.Contract(collaterals[1].address, TestERC20Abi.abi, defaultSigner); //WBTC
   baseToken = new ethers.Contract(contracts.vETH.address, BaseTokenAbi.abi, defaultSigner);
   baseToken2 = new ethers.Contract(contracts.vBTC.address, TestERC20Abi.abi, defaultSigner);
   quoteToken = new ethers.Contract(contracts.QuoteToken.address, QuoteTokenAbi.abi, defaultSigner);
@@ -128,7 +128,7 @@ async function main() {
       initializer: "initialize",
     },
   );
-  const usdl = await xUSDL.usdl(); 
+  const usdl = await xUSDL.usdl();
   console.log("xUSDL", xUSDL.address);
   console.log("USDLemma", usdl);
   await delay(10000);

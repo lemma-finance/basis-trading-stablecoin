@@ -446,8 +446,8 @@ describe("perpLemma.multiCollateral", async function () {
         expect(amount).to.eq(0);
 
         await perpLemma.setCollateralDecimals(8);
-        amount = await perpLemma.getAmountInCollateralDecimals(parseEther('1'), false);
-        expect(amount).to.eq(parseUnits('1', 8));
+        amount = await perpLemma.getAmountInCollateralDecimals(parseEther("1"), false);
+        expect(amount).to.eq(parseUnits("1", 8));
       });
 
       it("should set rebalance addresses correctly", async function () {
@@ -1031,12 +1031,13 @@ describe("perpLemma.multiCollateral", async function () {
           await perpLemma.setHasSettled(true);
           // WPL_NP : Wrapper PerpLemma, No Position at settlement --> no more USDL to Burn
           await expect(perpLemma.connect(usdLemma).closeWExactCollateral("100")).to.be.revertedWith(
-            "Settled vUSD position amount should not ZERO"
+            "Settled vUSD position amount should not ZERO",
           );
           await perpLemma.setPositionAtSettlementInQuote(100);
           // WPL_NC : Wrapper PerpLemma, No Collateral
-          await expect(perpLemma.connect(usdLemma).closeWExactCollateral("100")
-          ).to.be.revertedWith("Settled collateral amount should not ZERO");
+          await expect(perpLemma.connect(usdLemma).closeWExactCollateral("100")).to.be.revertedWith(
+            "Settled collateral amount should not ZERO",
+          );
         });
 
         it("Calling Settle() when Market is open should revert", async () => {
