@@ -437,12 +437,17 @@ describe("perpLemma.multiCollateral", async function () {
       });
 
       it("getAmountInCollateralDecimals", async function () {
-        let amount = await perpLemma.getAmountInCollateralDecimals(parseUnits("1", ethCollateralDecimals), true);
+        // decimal 18 currantly
+        let amount = await perpLemma.getAmountInCollateralDecimals(parseUnits("1", ethCollateralDecimals), false);
         expect(amount).to.eq(parseUnits("1", ethCollateralDecimals));
 
         await perpLemma.setCollateralDecimals(6);
-        amount = await perpLemma.getAmountInCollateralDecimals("123", true);
-        expect(amount).to.eq(124);
+        amount = await perpLemma.getAmountInCollateralDecimals("123", false);
+        expect(amount).to.eq(0);
+
+        await perpLemma.setCollateralDecimals(8);
+        amount = await perpLemma.getAmountInCollateralDecimals(parseEther('1'), false);
+        expect(amount).to.eq(parseUnits('1', 8));
       });
 
       it("should set rebalance addresses correctly", async function () {
@@ -740,7 +745,7 @@ describe("perpLemma.multiCollateral", async function () {
             "Not enough collateral for openWExactCollateral",
           );
           await expect(perpLemma.connect(usdLemma).openWExactCollateral(0)).to.be.revertedWith(
-            "V_ZA", // V_ZA: Zero amount
+            "Amount should greater than zero",
           );
           await expect(perpLemma.connect(usdLemma).openWExactCollateral(collateralAmount))
             .to.emit(clearingHouse, "PositionChanged")
@@ -816,7 +821,7 @@ describe("perpLemma.multiCollateral", async function () {
             "Not enough collateral for openWExactCollateral",
           );
           await expect(perpLemma.connect(usdLemma).openWExactCollateral(0)).to.be.revertedWith(
-            "V_ZA", // V_ZA: Zero amount
+            "Amount should greater than zero",
           );
           await expect(perpLemma.connect(usdLemma).openWExactCollateral(collateralAmount)).to.emit(
             clearingHouse,
