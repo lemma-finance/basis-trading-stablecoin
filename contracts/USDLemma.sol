@@ -224,7 +224,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         uint256 USDLToBurn = perpDEXWrapper.closeWExactCollateral(collateralAmount);
-        require(USDLToBurn <= maxUSDLToBurn, "USDL burnt execeeds maximum");
+        require(USDLToBurn <= maxUSDLToBurn, "USDL burnt exceeds maximum");
         _burn(_msgSender(), USDLToBurn);
         collateralAmount = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmount, false);
         SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmount);
