@@ -441,7 +441,7 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
     /// @notice convert provided amount is in 18 decimals
     /// @param amount need to convert in 18 decimals
     function convert1e_18(uint256 amount) internal view returns (uint256) {
-        return amount = (amount * (10**18)) / (10**collateralDecimals);
+        return (amount * (10**18)) / (10**collateralDecimals);
     }
 
     function _msgSender()
