@@ -407,18 +407,21 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
 
     /// @notice closeWExactUSDLAfterSettlement is used to distribute collateral using on pro rata based user's share(USDL).
     /// @param usdlAmount this method distribute collateral by exact usdlAmount
-    function closeWExactUSDLAfterSettlement(uint256 usdlAmount) internal returns (uint256 USDLToBurn) {
+    function closeWExactUSDLAfterSettlement(uint256 usdlAmount)
+        internal
+        returns (uint256 amountCollateralToTransfer1e_18)
+    {
         // WPL_NP : Wrapper PerpLemma, No Position at settlement --> no more USDL to Burn
         require(positionAtSettlementInQuote > 0, "Settled vUSD position amount should not ZERO");
         // WPL_NC : Wrapper PerpLemma, No Collateral
         require(collateral.balanceOf(address(this)) > 0, "Settled collateral amount should not ZERO");
-        uint256 amountCollateralToTransfer = (usdlAmount * collateral.balanceOf(address(this))) /
+        amountCollateralToTransfer1e_18 =
+            (usdlAmount * collateral.balanceOf(address(this))) /
             positionAtSettlementInQuote;
-        amountCollateralToTransfer = getAmountInCollateralDecimals(amountCollateralToTransfer, false);
+        uint256 amountCollateralToTransfer = getAmountInCollateralDecimals(amountCollateralToTransfer1e_18, false);
         require(amountCollateralToTransfer > 0, "Amount should greater than zero");
         SafeERC20Upgradeable.safeTransfer(collateral, usdLemma, amountCollateralToTransfer);
         positionAtSettlementInQuote -= usdlAmount;
-        USDLToBurn = usdlAmount;
     }
 
     /// @notice closeWExactCollateralAfterSettlement is use to distribute collateral using on pro rata based user's share(USDL).
