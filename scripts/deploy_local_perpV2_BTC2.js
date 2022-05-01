@@ -84,7 +84,7 @@ async function main() {
   let perpAddresses;
   perpAddresses = await loadPerpLushanInfoMainnet();
   wbtcWhaleAddress = "0xE78388b4CE79068e89Bf8aA7f218eF6b9AB0e9d0";
-  wbtc = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599"
+  wbtc = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
   wbtcSigner = await ethers.provider.getSigner(wbtcWhaleAddress);
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
