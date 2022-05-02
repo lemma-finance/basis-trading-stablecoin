@@ -23,7 +23,7 @@ interface IPerpetualDEXWrapper {
 
     function getTotalPosition() external view returns (int256);
 
-    function getFees(bool isMinting) external view returns (uint256);
+    function getFees() external view returns (uint256);
 
     function settle() external;
 }

@@ -84,7 +84,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     ) external view returns (uint256) {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
         require(address(perpDEXWrapper) != address(0), "! DEX Wrapper");
-        return perpDEXWrapper.getFees(isMinting);
+        return perpDEXWrapper.getFees();
     }
 
     /// @notice Returns the total position in Base Token on a given DEX
