@@ -245,7 +245,10 @@ contract PerpLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualD
         require(!hasSettled, "Market Closed");
         uint256 collateralAmountToDeposit = getAmountInCollateralDecimals(collateralAmount, false);
         require(collateralAmountToDeposit > 0, "Amount should greater than zero");
-        require(collateral.balanceOf(address(this)) >= collateralAmountToDeposit, "Not enough collateral for openWExactCollateral");
+        require(
+            collateral.balanceOf(address(this)) >= collateralAmountToDeposit,
+            "Not enough collateral for openWExactCollateral"
+        );
 
         totalFundingPNL = getFundingPNL();
         perpVault.deposit(address(collateral), collateralAmountToDeposit);
