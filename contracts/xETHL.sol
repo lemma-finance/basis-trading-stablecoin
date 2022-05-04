@@ -6,9 +6,10 @@ import { OwnableUpgradeable, ContextUpgradeable } from "@openzeppelin/contracts-
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import { IEIP4626 } from "./interfaces/eip4626/IEIP4626.sol";
+import "hardhat/console.sol";
 
 /// @author Lemma Finance
-contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
+contract xETHL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
     uint256 public minimumLock;
 
     mapping(address => uint256) public userUnlockBlock;
@@ -27,8 +28,8 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
         address _periphery
     ) external initializer {
         __Ownable_init();
-        __ERC20_init("xUSDLemma", "xUSDL");
-        __ERC20Permit_init("xUSDLemma");
+        __ERC20_init("xLemmaETH", "xETHL");
+        __ERC20Permit_init("xLemmaETH");
         __ERC2771Context_init(_trustedForwarder);
         usdl = IERC20Upgradeable(_usdl);
         SafeERC20Upgradeable.safeApprove(usdl, address(usdl), type(uint256).max);
@@ -69,6 +70,7 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
     /// @return shares total xUsdl share minted
     function deposit(uint256 assets, address receiver) external override returns (uint256 shares) {
         require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
+        console.log(_msgSender(), assets);
         SafeERC20Upgradeable.safeTransferFrom(usdl, _msgSender(), address(this), assets);
         if (periphery != _msgSender()) {
             userUnlockBlock[_msgSender()] = block.number + minimumLock;
@@ -137,6 +139,7 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
     /// @notice The current exchange rate of shares to assets(in terms of USDL)
     /// @return price Price of 1 xUSDL in terms of USDL
     function assetsPerShare() public view override returns (uint256 price) {
+        console.log("assetsPerShare: ", totalAssets(), totalSupply());
         price = (totalAssets() * 1e18) / totalSupply();
     }
 
@@ -153,6 +156,7 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
     /// @return shares total xUsdl share burned
     function previewWithdraw(uint256 assets) public view override returns (uint256 shares) {
         uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
+        console.log("previewWithdraw: ", supply, assets, assetsPerShare());
         return supply == 0 ? assets : (assets * 1e18) / assetsPerShare();
     }
 

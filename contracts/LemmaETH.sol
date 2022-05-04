@@ -10,9 +10,11 @@ import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/
 import { Utils } from "./libraries/Utils.sol";
 import { SafeMathExt } from "./libraries/SafeMathExt.sol";
 import { IPerpetualDEXWrapper } from "./interfaces/IPerpetualDEXWrapper.sol";
+import { IEIP4626 } from "./interfaces/eip4626/IEIP4626.sol";
+import "hardhat/console.sol";
 
 /// @author Lemma Finance
-contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
+contract LemmaETH is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
     using SafeCastUpgradeable for int256;
     using SafeMathExt for int256;
     using SafeMathExt for uint256;
@@ -24,7 +26,6 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     mapping(uint256 => mapping(address => address)) public perpetualDEXWrappers;
 
     mapping(address => bool) private whiteListAddress;
-    uint256 public mutexBlock;
 
     // events
     event DepositTo(
@@ -48,27 +49,15 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     event FeesUpdated(uint256 newFees);
     event PerpetualDexWrapperAdded(uint256 indexed dexIndex, address indexed collateral, address dexWrapper);
 
-    modifier _onlyOneFuntionAtATime(address _account) {
-        if (whiteListAddress[_account]) {
-            // whitelist addresses can call multiple functions of USDLemma
-            _;
-        } else {
-            require(mutexBlock != block.number, "Not Whitelisted address for MultipleCall");
-            mutexBlock = block.number;
-            _;
-        }
-    }
-
     function initialize(
         address trustedForwarder,
         address collateralAddress,
         address perpetualDEXWrapperAddress
     ) external initializer {
-        mutexBlock = block.number;
         __ReentrancyGuard_init();
         __Ownable_init();
-        __ERC20_init("USDLemma", "USDL");
-        __ERC20Permit_init("USDLemma");
+        __ERC20_init("LemmaETH", "ETHL");
+        __ERC20Permit_init("LemmaETH");
         __ERC2771Context_init(trustedForwarder);
         addPerpetualDEXWrapper(0, collateralAddress, perpetualDEXWrapperAddress);
     }
@@ -76,18 +65,13 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @notice Returns the fees of the underlying Perp DEX Wrapper
     /// @param dexIndex The DEX Index to operate on
     /// @param collateral Collateral for the minting / redeeming operation
-    /// @param isMinting True: Minting, False: Redeeming
-    function getFees(
-        uint256 dexIndex,
-        address collateral,
-        bool isMinting
-    ) external view returns (uint256) {
+    function getFees(uint256 dexIndex, address collateral) external view returns (uint256) {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
         require(address(perpDEXWrapper) != address(0), "! DEX Wrapper");
         return perpDEXWrapper.getFees();
     }
 
-    /// @notice Returns the total position in Base Token on a given DEX
+    /// @notice Returns the total position in quote Token on a given DEX
     /// @param dexIndex The DEX Index to operate on
     /// @param collateral Collateral for the minting / redeeming operation
     function getTotalPosition(uint256 dexIndex, address collateral) external view returns (int256) {
@@ -97,11 +81,11 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         return perpDEXWrapper.getTotalPosition();
     }
 
-    /// @notice Set whitelist address, can only be called by owner, It will helps whitelist address to call multiple function of USDL at a time
+    /// @notice Set whitelist address, can only be called by owner, It will helps whitelist address to call multiple function of ETHL at a time
     /// @param _account Address of whitelist EOA or contract address
     /// @param _isWhiteList add or remove of whitelist tag for any address
     function setWhiteListAddress(address _account, bool _isWhiteList) external onlyOwner {
-        require(_account != address(0), "!account");
+        require(_account != address(0), "Account should not ZERO address");
         whiteListAddress[_account] = _isWhiteList;
         emit SetWhiteListAddress(_account, _isWhiteList);
     }
@@ -109,15 +93,16 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @notice Set staking contract address, can only be called by owner
     /// @param _stakingContractAddress Address of staking contract
     function setStakingContractAddress(address _stakingContractAddress) external onlyOwner {
-        require(_stakingContractAddress != address(0), "!stakingContractAddress");
+        require(_stakingContractAddress != address(0), "StakingContractAddress should not ZERO address");
         stakingContractAddress = _stakingContractAddress;
+        _approve(address(this), stakingContractAddress, type(uint256).max);
         emit StakingContractUpdated(stakingContractAddress);
     }
 
     /// @notice Set Lemma treasury, can only be called by owner
     /// @param _lemmaTreasury Address of Lemma Treasury
     function setLemmaTreasury(address _lemmaTreasury) external onlyOwner {
-        require(_lemmaTreasury != address(0), "!lemmaTreasury");
+        require(_lemmaTreasury != address(0), "LemmaTreasury should not ZERO address");
         lemmaTreasury = _lemmaTreasury;
         emit LemmaTreasuryUpdated(lemmaTreasury);
     }
@@ -142,49 +127,67 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         emit PerpetualDexWrapperAdded(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
     }
 
-    /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of USDL
-    /// @param to Receipent of minted USDL
-    /// @param amount Amount of USDL to mint
+    /// @notice Mint ETHL and Deposit collateral like USDC by specifying the exact amount of ethAmount
+    /// @param to Receipent of minted ETHL
+    /// @param ethAmount Amount of ETH need ETHL to mint
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
-    /// @param maxCollateralAmountRequired Maximum amount of collateral to be used to mint given USDL
-    /// @param collateral Collateral to be used to mint USDL
+    /// @param maxUSDCCollateralAmountRequired Maximum amount of USDC collateral nned to deposit to mint given ETHL
+    /// @param collateral Collateral(in our case USDC) to be used to mint ETHL
     function depositTo(
         address to,
-        uint256 amount,
+        uint256 ethAmount,
         uint256 perpetualDEXIndex,
-        uint256 maxCollateralAmountRequired,
+        uint256 maxUSDCCollateralAmountRequired,
         IERC20Upgradeable collateral
-    ) public nonReentrant _onlyOneFuntionAtATime(_msgSender()) {
+    ) public nonReentrant {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
-        require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
-        uint256 collateralRequired = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
-        collateralRequired = perpDEXWrapper.getAmountInCollateralDecimals(collateralRequired, true);
-        require(collateralRequired <= maxCollateralAmountRequired, "collateral required execeeds maximum");
-        SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), collateralRequired);
-        perpDEXWrapper.open(amount, collateralRequired);
-        _mint(to, amount);
-        emit DepositTo(perpetualDEXIndex, address(collateral), to, amount, collateralRequired);
+        require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
+
+        uint256 usdcCollateralRequired1e_18 = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(
+            ethAmount,
+            true
+        );
+        require(usdcCollateralRequired1e_18 <= maxUSDCCollateralAmountRequired, "collateral required execeeds maximum");
+
+        uint256 usdcCollateralRequired = perpDEXWrapper.getAmountInCollateralDecimals(
+            usdcCollateralRequired1e_18,
+            true
+        );
+        SafeERC20Upgradeable.safeTransferFrom(
+            collateral,
+            _msgSender(),
+            address(perpDEXWrapper),
+            usdcCollateralRequired
+        );
+
+        perpDEXWrapper.open(0, usdcCollateralRequired1e_18);
+
+        _mint(address(this), ethAmount);
+        IEIP4626(stakingContractAddress).deposit(ethAmount, to);
+
+        emit DepositTo(perpetualDEXIndex, address(collateral), to, ethAmount, usdcCollateralRequired);
     }
 
-    /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of collateral
-    /// @param to Receipent of minted USDL
-    /// @param collateralAmount Amount of collateral to deposit
+    /// @notice Deposit collateral like USDC. to mint ETHL specifying the exact amount of USDC collateral
+    /// @param to Receipent of minted ETHL
+    /// @param collateralAmount Amount of collateral USDC to deposit
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
-    /// @param minUSDLToMint Minimum USDL to mint
-    /// @param collateral Collateral to be used to mint USDL
+    /// @param minETHLToMint Minimum ETHL to mint
+    /// @param collateral Collateral to be used to mint ETHL
     function depositToWExactCollateral(
         address to,
         uint256 collateralAmount,
         uint256 perpetualDEXIndex,
-        uint256 minUSDLToMint,
+        uint256 minETHLToMint,
         IERC20Upgradeable collateral
-    ) external nonReentrant _onlyOneFuntionAtATime(_msgSender()) {
+    ) external nonReentrant {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
-        require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
+        require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
+
         uint256 collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmount, true);
         SafeERC20Upgradeable.safeTransferFrom(
             collateral,
@@ -192,107 +195,144 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             address(perpDEXWrapper),
             collateralAmountToDeposit
         );
-        uint256 USDLToMint = perpDEXWrapper.openWExactCollateral(collateralAmount);
-        require(USDLToMint >= minUSDLToMint, "USDL minted too low");
-        _mint(to, USDLToMint);
-        emit DepositTo(perpetualDEXIndex, address(collateral), to, USDLToMint, collateralAmountToDeposit);
+
+        uint256 ETHLToMint = perpDEXWrapper.openWExactCollateral(collateralAmount);
+        require(ETHLToMint >= minETHLToMint, "ETHL minted too low");
+
+        _mint(address(this), ETHLToMint);
+        IEIP4626(stakingContractAddress).deposit(ETHLToMint, to);
+
+        emit DepositTo(perpetualDEXIndex, address(collateral), to, ETHLToMint, collateralAmountToDeposit);
     }
 
-    /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc specifying the exact amount of USDL
+    /// @notice Redeem ETHL and withdraw collateral like USDC. specifying the exact amount of ethAmount
     /// @param to Receipent of withdrawn collateral
-    /// @param amount Amount of USDL to redeem
+    /// @param ethAmount Amount of ETHL to redeem
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be closed
-    /// @param minCollateralAmountToGetBack Minimum amount of collateral to get back on redeeming given USDL
-    /// @param collateral Collateral to be used to redeem USDL
+    /// @param minUsdcCollateralAmountToGetBack Minimum amount of collateral to get back on redeeming given ETHL
+    /// @param collateral Collateral to be used to redeem ETHL
     function withdrawTo(
         address to,
-        uint256 amount,
+        uint256 ethAmount,
         uint256 perpetualDEXIndex,
-        uint256 minCollateralAmountToGetBack,
+        uint256 minUsdcCollateralAmountToGetBack,
         IERC20Upgradeable collateral
-    ) public nonReentrant _onlyOneFuntionAtATime(_msgSender()) {
-        _burn(_msgSender(), amount);
+    ) public nonReentrant {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
-        require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
-        uint256 collateralAmountToGetBack = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
-        collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmountToGetBack, false);
-        require(collateralAmountToGetBack >= minCollateralAmountToGetBack, "collateral got back is too low");
-        perpDEXWrapper.close(amount, collateralAmountToGetBack);
+
+        require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
+        uint256 collateralAmountToGetBack1e_18 = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(
+            ethAmount,
+            false
+        );
+        require(collateralAmountToGetBack1e_18 >= minUsdcCollateralAmountToGetBack, "collateral got back is too low");
+
+        uint256 shares = IEIP4626(stakingContractAddress).previewWithdraw(ethAmount);
+        SafeERC20Upgradeable.safeTransferFrom(
+            IERC20Upgradeable(stakingContractAddress),
+            _msgSender(),
+            address(this),
+            shares
+        );
+
+        IEIP4626(stakingContractAddress).withdraw(ethAmount, address(this), address(this));
+        _burn(address(this), ethAmount);
+
+        perpDEXWrapper.close(0, collateralAmountToGetBack1e_18);
+
+        uint256 collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimals(
+            collateralAmountToGetBack1e_18,
+            false
+        );
         SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmountToGetBack);
-        emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, collateralAmountToGetBack);
+
+        emit WithdrawTo(perpetualDEXIndex, address(collateral), to, ethAmount, collateralAmountToGetBack);
     }
 
-    /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc specifying the exact amount of collateral
+    /// @notice Redeem ETHL and withdraw collateral like USDC. specifying the exact amount of USDC collateral
     /// @param to Receipent of withdrawn collateral
     /// @param collateralAmount Amount of collateral to withdraw
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be closed
-    /// @param maxUSDLToBurn Max USDL to burn in the process
-    /// @param collateral Collateral to be used to redeem USDL
+    /// @param maxETHLToBurn Max ETHL to burn in the process
+    /// @param collateral Collateral to be used to redeem ETHL
     function withdrawToWExactCollateral(
         address to,
         uint256 collateralAmount,
         uint256 perpetualDEXIndex,
-        uint256 maxUSDLToBurn,
+        uint256 maxETHLToBurn,
         IERC20Upgradeable collateral
-    ) external nonReentrant _onlyOneFuntionAtATime(_msgSender()) {
+    ) external nonReentrant {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
-        require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
-        uint256 collateralBefore = collateral.balanceOf(address(this));
-        uint256 USDLToBurn = perpDEXWrapper.closeWExactCollateral(collateralAmount);
-        uint256 collateralAmountToGetBack = collateral.balanceOf(address(this)) - collateralBefore;
-        require(USDLToBurn <= maxUSDLToBurn, "USDL burnt execeeds maximum");
-        _burn(_msgSender(), USDLToBurn);
-        SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmountToGetBack);
-        emit WithdrawTo(perpetualDEXIndex, address(collateral), to, USDLToBurn, collateralAmountToGetBack);
+
+        require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
+
+        uint256 ETHLToBurn = perpDEXWrapper.closeWExactCollateral(collateralAmount);
+        require(ETHLToBurn <= maxETHLToBurn, "ETHL burnt exceeds maximum");
+
+        uint256 shares = IEIP4626(stakingContractAddress).previewWithdraw(ETHLToBurn);
+        SafeERC20Upgradeable.safeTransferFrom(
+            IERC20Upgradeable(stakingContractAddress),
+            _msgSender(),
+            address(this),
+            shares
+        );
+
+        IEIP4626(stakingContractAddress).withdraw(ETHLToBurn, address(this), address(this));
+        _burn(address(this), ETHLToBurn);
+
+        collateralAmount = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmount, false);
+        SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmount);
+
+        emit WithdrawTo(perpetualDEXIndex, address(collateral), to, ETHLToBurn, collateralAmount);
     }
 
-    /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL
-    /// @param amount Amount of USDL to mint
+    /// @notice Mint ETHL and Deposit collateral like USDC by specifying the exact amount of ethAmount
+    /// @param ethAmount Amount of ETH need ETHL to mint
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
-    /// @param maxCollateralAmountRequired Maximum amount of collateral to be used to mint given USDL
-    /// @param collateral Collateral to be used to mint USDL
+    /// @param maxUSDCCollateralAmountRequired Maximum amount of USDC collateral nned to deposit to mint given ETHL
+    /// @param collateral Collateral(in our case USDC) to be used to mint ETHL
     function deposit(
-        uint256 amount,
+        uint256 ethAmount,
         uint256 perpetualDEXIndex,
-        uint256 maxCollateralAmountRequired,
+        uint256 maxUSDCCollateralAmountRequired,
         IERC20Upgradeable collateral
     ) external {
-        depositTo(_msgSender(), amount, perpetualDEXIndex, maxCollateralAmountRequired, collateral);
+        depositTo(_msgSender(), ethAmount, perpetualDEXIndex, maxUSDCCollateralAmountRequired, collateral);
     }
 
-    /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc
-    /// @param amount Amount of USDL to redeem
+    /// @notice Redeem ETHL and withdraw collateral like USDC. specifying the exact amount of ethAmount
+    /// @param ethAmount Amount of ETHL to redeem
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be closed
-    /// @param minCollateralAmountToGetBack Minimum amount of collateral to get back on redeeming given USDL
-    /// @param collateral Collateral to be used to redeem USDL
+    /// @param minUsdcCollateralAmountToGetBack Minimum amount of collateral to get back on redeeming given ETHL
+    /// @param collateral Collateral to be used to redeem ETHL
     function withdraw(
-        uint256 amount,
+        uint256 ethAmount,
         uint256 perpetualDEXIndex,
-        uint256 minCollateralAmountToGetBack,
+        uint256 minUsdcCollateralAmountToGetBack,
         IERC20Upgradeable collateral
     ) external {
-        withdrawTo(_msgSender(), amount, perpetualDEXIndex, minCollateralAmountToGetBack, collateral);
+        withdrawTo(_msgSender(), ethAmount, perpetualDEXIndex, minUsdcCollateralAmountToGetBack, collateral);
     }
 
-    /// @notice Rebalance position on a dex to reinvest if funding rate positive and burn USDL if funding rate negative
+    /// @notice Rebalance position on a dex to reinvest if funding rate positive and burn ETHL if funding rate negative
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be rebalanced
     /// @param collateral Collateral to be used to rebalance position
-    /// @param amount amount of USDL to burn or mint
+    /// @param amount amount of ETHL to burn or mint
     /// @param data data used to rebalance for perpetual data
     function reBalance(
         uint256 perpetualDEXIndex,
         IERC20Upgradeable collateral,
         int256 amount,
         bytes calldata data
-    ) external _onlyOneFuntionAtATime(_msgSender()) {
+    ) external {
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
-        require(address(perpDEXWrapper) != address(0), "inavlid DEX/collateral");
+        require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         require(perpDEXWrapper.reBalance(_msgSender(), amount, data), "rebalance not done");
         //burn or mint from the staker contract
         if (amount >= 0) {
@@ -321,7 +361,6 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
                 _burnFrom(lemmaTreasury, amountBurntFromLemmaTreasury);
             }
         }
-
         emit Rebalance(perpetualDEXIndex, address(collateral), amount);
     }
 
