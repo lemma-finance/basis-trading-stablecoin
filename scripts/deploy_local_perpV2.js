@@ -128,7 +128,6 @@ async function main() {
     perpLemmaFactory,
     [
       AddressZero,
-      ethCollateral.address,
       baseToken.address,
       clearingHouse.address,
       marketRegistry.address,
@@ -137,7 +136,8 @@ async function main() {
     ],
     { initializer: "initialize" },
   );
-  ethCollateralDecimals = await perpLemma.collateralDecimals(); // collateral decimal
+  collateralDecimals = await perpLemma.collateralDecimals(); // collateral decimal
+  console.log('collateralDecimals: ', collateralDecimals.toString())
   await perpLemma.connect(signer1).resetApprovals();
   await perpLemma.connect(defaultSigner).setReBalancer(reBalancer.address);
 
@@ -146,8 +146,8 @@ async function main() {
   // const { chainId } = await arbProvider.getNetwork();
 
   await mockedBaseAggregator.setLatestRoundData(0, parseUnits("100", 6), 0, 0, 0);
-  await mockedBaseAggregator2.setLatestRoundData(0, parseUnits("0.01", ethCollateralDecimals), 0, 0, 0);
-  await mockedWethPriceFeed.setLatestRoundData(0, parseUnits("100", ethCollateralDecimals), 0, 0, 0);
+  // await mockedBaseAggregator2.setLatestRoundData(0, parseUnits("0.01", collateralDecimals), 0, 0, 0);
+  await mockedWethPriceFeed.setLatestRoundData(0, parseUnits("100", 18), 0, 0, 0);
 
   await pool.initialize(encodePriceSqrt("100", "1"));
   await pool.increaseObservationCardinalityNext((2 ^ 16) - 1);
@@ -163,25 +163,34 @@ async function main() {
   // await marketRegistry.setFeeRatio(baseToken2.address, 10000)
   await exchange.setMaxTickCrossedWithinBlock(baseToken.address, 887272 * 2);
 
+  const usdcRichAddress = "0xCFFAd3200574698b78f32232aa9D63eABD290703";
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [usdcRichAddress],
+  });
+  let richUSDCSigner = await ethers.provider.getSigner(usdcRichAddress);
+
   // weth rich address 0xF977814e90dA44bFA03b6295A0616a897441aceC
-  const amountOfCollateralToMint = utils.parseEther("2000");
 
-  await signer1.sendTransaction({ to: ethCollateral.address, value: amountOfCollateralToMint });
-  await signer2.sendTransaction({ to: ethCollateral.address, value: amountOfCollateralToMint });
-  await longAddress.sendTransaction({ to: ethCollateral.address, value: amountOfCollateralToMint });
+  const amountOfCollateralToMint = parseUnits("20000000", collateralDecimals); // 6 decimal
+  await usdCollateral.connect(richUSDCSigner).transfer(signer1.address, amountOfCollateralToMint);
+  await usdCollateral.connect(richUSDCSigner).transfer(signer2.address, amountOfCollateralToMint);
+  await usdCollateral.connect(richUSDCSigner).transfer(longAddress.address, amountOfCollateralToMint);
 
-  await ethCollateral.connect(signer1).approve(vault.address, ethers.constants.MaxUint256);
-  await ethCollateral.connect(signer2).approve(vault.address, ethers.constants.MaxUint256);
-  await ethCollateral.connect(longAddress).approve(vault.address, ethers.constants.MaxUint256);
+  await usdCollateral.connect(signer1).approve(vault.address, ethers.constants.MaxUint256);
+  await usdCollateral.connect(signer2).approve(vault.address, ethers.constants.MaxUint256);
+  await usdCollateral.connect(longAddress).approve(vault.address, ethers.constants.MaxUint256);
 
-  await vault.connect(signer1).deposit(ethCollateral.address, parseUnits("1000", ethCollateralDecimals));
-  await vault.connect(signer2).deposit(ethCollateral.address, parseUnits("1500", ethCollateralDecimals));
-  await vault.connect(longAddress).deposit(ethCollateral.address, parseUnits("1000", ethCollateralDecimals));
+  await vault.connect(signer1).deposit(usdCollateral.address, parseUnits("100000", collateralDecimals));
+  await vault.connect(signer2).deposit(usdCollateral.address, parseUnits("150000", collateralDecimals));
+  await vault.connect(longAddress).deposit(usdCollateral.address, parseUnits("100000", collateralDecimals));
+
+  console.log('Done')
 
   await clearingHouse.connect(signer2).addLiquidity({
     baseToken: baseToken.address,
-    base: parseEther("750"),
-    quote: parseEther("75000"),
+    base: parseEther("1000"),
+    quote: parseEther("100000"),
     lowerTick: -887200, //50000,
     upperTick: 887200, //50400,
     minBase: 0,
@@ -198,51 +207,51 @@ async function main() {
     params: [usdcWhaleAddress],
   });
 
-  const usdcWhale = await ethers.provider.getSigner(usdcWhaleAddress);
-  const depositSettlement = parseUnits("10000", 6); // usdc is settlement token
-  await usdCollateral.connect(usdcWhale).transfer(defaultSigner.address, depositSettlement);
-  await usdCollateral.connect(defaultSigner).approve(perpLemma.address, ethers.constants.MaxUint256);
-  await perpLemma.connect(defaultSigner).depositSettlementToken(depositSettlement);
+  // const usdcWhale = await ethers.provider.getSigner(usdcWhaleAddress);
+  // const depositSettlement = parseUnits("10000", 6); // usdc is settlement token
+  // await usdCollateral.connect(usdcWhale).transfer(defaultSigner.address, depositSettlement);
+  // await usdCollateral.connect(defaultSigner).approve(perpLemma.address, ethers.constants.MaxUint256);
+  // await perpLemma.connect(defaultSigner).depositSettlementToken(depositSettlement);
 
-  const USDLemma = await ethers.getContractFactory("USDLemma");
-  const usdLemma = await upgrades.deployProxy(USDLemma, [AddressZero, ethCollateral.address, perpLemma.address], {
+  const LemmaETH = await ethers.getContractFactory("LemmaETH");
+  const lemmaETH = await upgrades.deployProxy(LemmaETH, [AddressZero, usdCollateral.address, perpLemma.address], {
     initializer: "initialize",
   });
-  await perpLemma.setUSDLemma(usdLemma.address);
+  await perpLemma.setUSDLemma(lemmaETH.address);
 
   //deploy stackingContract
-  const XUSDL = await ethers.getContractFactory("xUSDL");
+  const XETHL = await ethers.getContractFactory("xETHL");
   const peripheryAddress = AddressZero;
-  const xUSDL = await upgrades.deployProxy(XUSDL, [AddressZero, usdLemma.address, peripheryAddress], {
+  const xETHL = await upgrades.deployProxy(XETHL, [AddressZero, lemmaETH.address, peripheryAddress], {
     initializer: "initialize",
   });
-  console.log("xUSDL", xUSDL.address);
-  console.log("USDLemma", await xUSDL.usdl());
+  console.log("xETHL", xETHL.address);
+  console.log("LemmaETH", await xETHL.usdl());
 
   // //deposit keeper gas reward
   // //get some WETH first
   // //get the keeper gas reward
 
   // // const amountOfCollateralToMint = utils.parseEther("2000");
-  // // await defaultSigner.sendTransaction({ to: ethCollateral.address, value: amountOfCollateralToMint });
-  // // await hasWETH.sendTransaction({ to: ethCollateral.address, value: amountOfCollateralToMint });
+  // // await defaultSigner.sendTransaction({ to: usdCollateral.address, value: amountOfCollateralToMint });
+  // // await hasWETH.sendTransaction({ to: usdCollateral.address, value: amountOfCollateralToMint });
 
   //set fees
   const fees = 3000; //30%
-  await usdLemma.setFees(fees);
+  await lemmaETH.setFees(fees);
   //set stacking contract address
-  await usdLemma.setStakingContractAddress(xUSDL.address);
+  await lemmaETH.setStakingContractAddress(xETHL.address);
   //set lemma treasury address
-  await usdLemma.setLemmaTreasury(lemmaTreasury.address);
+  await lemmaETH.setLemmaTreasury(lemmaTreasury.address);
 
-  deployedContracts["USDLemma"] = {
-    name: "USDLemma",
-    address: usdLemma.address,
+  deployedContracts["LemmaETH"] = {
+    name: "LemmaETH",
+    address: lemmaETH.address,
   };
 
-  deployedContracts["XUSDL"] = {
-    name: "XUSDL",
-    address: xUSDL.address,
+  deployedContracts["XETHL"] = {
+    name: "XETHL",
+    address: xETHL.address,
   };
 
   deployedContracts["PerpLemma"] = {

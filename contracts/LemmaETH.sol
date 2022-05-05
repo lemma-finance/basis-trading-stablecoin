@@ -164,8 +164,8 @@ contract LemmaETH is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
 
         perpDEXWrapper.open(0, usdcCollateralRequired1e_18);
 
-        _mint(address(this), ethAmount);
-        IEIP4626(stakingContractAddress).deposit(ethAmount, to);
+        _mint(to, ethAmount);
+        // IEIP4626(stakingContractAddress).deposit(ethAmount, to);
 
         emit DepositTo(perpetualDEXIndex, address(collateral), to, ethAmount, usdcCollateralRequired);
     }
@@ -188,7 +188,7 @@ contract LemmaETH is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
 
-        uint256 collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmount, true);
+        uint256 collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmount, false);
         SafeERC20Upgradeable.safeTransferFrom(
             collateral,
             _msgSender(),
@@ -199,8 +199,8 @@ contract LemmaETH is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 ETHLToMint = perpDEXWrapper.openWExactCollateral(collateralAmount);
         require(ETHLToMint >= minETHLToMint, "ETHL minted too low");
 
-        _mint(address(this), ETHLToMint);
-        IEIP4626(stakingContractAddress).deposit(ETHLToMint, to);
+        _mint(to, ETHLToMint);
+        // IEIP4626(stakingContractAddress).deposit(ETHLToMint, to);
 
         emit DepositTo(perpetualDEXIndex, address(collateral), to, ETHLToMint, collateralAmountToDeposit);
     }
@@ -218,6 +218,7 @@ contract LemmaETH is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 minUsdcCollateralAmountToGetBack,
         IERC20Upgradeable collateral
     ) public nonReentrant {
+        _burn(to, ethAmount);
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
@@ -229,16 +230,16 @@ contract LemmaETH is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         );
         require(collateralAmountToGetBack1e_18 >= minUsdcCollateralAmountToGetBack, "collateral got back is too low");
 
-        uint256 shares = IEIP4626(stakingContractAddress).previewWithdraw(ethAmount);
-        SafeERC20Upgradeable.safeTransferFrom(
-            IERC20Upgradeable(stakingContractAddress),
-            _msgSender(),
-            address(this),
-            shares
-        );
+        // uint256 shares = IEIP4626(stakingContractAddress).previewWithdraw(ethAmount);
+        // SafeERC20Upgradeable.safeTransferFrom(
+        //     IERC20Upgradeable(stakingContractAddress),
+        //     _msgSender(),
+        //     address(this),
+        //     shares
+        // );
 
-        IEIP4626(stakingContractAddress).withdraw(ethAmount, address(this), address(this));
-        _burn(address(this), ethAmount);
+        // IEIP4626(stakingContractAddress).withdraw(ethAmount, address(this), address(this));
+        // _burn(address(this), ethAmount);
 
         perpDEXWrapper.close(0, collateralAmountToGetBack1e_18);
 
@@ -273,16 +274,16 @@ contract LemmaETH is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 ETHLToBurn = perpDEXWrapper.closeWExactCollateral(collateralAmount);
         require(ETHLToBurn <= maxETHLToBurn, "ETHL burnt exceeds maximum");
 
-        uint256 shares = IEIP4626(stakingContractAddress).previewWithdraw(ETHLToBurn);
-        SafeERC20Upgradeable.safeTransferFrom(
-            IERC20Upgradeable(stakingContractAddress),
-            _msgSender(),
-            address(this),
-            shares
-        );
+        // uint256 shares = IEIP4626(stakingContractAddress).previewWithdraw(ETHLToBurn);
+        // SafeERC20Upgradeable.safeTransferFrom(
+        //     IERC20Upgradeable(stakingContractAddress),
+        //     _msgSender(),
+        //     address(this),
+        //     shares
+        // );
 
-        IEIP4626(stakingContractAddress).withdraw(ETHLToBurn, address(this), address(this));
-        _burn(address(this), ETHLToBurn);
+        // IEIP4626(stakingContractAddress).withdraw(ETHLToBurn, address(this), address(this));
+        _burn(to, ETHLToBurn);
 
         collateralAmount = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmount, false);
         SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmount);
