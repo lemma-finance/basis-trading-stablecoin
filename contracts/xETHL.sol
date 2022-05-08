@@ -14,7 +14,7 @@ contract xETHL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
 
     mapping(address => uint256) public userUnlockBlock;
 
-    IERC20Upgradeable public ethl;
+    IERC20Upgradeable public usdl;
 
     //events
     event MinimuLockUpdated(uint256 newLock);
@@ -24,15 +24,15 @@ contract xETHL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
 
     function initialize(
         address _trustedForwarder,
-        address _ethl,
+        address _usdl,
         address _periphery
     ) external initializer {
         __Ownable_init();
         __ERC20_init("xLemmaETH", "xETHL");
         __ERC20Permit_init("xLemmaETH");
         __ERC2771Context_init(_trustedForwarder);
-        ethl = IERC20Upgradeable(_ethl);
-        SafeERC20Upgradeable.safeApprove(ethl, address(ethl), type(uint256).max);
+        usdl = IERC20Upgradeable(_usdl);
+        SafeERC20Upgradeable.safeApprove(usdl, address(usdl), type(uint256).max);
         setPeriphery(_periphery);
     }
 
@@ -48,20 +48,20 @@ contract xETHL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
         emit MinimuLockUpdated(_minimumLock);
     }
 
-    /// @notice reset approvals for ethl contract to user ethl as needed
+    /// @notice reset approvals for usdl contract to user usdl as needed
     function resetApprovals() external {
-        SafeERC20Upgradeable.safeApprove(ethl, address(ethl), type(uint256).max);
+        SafeERC20Upgradeable.safeApprove(usdl, address(usdl), type(uint256).max);
     }
 
     /// @notice The address of the underlying token used for the Vault uses for accounting, depositing, and withdrawing.
     function asset() external view override returns (address) {
-        return address(ethl);
+        return address(usdl);
     }
 
     /// @notice totalAssets Total amount of the underlying asset that is “managed” by Vault.
     /// @return totalManagedAssets Amount of ETHL in xEthl contract
     function totalAssets() public view override returns (uint256 totalManagedAssets) {
-        totalManagedAssets = ethl.balanceOf(address(this));
+        totalManagedAssets = usdl.balanceOf(address(this));
     }
 
     /// @notice Mints shares Vault shares to receiver by depositing exactly amount of underlying tokens.
@@ -71,7 +71,7 @@ contract xETHL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
     function deposit(uint256 assets, address receiver) external override returns (uint256 shares) {
         require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
         console.log(_msgSender(), assets);
-        SafeERC20Upgradeable.safeTransferFrom(ethl, _msgSender(), address(this), assets);
+        SafeERC20Upgradeable.safeTransferFrom(usdl, _msgSender(), address(this), assets);
         if (periphery != _msgSender()) {
             userUnlockBlock[_msgSender()] = block.number + minimumLock;
         }
@@ -85,7 +85,7 @@ contract xETHL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
     /// @return assets total Ethl need to deposit
     function mint(uint256 shares, address receiver) external override returns (uint256 assets) {
         require((assets = previewMint(shares)) != 0, "ZERO_SHARES");
-        SafeERC20Upgradeable.safeTransferFrom(ethl, _msgSender(), address(this), assets);
+        SafeERC20Upgradeable.safeTransferFrom(usdl, _msgSender(), address(this), assets);
         if (periphery != _msgSender()) {
             userUnlockBlock[_msgSender()] = block.number + minimumLock;
         }
@@ -107,7 +107,7 @@ contract xETHL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
         require(block.number >= userUnlockBlock[_msgSender()], "xETHL: Locked tokens");
         require((shares = previewWithdraw(assets)) != 0, "ZERO_SHARES");
         _burn(owner, shares);
-        SafeERC20Upgradeable.safeTransfer(ethl, receiver, assets);
+        SafeERC20Upgradeable.safeTransfer(usdl, receiver, assets);
         emit Withdraw(owner, receiver, assets, shares);
     }
 
@@ -125,13 +125,13 @@ contract xETHL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
         require(block.number >= userUnlockBlock[_msgSender()], "xETHL: Locked tokens");
         require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
         _burn(owner, shares);
-        SafeERC20Upgradeable.safeTransfer(ethl, receiver, assets);
+        SafeERC20Upgradeable.safeTransfer(usdl, receiver, assets);
         emit Withdraw(owner, receiver, assets, shares);
     }
 
     /// @notice Total number of underlying assets that depositor’s shares represent.
     /// @param user balanceOf userAddress
-    /// @return ethl balance of user
+    /// @return usdl balance of user
     function assetsOf(address user) external view override returns (uint256) {
         return previewRedeem(balanceOf(user));
     }

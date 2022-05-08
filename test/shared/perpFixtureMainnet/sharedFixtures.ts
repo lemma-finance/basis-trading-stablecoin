@@ -5,10 +5,11 @@ import {
   VirtualToken,
   MockTestAggregatorV3__factory,
   QuoteToken__factory,
-  ChainlinkPriceFeed__factory,
   BaseToken__factory,
   UniswapV3Factory__factory,
 } from "../../../perp-lushan/typechain";
+import { ChainlinkPriceFeed__factory } from "../../../perp-lushan/typechain/perp-oracle"
+
 import { isAscendingTokenOrder } from "./utilities";
 
 interface TokensFixture {
@@ -47,7 +48,6 @@ export function createBaseTokenFixture(admin: any, name: string, symbol: string)
       admin,
     );
     const mockedAggregator = (await aggregatorFactory.deploy()) as any;
-
     await mockedAggregator.setDecimals(6);
     // await mockedAggregator.setDecimals(18)
     // await mockedAggregator.setLatestRoundData(0, parseUnits("100", 6), 0, 0, 0)

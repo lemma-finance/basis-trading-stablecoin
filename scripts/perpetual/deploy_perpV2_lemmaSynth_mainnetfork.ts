@@ -149,7 +149,7 @@ async function main() {
     initializer: "initialize",
   });
   console.log("xETHL", xETHL.address);
-  console.log("LemmaETH", await xETHL.ethl());
+  console.log("LemmaETH", await xETHL.usdl());
 
   //set fees
   const fees = 3000; //30%

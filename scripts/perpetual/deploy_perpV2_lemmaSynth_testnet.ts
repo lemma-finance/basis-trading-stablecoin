@@ -98,9 +98,9 @@ async function main() {
       initializer: "initialize",
     },
   );
-  const ethl: any = await xETHL.ethl()
+  const usdl: any = await xETHL.usdl()
   console.log("xETHL", xETHL.address);
-  console.log("LemmaETH", ethl);
+  console.log("LemmaETH", usdl);
   await delay(10000);
 
   console.log("configuring parameters");
