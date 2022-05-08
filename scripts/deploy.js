@@ -94,12 +94,12 @@ async function main() {
   const collateralAddress = await mcdexLemma.collateral();
   console.log("collateralAddress", collateralAddress);
 
-  //deploy USDLemma
-  const USDLemma = await ethers.getContractFactory("USDLemma");
-  const usdLemma = await upgrades.deployProxy(USDLemma, [trustedForwarder, collateralAddress, mcdexLemma.address], {
+  //deploy LemmaETH
+  const LemmaETH = await ethers.getContractFactory("LemmaETH");
+  const usdLemma = await upgrades.deployProxy(LemmaETH, [trustedForwarder, collateralAddress, mcdexLemma.address], {
     initializer: "initialize",
   });
-  // const usdLemma = USDLemma.attach("0xdb41ab644AbcA7f5ac579A5Cf2F41e606C2d6abc");
+  // const usdLemma = LemmaETH.attach("0xdb41ab644AbcA7f5ac579A5Cf2F41e606C2d6abc");
   console.log("USDL", usdLemma.address);
   // await delay(60000);
   //deploy stackingContract
@@ -172,8 +172,8 @@ async function main() {
   await printTx(tx.hash);
   console.log("balance of USDL", (await usdLemma.balanceOf(defaultSigner.address)).toString());
 
-  deployedContracts["USDLemma"] = {
-    name: "USDLemma",
+  deployedContracts["LemmaETH"] = {
+    name: "LemmaETH",
     address: usdLemma.address,
   };
 

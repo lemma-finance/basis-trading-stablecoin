@@ -13,7 +13,7 @@ import {
   computeAMMTradeAmountByMargin,
 } from "@mcdex/mai3.js";
 import { toBigNumber, fromBigNumber, snapshot, revertToSnapshot } from "./shared/utils";
-import { createUsdlFixture } from "./shared/fixtures";
+import { createEthlFixture } from "./shared/fixtures";
 const MASK_USE_TARGET_LEVERAGE = 0x08000000;
 
 // const printTx = async (hash) => {
@@ -46,9 +46,9 @@ describe("USDLemma", async () => {
   before(async () => {
     [defaultSigner, reBalancer, hasWETH, stackingContract, lemmaTreasury, signer1, signer2] = await ethers.getSigners();
     const loadFixture: ReturnType<typeof waffle.createFixtureLoader> = waffle.createFixtureLoader([defaultSigner]);
-    const _usdlFixture = await loadFixture(createUsdlFixture());
+    const _usdlFixture = await loadFixture(createEthlFixture());
     mcdexLemma = _usdlFixture.mcdexLemma;
-    usdLemma = _usdlFixture.usdLemma;
+    usdLemma = _usdlFixture.lemmaEth;
     collateral = _usdlFixture.collateral;
     liquidityPool = _usdlFixture.liquidityPool;
     reader = _usdlFixture.reader;

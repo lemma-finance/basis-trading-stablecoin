@@ -31,13 +31,13 @@ import {
   computeDecreasePosition,
   computeAMMTradeAmountByMargin,
 } from "@mcdex/mai3.js";
-import { MCDEXLemma, USDLemma } from "../../types";
+import { MCDEXLemma, LemmaETH } from "../../types";
 import hre from "hardhat";
 const arbProvider = new JsonRpcProvider(hre.waffle.provider.connection.url);
 
-interface UsdlFixture {
+interface EthlFixture {
   mcdexLemma: MCDEXLemma;
-  usdLemma: USDLemma;
+  lemmaEth: LemmaETH;
   reader: ReaderFactory;
   liquidityPool: LiquidityPoolFactory;
   collateral: IERC20Factory;
@@ -45,8 +45,8 @@ interface UsdlFixture {
 }
 
 // caller of this function should ensure that (base, quote) = (token0, token1) is always true
-export function createUsdlFixture(canMockTime: boolean = true): () => Promise<UsdlFixture> {
-  return async (): Promise<UsdlFixture> => {
+export function createEthlFixture(canMockTime: boolean = true): () => Promise<EthlFixture> {
+  return async (): Promise<EthlFixture> => {
     let defaultSigner, reBalancer, hasWETH, keeperGasReward, stackingContract, lemmaTreasury, signer1, signer2;
     const perpetualIndex = 0; //in Kovan the 0th perp for 0th liquidity pool = inverse ETH-USD
     const provider = ethers.provider;
@@ -55,7 +55,7 @@ export function createUsdlFixture(canMockTime: boolean = true): () => Promise<Us
     let liquidityPool, reader, mcdexAddresses;
     let collateralDecimals;
     let mcdexLemma: any;
-    let usdLemma: any;
+    let lemmaEth: any;
     let collateral: any;
 
     mcdexAddresses = await loadMCDEXInfo();
@@ -89,17 +89,17 @@ export function createUsdlFixture(canMockTime: boolean = true): () => Promise<Us
     );
     collateralDecimals = await mcdexLemma.collateralDecimals();
     const collateralAddress = await mcdexLemma.collateral();
-    const ERC20 = IERC20Factory.connect(collateralAddress, defaultSigner); //choose USDLemma ust because it follows IERC20 interface
+    const ERC20 = IERC20Factory.connect(collateralAddress, defaultSigner); //choose LemmaETH ust because it follows IERC20 interface
     collateral = ERC20.attach(collateralAddress); //WETH
-    const USDLemma = await ethers.getContractFactory("USDLemma");
-    usdLemma = await upgrades.deployProxy(USDLemma, [AddressZero, collateralAddress, mcdexLemma.address], {
+    const LemmaETH = await ethers.getContractFactory("LemmaETH");
+    lemmaEth = await upgrades.deployProxy(LemmaETH, [AddressZero, collateralAddress, mcdexLemma.address], {
       initializer: "initialize",
     });
-    await mcdexLemma.setUSDLemma(usdLemma.address);
+    await mcdexLemma.setUSDLemma(lemmaEth.address);
 
     return {
       mcdexLemma,
-      usdLemma,
+      lemmaEth,
       reader,
       liquidityPool,
       collateral,

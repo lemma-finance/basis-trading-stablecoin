@@ -88,12 +88,12 @@ async function main() {
   );
   const collateralDecimals = await mcdexLemma.collateralDecimals();
   const collateralAddress = await mcdexLemma.collateral();
-  const ERC20 = IERC20Factory.connect(collateralAddress, defaultSigner); //choose USDLemma ust because it follows IERC20 interface
+  const ERC20 = IERC20Factory.connect(collateralAddress, defaultSigner); //choose LemmaETH ust because it follows IERC20 interface
   const collateral = ERC20.attach(collateralAddress); //WETH
   console.log("collateral", collateralAddress);
-  const USDLemma = await ethers.getContractFactory("USDLemma");
+  const LemmaETH = await ethers.getContractFactory("LemmaETH");
   console.log("mcdexLemma", mcdexLemma.address);
-  const usdLemma = await upgrades.deployProxy(USDLemma, [AddressZero, collateralAddress, mcdexLemma.address], {
+  const usdLemma = await upgrades.deployProxy(LemmaETH, [AddressZero, collateralAddress, mcdexLemma.address], {
     initializer: "initialize",
   });
   await mcdexLemma.setUSDLemma(usdLemma.address);
@@ -106,7 +106,7 @@ async function main() {
     initializer: "initialize",
   });
   console.log("xUSDL", xUSDL.address);
-  console.log("USDLemma", await xUSDL.usdl());
+  console.log("LemmaETH", await xUSDL.usdl());
 
   //deposit keeper gas reward
   //get some WETH first
@@ -267,8 +267,8 @@ async function main() {
     console.log("rebalance amount", amountWithFeesConsidered.toString());
   }
 
-  deployedContracts["USDLemma"] = {
-    name: "USDLemma",
+  deployedContracts["LemmaETH"] = {
+    name: "LemmaETH",
     address: usdLemma.address,
   };
 
