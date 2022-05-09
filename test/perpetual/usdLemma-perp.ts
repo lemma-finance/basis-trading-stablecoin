@@ -4,7 +4,7 @@ import { solidity } from "ethereum-waffle";
 import { utils, constants } from "ethers";
 import { parseEther, parseUnits } from "ethers/lib/utils";
 import { BigNumber } from "@ethersproject/bignumber";
-import { loadPerpLushanInfo, snapshot, revertToSnapshot } from "../shared/utils";
+import { snapshot, revertToSnapshot } from "../shared/utils";
 import bn from "bignumber.js";
 bn.config({ EXPONENTIAL_AT: 999999, DECIMAL_PLACES: 40 });
 const { AddressZero, MaxUint256, MaxInt256 } = constants;

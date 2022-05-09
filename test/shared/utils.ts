@@ -32,46 +32,6 @@ export async function loadMCDEXInfo() {
   return JSON.parse(data);
 }
 
-export async function deployPerpLocally() {
-  // console.log("deploying MCDEX locally,please wait...");
-  const { stdout, stderr } = await exec(
-    "cd perp-lushan/ && pwd && npx hardhat run scripts/deploy_local.ts --network local && cd ..  && pwd",
-  );
-  if (stderr) {
-    console.error(`error: ${stderr}`);
-  }
-  // console.log(`output: ${stdout}`);
-  // console.log("deployment done");
-}
-
-export async function loadPerpLushanInfo() {
-  //deploy mcdex and then load
-  await deployPerpLocally();
-  //get perp-lushan addresses
-  const data = fs.readFileSync(__dirname + "/../../perp-lushan/deployments/local.deployment.js", "utf8");
-  return JSON.parse(data);
-}
-// FOR ETH
-export async function deployPerpLocallyMainnet() {
-  // console.log("deploying MCDEX locally,please wait...");
-  const { stdout, stderr } = await exec(
-    "cd perp-lushan/ && pwd && npx hardhat run scripts/deploy_local_perp_mainnet.ts --network local && cd ..  && pwd",
-  );
-  if (stderr) {
-    console.error(`error: ${stderr}`);
-  }
-  // console.log(`output: ${stdout}`);
-  // console.log("deployment done");
-}
-
-export async function loadPerpLushanInfoMainnet() {
-  //deploy mcdex and then load
-  await deployPerpLocallyMainnet();
-  //get MCDEXAddresses
-  const data = fs.readFileSync(__dirname + "/../../perp-lushan/deployments/local.deployment.js", "utf8");
-  return JSON.parse(data);
-}
-
 export async function fetchFromURL(url) {
   try {
     const response = await axios.get(url);

@@ -1,33 +1,21 @@
 const hre = require("hardhat");
-const { ethers, upgrades, network } = hre;
+const { ethers, upgrades } = hre;
 const { constants, BigNumber } = ethers;
 import { utils } from "ethers";
 const { AddressZero, MaxInt256, MaxUint256 } = constants;
 import {
-  displayNicely,
   loadMCDEXInfo,
   toBigNumber,
-  fromBigNumber,
-  snapshot,
-  revertToSnapshot,
+  fromBigNumber
 } from "../../test/shared/utils";
 import {
-  CHAIN_ID_TO_POOL_CREATOR_ADDRESS,
   PoolCreatorFactory,
   ReaderFactory,
   LiquidityPoolFactory,
   IERC20Factory,
-  CHAIN_ID_TO_READER_ADDRESS,
   getLiquidityPool,
-  getAccountStorage,
-  computeAccount,
-  normalizeBigNumberish,
-  DECIMALS,
-  computeAMMTrade,
-  computeIncreasePosition,
   _0,
   _1,
-  computeDecreasePosition,
   computeAMMTradeAmountByMargin,
 } from "@mcdex/mai3.js";
 import fs from "fs";
@@ -54,10 +42,6 @@ async function main() {
   // console.log(hre.network);
   const arbProvider = ethers.getDefaultProvider(hre.network.config.url);
   const { chainId } = await arbProvider.getNetwork();
-
-  // const chainId = 42;//kovan
-  // const arbProvider = ethers.getDefaultProvider('https://kovan.infura.io/v3/2a1a54c3aa374385ae4531da66fdf150');
-
   const poolCreatorAddress = mcdexAddresses.PoolCreator.address;
   const readerAddress = mcdexAddresses.Reader.address;
   const poolCreator = PoolCreatorFactory.connect(poolCreatorAddress, arbProvider);

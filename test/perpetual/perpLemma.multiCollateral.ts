@@ -588,7 +588,7 @@ describe("perpLemma.multiCollateral", async function () {
         expect(await ethCollateral.balanceOf(perpLemma.address)).to.be.equal(ZERO);
       });
       // getCollateralAmountGivenUnderlyingAssetAmount => gCAGUAA
-      it.only("#2 openWExactCollateral and gCAGUAA => close ", async function () {
+      it("#2 openWExactCollateral and gCAGUAA => close ", async function () {
         collateralAmountForETH = parseUnits("1", ethCollateralDecimals); // 6 decimal
         await ethCollateral.connect(usdLemma).transfer(perpLemma.address, collateralAmountForETH);
 

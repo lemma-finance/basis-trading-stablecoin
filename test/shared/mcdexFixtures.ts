@@ -4,36 +4,19 @@ import { expect } from "chai";
 import { BigNumber, constants } from "ethers";
 const { AddressZero, MaxUint256, MaxInt256 } = constants;
 import {
-  displayNicely,
-  // tokenTransfers,
   loadMCDEXInfo,
-  toBigNumber,
-  fromBigNumber,
-  snapshot,
-  revertToSnapshot,
 } from "./utils";
 import {
-  CHAIN_ID_TO_POOL_CREATOR_ADDRESS,
   PoolCreatorFactory,
   ReaderFactory,
   LiquidityPoolFactory,
   IERC20Factory,
-  CHAIN_ID_TO_READER_ADDRESS,
-  getLiquidityPool,
-  getAccountStorage,
-  computeAccount,
-  normalizeBigNumberish,
-  DECIMALS,
-  computeAMMTrade,
-  computeIncreasePosition,
   _0,
   _1,
-  computeDecreasePosition,
-  computeAMMTradeAmountByMargin,
 } from "@mcdex/mai3.js";
-import { MCDEXLemma, USDLemma } from "../../types";
+import { MCDEXLemma } from "../../types/MCDEXLemma";
+import { USDLemma } from "../../types/USDLemma";
 import hre from "hardhat";
-const arbProvider = new JsonRpcProvider(hre.waffle.provider.connection.url);
 
 interface UsdlFixture {
   mcdexLemma: MCDEXLemma;
@@ -51,7 +34,6 @@ export function createUsdlFixture(canMockTime: boolean = true): () => Promise<Us
     const perpetualIndex = 0; //in Kovan the 0th perp for 0th liquidity pool = inverse ETH-USD
     const provider = ethers.provider;
     const ZERO = BigNumber.from("0");
-    let snapshotId;
     let liquidityPool, reader, mcdexAddresses;
     let collateralDecimals;
     let mcdexLemma: any;
@@ -61,14 +43,9 @@ export function createUsdlFixture(canMockTime: boolean = true): () => Promise<Us
     mcdexAddresses = await loadMCDEXInfo();
     [defaultSigner, reBalancer, hasWETH, stackingContract, lemmaTreasury, signer1, signer2] = await ethers.getSigners();
 
-    // console.log('defaultSigner: ', defaultSigner.address)
-
     const poolCreatorAddress = mcdexAddresses.PoolCreator.address;
     const readerAddress = mcdexAddresses.Reader.address;
     const oracleAdaptorAddress = mcdexAddresses.OracleAdaptor.address;
-
-    // console.log('poolCreatorAddress: ', poolCreatorAddress)
-
     const poolCreator = PoolCreatorFactory.connect(poolCreatorAddress, defaultSigner);
     reader = ReaderFactory.connect(readerAddress, defaultSigner);
     const poolCount = await poolCreator.getLiquidityPoolCount();
