@@ -1,18 +1,17 @@
 const hre = require("hardhat");
-const { ethers, upgrades } = hre;
+const { ethers, upgrades, network } = hre;
 const { constants, BigNumber } = ethers;
-const { utils } = require("ethers");
+import { utils } from "ethers";
 const { AddressZero, MaxInt256, MaxUint256 } = constants;
-const {
+import {
   displayNicely,
-  tokenTransfers,
   loadMCDEXInfo,
   toBigNumber,
   fromBigNumber,
   snapshot,
   revertToSnapshot,
-} = require("../test/utils");
-const {
+} from "../../test/shared/utils";
+import {
   CHAIN_ID_TO_POOL_CREATOR_ADDRESS,
   PoolCreatorFactory,
   ReaderFactory,
@@ -30,19 +29,11 @@ const {
   _1,
   computeDecreasePosition,
   computeAMMTradeAmountByMargin,
-} = require("@mcdex/mai3.js");
-const fs = require("fs");
+} from "@mcdex/mai3.js";
+import fs from "fs";
 const SAVE_PREFIX = "./deployments/";
 const SAVE_POSTFIX = "local.deployment.js";
 let deployedContracts = {};
-const ZERO = BigNumber.from("0");
-//add it in prod
-// const TRUSTED_FORWARDER = {
-//     42: "0xF82986F574803dfFd9609BE8b9c7B92f63a1410E",
-// };
-const printTx = async hash => {
-  await tokenTransfers.print(hash, [], false);
-};
 
 const save = async () => {
   await fs.writeFileSync(SAVE_PREFIX + SAVE_POSTFIX, JSON.stringify(deployedContracts, null, 2));
@@ -163,7 +154,7 @@ async function main() {
   await xUSDL.deposit(amount.div(2), defaultSigner.address);
 
   let periphery = defaultSigner;
-  await xUSDL.updatePeriphery(periphery.address);
+  await xUSDL.setPeriphery(periphery.address);
   await xUSDL.transfer(signer2.address, await xUSDL.balanceOf(defaultSigner.address));
   // await usdLemma.transfer(xUSDL.address, amount.div(4));
 
@@ -190,9 +181,9 @@ async function main() {
 
     const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
     const perpetualInfo = liquidityPoolInfo.perpetuals.get(perpetualIndex);
-    const marginChange = toBigNumber(unrealizedFundingPNL).negated();
+    const marginChange = (await toBigNumber(unrealizedFundingPNL)).negated();
     const feeRate = perpetualInfo.lpFeeRate.plus(liquidityPoolInfo.vaultFeeRate).plus(perpetualInfo.operatorFeeRate);
-    const marginChangeWithFeesConsidered = marginChange.times(toBigNumber(utils.parseEther("1")).minus(feeRate)); //0.07%
+    const marginChangeWithFeesConsidered = marginChange.times((await toBigNumber(utils.parseEther("1"))).minus(feeRate)); //0.07%
     const amountWithFeesConsidered = computeAMMTradeAmountByMargin(
       liquidityPoolInfo,
       perpetualIndex,
@@ -244,9 +235,9 @@ async function main() {
 
     const liquidityPoolInfo = await getLiquidityPool(reader, liquidityPool.address);
     const perpetualInfo = liquidityPoolInfo.perpetuals.get(perpetualIndex);
-    const marginChange = toBigNumber(unrealizedFundingPNL).negated();
+    const marginChange = (await toBigNumber(unrealizedFundingPNL)).negated();
     const feeRate = perpetualInfo.lpFeeRate.plus(liquidityPoolInfo.vaultFeeRate).plus(perpetualInfo.operatorFeeRate);
-    const marginChangeWithFeesConsidered = marginChange.times(toBigNumber(utils.parseEther("1")).minus(feeRate)); //0.07%
+    const marginChangeWithFeesConsidered = marginChange.times((await toBigNumber(utils.parseEther("1"))).minus(feeRate)); //0.07%
     const amountWithFeesConsidered = computeAMMTradeAmountByMargin(
       liquidityPoolInfo,
       perpetualIndex,
@@ -263,7 +254,6 @@ async function main() {
         fromBigNumber(amountWithFeesConsidered),
         ethers.utils.defaultAbiCoder.encode(["int256", "uint256"], [limitPrice, deadline]),
       );
-
     console.log("rebalance amount", amountWithFeesConsidered.toString());
   }
 

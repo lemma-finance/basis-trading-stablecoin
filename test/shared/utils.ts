@@ -5,7 +5,6 @@ import { utils } from "ethers";
 import tokenTransfers from "truffle-token-test-utils";
 import util from "util";
 import axios from "axios";
-// import * as child from 'child_process';
 const exec = util.promisify(require("child_process").exec);
 import bn from "bignumber.js";
 
@@ -52,16 +51,6 @@ export async function loadPerpLushanInfo() {
   const data = fs.readFileSync(__dirname + "/../../perp-lushan/deployments/local.deployment.js", "utf8");
   return JSON.parse(data);
 }
-export async function fetchFromURL(url) {
-  try {
-    const response = await axios.get(url);
-    return response.data;
-  } catch (error) {
-    console.log(error.response.body);
-  }
-}
-export const delay = ms => new Promise(res => setTimeout(res, ms));
-
 // FOR ETH
 export async function deployPerpLocallyMainnet() {
   // console.log("deploying MCDEX locally,please wait...");
@@ -82,6 +71,17 @@ export async function loadPerpLushanInfoMainnet() {
   const data = fs.readFileSync(__dirname + "/../../perp-lushan/deployments/local.deployment.js", "utf8");
   return JSON.parse(data);
 }
+
+export async function fetchFromURL(url) {
+  try {
+    const response = await axios.get(url);
+    return response.data;
+  } catch (error) {
+    console.log(error.response.body);
+  }
+}
+
+export const delay = ms => new Promise(res => setTimeout(res, ms));
 
 export async function toBigNumber(amount: any) {
   const amountBN = new bn(amount.toString());

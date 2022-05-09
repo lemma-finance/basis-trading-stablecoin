@@ -24,7 +24,7 @@ import {
   CollateralManager,
 } from "../../perp-lushan/typechain";
 import { QuoteToken } from "../../perp-lushan/typechain/QuoteToken";
-import { createClearingHouseFixture } from "../shared/perpFixture/fixtures";
+import { createClearingHouseFixture } from "../shared/perpFixture/fixtures_local";
 import { TestPerpLemma } from "../../types";
 
 use(solidity);
@@ -588,7 +588,7 @@ describe("perpLemma.multiCollateral", async function () {
         expect(await ethCollateral.balanceOf(perpLemma.address)).to.be.equal(ZERO);
       });
       // getCollateralAmountGivenUnderlyingAssetAmount => gCAGUAA
-      it("#2 openWExactCollateral and gCAGUAA => close ", async function () {
+      it.only("#2 openWExactCollateral and gCAGUAA => close ", async function () {
         collateralAmountForETH = parseUnits("1", ethCollateralDecimals); // 6 decimal
         await ethCollateral.connect(usdLemma).transfer(perpLemma.address, collateralAmountForETH);
 
@@ -631,10 +631,10 @@ describe("perpLemma.multiCollateral", async function () {
         expect(leverage).to.eq(0);
         // slippage and fees have been cut here, need to verify above line
         // for 1 eth position it is taking charge fees 0.0199.. eth
-        expect(positionSize).to.closeTo(parseEther("0.02").mul(-1), parseEther("0.002"));
+        expect(positionSize).to.closeTo(parseUnits("19900194069543166", 0).mul(-1), 10000);
+        // expect(positionSize).to.closeTo(parseFloat(parseEther("0.02").mul(-1)), parseEther("0.002"));
         expect(await ethCollateral.balanceOf(perpLemma.address)).to.be.equal(ZERO);
         expect(usdLemmaBalAfter.sub(usdLemmaBalBefore)).to.be.equal(collateralAmountForETH);
-        // console.log('usdLemmaBalAfter: ', usdLemmaBalAfter.toString(), usdLemmaBalAfter.sub(usdLemmaBalBefore).toString())
       });
       // getCollateralAmountGivenUnderlyingAssetAmount => gCAGUAA
       it("#3 gCAGUAA -> open and gCAGUAA -> close ", async function () {

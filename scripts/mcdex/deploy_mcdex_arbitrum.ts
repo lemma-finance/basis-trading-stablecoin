@@ -1,8 +1,17 @@
 const hre = require("hardhat");
-const { ethers, upgrades } = hre;
-const { constants, BigNumber, utils } = ethers;
-const { AddressZero } = constants;
-const {
+const { ethers, upgrades, network } = hre;
+const { constants, BigNumber } = ethers;
+import { utils } from "ethers";
+const { AddressZero, MaxInt256, MaxUint256 } = constants;
+import {
+  displayNicely,
+  loadMCDEXInfo,
+  toBigNumber,
+  fromBigNumber,
+  snapshot,
+  revertToSnapshot,
+} from "../../test/shared/utils";
+import {
   CHAIN_ID_TO_POOL_CREATOR_ADDRESS,
   PoolCreatorFactory,
   ReaderFactory,
@@ -10,23 +19,25 @@ const {
   IERC20Factory,
   CHAIN_ID_TO_READER_ADDRESS,
   getLiquidityPool,
-  computeAMMCloseAndOpenAmountWithPrice,
-} = require("@mcdex/mai3.js");
-const { tokenTransfers, displayNicely } = require("../test/utils");
-const { MaxUint256 } = require("@ethersproject/constants");
-
-const fs = require("fs");
+  getAccountStorage,
+  computeAccount,
+  normalizeBigNumberish,
+  DECIMALS,
+  computeAMMTrade,
+  computeIncreasePosition,
+  _0,
+  _1,
+  computeDecreasePosition,
+  computeAMMTradeAmountByMargin,
+} from "@mcdex/mai3.js";
+import fs from "fs";
 const SAVE_PREFIX = "./deployments/";
 const SAVE_POSTFIX = "mainnet.deployment.js";
 
 const ZERO = BigNumber.from("0");
-//add it in prod
-// const TRUSTED_FORWARDER = {
-//     42: "0xF82986F574803dfFd9609BE8b9c7B92f63a1410E",
+// const printTx = async hash => {
+//   await tokenTransfers.print(hash, [], false);
 // };
-const printTx = async hash => {
-  await tokenTransfers.print(hash, [], false);
-};
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
 let deployedContracts = {};
@@ -61,7 +72,7 @@ async function main() {
   const lemmaTreasury = addresses.lemmaTreasury;
   console.log("defaultSigner::", defaultSigner.address);
   // console.log(hre.network);
-  const arbProvider = ethers.getDefaultProvider(hre.network.config.url);
+  const arbProvider = ethers.getDefaultProvider(network.config.url);
   const { chainId } = await arbProvider.getNetwork();
 
   const poolCreator = PoolCreatorFactory.connect(CHAIN_ID_TO_POOL_CREATOR_ADDRESS[chainId], arbProvider);
@@ -169,7 +180,6 @@ async function main() {
   tx = await usdLemma.deposit(ethers.utils.parseEther("100"), 0, MaxUint256, collateral.address, opts);
   await tx.wait();
   // await delay(60000);
-  await printTx(tx.hash);
   console.log("balance of USDL", (await usdLemma.balanceOf(defaultSigner.address)).toString());
 
   deployedContracts["USDLemma"] = {
