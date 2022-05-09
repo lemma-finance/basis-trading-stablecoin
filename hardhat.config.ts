@@ -22,13 +22,13 @@ task("accounts", "Prints the list of accounts", async (args, hre) => {
 const config: HardhatUserConfig = {
   networks: {
     hardhat: {
-      forking: {
-        url: "https://mainnet.infura.io/v3/" + process.env.INFURA_KEY,
-      },
+      // forking: {
+      //   url: "https://mainnet.infura.io/v3/" + process.env.INFURA_KEY,
+      // },
       // accounts: {
       //   mnemonic: process.env.MNEMONIC
       // },
-      chainId: 1,
+      // chainId: 1,
       allowUnlimitedContractSize: true,
     },
     local: {
