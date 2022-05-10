@@ -218,7 +218,7 @@ contract LemmaETH is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 minUsdcCollateralAmountToGetBack,
         IERC20Upgradeable collateral
     ) public nonReentrant {
-        _burn(to, ethAmount);
+        _burn(_msgSender(), ethAmount);
         IPerpetualDEXWrapper perpDEXWrapper = IPerpetualDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
@@ -283,7 +283,7 @@ contract LemmaETH is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         // );
 
         // IEIP4626(stakingContractAddress).withdraw(ETHLToBurn, address(this), address(this));
-        _burn(to, ETHLToBurn);
+        _burn(_msgSender(), ETHLToBurn);
 
         collateralAmount = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmount, false);
         SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmount);

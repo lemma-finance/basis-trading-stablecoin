@@ -374,7 +374,7 @@ describe("lemmaEth-perp", async function () {
 
     const collateralBalanceAfter = await usdCollateral.balanceOf(defaultSigner.address);
     expect(collateralBalanceBefore.sub(collateralBalanceAfter)).to.equal(amount);
-    expect(baseAmount).to.equal(await this.xethl.balanceOf(signer1.address));
+    expect(baseAmount).to.equal(await lemmaEth.balanceOf(signer1.address));
     await expect(tx)
       .to.emit(lemmaEth, "DepositTo")
       .withArgs(0, usdCollateral.address, signer1.address, baseAmount, amount);
@@ -395,7 +395,7 @@ describe("lemmaEth-perp", async function () {
     );
     //trying to get back only half of the usdCollateral
     //tests for all the usdCollateral to get back is after this test
-    const ethlBalanceBefore = await this.xethl.balanceOf(defaultSigner.address);
+    const ethlBalanceBefore = await lemmaEth.balanceOf(defaultSigner.address);
     const [baseAmount, quoteAmount] = await callStaticOpenShortPositionWithExactBase(
       clearingHouse,
       longAddress,
@@ -411,8 +411,7 @@ describe("lemmaEth-perp", async function () {
       usdCollateral.address,
     );
     const collateralBalanceAfter = await usdCollateral.balanceOf(signer1.address);
-    const ethlBalanceAfter = await this.xethl.balanceOf(defaultSigner.address);
-
+    const ethlBalanceAfter = await lemmaEth.balanceOf(defaultSigner.address);
     expect(collateralBalanceAfter.sub(collateralBalanceBefore)).to.equal(
       quoteAmount.mul(parseUnits("1", usdCollateralDecimals)).div(parseEther("1")),
     );
@@ -443,7 +442,7 @@ describe("lemmaEth-perp", async function () {
       usdCollateral.address,
     );
 
-    const ethlBalance = await this.xethl.balanceOf(defaultSigner.address);
+    const ethlBalance = await lemmaEth.balanceOf(defaultSigner.address);
     const amount = ethlBalance;
     const [baseAmount, quoteAmount] = await callStaticOpenShortPositionWithExactBase(
       clearingHouse,
@@ -454,10 +453,10 @@ describe("lemmaEth-perp", async function () {
 
     //input is whatever it costs to go long on the current ethl balance
     const collateralBalanceBefore = await usdCollateral.balanceOf(signer1.address);
-    await this.xethl.approve(lemmaEth.address, amount);
+    await lemmaEth.approve(lemmaEth.address, amount);
     let tx = await lemmaEth.withdrawTo(signer1.address, baseAmount, 0, quoteAmount, usdCollateral.address);
     const collateralBalanceAfter = await usdCollateral.balanceOf(signer1.address);
-    const ethlBalanceAfter = await this.xethl.balanceOf(defaultSigner.address);
+    const ethlBalanceAfter = await lemmaEth.balanceOf(defaultSigner.address);
 
     expect(collateralBalanceAfter.sub(collateralBalanceBefore)).to.equal(
       quoteAmount.mul(parseUnits("1", usdCollateralDecimals)).div(parseEther("1")),
@@ -474,6 +473,7 @@ describe("lemmaEth-perp", async function () {
         quoteAmount.mul(parseUnits("1", usdCollateralDecimals)).div(parseEther("1")),
       );
   });
+  //
   it("depositTo & WithdrawTo", async function () {
     const openWAmount = parseUnits("100", usdCollateralDecimals);
     await usdCollateral.approve(lemmaEth.address, openWAmount);
@@ -497,7 +497,7 @@ describe("lemmaEth-perp", async function () {
     await usdCollateral.approve(lemmaEth.address, MaxUint256);
     let tx = await lemmaEth.depositTo(defaultSigner.address, baseAmount, 0, quoteAmount, usdCollateral.address);
 
-    const ethlBalanceBefore = await this.xethl.balanceOf(defaultSigner.address);
+    const ethlBalanceBefore = await lemmaEth.balanceOf(defaultSigner.address);
     // expect(quoteAmount).to.equal(ethlBalanceBefore);
 
     let amount = ethlBalanceBefore;
@@ -509,10 +509,10 @@ describe("lemmaEth-perp", async function () {
     );
     //input is whatever it costs to go long on the current ethl balance
     const collateralBalanceBefore = await usdCollateral.balanceOf(signer1.address);
-    await this.xethl.approve(lemmaEth.address, amount);
+    await lemmaEth.approve(lemmaEth.address, amount);
     let tx1 = await lemmaEth.withdrawTo(signer1.address, baseAmount1, 0, quoteAmount1, usdCollateral.address);
     const collateralBalanceAfter = await usdCollateral.balanceOf(signer1.address);
-    const ethlBalanceAfter = await this.xethl.balanceOf(defaultSigner.address);
+    const ethlBalanceAfter = await lemmaEth.balanceOf(defaultSigner.address);
 
     expect(collateralBalanceAfter.sub(collateralBalanceBefore)).to.equal(
       quoteAmount1.mul(parseUnits("1", usdCollateralDecimals)).div(parseEther("1")),
@@ -529,6 +529,7 @@ describe("lemmaEth-perp", async function () {
         quoteAmount1.mul(parseUnits("1", usdCollateralDecimals)).div(parseEther("1")),
       );
   });
+  //
   it("deposit & Withdraw", async function () {
     const openWAmount = parseUnits("100", usdCollateralDecimals);
     await usdCollateral.approve(lemmaEth.address, openWAmount);
@@ -552,7 +553,7 @@ describe("lemmaEth-perp", async function () {
     await usdCollateral.approve(lemmaEth.address, MaxUint256);
     let tx = await lemmaEth.deposit(baseAmount, 0, quoteAmount, usdCollateral.address);
 
-    const ethlBalanceBefore = await this.xethl.balanceOf(defaultSigner.address);
+    const ethlBalanceBefore = await lemmaEth.balanceOf(defaultSigner.address);
     // expect(quoteAmount).to.equal(ethlBalanceBefore);
 
     let amount = ethlBalanceBefore;
@@ -564,10 +565,10 @@ describe("lemmaEth-perp", async function () {
     );
     //input is whatever it costs to go long on the current ethl balance
     const collateralBalanceBefore = await usdCollateral.balanceOf(defaultSigner.address);
-    await this.xethl.approve(lemmaEth.address, amount);
+    await lemmaEth.approve(lemmaEth.address, amount);
     let tx1 = await lemmaEth.withdraw(baseAmount1, 0, quoteAmount1, usdCollateral.address);
     const collateralBalanceAfter = await usdCollateral.balanceOf(defaultSigner.address);
-    const ethlBalanceAfter = await this.xethl.balanceOf(defaultSigner.address);
+    const ethlBalanceAfter = await lemmaEth.balanceOf(defaultSigner.address);
 
     expect(collateralBalanceAfter.sub(collateralBalanceBefore)).to.equal(
       quoteAmount1.mul(parseUnits("1", usdCollateralDecimals)).div(parseEther("1")),
@@ -653,7 +654,6 @@ describe("lemmaEth-perp", async function () {
           ),
       ).to.be.revertedWith("invalid DEX/collateral"); // when dex index is not valid
     });
-
     it("when fundingPNL is negative(-ve)", async function () {
       await openPosition(clearingHouse, longAddress, baseToken.address, true, false, parseEther("2000")); // vUSD amount
       await openPosition(clearingHouse, longAddress, baseToken.address, false, true, parseEther("3000")); // vUSD amount
@@ -676,6 +676,11 @@ describe("lemmaEth-perp", async function () {
         0,
         usdCollateral.address,
       );
+
+      // give some few lemmaeth for testing
+      await lemmaEth.transfer(this.xethl.address, parseEther('0.00001'));
+      await lemmaEth.transfer(lemmaTreasury.address, parseEther('0.00001'));
+
       await forwardTimestamp(clearingHouse, 200);
       await perpLemma.settleAllFunding();
       await forwardTimestamp(clearingHouse, 200);
@@ -728,7 +733,6 @@ describe("lemmaEth-perp", async function () {
       expect(ethlBalStakingContractBefore).to.gt(ethlBalStakingContractAfter);
       // expect(ethlBallemmatreasuryBefore).to.gt(ethlBallemmatreasuryAfter);
     });
-
     it("when fundingPNL is positive(+ve)", async function () {
       await openPosition(clearingHouse, longAddress, baseToken.address, false, false, parseEther("3000")); // vUSD amount
 
@@ -844,9 +848,9 @@ describe("lemmaEth-perp", async function () {
       ethAmount,
     );
     await usdCollateral.approve(lemmaEth.address, MaxUint256);
-    const ethlBalanceBefore = await this.xethl.balanceOf(defaultSigner.address);
+    const ethlBalanceBefore = await lemmaEth.balanceOf(defaultSigner.address);
     let tx = await lemmaEth.depositTo(defaultSigner.address, baseAmount, 0, quoteAmount, usdCollateral.address);
-    const ethlBalanceAfter = await this.xethl.balanceOf(defaultSigner.address);
+    const ethlBalanceAfter = await lemmaEth.balanceOf(defaultSigner.address);
     expect(baseAmount).to.equal(ethlBalanceAfter.sub(ethlBalanceBefore));
 
     await lemmaEth.approve(lemmaEth.address, 100);
@@ -907,7 +911,7 @@ describe("lemmaEth-perp", async function () {
     //tests for all the usdCollateral to get back is after this test
     const amount = openWAmount.div(BigNumber.from("2"));
 
-    const ethlBalanceBefore = await this.xethl.balanceOf(defaultSigner.address);
+    const ethlBalanceBefore = await lemmaEth.balanceOf(defaultSigner.address);
     const [, quoteAmount] = await callStaticOpenShortPositionWithExactBase(
       clearingHouse,
       longAddress,
