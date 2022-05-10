@@ -13,7 +13,7 @@ const SAVE_POSTFIX = "mainnetfork.deployment.perp.js";
 const ZERO = BigNumber.from("0");
 let deployedContracts = {};
 
-import { createClearingHouseFixture } from "../../test/shared/perpFixtureMainnet/fixture";
+import { createClearingHouseFixture } from "../../test/shared/perpFixture/fixtures_mainnet";
 import { PerpLemma } from "../../types/PerpLemma";
 
 const save = async () => {

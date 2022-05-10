@@ -419,6 +419,7 @@ export function createClearingHouseFixture(
     console.log("deployedContracts: ", deployedContracts)
     await fs.writeFileSync(SAVE_PREFIX + SAVE_POSTFIX, JSON.stringify(deployedContracts, null, 2))
 
+
     return {
       clearingHouse,
       orderBook,

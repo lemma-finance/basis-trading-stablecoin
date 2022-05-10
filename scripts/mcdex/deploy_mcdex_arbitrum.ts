@@ -1,34 +1,24 @@
 const hre = require("hardhat");
-const { ethers, upgrades } = hre;
-const { constants, BigNumber, utils } = ethers;
-const { AddressZero } = constants;
-const {
+const { ethers, upgrades, network } = hre;
+const { constants, BigNumber } = ethers;
+import { utils } from "ethers";
+const { AddressZero, MaxUint256 } = constants;
+import {
   CHAIN_ID_TO_POOL_CREATOR_ADDRESS,
   PoolCreatorFactory,
   ReaderFactory,
   LiquidityPoolFactory,
   IERC20Factory,
   CHAIN_ID_TO_READER_ADDRESS,
-  getLiquidityPool,
-  computeAMMCloseAndOpenAmountWithPrice,
-} = require("@mcdex/mai3.js");
-const { tokenTransfers, displayNicely } = require("../test/utils");
-const { MaxUint256 } = require("@ethersproject/constants");
-
-const fs = require("fs");
+  _0,
+  _1,
+} from "@mcdex/mai3.js";
+import fs from "fs";
 const SAVE_PREFIX = "./deployments/";
 const SAVE_POSTFIX = "mainnet.deployment.js";
 
 const ZERO = BigNumber.from("0");
-//add it in prod
-// const TRUSTED_FORWARDER = {
-//     42: "0xF82986F574803dfFd9609BE8b9c7B92f63a1410E",
-// };
-const printTx = async hash => {
-  await tokenTransfers.print(hash, [], false);
-};
 const delay = ms => new Promise(res => setTimeout(res, ms));
-
 let deployedContracts = {};
 
 const save = async () => {
@@ -169,7 +159,6 @@ async function main() {
   tx = await usdLemma.deposit(ethers.utils.parseEther("100"), 0, MaxUint256, collateral.address, opts);
   await tx.wait();
   // await delay(60000);
-  await printTx(tx.hash);
   console.log("balance of USDL", (await usdLemma.balanceOf(defaultSigner.address)).toString());
 
   deployedContracts["LemmaETH"] = {

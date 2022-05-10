@@ -3,7 +3,7 @@ const { ethers, upgrades} = hre;
 const { constants } = ethers;
 const { AddressZero } = constants;
 import { fetchFromURL, delay } from "../../test/shared/utils";
-import config from "./../constants.json";
+import config from "./constants.json";
 import fs from "fs";
 import ClearingHouseAbi from "../../perp-lushan/artifacts/contracts/test/TestClearingHouse.sol/TestClearingHouse.json";
 import OrderBookAbi from "../../perp-lushan/artifacts/contracts/OrderBook.sol/OrderBook.json";
@@ -98,9 +98,9 @@ async function main() {
       initializer: "initialize",
     },
   );
-  const usdl: any = await xETHL.usdl()
+  // const usdl: any = await xETHL.usdl()
   console.log("xETHL", xETHL.address);
-  console.log("LemmaETH", usdl);
+  // console.log("LemmaETH", usdl);
   await delay(10000);
 
   console.log("configuring parameters");
