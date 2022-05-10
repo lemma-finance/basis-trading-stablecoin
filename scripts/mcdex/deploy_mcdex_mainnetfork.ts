@@ -3,11 +3,7 @@ const { ethers, upgrades } = hre;
 const { constants, BigNumber } = ethers;
 import { utils } from "ethers";
 const { AddressZero, MaxInt256, MaxUint256 } = constants;
-import {
-  loadMCDEXInfo,
-  toBigNumber,
-  fromBigNumber
-} from "../../test/shared/utils";
+import { loadMCDEXInfo, toBigNumber, fromBigNumber } from "../../test/shared/utils";
 import {
   PoolCreatorFactory,
   ReaderFactory,
@@ -171,7 +167,9 @@ async function main() {
     const perpetualInfo = liquidityPoolInfo.perpetuals.get(perpetualIndex);
     const marginChange = (await toBigNumber(unrealizedFundingPNL)).negated();
     const feeRate = perpetualInfo.lpFeeRate.plus(liquidityPoolInfo.vaultFeeRate).plus(perpetualInfo.operatorFeeRate);
-    const marginChangeWithFeesConsidered = marginChange.times((await toBigNumber(utils.parseEther("1"))).minus(feeRate)); //0.07%
+    const marginChangeWithFeesConsidered = marginChange.times(
+      (await toBigNumber(utils.parseEther("1"))).minus(feeRate),
+    ); //0.07%
     const amountWithFeesConsidered = computeAMMTradeAmountByMargin(
       liquidityPoolInfo,
       perpetualIndex,
@@ -225,7 +223,9 @@ async function main() {
     const perpetualInfo = liquidityPoolInfo.perpetuals.get(perpetualIndex);
     const marginChange = (await toBigNumber(unrealizedFundingPNL)).negated();
     const feeRate = perpetualInfo.lpFeeRate.plus(liquidityPoolInfo.vaultFeeRate).plus(perpetualInfo.operatorFeeRate);
-    const marginChangeWithFeesConsidered = marginChange.times((await toBigNumber(utils.parseEther("1"))).minus(feeRate)); //0.07%
+    const marginChangeWithFeesConsidered = marginChange.times(
+      (await toBigNumber(utils.parseEther("1"))).minus(feeRate),
+    ); //0.07%
     const amountWithFeesConsidered = computeAMMTradeAmountByMargin(
       liquidityPoolInfo,
       perpetualIndex,

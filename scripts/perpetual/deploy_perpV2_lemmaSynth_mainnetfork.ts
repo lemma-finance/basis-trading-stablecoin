@@ -32,8 +32,8 @@ function encodePriceSqrt(reserve1, reserve0) {
 }
 
 async function main() {
-
-  let [defaultSigner, reBalancer, hasWETH, keeperGasReward, signer1, signer2, longAddress, lemmaTreasury]: any = await ethers.getSigners();
+  let [defaultSigner, reBalancer, hasWETH, keeperGasReward, signer1, signer2, longAddress, lemmaTreasury]: any =
+    await ethers.getSigners();
   const loadFixture: ReturnType<typeof waffle.createFixtureLoader> = waffle.createFixtureLoader([defaultSigner]);
   let perpAddresses = await loadFixture(createClearingHouseFixture(defaultSigner));
 
@@ -62,7 +62,7 @@ async function main() {
 
   const maxPosition = ethers.constants.MaxUint256;
   const perpLemmaFactory = await ethers.getContractFactory("PerpLemma");
-  let perpLemma = await upgrades.deployProxy(
+  let perpLemma = (await upgrades.deployProxy(
     perpLemmaFactory,
     [
       AddressZero,
@@ -73,7 +73,7 @@ async function main() {
       maxPosition,
     ],
     { initializer: "initialize" },
-  ) as PerpLemma;
+  )) as PerpLemma;
   let collateralDecimals = await perpLemma.collateralDecimals(); // collateral decimal
   await perpLemma.connect(signer1).resetApprovals();
   await perpLemma.connect(defaultSigner).setReBalancer(reBalancer.address);
@@ -101,7 +101,7 @@ async function main() {
     method: "hardhat_impersonateAccount",
     params: [usdcRichAddress],
   });
-  let richUSDCSigner : any = await ethers.provider.getSigner(usdcRichAddress);
+  let richUSDCSigner: any = await ethers.provider.getSigner(usdcRichAddress);
 
   const amountOfCollateralToMint = parseUnits("20000000", collateralDecimals); // 6 decimal
   await usdCollateral.connect(richUSDCSigner).transfer(signer1.address, amountOfCollateralToMint);

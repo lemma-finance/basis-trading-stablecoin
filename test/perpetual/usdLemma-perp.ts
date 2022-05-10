@@ -678,8 +678,8 @@ describe("lemmaEth-perp", async function () {
       );
 
       // give some few lemmaeth for testing
-      await lemmaEth.transfer(this.xethl.address, parseEther('0.00001'));
-      await lemmaEth.transfer(lemmaTreasury.address, parseEther('0.00001'));
+      await lemmaEth.transfer(this.xethl.address, parseEther("0.00001"));
+      await lemmaEth.transfer(lemmaTreasury.address, parseEther("0.00001"));
 
       await forwardTimestamp(clearingHouse, 200);
       await perpLemma.settleAllFunding();
