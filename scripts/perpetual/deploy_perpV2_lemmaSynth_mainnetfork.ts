@@ -9,7 +9,7 @@ bn.config({ EXPONENTIAL_AT: 999999, DECIMAL_PLACES: 40 });
 
 const { AddressZero, MaxInt256, MaxUint256 } = constants;
 const SAVE_PREFIX = "./deployments/";
-const SAVE_POSTFIX = "mainnetfork.deployment.perp.js";
+const SAVE_POSTFIX = "optimism-kovan.deployment.perp.js";
 const ZERO = BigNumber.from("0");
 let deployedContracts = {};
 
@@ -159,7 +159,7 @@ async function main() {
   //set lemma treasury address
   await lemmaETH.setLemmaTreasury(lemmaTreasury.address);
 
-  const data = fs.readFileSync(__dirname + "/../../deployments/mainnetfork.deployment.perp.js", "utf8");
+  const data = fs.readFileSync(__dirname + "/../../deployments/optimism-kovan.deployment.perp.js", "utf8");
   perpAddresses = JSON.parse(data);
 
   deployedContracts["LemmaETH"] = {

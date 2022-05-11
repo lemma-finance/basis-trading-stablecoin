@@ -43,7 +43,7 @@ import QuoteTokenAbi from "../../../perp-lushan/artifacts/contracts/QuoteToken.s
 import { token0Fixture, tokensFixture } from "./sharedFixtures";
 import fs from "fs";
 const SAVE_PREFIX = "./deployments/";
-const SAVE_POSTFIX = "mainnetfork.deployment.perp.js";
+const SAVE_POSTFIX = "optimism-kovan.deployment.perp.js";
 let deployedContracts = {};
 
 export interface ClearingHouseFixture {
