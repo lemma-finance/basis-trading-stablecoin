@@ -16,8 +16,8 @@ contract xETHL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
 
     IERC20Upgradeable public usdl;
 
-    //events
-    event MinimuLockUpdated(uint256 newLock);
+    //events 
+    event MinimumLockUpdated(uint256 newLock);
     event PeripheryUpdated(address newPeriphery);
 
     address public periphery;
@@ -45,7 +45,7 @@ contract xETHL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
     /// @notice updated minimum number of blocks to be locked before xETHL tokens are unlocked
     function setMinimumLock(uint256 _minimumLock) external onlyOwner {
         minimumLock = _minimumLock;
-        emit MinimuLockUpdated(_minimumLock);
+        emit MinimumLockUpdated(_minimumLock);
     }
 
     /// @notice reset approvals for usdl contract to user usdl as needed
