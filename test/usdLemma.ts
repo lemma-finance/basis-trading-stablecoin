@@ -13,7 +13,7 @@ import {
   computeAMMTradeAmountByMargin,
 } from "@mcdex/mai3.js";
 import { toBigNumber, fromBigNumber, snapshot, revertToSnapshot } from "./shared/utils";
-import { createEthlFixture } from "./shared/fixtures";
+import { createEthlFixture } from "./shared/mcdexFixtures";
 const MASK_USE_TARGET_LEVERAGE = 0x08000000;
 
 // const printTx = async (hash) => {

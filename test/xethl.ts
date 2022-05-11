@@ -71,7 +71,7 @@ describe("eip4626xETHL", function () {
   }
 
   it("should initialize correctly", async function () {
-    expect(await this.xethl.ethl()).to.equal(this.ethl.address);
+    expect(await this.xethl.usdl()).to.equal(this.ethl.address);
     expect(await balanceOf(this.ethl, owner.address)).to.equal(utils.parseEther("1000000"));
   });
   it("should set periphery address correctly", async function () {
@@ -85,7 +85,7 @@ describe("eip4626xETHL", function () {
   it("should set lock correctly", async function () {
     await expect(this.xethl.connect(user1).setMinimumLock(200)).to.be.revertedWith("Ownable: caller is not the owner");
     let tx = await this.xethl.setMinimumLock(200);
-    expect(tx).to.emit(this.xethl, "LockUpdated").withArgs(200);
+    expect(tx).to.emit(this.xethl, "MinimumLockUpdated").withArgs(200);
     expect(await this.xethl.minimumLock()).to.equal(200);
   });
 

@@ -17,7 +17,7 @@ import {
   computeAMMTradeAmountByMargin,
 } from "@mcdex/mai3.js";
 import { utils } from "ethers";
-import { createUsdlFixture } from "./shared/fixtures";
+import { createEthlFixture } from "./shared/mcdexFixtures";
 const { BigNumber, constants } = ethers;
 const { AddressZero, MaxUint256, MaxInt256 } = constants;
 import { toBigNumber, fromBigNumber, snapshot, revertToSnapshot } from "./shared/utils";
@@ -59,7 +59,7 @@ describe("mcdexLemma", async function () {
   before(async function () {
     [defaultSigner, usdLemma, reBalancer, hasWETH, signer1, signer2, usdl2] = await ethers.getSigners();
     const loadFixture: ReturnType<typeof waffle.createFixtureLoader> = waffle.createFixtureLoader([defaultSigner]);
-    const _usdlFixture = await loadFixture(createUsdlFixture());
+    const _usdlFixture = await loadFixture(createEthlFixture());
     mcdexLemma = _usdlFixture.mcdexLemma;
     collateral = _usdlFixture.collateral;
     liquidityPool = _usdlFixture.liquidityPool;

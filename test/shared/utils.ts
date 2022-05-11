@@ -5,7 +5,6 @@ import { utils } from "ethers";
 import tokenTransfers from "truffle-token-test-utils";
 import util from "util";
 import axios from "axios";
-// import * as child from 'child_process';
 const exec = util.promisify(require("child_process").exec);
 import bn from "bignumber.js";
 
