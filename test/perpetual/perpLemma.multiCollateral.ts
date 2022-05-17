@@ -20,7 +20,7 @@ import {
   UniswapV3Factory,
   UniswapV3Pool,
   Vault,
-  Quoter,
+  //Quoter,
   CollateralManager,
 } from "../../perp-lushan/typechain";
 import { QuoteToken } from "../../perp-lushan/typechain/QuoteToken";
@@ -116,7 +116,7 @@ describe("perpLemma.multiCollateral", async function () {
   let mockedWethPriceFeed: MockTestAggregatorV3;
   let mockedWbtcPriceFeed: MockTestAggregatorV3;
   let univ3factory: UniswapV3Factory;
-  let quoter: Quoter;
+  // let quoter: Quoter;
   let perpLemma: TestPerpLemma;
   let usdCollateralDecimals: number;
   let ethCollateralDecimals: number;
@@ -147,7 +147,7 @@ describe("perpLemma.multiCollateral", async function () {
     pool = _clearingHouseFixture.pool;
     pool2 = _clearingHouseFixture.pool2;
     univ3factory = _clearingHouseFixture.uniV3Factory;
-    quoter = _clearingHouseFixture.quoter;
+    // quoter = _clearingHouseFixture.quoter;
 
     usdCollateralDecimals = await usdCollateral.decimals();
     ethCollateralDecimals = await ethCollateral.decimals();

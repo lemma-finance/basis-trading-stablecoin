@@ -17,12 +17,12 @@ import {
   UniswapV3Factory,
   UniswapV3Pool,
   Vault,
-  Quoter,
+  // Quoter,
   CollateralManager,
   TestERC20__factory,
   MockTestAggregatorV3__factory,
   UniswapV3Factory__factory,
-  Quoter__factory,
+  // Quoter__factory,
   ClearingHouseConfig__factory,
   UniswapV3Pool__factory,
   MarketRegistry__factory,
@@ -65,7 +65,7 @@ export interface ClearingHouseFixture {
   baseToken2: BaseToken;
   mockedBaseAggregator2: MockTestAggregatorV3;
   pool2: UniswapV3Pool;
-  quoter: Quoter;
+  // quoter: Quoter;
 }
 
 // caller of this function should ensure that (base, quote) = (token0, token1) is always true
@@ -113,8 +113,8 @@ export function createClearingHouseFixture(
     );
     const uniV3Factory = (await factoryFactory.deploy()) as any;
 
-    const quoterFactory = new ContractFactory(Quoter__factory.abi, Quoter__factory.bytecode, admin);
-    const quoter = (await quoterFactory.deploy(uniV3Factory.address, baseToken.address)) as any;
+    // const quoterFactory = new ContractFactory(Quoter__factory.abi, Quoter__factory.bytecode, admin);
+    // const quoter = (await quoterFactory.deploy(uniV3Factory.address, baseToken.address)) as any;
 
     const clearingHouseConfigFactory = new ContractFactory(
       ClearingHouseConfig__factory.abi,
@@ -315,7 +315,7 @@ export function createClearingHouseFixture(
       baseToken2,
       mockedBaseAggregator2,
       pool2,
-      quoter,
+      // quoter,
     };
   };
 }
