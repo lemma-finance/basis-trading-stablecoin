@@ -81,7 +81,7 @@ contract PerpLemmaTail is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpet
 
     function initialize(
         address _trustedForwarder,
-        address _collateral,
+        // address _collateral,
         address _tailAsset,
         address _baseToken,
         address _clearingHouse,
@@ -109,11 +109,13 @@ contract PerpLemmaTail is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpet
         marketRegistry = IMarketRegistry(_marketRegistry);
 
         usdc = IERC20Decimals(perpVault.getSettlementToken());
-        collateral = IERC20Decimals(_collateral);
-        collateralDecimals = collateral.decimals(); // need to verify
-        collateral.approve(_clearingHouse, MAX_UINT256);
 
         tailAsset = IERC20Decimals(_tailAsset);
+        collateral = tailAsset;
+
+        // collateral = IERC20Decimals(_collateral);
+        collateralDecimals = collateral.decimals(); // need to verify
+        collateral.approve(_clearingHouse, MAX_UINT256);
 
         // NOTE: Even though it is not necessary, it is for clarity
         hasSettled = false;
