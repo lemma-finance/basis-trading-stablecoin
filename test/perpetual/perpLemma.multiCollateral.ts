@@ -220,8 +220,8 @@ describe("perpLemma.multiCollateral", async function () {
     )) as TestPerpLemma;
     await perpLemma.connect(signer1).resetApprovals();
 
-    // base = usd
-    // quote = eth
+    // base = eth
+    // quote = usd
 
     await mockedBaseAggregator.setLatestRoundData(0, parseUnits("100", 6), 0, 0, 0);
     await mockedBaseAggregator2.setLatestRoundData(0, parseUnits("0.01", ethCollateralDecimals), 0, 0, 0);
