@@ -256,7 +256,9 @@ describe("usdLemma-perp-tail-asset", async function () {
     //also, deposit a few amount of settlement tokens from perpLemma wrapper to vault
     await usdCollateral.connect(defaultSigner).mint(defaultSigner.address, parseEther("1"));
     await usdCollateral.connect(defaultSigner).approve(perpLemma.address, parseEther("1"));
-    await perpLemma.connect(defaultSigner).depositSettlementToken(parseEther("1"));
+
+    // NOTE: This is to implement the current assumption about Tail Assets to have enough USDC desposited in Perp Vault
+    await perpLemma.connect(defaultSigner).depositSettlementToken(parseEther("10"));
 
     //deploy USDLemma
     const USDLemma = await ethers.getContractFactory("USDLemma");
