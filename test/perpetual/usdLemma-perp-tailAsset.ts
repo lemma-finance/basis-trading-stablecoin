@@ -258,7 +258,7 @@ describe("usdLemma-perp-tail-asset", async function () {
     await usdCollateral.connect(defaultSigner).approve(perpLemma.address, parseEther("1"));
 
     // NOTE: This is to implement the current assumption about Tail Assets to have enough USDC desposited in Perp Vault
-    await perpLemma.connect(defaultSigner).depositSettlementToken(parseEther("10"));
+    await perpLemma.connect(defaultSigner).depositSettlementToken(parseEther("1"));
 
     //deploy USDLemma
     const USDLemma = await ethers.getContractFactory("USDLemma");
@@ -361,6 +361,11 @@ describe("usdLemma-perp-tail-asset", async function () {
     expect(amount).to.eq(positionSize.abs());
 
     const collateralBalanceAfter = await ethCollateral.balanceOf(defaultSigner.address);
+
+    // NOTE: Check that tail collateral remains in the perpLemmaTailAsset.sol instead of being deposited in Perp
+    const perpLemmaTailCollateralBalanceAfter = await ethCollateral.balanceOf(perpLemma.address);
+    expect(perpLemmaTailCollateralBalanceAfter).to.equal(amount);
+
     expect(collateralBalanceBefore.sub(collateralBalanceAfter)).to.equal(amount);
     expect(quoteAmount).to.equal(await usdLemma.balanceOf(signer1.address));
     await expect(tx)
@@ -374,6 +379,11 @@ describe("usdLemma-perp-tail-asset", async function () {
     const openWAmount = utils.parseEther("1");
     await ethCollateral.approve(usdLemma.address, openWAmount);
     await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
+
+    // NOTE: Check that tail collateral remains in the perpLemmaTailAsset.sol instead of being deposited in Perp
+    const perpLemmaTailCollateralBalanceAfter = await ethCollateral.balanceOf(perpLemma.address);
+    expect(perpLemmaTailCollateralBalanceAfter).to.equal(openWAmount);
+
     //trying to get back only half of the ethCollateral
     //tests for all the ethCollateral to get back is after this test
     const amount = openWAmount.div(BigNumber.from("2"));
@@ -405,6 +415,10 @@ describe("usdLemma-perp-tail-asset", async function () {
     const openWAmount = utils.parseEther("1");
     await ethCollateral.approve(usdLemma.address, openWAmount);
     await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
+
+    // NOTE: Check that tail collateral remains in the perpLemmaTailAsset.sol instead of being deposited in Perp
+    const perpLemmaTailCollateralBalanceAfter = await ethCollateral.balanceOf(perpLemma.address);
+    expect(perpLemmaTailCollateralBalanceAfter).to.equal(openWAmount);
 
     const usdlBalance = await usdLemma.balanceOf(defaultSigner.address);
     const amount = usdlBalance;
@@ -441,6 +455,11 @@ describe("usdLemma-perp-tail-asset", async function () {
     await ethCollateral.approve(usdLemma.address, baseAmount);
     let tx = await usdLemma.depositTo(defaultSigner.address, openWAmount, 0, baseAmount, ethCollateral.address);
 
+    // NOTE: Check that tail collateral remains in the perpLemmaTailAsset.sol instead of being deposited in Perp
+    const perpLemmaTailCollateralBalanceAfter = await ethCollateral.balanceOf(perpLemma.address);
+    // NOTE: As now we are opening with exact USDL, we do not know how much of the tailAsset it requires, so we just check its perpLemmaTailWrapper.sol balance is non zero this time
+    expect(perpLemmaTailCollateralBalanceAfter).to.gt(0);
+
     const usdlBalanceBefore = await usdLemma.balanceOf(defaultSigner.address);
     expect(quoteAMount).to.equal(usdlBalanceBefore);
 
@@ -476,6 +495,11 @@ describe("usdLemma-perp-tail-asset", async function () {
     await ethCollateral.approve(usdLemma.address, baseAmount);
     let tx = await usdLemma.deposit(openWAmount, 0, baseAmount, ethCollateral.address);
 
+    // NOTE: Check that tail collateral remains in the perpLemmaTailAsset.sol instead of being deposited in Perp
+    const perpLemmaTailCollateralBalanceAfter = await ethCollateral.balanceOf(perpLemma.address);
+    // NOTE: As now we are opening with exact USDL, we do not know how much of the tailAsset it requires, so we just check its perpLemmaTailWrapper.sol balance is non zero this time
+    expect(perpLemmaTailCollateralBalanceAfter).to.gt(0);
+    
     const usdlBalanceBefore = await usdLemma.balanceOf(defaultSigner.address);
     expect(quoteAMount).to.equal(usdlBalanceBefore);
 
@@ -520,6 +544,11 @@ describe("usdLemma-perp-tail-asset", async function () {
 
       await ethCollateral.approve(usdLemma.address, baseAmount);
       let tx = await usdLemma.depositTo(defaultSigner.address, quoteAMount, 0, baseAmount, ethCollateral.address);
+
+      // NOTE: Check that tail collateral remains in the perpLemmaTailAsset.sol instead of being deposited in Perp
+      const perpLemmaTailCollateralBalanceAfter = await ethCollateral.balanceOf(perpLemma.address);
+      // NOTE: As now we are opening with exact USDL, we do not know how much of the tailAsset it requires, so we just check its perpLemmaTailWrapper.sol balance is non zero this time
+      expect(perpLemmaTailCollateralBalanceAfter).to.gt(0);
 
       //send some USDL to stackingContract and lemmaTreasury to see if they get burnt when funding Payment is negative
       stackingContractBalanceBefore = utils.parseEther("0.00002");
@@ -579,6 +608,11 @@ describe("usdLemma-perp-tail-asset", async function () {
       openWAmount = utils.parseEther("99");
       await ethCollateral.approve(usdLemma.address, openWAmount);
       await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
+
+      // NOTE: Check that tail collateral remains in the perpLemmaTailAsset.sol instead of being deposited in Perp
+      const perpLemmaTailCollateralBalanceAfter = await ethCollateral.balanceOf(perpLemma.address);
+      expect(perpLemmaTailCollateralBalanceAfter).to.equal(openWAmount);
+
       await ethers.provider.send("evm_increaseTime", [300]);
       await ethers.provider.send("evm_mine", []);
       await forwardTimestamp(clearingHouse, 1);
@@ -626,11 +660,18 @@ describe("usdLemma-perp-tail-asset", async function () {
       // console.log("usdlBallemmatreasuryAfter: ", usdlBallemmatreasuryAfter.toString());
     });
 
+
     it("when fundingPNL is positive(+ve)", async function () {
       await openPosition(clearingHouse, longAddress, baseToken.address, true, true, parseEther("10000"));
       openWAmount = utils.parseEther("490");
       await ethCollateral.approve(usdLemma.address, openWAmount);
       await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
+
+      // NOTE: Check that tail collateral remains in the perpLemmaTailAsset.sol instead of being deposited in Perp
+      const perpLemmaTailCollateralBalanceAfter = await ethCollateral.balanceOf(perpLemma.address);
+      expect(perpLemmaTailCollateralBalanceAfter).to.equal(openWAmount);
+
+
       await ethers.provider.send("evm_increaseTime", [300]);
       await ethers.provider.send("evm_mine", []);
       await forwardTimestamp(clearingHouse, 1);
@@ -710,6 +751,11 @@ describe("usdLemma-perp-tail-asset", async function () {
     await ethCollateral.approve(usdLemma.address, baseAmount);
     let tx = await usdLemma.depositTo(defaultSigner.address, openWAmount, 0, baseAmount, ethCollateral.address);
 
+    // NOTE: Check that tail collateral remains in the perpLemmaTailAsset.sol instead of being deposited in Perp
+    const perpLemmaTailCollateralBalanceAfter = await ethCollateral.balanceOf(perpLemma.address);
+    // NOTE: As now we are opening with exact USDL, we do not know how much of the tailAsset it requires, so we just check its perpLemmaTailWrapper.sol balance is non zero this time
+    expect(perpLemmaTailCollateralBalanceAfter).to.gt(0);
+
     const usdlBalanceBefore = await usdLemma.balanceOf(defaultSigner.address);
     expect(quoteAMount).to.equal(usdlBalanceBefore);
 
@@ -761,6 +807,11 @@ describe("usdLemma-perp-tail-asset", async function () {
     const openWAmount = utils.parseEther("1");
     await ethCollateral.approve(usdLemma.address, openWAmount);
     await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
+
+    // NOTE: Check that tail collateral remains in the perpLemmaTailAsset.sol instead of being deposited in Perp
+    const perpLemmaTailCollateralBalanceAfter = await ethCollateral.balanceOf(perpLemma.address);
+    expect(perpLemmaTailCollateralBalanceAfter).to.equal(openWAmount);
+    
     //trying to get back only half of the ethCollateral
     //tests for all the ethCollateral to get back is after this test
     const amount = openWAmount.div(BigNumber.from("2"));
