@@ -62,7 +62,11 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @notice Returns the fees of the underlying Perp DEX Wrapper
     /// @param dexIndex The DEX Index to operate on
     /// @param collateral Collateral for the minting / redeeming operation
-    function getFees(uint256 dexIndex, address collateral, address baseTokenAddress) external view returns (uint256) {
+    function getFees(
+        uint256 dexIndex,
+        address collateral,
+        address baseTokenAddress
+    ) external view returns (uint256) {
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
         require(address(perpDEXWrapper) != address(0), "DEX Wrapper should not ZERO address");
         return perpDEXWrapper.getFees(baseTokenAddress);
@@ -71,7 +75,11 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @notice Returns the total position in quote Token on a given DEX
     /// @param dexIndex The DEX Index to operate on
     /// @param collateral Collateral for the minting / redeeming operation
-    function getTotalPosition(uint256 dexIndex, address collateral, address baseTokenAddress) external view returns (int256) {
+    function getTotalPosition(
+        uint256 dexIndex,
+        address collateral,
+        address baseTokenAddress
+    ) external view returns (int256) {
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
 
         require(address(perpDEXWrapper) != address(0), "DEX Wrapper should not ZERO address");
@@ -135,7 +143,6 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 amount,
         uint256 perpetualDEXIndex,
         uint256 maxCollateralAmountRequired,
-
         IERC20Upgradeable collateral
     ) public nonReentrant {
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
@@ -176,9 +183,17 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         if (isUsdl) {
             isShorting = true;
         }
-        collateralRequired1e_18 = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmountForPerp(amount, isShorting, isUsdl);
+        collateralRequired1e_18 = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmountForPerp(
+            amount,
+            isShorting,
+            isUsdl
+        );
         require(collateralRequired1e_18 <= maxCollateralAmountRequired, "collateral required execeeds maximum");
-        collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralRequired1e_18, address(collateral), false);
+        collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
+            collateralRequired1e_18,
+            address(collateral),
+            false
+        );
         SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), collateralRequired);
 
         if (isUsdl) {
@@ -211,7 +226,11 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
-        uint256 collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
+        uint256 collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
+            collateralAmount,
+            address(collateral),
+            false
+        );
         SafeERC20Upgradeable.safeTransferFrom(
             collateral,
             _msgSender(),
@@ -248,10 +267,16 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
-        uint256 collateralAmountToGetBack1e_18 = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, false);
+        uint256 collateralAmountToGetBack1e_18 = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(
+            amount,
+            false
+        );
         require(collateralAmountToGetBack1e_18 >= minCollateralAmountToGetBack, "collateral got back is too low");
         perpDEXWrapper.close(amount, collateralAmountToGetBack1e_18);
-        uint256 collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimals(collateralAmountToGetBack1e_18, false);
+        uint256 collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimals(
+            collateralAmountToGetBack1e_18,
+            false
+        );
         SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmountToGetBack);
         emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, collateralAmountToGetBack);
     }
@@ -285,9 +310,13 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             isShorting = true;
         }
 
-        collateralAmountToGetBack1e_18 = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmountForPerp(amount, isShorting, isUsdl);
+        collateralAmountToGetBack1e_18 = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmountForPerp(
+            amount,
+            isShorting,
+            isUsdl
+        );
         require(collateralAmountToGetBack1e_18 >= minCollateralAmountToGetBack, "collateral got back is too low");
-        
+
         if (!isUsdl) {
             // we go short for synth
             perpDEXWrapper.closeShortWithExactBaseForSynth(amount, collateralAmountToGetBack1e_18);
@@ -296,7 +325,11 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             perpDEXWrapper.closeLongWithExactQuoteForUSDL(amount, collateralAmountToGetBack1e_18);
         }
 
-        collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmountToGetBack1e_18, address(collateral), false);
+        collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
+            collateralAmountToGetBack1e_18,
+            address(collateral),
+            false
+        );
         SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmountToGetBack);
         emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, collateralAmountToGetBack);
     }
@@ -328,7 +361,11 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         }
         require(USDLToBurn <= maxUSDLToBurn, "USDL burnt exceeds maximum");
         _burn(_msgSender(), USDLToBurn);
-        collateralAmount = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
+        collateralAmount = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
+            collateralAmount,
+            address(collateral),
+            false
+        );
         SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmount);
         emit WithdrawTo(perpetualDEXIndex, address(collateral), to, USDLToBurn, collateralAmount);
     }
