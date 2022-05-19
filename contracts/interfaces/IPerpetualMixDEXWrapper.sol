@@ -24,7 +24,7 @@ interface IPerpetualMixDEXWrapper {
     function openLongWithExactBaseForSynth(uint256 amount, uint256 collateralAmountRequired) external;
     function closeShortWithExactBaseForSynth(uint256 amount, uint256 collateralAmountToGetBack) external;
 
-    function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting, bool isUsdl)
+    function getCollateralAmountGivenUnderlyingAssetAmountForPerp(uint256 amount, bool isShorting, bool isUsdl)
         external
     returns (uint256 collateralAmountRequired);
 
@@ -35,7 +35,7 @@ interface IPerpetualMixDEXWrapper {
     ) external returns (bool);
 
     function getTotalPosition(address baseTokenAddress) external view returns (int256);
-    function getAmountInCollateralDecimals(uint256 amount, address collateral, bool roundUp) external view returns (uint256);
+    function getAmountInCollateralDecimalsForPerp(uint256 amount, address collateral, bool roundUp) external view returns (uint256);
     function getFees(address baseTokenAddress) external view returns (uint256);
     function settle() external;
 }
