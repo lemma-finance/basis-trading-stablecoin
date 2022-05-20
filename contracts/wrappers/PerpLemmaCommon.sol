@@ -37,6 +37,8 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     IAccountBalance public accountBalance;
     IMarketRegistry public marketRegistry;
     IExchange public exchange;
+
+    bool public isUsdlCollateralTailAsset;
     IERC20Decimals public usdlCollateral;
     IERC20Decimals public synthCollateral;
     IERC20Decimals public usdc;
@@ -123,6 +125,10 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         SafeERC20Upgradeable.safeApprove(synthCollateral, address(perpVault), MAX_UINT256);
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), 0);
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
+    }
+
+    function setIsUsdlCollateralTailAsset(bool _x) external onlyOwner {
+        isUsdlCollateralTailAsset = _x;
     }
 
     /// @notice getFees fees charge by perpV2 protocol for each trade
@@ -276,7 +282,12 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         );
         require(collateralAmountToDeposit > 0, "Amount should greater than zero");
         require(usdlCollateral.balanceOf(address(this)) >= collateralAmountToDeposit, "Not enough collateral to Open");
-        _deposit(collateralAmountToDeposit, address(usdlCollateral));
+
+
+        // NOTE: Only non-tail assets can be deposited in Perp, the other assets have to remain in this contract balance sheet
+        if(!isUsdlCollateralTailAsset) {
+            _deposit(collateralAmountToDeposit, address(usdlCollateral));
+        }
     }
 
     /// @notice Open long position for eth(baseToken) on gCAGUAAFP first using exact amount of USDL(or vUSD you can say) and withdraw collateral here
@@ -289,7 +300,12 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             false
         );
         require(amountToWithdraw > 0, "Amount should greater than zero");
-        _withdraw(amountToWithdraw, address(usdlCollateral));
+
+        // NOTE: Only non-tail asset can be withdrawn, the other one is already on this contract balance sheet 
+        if(! isUsdlCollateralTailAsset) {
+            _withdraw(amountToWithdraw, address(usdlCollateral));
+        }
+
         SafeERC20Upgradeable.safeTransfer(usdlCollateral, usdLemma, amountToWithdraw);
     }
 
@@ -350,7 +366,11 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         );
 
         totalFundingPNL = getFundingPNL(usdlBaseTokenAddress);
-        perpVault.deposit(address(usdlCollateral), collateralAmountToDeposit);
+
+        if(! isUsdlCollateralTailAsset) {
+            perpVault.deposit(address(usdlCollateral), collateralAmountToDeposit);
+        }
+
 
         // create long for usdc and short for eth position by giving isBaseToQuote=true
         // and amount in eth(baseToken) by giving isExactInput=true
@@ -403,7 +423,11 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             false
         );
         require(amountToWithdraw > 0, "Amount should greater than zero");
-        perpVault.withdraw(address(usdlCollateral), amountToWithdraw); // withdraw closed position fund
+
+        if(! isUsdlCollateralTailAsset) {
+            perpVault.withdraw(address(usdlCollateral), amountToWithdraw); // withdraw closed position fund            
+        }
+
         SafeERC20Upgradeable.safeTransfer(usdlCollateral, usdLemma, amountToWithdraw);
     }
 
@@ -516,7 +540,10 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         uint256 freeCollateralForSynth = perpVault.getFreeCollateralByToken(address(this), address(synthCollateral));
         positionAtSettlementInQuoteForSynth = freeCollateralForSynth;
 
-        perpVault.withdraw(address(usdlCollateral), positionAtSettlementInBaseForUSDL);
+        if(! isUsdlCollateralTailAsset) {
+            perpVault.withdraw(address(usdlCollateral), positionAtSettlementInBaseForUSDL);
+        }
+
         perpVault.withdraw(address(synthCollateral), positionAtSettlementInQuoteForSynth);
 
         // All the collateral is now back
