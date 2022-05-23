@@ -17,12 +17,12 @@ import {
   UniswapV3Factory,
   UniswapV3Pool,
   Vault,
-  Quoter,
+  // Quoter,
   CollateralManager,
   TestERC20__factory,
   MockTestAggregatorV3__factory,
   UniswapV3Factory__factory,
-  Quoter__factory,
+  // Quoter__factory,
   ClearingHouseConfig__factory,
   UniswapV3Pool__factory,
   MarketRegistry__factory,
@@ -37,13 +37,17 @@ import {
   TestClearingHouse__factory,
   ClearingHouse__factory,
 } from "../../../perp-lushan/typechain";
-import { QuoteToken } from "../../../perp-lushan/typechain/QuoteToken";
+// import { QuoteToken } from "../../../perp-lushan/typechain/QuoteToken";
 import { TestAccountBalance } from "../../../perp-lushan/typechain/TestAccountBalance";
+import BaseTokenAbi from "../../../perp-lushan/artifacts/contracts/BaseToken.sol/BaseToken.json"
 import QuoteTokenAbi from "../../../perp-lushan/artifacts/contracts/QuoteToken.sol/QuoteToken.json"
+
+import UniV3PoolAbi from "../../../perp-lushan/artifacts/@uniswap/v3-core/contracts/UniswapV3Pool.sol/UniswapV3Pool.json";
+// import QuoteTokenAbi from "../../../perp-lushan/artifacts/contracts/QuoteToken.sol/QuoteToken.json"
 import { token0Fixture, tokensFixture } from "./sharedFixtures";
 import fs from "fs"
 const SAVE_PREFIX = "./deployments/"
-const SAVE_POSTFIX = "mainnetfork.deployment.perp.js";
+const SAVE_POSTFIX = "optimismkovan.deployment.perp.js";
 let deployedContracts = {}
 
 export interface ClearingHouseFixture {
@@ -64,13 +68,13 @@ export interface ClearingHouseFixture {
   WBTC: TestERC20;
   mockedWethPriceFeed: MockTestAggregatorV3;
   mockedWbtcPriceFeed: MockTestAggregatorV3;
-  quoteToken: QuoteToken;
+  // quoteToken: QuoteToken;
   baseToken: BaseToken;
   mockedBaseAggregator: MockTestAggregatorV3;
   baseToken2: BaseToken;
   mockedBaseAggregator2: MockTestAggregatorV3;
   pool2: UniswapV3Pool;
-  quoter: Quoter;
+  // quoter: Quoter;
 }
 
 // caller of this function should ensure that (base, quote) = (token0, token1) is always true
@@ -89,6 +93,12 @@ export function createClearingHouseFixture(
     const wbtc = "0x12e30e93ee88cb7b85f5e613de4d40155775cb11" // WBTC on mainnet
     const WBTC = new ethers.Contract(wbtc, QuoteTokenAbi.abi, admin) as any
 
+    const addr_veth = "0x8C835DFaA34e2AE61775e80EE29E2c724c6AE2BB";
+    const vETH = new ethers.Contract(addr_veth, BaseTokenAbi.abi, admin) as any 
+
+    const addr_vusd = "0xC84Da6c8ec7A57cD10B939E79eaF9d2D17834E04";
+    const vUSD = new ethers.Contract(addr_vusd, QuoteTokenAbi.abi, admin) as any
+
     const usdcDecimals = await USDC.decimals();
 
     let baseToken: any, quoteToken: any, mockedBaseAggregator: any;
@@ -105,9 +115,15 @@ export function createClearingHouseFixture(
     const mockedWbtcPriceFeed = (await aggregatorFactory.deploy()) as any;
     await mockedWbtcPriceFeed.setDecimals(18);
 
+
     // we assume (base, quote) == (token0, token1)
-    baseToken = token0;
-    quoteToken = token1;
+    baseToken = vETH;
+    // baseToken = token0;
+
+
+    quoteToken = vUSD;
+    // quoteToken = token1;
+
     mockedBaseAggregator = mockedAggregator0;
 
     // deploy UniV3 factory
@@ -118,8 +134,8 @@ export function createClearingHouseFixture(
     );
     const uniV3Factory = (await factoryFactory.deploy()) as any;
 
-    const quoterFactory = new ContractFactory(Quoter__factory.abi, Quoter__factory.bytecode, admin);
-    const quoter = (await quoterFactory.deploy(uniV3Factory.address, baseToken.address)) as any;
+    // const quoterFactory = new ContractFactory(Quoter__factory.abi, Quoter__factory.bytecode, admin);
+    // const quoter = (await quoterFactory.deploy(uniV3Factory.address, baseToken.address)) as any;
 
     const clearingHouseConfigFactory = new ContractFactory(
       ClearingHouseConfig__factory.abi,
@@ -230,9 +246,18 @@ export function createClearingHouseFixture(
     await insuranceFund.setBorrower(vault.address);
     await accountBalance.setVault(vault.address);
 
+
+
+
+
     // deploy a pool
-    const poolAddr = await uniV3Factory.getPool(baseToken.address, quoteToken.address, uniFeeTier);
-    const pool = poolFactory.attach(poolAddr) as any;
+
+    const addr_vETH_vUSD_pool = "0x36B18618c4131D8564A714fb6b4D2B1EdADc0042";
+    const pool = new ethers.Contract(addr_vETH_vUSD_pool, UniV3PoolAbi.abi, admin) as any
+
+    // const poolAddr = await uniV3Factory.getPool(baseToken.address, quoteToken.address, uniFeeTier);
+    // const pool = poolFactory.attach(poolAddr) as any;
+
     await baseToken.addWhitelist(pool.address);
     await quoteToken.addWhitelist(pool.address);
 
@@ -411,10 +436,10 @@ export function createClearingHouseFixture(
         address: uniV3Factory.address,
     }
 
-    deployedContracts["quoter"] = {
-        name: "quoter",
-        address: quoter.address,
-    }
+    // deployedContracts["quoter"] = {
+    //     name: "quoter",
+    //     address: quoter.address,
+    // }
 
     console.log("deployedContracts: ", deployedContracts)
     await fs.writeFileSync(SAVE_PREFIX + SAVE_POSTFIX, JSON.stringify(deployedContracts, null, 2))
@@ -444,7 +469,7 @@ export function createClearingHouseFixture(
       baseToken2,
       mockedBaseAggregator2,
       pool2,
-      quoter,
+      // quoter,
     };
   };
 }
