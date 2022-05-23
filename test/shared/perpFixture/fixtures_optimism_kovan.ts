@@ -86,22 +86,36 @@ export function createClearingHouseFixture(
   return async (): Promise<ClearingHouseFixture> => {
     // deploy test tokens
     const tokenFactory = new ContractFactory(TestERC20__factory.abi, TestERC20__factory.bytecode, admin);
+
+    // ERC20 Tokens 
     const usdc = "0x7F5c764cBc14f9669B88837ca1490cCa17c31607" // USDC on Optimism Kovan
     const USDC = new ethers.Contract(usdc, QuoteTokenAbi.abi, admin) as any
+    const usdcDecimals = await USDC.decimals();
+
     const weth = "0x4200000000000000000000000000000000000006" // WETH on Optimism Kovan
     const WETH = new ethers.Contract(weth, QuoteTokenAbi.abi, admin) as any
+
     const wbtc = "0x12e30e93ee88cb7b85f5e613de4d40155775cb11" // WBTC on mainnet
     const WBTC = new ethers.Contract(wbtc, QuoteTokenAbi.abi, admin) as any
 
+
+
+
+
+    // Virtual Base Tokens 
     const addr_veth = "0x8C835DFaA34e2AE61775e80EE29E2c724c6AE2BB";
     const vETH = new ethers.Contract(addr_veth, BaseTokenAbi.abi, admin) as any 
 
+    const addr_vbtc = "0x86f1e0420c26a858fc203A3645dD1A36868F18e5";
+    const vBTC = new ethers.Contract(addr_vbtc, BaseTokenAbi.abi, admin) as any 
+
+
+
+    // Virtual Quote Token
     const addr_vusd = "0xC84Da6c8ec7A57cD10B939E79eaF9d2D17834E04";
     const vUSD = new ethers.Contract(addr_vusd, QuoteTokenAbi.abi, admin) as any
 
-    const usdcDecimals = await USDC.decimals();
-
-    let baseToken: any, quoteToken: any, mockedBaseAggregator: any;
+    // let baseToken: any, quoteToken: any, mockedBaseAggregator: any;
     const { token0, mockedAggregator0, token1 } = await tokensFixture(admin);
 
     const aggregatorFactory = new ContractFactory(
@@ -117,14 +131,15 @@ export function createClearingHouseFixture(
 
 
     // we assume (base, quote) == (token0, token1)
-    baseToken = vETH;
+    const baseToken = vETH;
     // baseToken = token0;
 
 
-    quoteToken = vUSD;
+
+    const quoteToken = vUSD;
     // quoteToken = token1;
 
-    mockedBaseAggregator = mockedAggregator0;
+    const mockedBaseAggregator = mockedAggregator0;
 
     // deploy UniV3 factory
     const factoryFactory = new ContractFactory(
