@@ -34,6 +34,7 @@ interface IPerpetualMixDEXWrapper {
 
     function closeShortWithExactBaseForSynth(uint256 amount, uint256 collateralAmountToGetBack) external;
 
+    // For USDLemma and LemmaETH
     function getCollateralAmountGivenUnderlyingAssetAmountForPerp(
         uint256 amount,
         bool isShorting,

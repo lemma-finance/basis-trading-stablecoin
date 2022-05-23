@@ -22,7 +22,6 @@ import {
   UniswapV3Factory,
   UniswapV3Pool,
   Vault,
-  Quoter,
   CollateralManager,
 } from "../../perp-lushan/typechain";
 import { QuoteToken } from "../../perp-lushan/typechain/QuoteToken";
@@ -127,8 +126,7 @@ describe("usdLemma-perp", async function () {
   let mockedWethPriceFeed: MockTestAggregatorV3;
   let mockedWbtcPriceFeed: MockTestAggregatorV3;
   let univ3factory: UniswapV3Factory;
-  let quoter: Quoter;
-  let perpLemma: TestPerpLemma;
+  let perpLemma: any;
   let usdLemma: USDLemma;
   let usdCollateralDecimals: number;
   let ethCollateralDecimals: number;
@@ -161,19 +159,20 @@ describe("usdLemma-perp", async function () {
     pool = _clearingHouseFixture.pool;
     pool2 = _clearingHouseFixture.pool2;
     univ3factory = _clearingHouseFixture.uniV3Factory;
-    quoter = _clearingHouseFixture.quoter;
     usdCollateralDecimals = await usdCollateral.decimals();
     ethCollateralDecimals = await ethCollateral.decimals();
     btcCollateralDecimals = await btcCollateral.decimals();
 
     const trustedForwarder = ethers.constants.AddressZero;
     const maxPosition = ethers.constants.MaxUint256;
-    const perpLemmaFactory = await ethers.getContractFactory("PerpLemma");
+    const perpLemmaFactory = await ethers.getContractFactory("PerpLemmaCommon");
     perpLemma = (await upgrades.deployProxy(
       perpLemmaFactory,
       [
         trustedForwarder,
         ethCollateral.address,
+        baseToken.address,
+        usdCollateral.address,
         baseToken.address,
         clearingHouse.address,
         marketRegistry.address,
@@ -181,7 +180,7 @@ describe("usdLemma-perp", async function () {
         maxPosition,
       ],
       { initializer: "initialize" },
-    )) as TestPerpLemma;
+    )) as any;
     await perpLemma.connect(signer1).resetApprovals();
 
     // base = usd
@@ -290,18 +289,24 @@ describe("usdLemma-perp", async function () {
   });
 
   it("getFees", async function () {
-    await expect(usdLemma.getFees(0, AddressZero)).to.be.revertedWith("DEX Wrapper should not ZERO address");
-    await expect(usdLemma.getFees(100, AddressZero)).to.be.revertedWith("DEX Wrapper should not ZERO address");
-    const fees = await usdLemma.getFees(0, ethCollateral.address);
+    await expect(usdLemma.getFees(0, AddressZero, baseToken.address)).to.be.revertedWith(
+      "DEX Wrapper should not ZERO address",
+    );
+    await expect(usdLemma.getFees(100, AddressZero, baseToken.address)).to.be.revertedWith(
+      "DEX Wrapper should not ZERO address",
+    );
+    const fees = await usdLemma.getFees(0, ethCollateral.address, baseToken.address);
     expect(fees).to.eq(10000);
   });
 
   it("getTotalPosition", async function () {
     const openWAmount = utils.parseEther("1");
     await ethCollateral.approve(usdLemma.address, openWAmount);
-    await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
-    await expect(usdLemma.getTotalPosition(0, AddressZero)).to.be.revertedWith("DEX Wrapper should not ZERO address");
-    const position = await usdLemma.getTotalPosition(0, ethCollateral.address);
+    await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, true, ethCollateral.address);
+    await expect(usdLemma.getTotalPosition(0, AddressZero, baseToken.address)).to.be.revertedWith(
+      "DEX Wrapper should not ZERO address",
+    );
+    const position = await usdLemma.getTotalPosition(0, ethCollateral.address, baseToken.address);
     expect(position).to.eq(parseEther("100").mul(-1));
   });
 
@@ -352,7 +357,14 @@ describe("usdLemma-perp", async function () {
       amount,
     );
     // console.log("quoteAmount", quoteAmount.toString());
-    let tx = await usdLemma.depositToWExactCollateral(signer1.address, amount, 0, quoteAmount, ethCollateral.address);
+    let tx = await usdLemma.depositToWExactCollateral(
+      signer1.address,
+      amount,
+      0,
+      quoteAmount,
+      true,
+      ethCollateral.address,
+    );
     //perpLemma related tests
     const positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
     expect(positionSize.isNegative()).to.be.true;
@@ -371,7 +383,7 @@ describe("usdLemma-perp", async function () {
   it("should withdraw with exact ethCollateral correctly", async function () {
     const openWAmount = utils.parseEther("1");
     await ethCollateral.approve(usdLemma.address, openWAmount);
-    await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
+    await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, true, ethCollateral.address);
     //trying to get back only half of the ethCollateral
     //tests for all the ethCollateral to get back is after this test
     const amount = openWAmount.div(BigNumber.from("2"));
@@ -384,7 +396,14 @@ describe("usdLemma-perp", async function () {
     );
     const collateralBalanceBefore = await ethCollateral.balanceOf(signer1.address);
     const usdlBalanceBefore = await usdLemma.balanceOf(defaultSigner.address);
-    let tx = await usdLemma.withdrawToWExactCollateral(signer1.address, amount, 0, quoteAmount, ethCollateral.address);
+    let tx = await usdLemma.withdrawToWExactCollateral(
+      signer1.address,
+      amount,
+      0,
+      quoteAmount,
+      true,
+      ethCollateral.address,
+    );
     const collateralBalanceAfter = await ethCollateral.balanceOf(signer1.address);
     const usdlBalanceAfter = await usdLemma.balanceOf(defaultSigner.address);
 
@@ -399,10 +418,10 @@ describe("usdLemma-perp", async function () {
     // will need to add custom method to extract the args from the emitted events and test the following test
     // await expect(tx).to.emit(clearingHouse, "PositionChanged").withArgs(perpLemma.address, baseToken.address, baseAmount, undefined, undefined, undefined, undefined, undefined);
   });
-  it("should close entire position correctly with exact ethCollateral, depositToWExactCollateral & withdrawTo", async function () {
+  it("should close entire position correctly with exact ethCollateral, depositToWExactCollateral & withdrawToForPerp", async function () {
     const openWAmount = utils.parseEther("1");
     await ethCollateral.approve(usdLemma.address, openWAmount);
-    await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
+    await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, true, ethCollateral.address);
 
     const usdlBalance = await usdLemma.balanceOf(defaultSigner.address);
     const amount = usdlBalance;
@@ -416,7 +435,7 @@ describe("usdLemma-perp", async function () {
     //input is whatever it costs to go long on the current usdl balance
     const collateralBalanceBefore = await ethCollateral.balanceOf(signer1.address);
     await usdLemma.approve(usdLemma.address, amount);
-    let tx = await usdLemma.withdrawTo(signer1.address, amount, 0, baseAmount, ethCollateral.address);
+    let tx = await usdLemma.withdrawToForPerp(signer1.address, amount, 0, baseAmount, true, ethCollateral.address);
     const collateralBalanceAfter = await ethCollateral.balanceOf(signer1.address);
     const usdlBalanceAfter = await usdLemma.balanceOf(defaultSigner.address);
 
@@ -427,7 +446,7 @@ describe("usdLemma-perp", async function () {
       .to.emit(usdLemma, "WithdrawTo")
       .withArgs(0, ethCollateral.address, signer1.address, amount, baseAmount);
   });
-  it("depositTo & WithdrawTo", async function () {
+  it("depositToForPerp & WithdrawToForPerp", async function () {
     const openWAmount = utils.parseEther("1");
     await ethCollateral.approve(usdLemma.address, openWAmount);
     let [baseAmount, quoteAMount] = await callStaticOpenShortPositionWithExactQuote(
@@ -437,7 +456,14 @@ describe("usdLemma-perp", async function () {
       openWAmount,
     );
     await ethCollateral.approve(usdLemma.address, baseAmount);
-    let tx = await usdLemma.depositTo(defaultSigner.address, openWAmount, 0, baseAmount, ethCollateral.address);
+    let tx = await usdLemma.depositToForPerp(
+      defaultSigner.address,
+      openWAmount,
+      0,
+      baseAmount,
+      true,
+      ethCollateral.address,
+    );
 
     const usdlBalanceBefore = await usdLemma.balanceOf(defaultSigner.address);
     expect(quoteAMount).to.equal(usdlBalanceBefore);
@@ -451,7 +477,7 @@ describe("usdLemma-perp", async function () {
     );
     const collateralBalanceBefore = await ethCollateral.balanceOf(signer1.address);
     await usdLemma.approve(usdLemma.address, amount);
-    tx = await usdLemma.withdrawTo(signer1.address, amount, 0, baseAmount1, ethCollateral.address);
+    tx = await usdLemma.withdrawToForPerp(signer1.address, amount, 0, baseAmount1, true, ethCollateral.address);
     const collateralBalanceAfter = await ethCollateral.balanceOf(signer1.address);
     const usdlBalanceAfter = await usdLemma.balanceOf(defaultSigner.address);
 
@@ -462,42 +488,6 @@ describe("usdLemma-perp", async function () {
       .to.emit(usdLemma, "WithdrawTo")
       .withArgs(0, ethCollateral.address, signer1.address, amount, baseAmount1);
   });
-  it("deposit & Withdraw", async function () {
-    const openWAmount = utils.parseEther("1");
-    await ethCollateral.approve(usdLemma.address, openWAmount);
-    let [baseAmount, quoteAMount] = await callStaticOpenShortPositionWithExactQuote(
-      clearingHouse,
-      longAddress,
-      baseToken.address,
-      openWAmount,
-    );
-    await ethCollateral.approve(usdLemma.address, baseAmount);
-    let tx = await usdLemma.deposit(openWAmount, 0, baseAmount, ethCollateral.address);
-
-    const usdlBalanceBefore = await usdLemma.balanceOf(defaultSigner.address);
-    expect(quoteAMount).to.equal(usdlBalanceBefore);
-
-    let amount = usdlBalanceBefore;
-    let [baseAmount1] = await callStaticOpenLongPositionWithExactQuote(
-      clearingHouse,
-      longAddress,
-      baseToken.address,
-      amount,
-    );
-    const collateralBalanceBefore = await ethCollateral.balanceOf(defaultSigner.address);
-    await usdLemma.approve(usdLemma.address, amount);
-    tx = await usdLemma.withdraw(amount, 0, baseAmount1, ethCollateral.address);
-    const collateralBalanceAfter = await ethCollateral.balanceOf(defaultSigner.address);
-    const usdlBalanceAfter = await usdLemma.balanceOf(defaultSigner.address);
-
-    expect(collateralBalanceAfter.sub(collateralBalanceBefore)).to.equal(baseAmount1);
-    expect(usdlBalanceBefore.sub(usdlBalanceAfter)).to.equal(amount);
-
-    await expect(tx)
-      .to.emit(usdLemma, "WithdrawTo")
-      .withArgs(0, ethCollateral.address, defaultSigner.address, amount, baseAmount1);
-  });
-
   describe("Rebalance", async function () {
     const sqrtPriceLimitX96 = 0;
     const deadline = ethers.constants.MaxUint256;
@@ -517,7 +507,14 @@ describe("usdLemma-perp", async function () {
       );
 
       await ethCollateral.approve(usdLemma.address, baseAmount);
-      let tx = await usdLemma.depositTo(defaultSigner.address, quoteAMount, 0, baseAmount, ethCollateral.address);
+      let tx = await usdLemma.depositToForPerp(
+        defaultSigner.address,
+        quoteAMount,
+        0,
+        baseAmount,
+        true,
+        ethCollateral.address,
+      );
 
       //send some USDL to stackingContract and lemmaTreasury to see if they get burnt when funding Payment is negative
       stackingContractBalanceBefore = utils.parseEther("0.00002");
@@ -565,7 +562,7 @@ describe("usdLemma-perp", async function () {
             123,
             ethCollateral.address,
             100,
-            ethers.utils.defaultAbiCoder.encode(["uint160", "uint256"], [sqrtPriceLimitX96, deadline]),
+            ethers.utils.defaultAbiCoder.encode(["uint160", "uint256", "bool"], [sqrtPriceLimitX96, deadline, true]),
           ),
       ).to.be.revertedWith("invalid DEX/collateral"); // when dex index is not valid
     });
@@ -576,18 +573,18 @@ describe("usdLemma-perp", async function () {
 
       openWAmount = utils.parseEther("99");
       await ethCollateral.approve(usdLemma.address, openWAmount);
-      await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
+      await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, true, ethCollateral.address);
       await ethers.provider.send("evm_increaseTime", [300]);
       await ethers.provider.send("evm_mine", []);
       await forwardTimestamp(clearingHouse, 1);
       openWAmount = utils.parseEther("1");
       await ethCollateral.approve(usdLemma.address, openWAmount);
-      await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
+      await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, true, ethCollateral.address);
       await forwardTimestamp(clearingHouse, 1);
       await perpLemma.settleAllFunding();
 
       let checkPrice_before = await checkAndSyncPrice();
-      let fundingPNL = await perpLemma.getFundingPNL();
+      let fundingPNL = await perpLemma.getFundingPNL(baseToken.address);
       let totalFundingPNL = await perpLemma.totalFundingPNL();
       let realizedFundingPnl = await perpLemma.realizedFundingPNL();
       let rebalanceAmount = totalFundingPNL.sub(realizedFundingPnl);
@@ -607,7 +604,7 @@ describe("usdLemma-perp", async function () {
           0,
           ethCollateral.address,
           rebalanceAmount,
-          ethers.utils.defaultAbiCoder.encode(["uint160", "uint256"], [sqrtPriceLimitX96, deadline]),
+          ethers.utils.defaultAbiCoder.encode(["uint160", "uint256", "bool"], [sqrtPriceLimitX96, deadline, true]),
         );
 
       expect(tx).to.emit(usdLemma, "Rebalance");
@@ -628,18 +625,18 @@ describe("usdLemma-perp", async function () {
       await openPosition(clearingHouse, longAddress, baseToken.address, true, true, parseEther("10000"));
       openWAmount = utils.parseEther("490");
       await ethCollateral.approve(usdLemma.address, openWAmount);
-      await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
+      await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, true, ethCollateral.address);
       await ethers.provider.send("evm_increaseTime", [300]);
       await ethers.provider.send("evm_mine", []);
       await forwardTimestamp(clearingHouse, 1);
       openWAmount = utils.parseEther("10");
       await ethCollateral.approve(usdLemma.address, openWAmount);
-      await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
+      await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, true, ethCollateral.address);
       await forwardTimestamp(clearingHouse, 1);
       await perpLemma.settleAllFunding();
 
       let checkPrice_before = await checkAndSyncPrice();
-      let fundingPNL = await perpLemma.getFundingPNL();
+      let fundingPNL = await perpLemma.getFundingPNL(baseToken.address);
       let totalFundingPNL = await perpLemma.totalFundingPNL();
       let realizedFundingPnl = await perpLemma.realizedFundingPNL();
       let rebalanceAmount = totalFundingPNL.sub(realizedFundingPnl);
@@ -659,7 +656,7 @@ describe("usdLemma-perp", async function () {
           0,
           ethCollateral.address,
           rebalanceAmount,
-          ethers.utils.defaultAbiCoder.encode(["uint160", "uint256"], [sqrtPriceLimitX96, deadline]),
+          ethers.utils.defaultAbiCoder.encode(["uint160", "uint256", "bool"], [sqrtPriceLimitX96, deadline, true]),
         );
 
       expect(tx).to.emit(usdLemma, "Rebalance");
@@ -676,11 +673,11 @@ describe("usdLemma-perp", async function () {
     });
   });
 
-  it("Force Error, depositTo", async function () {
-    await expect(usdLemma.depositTo(defaultSigner.address, 100, 100, 100, ethCollateral.address)).to.be.revertedWith(
-      "invalid DEX/collateral",
-    ); // when dex index is not valid
-    await expect(usdLemma.depositTo(defaultSigner.address, 100, 0, 100, AddressZero)).to.be.revertedWith(
+  it("Force Error, depositToForPerp", async function () {
+    await expect(
+      usdLemma.depositToForPerp(defaultSigner.address, 100, 100, 100, true, ethCollateral.address),
+    ).to.be.revertedWith("invalid DEX/collateral"); // when dex index is not valid
+    await expect(usdLemma.depositToForPerp(defaultSigner.address, 100, 0, 100, true, AddressZero)).to.be.revertedWith(
       "invalid DEX/collateral",
     ); //when collateral address is not valid
     const openWAmount = utils.parseEther("1");
@@ -693,10 +690,10 @@ describe("usdLemma-perp", async function () {
     );
     await ethCollateral.approve(usdLemma.address, baseAmount);
     await expect(
-      usdLemma.depositTo(defaultSigner.address, openWAmount, 0, 1, ethCollateral.address),
+      usdLemma.depositToForPerp(defaultSigner.address, openWAmount, 0, 1, true, ethCollateral.address),
     ).to.be.revertedWith("collateral required execeeds maximum");
   });
-  it("Force Error, withdrawTo", async function () {
+  it("Force Error, withdrawToForPerp", async function () {
     const openWAmount = utils.parseEther("1");
     await ethCollateral.approve(usdLemma.address, openWAmount);
     let [baseAmount, quoteAMount] = await callStaticOpenShortPositionWithExactQuote(
@@ -706,16 +703,23 @@ describe("usdLemma-perp", async function () {
       openWAmount,
     );
     await ethCollateral.approve(usdLemma.address, baseAmount);
-    let tx = await usdLemma.depositTo(defaultSigner.address, openWAmount, 0, baseAmount, ethCollateral.address);
+    let tx = await usdLemma.depositToForPerp(
+      defaultSigner.address,
+      openWAmount,
+      0,
+      baseAmount,
+      true,
+      ethCollateral.address,
+    );
 
     const usdlBalanceBefore = await usdLemma.balanceOf(defaultSigner.address);
     expect(quoteAMount).to.equal(usdlBalanceBefore);
 
     await usdLemma.approve(usdLemma.address, 100);
-    await expect(usdLemma.withdrawTo(defaultSigner.address, 100, 100, 100, ethCollateral.address)).to.be.revertedWith(
-      "invalid DEX/collateral",
-    ); // when dex index is not valid
-    await expect(usdLemma.withdrawTo(defaultSigner.address, 100, 0, 100, AddressZero)).to.be.revertedWith(
+    await expect(
+      usdLemma.withdrawToForPerp(defaultSigner.address, 100, 100, 100, true, ethCollateral.address),
+    ).to.be.revertedWith("invalid DEX/collateral"); // when dex index is not valid
+    await expect(usdLemma.withdrawToForPerp(defaultSigner.address, 100, 0, 100, true, AddressZero)).to.be.revertedWith(
       "invalid DEX/collateral",
     ); //when collateral address is not valid
 
@@ -728,9 +732,9 @@ describe("usdLemma-perp", async function () {
     );
     await usdLemma.approve(usdLemma.address, amount);
     await expect(
-      usdLemma.withdrawTo(defaultSigner.address, amount, 0, baseAmount1.mul(2), ethCollateral.address),
+      usdLemma.withdrawToForPerp(defaultSigner.address, amount, 0, baseAmount1.mul(2), true, ethCollateral.address),
     ).to.be.revertedWith("collateral got back is too low");
-    tx = await usdLemma.withdrawTo(signer1.address, amount, 0, baseAmount1, ethCollateral.address);
+    tx = await usdLemma.withdrawToForPerp(signer1.address, amount, 0, baseAmount1, true, ethCollateral.address);
     await expect(tx)
       .to.emit(usdLemma, "WithdrawTo")
       .withArgs(0, ethCollateral.address, signer1.address, amount, baseAmount1);
@@ -738,10 +742,10 @@ describe("usdLemma-perp", async function () {
   it("Force Error, depositToWExactCollateral", async function () {
     const openWAmount = utils.parseEther("1");
     await expect(
-      usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 120, 0, ethCollateral.address),
+      usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 120, 0, true, ethCollateral.address),
     ).to.be.revertedWith("invalid DEX/collateral"); // when dex index is not valid
     await expect(
-      usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, AddressZero),
+      usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, true, AddressZero),
     ).to.be.revertedWith("invalid DEX/collateral"); //when collateral address is not valid
 
     await ethCollateral.approve(usdLemma.address, openWAmount);
@@ -751,6 +755,7 @@ describe("usdLemma-perp", async function () {
         openWAmount,
         0,
         parseEther("10000"),
+        true,
         ethCollateral.address,
       ),
     ).to.be.revertedWith("USDL minted too low");
@@ -758,7 +763,7 @@ describe("usdLemma-perp", async function () {
   it("Force Error, withdrawToWExactCollateral", async function () {
     const openWAmount = utils.parseEther("1");
     await ethCollateral.approve(usdLemma.address, openWAmount);
-    await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
+    await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, true, ethCollateral.address);
     //trying to get back only half of the ethCollateral
     //tests for all the ethCollateral to get back is after this test
     const amount = openWAmount.div(BigNumber.from("2"));
@@ -771,15 +776,53 @@ describe("usdLemma-perp", async function () {
     );
 
     await expect(
-      usdLemma.withdrawToWExactCollateral(defaultSigner.address, openWAmount, 120, 0, ethCollateral.address),
+      usdLemma.withdrawToWExactCollateral(defaultSigner.address, openWAmount, 120, 0, true, ethCollateral.address),
     ).to.be.revertedWith("invalid DEX/collateral"); // when dex index is not valid
     await expect(
-      usdLemma.withdrawToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, AddressZero),
+      usdLemma.withdrawToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, true, AddressZero),
     ).to.be.revertedWith("invalid DEX/collateral"); //when collateral address is not valid
 
     await usdLemma.approve(usdLemma.address, openWAmount);
     await expect(
-      usdLemma.withdrawToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address),
+      usdLemma.withdrawToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, true, ethCollateral.address),
     ).to.be.revertedWith("USDL burnt exceeds maximum");
   });
+
+  // Commented testcases
+
+  // it("deposit & Withdraw", async function () {
+  //   const openWAmount = utils.parseEther("1");
+  //   await ethCollateral.approve(usdLemma.address, openWAmount);
+  //   let [baseAmount, quoteAMount] = await callStaticOpenShortPositionWithExactQuote(
+  //     clearingHouse,
+  //     longAddress,
+  //     baseToken.address,
+  //     openWAmount,
+  //   );
+  //   await ethCollateral.approve(usdLemma.address, baseAmount);
+  //   let tx = await usdLemma.deposit(openWAmount, 0, baseAmount, ethCollateral.address);
+
+  //   const usdlBalanceBefore = await usdLemma.balanceOf(defaultSigner.address);
+  //   expect(quoteAMount).to.equal(usdlBalanceBefore);
+
+  //   let amount = usdlBalanceBefore;
+  //   let [baseAmount1] = await callStaticOpenLongPositionWithExactQuote(
+  //     clearingHouse,
+  //     longAddress,
+  //     baseToken.address,
+  //     amount,
+  //   );
+  //   const collateralBalanceBefore = await ethCollateral.balanceOf(defaultSigner.address);
+  //   await usdLemma.approve(usdLemma.address, amount);
+  //   tx = await usdLemma.withdraw(amount, 0, baseAmount1, ethCollateral.address);
+  //   const collateralBalanceAfter = await ethCollateral.balanceOf(defaultSigner.address);
+  //   const usdlBalanceAfter = await usdLemma.balanceOf(defaultSigner.address);
+
+  //   expect(collateralBalanceAfter.sub(collateralBalanceBefore)).to.equal(baseAmount1);
+  //   expect(usdlBalanceBefore.sub(usdlBalanceAfter)).to.equal(amount);
+
+  //   await expect(tx)
+  //     .to.emit(usdLemma, "WithdrawTo")
+  //     .withArgs(0, ethCollateral.address, defaultSigner.address, amount, baseAmount1);
+  // });
 });

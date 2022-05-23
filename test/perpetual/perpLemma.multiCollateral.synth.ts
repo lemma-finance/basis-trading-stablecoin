@@ -22,7 +22,6 @@ import {
   UniswapV3Factory,
   UniswapV3Pool,
   Vault,
-  // Quoter,
   CollateralManager,
 } from "../../perp-lushan/typechain";
 import { QuoteToken } from "../../perp-lushan/typechain/QuoteToken";
@@ -114,7 +113,6 @@ describe("perpLemma.multiCollateral", async function () {
   let mockedWethPriceFeed: MockTestAggregatorV3;
   let mockedWbtcPriceFeed: MockTestAggregatorV3;
   let univ3factory: UniswapV3Factory;
-  // let quoter: Quoter;
   let perpLemma: any;
   let usdCollateralDecimals: number;
   let ethCollateralDecimals: number;
@@ -144,7 +142,6 @@ describe("perpLemma.multiCollateral", async function () {
     pool = _clearingHouseFixture.pool;
     pool2 = _clearingHouseFixture.pool2;
     univ3factory = _clearingHouseFixture.uniV3Factory;
-    // quoter = _clearingHouseFixture.quoter;
     usdCollateralDecimals = await usdCollateral.decimals();
     ethCollateralDecimals = await ethCollateral.decimals();
 
@@ -436,7 +433,9 @@ describe("perpLemma.multiCollateral", async function () {
         await expect(
           perpLemma
             .connect(usdLemma)
-            .openLongWithExactCollateral(collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals))),
+            .openLongWithExactCollateral(
+              collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
+            ),
         ).to.emit(clearingHouse, "PositionChanged");
 
         expect(await usdCollateral.balanceOf(perpLemma.address)).to.eq(0);
@@ -541,10 +540,14 @@ describe("perpLemma.multiCollateral", async function () {
         ); // index0: base/usd, index1: quote/eth
 
         await expect(
-          perpLemma.connect(usdLemma).getCollateralAmountGivenUnderlyingAssetAmountForPerp(baseAndQuoteValue[0], true, false),
+          perpLemma
+            .connect(usdLemma)
+            .getCollateralAmountGivenUnderlyingAssetAmountForPerp(baseAndQuoteValue[0], true, false),
         ).to.emit(clearingHouse, "PositionChanged");
 
-        await expect(perpLemma.connect(usdLemma).closeShortWithExactBaseForSynth(0, 0)).to.be.revertedWith("Amount should greater than zero");
+        await expect(perpLemma.connect(usdLemma).closeShortWithExactBaseForSynth(0, 0)).to.be.revertedWith(
+          "Amount should greater than zero",
+        );
         await perpLemma.connect(usdLemma).closeShortWithExactBaseForSynth(0, baseAndQuoteValue[1]);
         leverage = await calcLeverage();
         expect(leverage).to.eq(0);
@@ -586,13 +589,17 @@ describe("perpLemma.multiCollateral", async function () {
 
         // Deposit ethCollateral in eth and Short eth and long usdc
         await expect(
-          perpLemma.connect(usdLemma).getCollateralAmountGivenUnderlyingAssetAmountForPerp(baseAndQuoteValue[0], false, false),
+          perpLemma
+            .connect(usdLemma)
+            .getCollateralAmountGivenUnderlyingAssetAmountForPerp(baseAndQuoteValue[0], false, false),
         ).to.emit(clearingHouse, "PositionChanged");
 
-        await expect(perpLemma.connect(usdLemma).openLongWithExactBaseForSynth(0, 0)).to.be.revertedWith("Amount should greater than zero");
-        await expect(perpLemma.connect(usdLemma).openLongWithExactBaseForSynth(0, baseAndQuoteValue[1].mul(2))).to.be.revertedWith(
-          "not enough collateral",
+        await expect(perpLemma.connect(usdLemma).openLongWithExactBaseForSynth(0, 0)).to.be.revertedWith(
+          "Amount should greater than zero",
         );
+        await expect(
+          perpLemma.connect(usdLemma).openLongWithExactBaseForSynth(0, baseAndQuoteValue[1].mul(2)),
+        ).to.be.revertedWith("not enough collateral");
         await perpLemma.connect(usdLemma).openLongWithExactBaseForSynth(0, baseAndQuoteValue[1]);
         let leverage = await calcLeverage();
         expect(BigNumber.from(leverage).div(parseEther("1"))).to.eq(1);
@@ -609,10 +616,14 @@ describe("perpLemma.multiCollateral", async function () {
         ); // index0: base/usd, index1: quote/eth
 
         await expect(
-          perpLemma.connect(usdLemma).getCollateralAmountGivenUnderlyingAssetAmountForPerp(baseAndQuoteValue[0], true, false),
+          perpLemma
+            .connect(usdLemma)
+            .getCollateralAmountGivenUnderlyingAssetAmountForPerp(baseAndQuoteValue[0], true, false),
         ).to.emit(clearingHouse, "PositionChanged");
 
-        await expect(perpLemma.connect(usdLemma).closeShortWithExactBaseForSynth(0, 0)).to.be.revertedWith("Amount should greater than zero");
+        await expect(perpLemma.connect(usdLemma).closeShortWithExactBaseForSynth(0, 0)).to.be.revertedWith(
+          "Amount should greater than zero",
+        );
         await perpLemma.connect(usdLemma).closeShortWithExactBaseForSynth(0, baseAndQuoteValue[1]);
         leverage = await calcLeverage();
         expect(leverage).to.eq(0);
@@ -653,13 +664,17 @@ describe("perpLemma.multiCollateral", async function () {
 
         // Deposit ethCollateral in eth and Short eth and long usdc
         await expect(
-          perpLemma.connect(usdLemma).getCollateralAmountGivenUnderlyingAssetAmountForPerp(baseAndQuoteValue[0], false, false),
+          perpLemma
+            .connect(usdLemma)
+            .getCollateralAmountGivenUnderlyingAssetAmountForPerp(baseAndQuoteValue[0], false, false),
         ).to.emit(clearingHouse, "PositionChanged");
 
-        await expect(perpLemma.connect(usdLemma).openLongWithExactBaseForSynth(0, 0)).to.be.revertedWith("Amount should greater than zero");
-        await expect(perpLemma.connect(usdLemma).openLongWithExactBaseForSynth(0, baseAndQuoteValue[1].mul(2))).to.be.revertedWith(
-          "not enough collateral",
+        await expect(perpLemma.connect(usdLemma).openLongWithExactBaseForSynth(0, 0)).to.be.revertedWith(
+          "Amount should greater than zero",
         );
+        await expect(
+          perpLemma.connect(usdLemma).openLongWithExactBaseForSynth(0, baseAndQuoteValue[1].mul(2)),
+        ).to.be.revertedWith("not enough collateral");
         await perpLemma.connect(usdLemma).openLongWithExactBaseForSynth(0, baseAndQuoteValue[1]);
         let leverage = await calcLeverage();
         expect(BigNumber.from(leverage).div(parseEther("1"))).to.eq(1);
@@ -712,7 +727,9 @@ describe("perpLemma.multiCollateral", async function () {
           await expect(
             perpLemma
               .connect(usdLemma)
-              .openLongWithExactCollateral(collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals))),
+              .openLongWithExactCollateral(
+                collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
+              ),
           )
             .to.emit(clearingHouse, "PositionChanged")
             .withArgs(
@@ -745,7 +762,9 @@ describe("perpLemma.multiCollateral", async function () {
           await expect(
             perpLemma
               .connect(usdLemma)
-              .openLongWithExactCollateral(collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals))),
+              .openLongWithExactCollateral(
+                collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
+              ),
           )
             .to.emit(clearingHouse, "PositionChanged")
             .withArgs(
@@ -800,7 +819,9 @@ describe("perpLemma.multiCollateral", async function () {
           await expect(
             perpLemma
               .connect(usdLemma)
-              .openLongWithExactCollateral(collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals))),
+              .openLongWithExactCollateral(
+                collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
+              ),
           ).to.emit(clearingHouse, "PositionChanged");
 
           let positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
@@ -862,7 +883,9 @@ describe("perpLemma.multiCollateral", async function () {
           await expect(
             perpLemma
               .connect(usdLemma)
-              .openLongWithExactCollateral(collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals))),
+              .openLongWithExactCollateral(
+                collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
+              ),
           ).to.emit(clearingHouse, "PositionChanged");
 
           let positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
@@ -909,7 +932,9 @@ describe("perpLemma.multiCollateral", async function () {
           await expect(
             perpLemma
               .connect(usdLemma)
-              .openLongWithExactCollateral(collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals))),
+              .openLongWithExactCollateral(
+                collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
+              ),
           ).to.emit(clearingHouse, "PositionChanged");
           let positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
           expect(positionSize).to.eq(baseAndQuoteValue[0]);
@@ -935,7 +960,9 @@ describe("perpLemma.multiCollateral", async function () {
           await expect(
             perpLemma
               .connect(usdLemma)
-              .openLongWithExactCollateral(collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals))),
+              .openLongWithExactCollateral(
+                collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
+              ),
           ).to.emit(clearingHouse, "PositionChanged");
 
           expect(await ethCollateral.balanceOf(perpLemma.address)).to.eq(0);
@@ -994,7 +1021,9 @@ describe("perpLemma.multiCollateral", async function () {
           // Deposit ethCollateral in eth and Short eth and long usdc
           await perpLemma
             .connect(usdLemma)
-            .openLongWithExactCollateral(collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)));
+            .openLongWithExactCollateral(
+              collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
+            );
           expect(await baseToken.connect(defaultSigner)["pause()"]()).to.emit(baseToken, "StatusUpdated");
           // Closing the market
           expect(await baseToken.connect(defaultSigner)["close(uint256)"](parseEther("100"))).to.emit(
@@ -1010,7 +1039,9 @@ describe("perpLemma.multiCollateral", async function () {
           await expect(
             perpLemma
               .connect(usdLemma)
-              .openLongWithExactCollateral(collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals))),
+              .openLongWithExactCollateral(
+                collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
+              ),
           ).to.be.revertedWith("Market Closed");
         });
 
@@ -1030,7 +1061,9 @@ describe("perpLemma.multiCollateral", async function () {
           await expect(
             perpLemma
               .connect(usdLemma)
-              .openLongWithExactCollateral(collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals))),
+              .openLongWithExactCollateral(
+                collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
+              ),
           ).to.emit(clearingHouse, "PositionChanged");
 
           // let positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
@@ -1077,7 +1110,7 @@ describe("perpLemma.multiCollateral", async function () {
             perpLemma
               .connect(usdLemma)
               .openLongWithExactCollateral(
-                collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals))
+                collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
               ),
           ).to.emit(clearingHouse, "PositionChanged");
 
@@ -1113,7 +1146,10 @@ describe("perpLemma.multiCollateral", async function () {
           // const c1_1e18 = parseEther(c1.toString()).div(parseUnits("1", ethCollateralDecimals));
           // console.log('c1_1e18: ', c1.div(2).toString());
 
-          await expect(perpLemma.connect(usdLemma).closeShortWithExactCollateral(c1.div(2))).to.emit(usdCollateral, "Transfer");
+          await expect(perpLemma.connect(usdLemma).closeShortWithExactCollateral(c1.div(2))).to.emit(
+            usdCollateral,
+            "Transfer",
+          );
 
           collateralPerpLemma = await usdCollateral.balanceOf(perpLemma.address);
           expect(await usdCollateral.balanceOf(perpLemma.address)).to.not.equal(0);
@@ -1122,7 +1158,10 @@ describe("perpLemma.multiCollateral", async function () {
           const c2_1e18 = parseEther(c2.toString()).div(parseUnits("1", ethCollateralDecimals));
           // console.log('c2_1e18: ', c2_1e18.toString());
 
-          await expect(perpLemma.connect(usdLemma).closeShortWithExactCollateral(c2_1e18)).to.emit(usdCollateral, "Transfer");
+          await expect(perpLemma.connect(usdLemma).closeShortWithExactCollateral(c2_1e18)).to.emit(
+            usdCollateral,
+            "Transfer",
+          );
           expect(await usdCollateral.balanceOf(perpLemma.address)).to.equal(0);
         });
 
@@ -1144,7 +1183,9 @@ describe("perpLemma.multiCollateral", async function () {
           await expect(
             perpLemma
               .connect(usdLemma)
-              .openLongWithExactCollateral(collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals))),
+              .openLongWithExactCollateral(
+                collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
+              ),
           ).to.emit(clearingHouse, "PositionChanged");
 
           expect(await usdCollateral.balanceOf(perpLemma.address)).to.eq(0);
@@ -1175,16 +1216,22 @@ describe("perpLemma.multiCollateral", async function () {
           await perpLemma
             .connect(usdLemma)
             .getCollateralAmountGivenUnderlyingAssetAmountForPerp(
-              positionAtSettlementInQuoteForSynth.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)).div(2),
+              positionAtSettlementInQuoteForSynth
+                .mul(parseEther("1"))
+                .div(parseUnits("1", usdCollateralDecimals))
+                .div(2),
               true,
-              false
+              false,
             );
           await perpLemma
             .connect(usdLemma)
             .getCollateralAmountGivenUnderlyingAssetAmountForPerp(
-              positionAtSettlementInQuoteForSynth.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)).div(2),
+              positionAtSettlementInQuoteForSynth
+                .mul(parseEther("1"))
+                .div(parseUnits("1", usdCollateralDecimals))
+                .div(2),
               true,
-              false
+              false,
             );
           let lemmaEthBalAfter = await usdCollateral.balanceOf(usdLemma.address);
           expect(await usdCollateral.balanceOf(perpLemma.address)).to.equal(1);
@@ -1213,7 +1260,10 @@ describe("perpLemma.multiCollateral", async function () {
               .reBalance(
                 defaultSigner.address,
                 1,
-                ethers.utils.defaultAbiCoder.encode(["uint160", "uint256", "bool"], [sqrtPriceLimitX96, deadline, false]),
+                ethers.utils.defaultAbiCoder.encode(
+                  ["uint160", "uint256", "bool"],
+                  [sqrtPriceLimitX96, deadline, false],
+                ),
               ),
           ).to.be.revertedWith("only rebalancer is allowed");
         });
@@ -1272,7 +1322,10 @@ describe("perpLemma.multiCollateral", async function () {
               .reBalance(
                 reBalancer.address,
                 rebalanceAmountInEth.mul(100),
-                ethers.utils.defaultAbiCoder.encode(["uint160", "uint256", "bool"], [sqrtPriceLimitX96, deadline, false]),
+                ethers.utils.defaultAbiCoder.encode(
+                  ["uint160", "uint256", "bool"],
+                  [sqrtPriceLimitX96, deadline, false],
+                ),
               ),
           ).to.be.revertedWith("not allowed");
         });
