@@ -393,6 +393,9 @@ describe("perpLemma.multiCollateral", async function () {
         await usdCollateral.mint(longAddress.address, collateralAmountForUSD);
         await usdCollateral.connect(longAddress).approve(vault.address, ethers.constants.MaxUint256);
         await vault.connect(longAddress).deposit(usdCollateral.address, collateralAmountForUSD);
+
+        // NOTE: Testing like USDL Collateral was tail asset
+        await perpLemma.setIsUsdlCollateralTailAsset(true);
       });
 
       it("should set addresses correctly", async function () {
