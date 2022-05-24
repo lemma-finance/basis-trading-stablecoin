@@ -241,10 +241,6 @@ describe("perpLemma.multiCollateral", async function () {
     )) as TestPerpLemma;
     await perpLemma.connect(signer1).resetApprovals();
 
-    // NOTE: Setting collateral as tail asset
-    await perpLemma.setIsUsdlCollateralTailAsset(true);
-    await perpLemma.setIsSynthCollateralTailAsset(true);
-
     // base = eth
     // quote = usd
 
@@ -394,6 +390,19 @@ describe("perpLemma.multiCollateral", async function () {
         await usdCollateral.mint(longAddress.address, collateralAmountForUSD);
         await usdCollateral.connect(longAddress).approve(vault.address, ethers.constants.MaxUint256);
         await vault.connect(longAddress).deposit(usdCollateral.address, collateralAmountForUSD);
+
+
+
+
+        // NOTE: Setting collateral as tail asset
+        await perpLemma.setIsUsdlCollateralTailAsset(true);
+        await perpLemma.setIsSynthCollateralTailAsset(true);
+
+        // NOTE: This is because we assume we have plenty of USDC deposited in Perp when working with tail assets 
+        const initialDepositedUsdcAmount = parseEther("10");
+        await usdCollateral.mint(signer1.address, initialDepositedUsdcAmount);
+        await usdCollateral.connect(signer1).approve(perpLemma.address, initialDepositedUsdcAmount);
+        await perpLemma.connect(signer1).depositSettlementToken(initialDepositedUsdcAmount);
       });
 
       it("should set addresses correctly", async function () {
@@ -411,15 +420,6 @@ describe("perpLemma.multiCollateral", async function () {
       });
 
       it("should fail to open when max position is reached", async function () {
-        const initialDepositedUsdcAmount = parseEther("10");
-        console.log("Test1");
-        await usdCollateral.mint(usdLemma.address, initialDepositedUsdcAmount);
-        console.log("Test2");
-        await usdCollateral.connect(usdLemma).approve(perpLemma.address, initialDepositedUsdcAmount);
-        console.log("Test4");
-        await perpLemma.connect(usdLemma).depositSettlementToken(initialDepositedUsdcAmount);
-        console.log("Test5");
-
         let collateralAmount = parseUnits("1", usdCollateralDecimals);
         await perpLemma.setMaxPosition(parseUnits("0.9", usdCollateralDecimals));
         console.log("Test6");

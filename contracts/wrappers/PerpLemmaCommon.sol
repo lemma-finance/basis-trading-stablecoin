@@ -44,7 +44,12 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     IERC20Decimals public synthCollateral;
     IERC20Decimals public usdc;
 
+
     uint256 public constant MAX_UINT256 = type(uint256).max;
+
+    // NOTE: With tail assets we can't use the Perp Account Balance to track the position since we can't deposit tail assets on Perp so we need to track 
+    // the position on our side 
+    uint256 public positionSize;
     uint256 public maxPosition;
     uint256 public usdlCollateralDecimals;
     uint256 public synthCollateralDecimals;
@@ -193,7 +198,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
     /// @notice depositSettlementToken is used to deposit settlement token USDC into perp vault - only owner can deposit
     /// @param _amount USDC amount need to deposit into perp vault
-    function depositSettlementToken(uint256 _amount) external onlyOwner {
+    function depositSettlementToken(uint256 _amount) external {
         require(_amount > 0, "Amount should greater than zero");
         SafeERC20Upgradeable.safeTransferFrom(usdc, msg.sender, address(this), _amount);
         perpVault.deposit(address(usdc), _amount);
