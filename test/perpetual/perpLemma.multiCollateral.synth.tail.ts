@@ -422,12 +422,17 @@ describe("perpLemma.multiCollateral", async function () {
       it("should fail to open when max position is reached", async function () {
         let collateralAmount = parseUnits("1", usdCollateralDecimals);
         await perpLemma.setMaxPosition(parseUnits("0.9", usdCollateralDecimals));
-        console.log("Test6");
         await usdCollateral.mint(usdLemma.address, collateralAmount.add(1));
-        console.log("Test7");
         await usdCollateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount.add(1));
-        console.log("Test8");
         collateralAmount = parseUnits("1", ethCollateralDecimals);
+
+
+        // NOTE: Comparing Position Sizes with and without tail assets on the Solidity side 
+        // Tail Asset 
+        // [openLongWithExactCollateral()] positionSize.abs().toUint256() =  9899999990199000
+        // 
+        // Non Tail Asset 
+        // [openLongWithExactCollateral()] positionSize.abs().toUint256() =  9899999990199000
         await expect(perpLemma.connect(usdLemma).openLongWithExactCollateral(collateralAmount)).to.be.revertedWith(
           "max position reached",
         );

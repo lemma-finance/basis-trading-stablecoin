@@ -46,10 +46,6 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
 
     uint256 public constant MAX_UINT256 = type(uint256).max;
-
-    // NOTE: With tail assets we can't use the Perp Account Balance to track the position since we can't deposit tail assets on Perp so we need to track 
-    // the position on our side 
-    uint256 public positionSize;
     uint256 public maxPosition;
     uint256 public usdlCollateralDecimals;
     uint256 public synthCollateralDecimals;
@@ -495,7 +491,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         console.log("[openLongWithExactCollateral()] T7");
 
         int256 positionSize = accountBalance.getTotalPositionSize(address(this), synthBaseTokenAddress);
-        console.log("[openLongWithExactCollateral()] T9");
+        console.log("[openLongWithExactCollateral()] positionSize.abs().toUint256() = ", positionSize.abs().toUint256());
         require(positionSize.abs().toUint256() <= maxPosition, "max position reached");
         console.log("[openLongWithExactCollateral()] T10");
         ETHLToMint = base;
