@@ -28,7 +28,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     address public usdLemma;
     address public reBalancer;
     address public usdlBaseTokenAddress;
-    address public synthBaseTokenAddress;
+    // address public synthBaseTokenAddress;
     bytes32 public referrerCode;
 
     IClearingHouse public clearingHouse;
@@ -39,23 +39,23 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     IExchange public exchange;
 
     bool public isUsdlCollateralTailAsset;
-    bool public isSynthCollateralTailAsset;
+    // bool public isSynthCollateralTailAsset;
     IERC20Decimals public usdlCollateral;
-    IERC20Decimals public synthCollateral;
+    // IERC20Decimals public synthCollateral;
     IERC20Decimals public usdc;
 
 
     uint256 public constant MAX_UINT256 = type(uint256).max;
     uint256 public maxPosition;
     uint256 public usdlCollateralDecimals;
-    uint256 public synthCollateralDecimals;
+    // uint256 public synthCollateralDecimals;
 
     // Gets set only when Settlement has already happened
     // NOTE: This should be equal to the amount of USDL minted depositing on that dexIndex
     uint256 public positionAtSettlementInQuoteForUSDL;
-    uint256 public positionAtSettlementInQuoteForSynth;
+    // uint256 public positionAtSettlementInQuoteForSynth;
     uint256 public positionAtSettlementInBaseForUSDL;
-    uint256 public positionAtSettlementInBaseForSynth;
+    // uint256 public positionAtSettlementInBaseForSynth;
 
     int256 public totalFundingPNL;
     int256 public realizedFundingPNL;
@@ -115,16 +115,16 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         usdlCollateralDecimals = usdlCollateral.decimals(); // need to verify
         usdlCollateral.approve(_clearingHouse, MAX_UINT256);
 
-        synthBaseTokenAddress = _synthBaseToken;
-        synthCollateral = IERC20Decimals(_synthCollateral);
-        synthCollateralDecimals = synthCollateral.decimals(); // need to verify
-        synthCollateral.approve(_clearingHouse, MAX_UINT256);
+        // synthBaseTokenAddress = _synthBaseToken;
+        // synthCollateral = IERC20Decimals(_synthCollateral);
+        // synthCollateralDecimals = synthCollateral.decimals(); // need to verify
+        // synthCollateral.approve(_clearingHouse, MAX_UINT256);
 
         // NOTE: Even though it is not necessary, it is for clarity
         hasSettled = false;
 
         SafeERC20Upgradeable.safeApprove(usdlCollateral, address(perpVault), MAX_UINT256);
-        SafeERC20Upgradeable.safeApprove(synthCollateral, address(perpVault), MAX_UINT256);
+        // SafeERC20Upgradeable.safeApprove(synthCollateral, address(perpVault), MAX_UINT256);
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), 0);
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
     }
@@ -133,9 +133,9 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         isUsdlCollateralTailAsset = _x;
     }
 
-    function setIsSynthCollateralTailAsset(bool _x) external onlyOwner {
-        isSynthCollateralTailAsset = _x;
-    }
+    // function setIsSynthCollateralTailAsset(bool _x) external onlyOwner {
+    //     isSynthCollateralTailAsset = _x;
+    // }
 
     /// @notice getFees fees charge by perpV2 protocol for each trade
     /// @param baseTokenAddress collateral's respective basetoken address
@@ -185,8 +185,8 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         SafeERC20Upgradeable.safeApprove(usdlCollateral, address(perpVault), 0);
         SafeERC20Upgradeable.safeApprove(usdlCollateral, address(perpVault), MAX_UINT256);
 
-        SafeERC20Upgradeable.safeApprove(synthCollateral, address(perpVault), 0);
-        SafeERC20Upgradeable.safeApprove(synthCollateral, address(perpVault), MAX_UINT256);
+        // SafeERC20Upgradeable.safeApprove(synthCollateral, address(perpVault), 0);
+        // SafeERC20Upgradeable.safeApprove(synthCollateral, address(perpVault), MAX_UINT256);
 
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), 0);
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
@@ -208,6 +208,48 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         SafeERC20Upgradeable.safeTransfer(usdc, msg.sender, _amount);
     }
 
+
+
+
+
+    function trade(
+        uint256 amount,
+        bool isShorting,
+        bool isExactInput
+    ) external override onlyUSDLemma returns (uint256 base, uint256 quote) {
+        // TODO: Fix
+        // TODO: Check,we need to take into account what we close after the market has settled is the net short or long position 
+        if (hasSettled) return closeWExactUSDLAfterSettlementForUSDL(amount);
+
+        bool _isBaseToQuote = isShorting;
+        bool _isExactInput = isExactInput;
+
+        // if (isShorting) {
+        //     // before openShortWithExactQuoteForUSDL
+        //     // open short position for eth and amount in vUSD
+        //     _isBaseToQuote = true;
+        //     _isExactInput = false;
+        // } else {
+        //     // before closeLongWithExactQuoteForUSDL
+        //     // open long position for eth and amount in vUSD
+        //     _isBaseToQuote = false;
+        //     _isExactInput = true;
+        // }
+
+        totalFundingPNL = getFundingPNL(baseTokenAddress);
+        IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
+            baseToken: usdlBaseTokenAddress,
+            isBaseToQuote: _isBaseToQuote,
+            isExactInput: _isExactInput,
+            amount: amount,
+            oppositeAmountBound: 0,
+            deadline: MAX_UINT256,
+            sqrtPriceLimitX96: 0,
+            referralCode: referrerCode
+        });
+        (base, quote) = clearingHouse.openPosition(params);
+    }
+
     /// METHODS WITH EXACT USDL or vUSD(quote or vUSD)
     /// 1). getCollateralAmountGivenUnderlyingAssetAmountForPerp and openShortWithExactQuoteForUSDL
     /// 2). getCollateralAmountGivenUnderlyingAssetAmountForPerp and closeLongWithExactQuoteForUSDL
@@ -219,43 +261,56 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     /// @notice getCollateralAmountGivenUnderlyingAssetAmountForPerp will create short or long position and give base or quote amount as collateral
     /// @param amount is for exact amount of USDL will use to create a short or long position instead ethCollateral
     /// @param isShorting is bool for need to do short or long
-    /// @param isUsdl to decide weather mint/burn usdl or synth, if mint/burn usdl then true otherwise if synth mint/burn then false
-    function getCollateralAmountGivenUnderlyingAssetAmountForPerp(
+    function getCollateralAmountGivenUnderlyingAssetAmountForPerp1(
         uint256 amount,
-        bool isShorting,
-        bool isUsdl
+        bool isShorting
+        // bool isUsdl
     ) external override onlyUSDLemma returns (uint256 collateral) {
         bool _isBaseToQuote;
         bool _isExactInput;
         address baseTokenAddress;
 
-        if (isUsdl) {
-            baseTokenAddress = usdlBaseTokenAddress;
-            if (isShorting) {
-                // before openShortWithExactQuoteForUSDL
-                // open short position for eth and amount in vUSD
-                _isBaseToQuote = true;
-                _isExactInput = false;
-            } else {
-                // before closeLongWithExactQuoteForUSDL
-                // open long position for eth and amount in vUSD
-                _isBaseToQuote = false;
-                _isExactInput = true;
-                if (hasSettled) return closeWExactUSDLAfterSettlementForUSDL(amount);
-            }
+        baseTokenAddress = usdlBaseTokenAddress;
+        if (isShorting) {
+            // before openShortWithExactQuoteForUSDL
+            // open short position for eth and amount in vUSD
+            _isBaseToQuote = true;
+            _isExactInput = false;
         } else {
-            baseTokenAddress = synthBaseTokenAddress;
-            if (isShorting) {
-                // before closeShortWithExactBaseForSynth
-                _isBaseToQuote = true;
-                _isExactInput = true;
-                if (hasSettled) return closeWExactCollateralAfterSettlementForSynth(amount);
-            } else {
-                // before openLongWithExactBaseForSynth
-                _isBaseToQuote = false;
-                _isExactInput = false;
-            }
+            // before closeLongWithExactQuoteForUSDL
+            // open long position for eth and amount in vUSD
+            _isBaseToQuote = false;
+            _isExactInput = true;
+            if (hasSettled) return closeWExactUSDLAfterSettlementForUSDL(amount);
         }
+
+        // if (isUsdl) {
+        //     baseTokenAddress = usdlBaseTokenAddress;
+        //     if (isShorting) {
+        //         // before openShortWithExactQuoteForUSDL
+        //         // open short position for eth and amount in vUSD
+        //         _isBaseToQuote = true;
+        //         _isExactInput = false;
+        //     } else {
+        //         // before closeLongWithExactQuoteForUSDL
+        //         // open long position for eth and amount in vUSD
+        //         _isBaseToQuote = false;
+        //         _isExactInput = true;
+        //         if (hasSettled) return closeWExactUSDLAfterSettlementForUSDL(amount);
+        //     }
+        // } else {
+        //     baseTokenAddress = synthBaseTokenAddress;
+        //     if (isShorting) {
+        //         // before closeShortWithExactBaseForSynth
+        //         _isBaseToQuote = true;
+        //         _isExactInput = true;
+        //         if (hasSettled) return closeWExactCollateralAfterSettlementForSynth(amount);
+        //     } else {
+        //         // before openLongWithExactBaseForSynth
+        //         _isBaseToQuote = false;
+        //         _isExactInput = false;
+        //     }
+        // }
 
         totalFundingPNL = getFundingPNL(baseTokenAddress);
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
@@ -269,47 +324,66 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             referralCode: referrerCode
         });
         (uint256 base, uint256 quote) = clearingHouse.openPosition(params);
-        if (isUsdl) {
-            collateral = base;
-        } else {
-            collateral = quote;
-        }
+        collateral = base;
+
+        // if (isUsdl) {
+        //     collateral = base;
+        // } else {
+        //     collateral = quote;
+        // }
     }
+
+    function deposit(uint256 amount, address collateral) external onlyUSDLemma {
+        _deposit(amount, collateral);
+    }
+
+    function withdraw(uint256 amount, address collateral) external onlyUSDLemma {
+        _withadraw(amount, collateral);
+    }
+
 
     /// getCollateralAmountGivenUnderlyingAssetAmountForPerp =>
     /// @notice Open short position for eth(baseToken) on gCAGUAAFP method first using exact amount of USDL(or vUSD you can say) and then deposit collateral here
     /// @param collateralAmountRequired collateral amount required to open the position
-    function openShortWithExactQuoteForUSDL(uint256, uint256 collateralAmountRequired) external override onlyUSDLemma {
-        require(collateralAmountRequired > 0, "Amount should greater than zero");
-        uint256 collateralAmountToDeposit = getAmountInCollateralDecimalsForPerp(
-            collateralAmountRequired,
-            address(usdlCollateral),
-            false
-        );
-        require(collateralAmountToDeposit > 0, "Amount should greater than zero");
-        require(usdlCollateral.balanceOf(address(this)) >= collateralAmountToDeposit, "Not enough collateral to Open");
+    function openShortWithExactQuoteForUSDL(uint256 amount, address collateral) external override onlyUSDLemma returns(uint256 amountBase) {
+        require(amount > 0, "Input Amount should be greater than zero");
+
+        // isShorting = true 
+        // isExactUSDL = true
+        (amountBase, _) = _trade(amount, true, true);
+
+        // uint256 _collateralAmountRequired = _trade(amount, true, true);
+        // uint256 _collateralAmountToDeposit = getAmountInCollateralDecimalsForPerp(
+        //     _collateralAmountRequired,
+        //     address(usdlCollateral),
+        //     false
+        // );
+        // require(_collateralAmountToDeposit > 0, "Collateral to deposit Amount should be greater than zero");
+        // require(usdlCollateral.balanceOf(address(this)) >= _collateralAmountToDeposit, "Not enough collateral to Open");
 
 
-        // NOTE: Only non-tail assets can be deposited in Perp, the other assets have to remain in this contract balance sheet
-        _deposit(collateralAmountToDeposit, address(usdlCollateral));
+        // // NOTE: Only non-tail assets can be deposited in Perp, the other assets have to remain in this contract balance sheet
+        // _deposit(collateralAmountToDeposit, address(collateral));
+    }
+
+
+    function closeLongWithExactQuoteForUSDL(uint256, uint256 collateralAmountToGetBack) external override onlyUSDLemma {
+
     }
 
     /// @notice Open long position for eth(baseToken) on gCAGUAAFP first using exact amount of USDL(or vUSD you can say) and withdraw collateral here
     /// @param collateralAmountToGetBack collateral amount to withdraw after close position
     function closeLongWithExactQuoteForUSDL(uint256, uint256 collateralAmountToGetBack) external override onlyUSDLemma {
-        require(collateralAmountToGetBack > 0, "Amount should greater than zero");
+        require(collateralAmountToGetBack > 0, "Amount should be greater than zero");
         uint256 amountToWithdraw = getAmountInCollateralDecimalsForPerp(
             collateralAmountToGetBack,
             address(usdlCollateral),
             false
         );
-        require(amountToWithdraw > 0, "Amount should greater than zero");
+        require(amountToWithdraw > 0, "Amount should be greater than zero");
 
         // NOTE: Only non-tail asset can be withdrawn, the other one is already on this contract balance sheet 
-        if(! isUsdlCollateralTailAsset) {
-            _withdraw(amountToWithdraw, address(usdlCollateral));
-        }
-
+        _withdraw(amountToWithdraw, address(usdlCollateral));
         SafeERC20Upgradeable.safeTransfer(usdlCollateral, usdLemma, amountToWithdraw);
     }
 
@@ -325,6 +399,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         require(collateralAmountToDeposit > 0, "Amount should greater than zero");
         require(synthCollateral.balanceOf(address(this)) >= collateralAmountToDeposit, "not enough collateral");
         _deposit(collateralAmountToDeposit, address(synthCollateral));
+        // _deposit(collateralAmountToDeposit, address(synthCollateral));
     }
 
     /// @notice Open short position for eth(quoteToken) on gCAGUAAFP first and withdraw collateral here
@@ -466,7 +541,8 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         );
         console.log("[openLongWithExactCollateral()] T5");
 
-        totalFundingPNL = getFundingPNL(synthBaseTokenAddress);
+        totalFundingPNL = getFundingPNL(usdlBaseTokenAddress);
+        // totalFundingPNL = getFundingPNL(synthBaseTokenAddress);
         _deposit(collateralAmountToDeposit, address(synthCollateral));
         console.log("[openLongWithExactCollateral()] T6");
 
@@ -698,16 +774,8 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
     /// @notice to deposit collateral in vault for short or open position
     function _deposit(uint256 collateralAmount, address collateral) internal {
-        require(
-            collateral == address(usdlCollateral) || 
-            collateral == address(synthCollateral), 
-            "Unsupported Collateral"
-        );
-
-        if(
-            ((collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset)) || 
-            ((collateral == address(synthCollateral)) && (!isSynthCollateralTailAsset))
-            ) {
+        if( (collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset) ) 
+        {
             perpVault.deposit(collateral, collateralAmount);
         }
 
@@ -715,16 +783,8 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
     /// @notice to withdrae collateral from vault after long or close position
     function _withdraw(uint256 amountToWithdraw, address collateral) internal {
-        require(
-            collateral == address(usdlCollateral) || 
-            collateral == address(synthCollateral), 
-            "Unsupported Collateral"
-        );
-
-        if(
-            ((collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset)) || 
-            ((collateral == address(synthCollateral)) && (!isSynthCollateralTailAsset))
-            ) {
+        if( (collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset) ) 
+        {
             perpVault.withdraw(collateral, amountToWithdraw);
         }
     }

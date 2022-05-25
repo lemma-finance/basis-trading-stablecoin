@@ -6,6 +6,32 @@ interface IPerpetualMixDEXWrapper {
         external
         returns (uint256 collateralAmountRequired);
 
+    
+    function getAmountInCollateralDecimals(uint256 amount, bool roundUp) external view returns (uint256);
+
+    function trade(uint256 amount, bool isShorting, bool isExactInput) external returns (uint256 base, uint256 quote);
+
+    function reBalance(
+        address _reBalancer,
+        int256 amount,
+        bytes calldata data
+    ) external returns (bool);
+
+    function getTotalPosition(address baseTokenAddress) external view returns (int256);
+
+    function getAmountInCollateralDecimalsForPerp(
+        uint256 amount,
+        address collateral,
+        bool roundUp
+    ) external view returns (uint256);
+
+    function getFees(address baseTokenAddress) external view returns (uint256);
+
+    function settle() external;
+
+
+/////////////// UNNECESSARY METHODS /////////////
+
     function open(uint256 amount, uint256 collateralAmountRequired) external;
 
     function close(uint256 amount, uint256 collateralAmountRequired) external;
@@ -13,8 +39,6 @@ interface IPerpetualMixDEXWrapper {
     function openWExactCollateral(uint256 collateralAmount) external returns (uint256 USDLToMint);
 
     function closeWExactCollateral(uint256 collateralAmount) external returns (uint256 USDLToBurn);
-
-    function getAmountInCollateralDecimals(uint256 amount, bool roundUp) external view returns (uint256);
 
     // For USDLemma
     function openShortWithExactCollateral(uint256 collateralAmount) external returns (uint256 USDLToMint);
@@ -40,21 +64,4 @@ interface IPerpetualMixDEXWrapper {
         bool isUsdl
     ) external returns (uint256 collateralAmountRequired);
 
-    function reBalance(
-        address _reBalancer,
-        int256 amount,
-        bytes calldata data
-    ) external returns (bool);
-
-    function getTotalPosition(address baseTokenAddress) external view returns (int256);
-
-    function getAmountInCollateralDecimalsForPerp(
-        uint256 amount,
-        address collateral,
-        bool roundUp
-    ) external view returns (uint256);
-
-    function getFees(address baseTokenAddress) external view returns (uint256);
-
-    function settle() external;
 }

@@ -134,6 +134,19 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         emit PerpetualDexWrapperAdded(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
     }
 
+    function _perpDeposit(IPerpetualMixDEXWrapper perpDEXWrapper, address collateral, uint256 amount) internal {
+        SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), amount);
+        perpDEXWrapper.deposit(amount, collateral);
+    }
+
+    function _perpWithdraw(IPerpetualMixDEXWrapper perpDEXWrapper, address collateral, uint256 amount) internal {
+        perpDEXWrapper.withdraw(amount, collateral);
+        SafeERC20Upgradeable.safeTransferFrom(collateral, address(perpDEXWrapper), _msgSender(), amount);
+    }
+
+
+
+
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of USDL
     /// @param to Receipent of minted USDL
     /// @param amount Amount of USDL to mint
@@ -151,64 +164,17 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
-        uint256 collateralRequired1e_18 = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
+
+        // isShorting = true
+        // isExactUsdl = true
+        (uint256 _collateralRequired1e_18, _) = perpDEXWrapper.trade(amount, true, true);
+
         require(collateralRequired1e_18 <= maxCollateralAmountRequired, "collateral required execeeds maximum");
-        uint256 collateralRequired = perpDEXWrapper.getAmountInCollateralDecimals(collateralRequired1e_18, false);
-        SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), collateralRequired);
-        perpDEXWrapper.open(amount, collateralRequired1e_18);
+        uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(_collateralRequired1e_18, address(collateral), false);
+
+        _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
         _mint(to, amount);
-        emit DepositTo(perpetualDEXIndex, address(collateral), to, amount, collateralRequired);
-    }
-
-    /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of USDL
-    /// @param to Receipent of minted USDL
-    /// @param amount Amount of USDL to mint
-    /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
-    /// @param maxCollateralAmountRequired Maximum amount of collateral to be used to mint given USDL
-    /// @param isUsdl to decide weather mint usdl or synth, if mint usdl then true otherwise if synth mint then false
-    /// @param collateral Collateral to be used to mint USDL
-    function depositToForPerp(
-        address to,
-        uint256 amount,
-        uint256 perpetualDEXIndex,
-        uint256 maxCollateralAmountRequired,
-        bool isUsdl,
-        IERC20Upgradeable collateral
-    ) public nonReentrant {
-        IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
-            perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
-        );
-        require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
-        uint256 collateralRequired1e_18;
-        uint256 collateralRequired;
-        bool isShorting;
-
-        if (isUsdl) {
-            isShorting = true;
-        }
-        collateralRequired1e_18 = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmountForPerp(
-            amount,
-            isShorting,
-            isUsdl
-        );
-        require(collateralRequired1e_18 <= maxCollateralAmountRequired, "collateral required execeeds maximum");
-        collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
-            collateralRequired1e_18,
-            address(collateral),
-            false
-        );
-        SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), collateralRequired);
-
-        if (isUsdl) {
-            // we go short for usdl
-            perpDEXWrapper.openShortWithExactQuoteForUSDL(amount, collateralRequired1e_18);
-        } else {
-            // we go long for synth
-            perpDEXWrapper.openLongWithExactBaseForSynth(amount, collateralRequired1e_18);
-        }
-
-        _mint(to, amount);
-        emit DepositTo(perpetualDEXIndex, address(collateral), to, amount, collateralRequired);
+        emit DepositTo(perpetualDEXIndex, address(collateral), to, amount, _collateralRequired);
     }
 
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of collateral
@@ -230,27 +196,15 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
-        uint256 collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
-            collateralAmount,
-            address(collateral),
-            false
-        );
-        SafeERC20Upgradeable.safeTransferFrom(
-            collateral,
-            _msgSender(),
-            address(perpDEXWrapper),
-            collateralAmountToDeposit
-        );
+        
+        // isShorting = true
+        // isExactUsdl = true
+        (_, uint256 _usdlToMint) = perpDEXWrapper.trade(amount, true, false);
 
-        uint256 USDLToMint;
-        if (isUsdl) {
-            USDLToMint = perpDEXWrapper.openShortWithExactCollateral(collateralAmount);
-        } else {
-            USDLToMint = perpDEXWrapper.openLongWithExactCollateral(collateralAmount);
-        }
-        require(USDLToMint >= minUSDLToMint, "USDL minted too low");
-        _mint(to, USDLToMint);
-        emit DepositTo(perpetualDEXIndex, address(collateral), to, USDLToMint, collateralAmountToDeposit);
+        uint256 _collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
+        _perpDeposit(perpDEXWrapper, address(collateral), _collateralAmountToDeposit);
+        _mint(to, _usdlToMint);
+        emit DepositTo(perpetualDEXIndex, address(collateral), to, _usdlToMint, _collateralAmountToDeposit);        
     }
 
     /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc specifying the exact amount of USDL
@@ -271,73 +225,17 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
-        uint256 collateralAmountToGetBack1e_18 = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(
-            amount,
-            false
-        );
-        require(collateralAmountToGetBack1e_18 >= minCollateralAmountToGetBack, "collateral got back is too low");
-        perpDEXWrapper.close(amount, collateralAmountToGetBack1e_18);
-        uint256 collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimals(
-            collateralAmountToGetBack1e_18,
-            false
-        );
-        SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmountToGetBack);
-        emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, collateralAmountToGetBack);
+
+        // NOTE: We can't close a bigger short than the amount of USDL the user has burned 
+        // isShorting = true
+        // isExactUsdl = true
+        (uint256 _collateralAmountToGetBack_1e18, _) = perpDEXWrapper.trade(amount, false, true);
+        uint256 _collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimals(_collateralAmountToGetBack_1e18, false);
+        require(_collateralAmountToGetBack >= minCollateralAmountToGetBack, "Not enough collateral to get back");
+        _perpWithdraw(perpDEXWrapper, address(collateral), _collateralAmountToGetBack);
+        emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, _collateralAmountToGetBack);
     }
 
-    /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc specifying the exact amount of USDL
-    /// @param to Receipent of withdrawn collateral
-    /// @param amount Amount of USDL to redeem
-    /// @param perpetualDEXIndex Index of perpetual dex, where position will be closed
-    /// @param minCollateralAmountToGetBack Minimum amount of collateral to get back on redeeming given USDL
-    /// @param isUsdl to decide weather burn usdl or synth, if burn usdl then true otherwise if synth burn then false
-    /// @param collateral Collateral to be used to redeem USDL
-    function withdrawToForPerp(
-        address to,
-        uint256 amount,
-        uint256 perpetualDEXIndex,
-        uint256 minCollateralAmountToGetBack,
-        bool isUsdl,
-        IERC20Upgradeable collateral
-    ) public nonReentrant {
-        _burn(_msgSender(), amount);
-        IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
-            perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
-        );
-        require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
-        uint256 collateralAmountToGetBack1e_18;
-        uint256 collateralAmountToGetBack;
-        bool isShorting;
-
-        if (!isUsdl) {
-            // if isUsdl burn then isShorting should false (initially isUsdl already false)
-            // or if synth burn then isShorting should true
-            isShorting = true;
-        }
-
-        collateralAmountToGetBack1e_18 = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmountForPerp(
-            amount,
-            isShorting,
-            isUsdl
-        );
-        require(collateralAmountToGetBack1e_18 >= minCollateralAmountToGetBack, "collateral got back is too low");
-
-        if (!isUsdl) {
-            // we go short for synth
-            perpDEXWrapper.closeShortWithExactBaseForSynth(amount, collateralAmountToGetBack1e_18);
-        } else {
-            // we go long for usdl
-            perpDEXWrapper.closeLongWithExactQuoteForUSDL(amount, collateralAmountToGetBack1e_18);
-        }
-
-        collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
-            collateralAmountToGetBack1e_18,
-            address(collateral),
-            false
-        );
-        SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmountToGetBack);
-        emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, collateralAmountToGetBack);
-    }
 
     /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc specifying the exact amount of collateral
     /// @param to Receipent of withdrawn collateral
@@ -359,22 +257,17 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
 
-        uint256 USDLToBurn;
-        if (!isUsdl) {
-            USDLToBurn = perpDEXWrapper.closeShortWithExactCollateral(collateralAmount);
-        } else {
-            USDLToBurn = perpDEXWrapper.closeLongWithExactCollateral(collateralAmount);
-        }
-        require(USDLToBurn <= maxUSDLToBurn, "USDL burnt exceeds maximum");
-        _burn(_msgSender(), USDLToBurn);
-        collateralAmount = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
-            collateralAmount,
-            address(collateral),
-            false
-        );
-        SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmount);
-        emit WithdrawTo(perpetualDEXIndex, address(collateral), to, USDLToBurn, collateralAmount);
+        // NOTE: We can't close a bigger short than the amount of USDL the user has burned 
+        // isShorting = true
+        // isExactUsdl = true
+        (_, uint256 _usdlToBurn) = perpDEXWrapper.trade(amount, false, false);
+        require(_usdlToBurn <= maxUSDLToBurn, "Too much USDL to burn");
+        _burn(_msgSender(), _usdlToBurn);
+        uint256 _collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
+        _perpWithdraw(perpDEXWrapper, address(collateral), _collateralAmountToGetBack);
+        emit WithdrawTo(perpetualDEXIndex, address(collateral), to, _usdlToBurn, _collateralAmountToGetBack);
     }
+
 
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL
     /// @param amount Amount of USDL to mint
@@ -491,4 +384,315 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         //ERC2771ContextUpgradeable._msgData();
         return super._msgData();
     }
+
+
+
+
+
+
+
+
+
+///////////////////////// CAN BE REMOVED ////////////////
+
+    // /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of USDL
+    // /// @param to Receipent of minted USDL
+    // /// @param amount Amount of USDL to mint
+    // /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
+    // /// @param maxCollateralAmountRequired Maximum amount of collateral to be used to mint given USDL
+    // /// @param collateral Collateral to be used to mint USDL
+    // function depositTo1(
+    //     address to,
+    //     uint256 amount,
+    //     uint256 perpetualDEXIndex,
+    //     uint256 maxCollateralAmountRequired,
+    //     IERC20Upgradeable collateral
+    // ) public nonReentrant {
+    //     IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
+    //         perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
+    //     );
+    //     require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
+    //     uint256 collateralRequired1e_18 = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(amount, true);
+    //     require(collateralRequired1e_18 <= maxCollateralAmountRequired, "collateral required execeeds maximum");
+    //     uint256 collateralRequired = perpDEXWrapper.getAmountInCollateralDecimals(collateralRequired1e_18, false);
+    //     SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), collateralRequired);
+    //     perpDEXWrapper.open(amount, collateralRequired1e_18);
+    //     _mint(to, amount);
+    //     emit DepositTo(perpetualDEXIndex, address(collateral), to, amount, collateralRequired);
+    // }
+
+
+    // /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of USDL
+    // /// @param to Receipent of minted USDL
+    // /// @param amount Amount of USDL to mint
+    // /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
+    // /// @param maxCollateralAmountRequired Maximum amount of collateral to be used to mint given USDL
+    // /// @param isUsdl to decide weather mint usdl or synth, if mint usdl then true otherwise if synth mint then false
+    // /// @param collateral Collateral to be used to mint USDL
+    // function depositToForPerp(
+    //     address to,
+    //     uint256 amount,
+    //     uint256 perpetualDEXIndex,
+    //     uint256 maxCollateralAmountRequired,
+    //     bool isUsdl,
+    //     IERC20Upgradeable collateral
+    // ) public nonReentrant {
+    //     IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
+    //         perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
+    //     );
+    //     require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
+    //     uint256 collateralRequired1e_18;
+    //     uint256 collateralRequired;
+
+    //     // isShorting = isUsdl 
+    //     // isExactUsdl = true
+    //     (collateralRequired1e_18, _) = perpDEXWrapper.trade(amount, isUsdl, true);
+
+    //     // collateralRequired1e_18 = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmountForPerp(
+    //     //     amount,
+    //     //     isShorting,
+    //     //     isUsdl
+    //     // );
+
+    //     require(collateralRequired1e_18 <= maxCollateralAmountRequired, "collateral required execeeds maximum");
+    //     collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
+    //         collateralRequired1e_18,
+    //         address(collateral),
+    //         false
+    //     );
+
+    //     SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), collateralRequired);
+    //     perpDEXWrapper.deposit(collateralRequired, address(collateral));
+
+    //     // if (isUsdl) {
+    //     //     // we go short for usdl
+    //     //     perpDEXWrapper.openShortWithExactQuoteForUSDL(amount, collateralRequired1e_18);
+    //     // } else {
+    //     //     // we go long for synth
+    //     //     perpDEXWrapper.openLongWithExactBaseForSynth(amount, collateralRequired1e_18);
+    //     // }
+
+    //     _mint(to, amount);
+    //     emit DepositTo(perpetualDEXIndex, address(collateral), to, amount, collateralRequired);
+    // }
+
+
+
+
+
+    // function depositToWExactCollateral(
+    //     address to,
+    //     uint256 collateralAmount,
+    //     uint256 perpetualDEXIndex,
+    //     uint256 minUSDLToMint,
+    //     bool isUsdl,
+    //     IERC20Upgradeable collateral
+    // ) external nonReentrant {
+    //     IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
+    //         perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
+    //     );
+    //     require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
+    //     uint256 collateralRequired1e_18;
+    //     uint256 collateralRequired;
+
+    //     // isShorting = true 
+    //     // isExactUsdl = true
+    //     (collateralRequired1e_18, _) = perpDEXWrapper.trade(collateralAmount, true, false);
+
+    //     // collateralRequired1e_18 = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmountForPerp(
+    //     //     amount,
+    //     //     isShorting,
+    //     //     isUsdl
+    //     // );
+
+    //     require(collateralRequired1e_18 <= maxCollateralAmountRequired, "collateral required execeeds maximum");
+    //     collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
+    //         collateralRequired1e_18,
+    //         address(collateral),
+    //         false
+    //     );
+
+    //     SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), collateralRequired);
+    //     perpDEXWrapper.deposit(collateralRequired, address(collateral));
+
+    //     // if (isUsdl) {
+    //     //     // we go short for usdl
+    //     //     perpDEXWrapper.openShortWithExactQuoteForUSDL(amount, collateralRequired1e_18);
+    //     // } else {
+    //     //     // we go long for synth
+    //     //     perpDEXWrapper.openLongWithExactBaseForSynth(amount, collateralRequired1e_18);
+    //     // }
+
+    //     _mint(to, USDLToMint);
+    //     emit DepositTo(perpetualDEXIndex, address(collateral), to, USDLToMint, collateralAmountToDeposit);
+    // }
+
+    // /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of collateral
+    // /// @param to Receipent of minted USDL
+    // /// @param collateralAmount Amount of collateral to deposit
+    // /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
+    // /// @param minUSDLToMint Minimum USDL to mint
+    // /// @param isUsdl to decide weather mint usdl or synth, if mint usdl then true otherwise if synth mint then false
+    // /// @param collateral Collateral to be used to mint USDL
+    // function depositToWExactCollateral1(
+    //     address to,
+    //     uint256 collateralAmount,
+    //     uint256 perpetualDEXIndex,
+    //     uint256 minUSDLToMint,
+    //     bool isUsdl,
+    //     IERC20Upgradeable collateral
+    // ) external nonReentrant {
+    //     IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
+    //         perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
+    //     );
+    //     require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
+    //     uint256 collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
+    //         collateralAmount,
+    //         address(collateral),
+    //         false
+    //     );
+    //     SafeERC20Upgradeable.safeTransferFrom(
+    //         collateral,
+    //         _msgSender(),
+    //         address(perpDEXWrapper),
+    //         collateralAmountToDeposit
+    //     );
+
+    //     uint256 USDLToMint;
+    //     if (isUsdl) {
+    //         USDLToMint = perpDEXWrapper.openShortWithExactCollateral(collateralAmount);
+    //     } else {
+    //         USDLToMint = perpDEXWrapper.openLongWithExactCollateral(collateralAmount);
+    //     }
+    //     require(USDLToMint >= minUSDLToMint, "USDL minted too low");
+    //     _mint(to, USDLToMint);
+    //     emit DepositTo(perpetualDEXIndex, address(collateral), to, USDLToMint, collateralAmountToDeposit);
+    // }
+
+
+    // /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc specifying the exact amount of USDL
+    // /// @param to Receipent of withdrawn collateral
+    // /// @param amount Amount of USDL to redeem
+    // /// @param perpetualDEXIndex Index of perpetual dex, where position will be closed
+    // /// @param minCollateralAmountToGetBack Minimum amount of collateral to get back on redeeming given USDL
+    // /// @param collateral Collateral to be used to redeem USDL
+    // function withdrawTo(
+    //     address to,
+    //     uint256 amount,
+    //     uint256 perpetualDEXIndex,
+    //     uint256 minCollateralAmountToGetBack,
+    //     IERC20Upgradeable collateral
+    // ) public nonReentrant {
+    //     _burn(_msgSender(), amount);
+    //     IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
+    //         perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
+    //     );
+    //     require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
+    //     uint256 collateralAmountToGetBack1e_18 = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmount(
+    //         amount,
+    //         false
+    //     );
+    //     require(collateralAmountToGetBack1e_18 >= minCollateralAmountToGetBack, "collateral got back is too low");
+    //     perpDEXWrapper.close(amount, collateralAmountToGetBack1e_18);
+    //     uint256 collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimals(
+    //         collateralAmountToGetBack1e_18,
+    //         false
+    //     );
+    //     SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmountToGetBack);
+    //     emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, collateralAmountToGetBack);
+    // }
+
+    // /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc specifying the exact amount of USDL
+    // /// @param to Receipent of withdrawn collateral
+    // /// @param amount Amount of USDL to redeem
+    // /// @param perpetualDEXIndex Index of perpetual dex, where position will be closed
+    // /// @param minCollateralAmountToGetBack Minimum amount of collateral to get back on redeeming given USDL
+    // /// @param isUsdl to decide weather burn usdl or synth, if burn usdl then true otherwise if synth burn then false
+    // /// @param collateral Collateral to be used to redeem USDL
+    // function withdrawToForPerp(
+    //     address to,
+    //     uint256 amount,
+    //     uint256 perpetualDEXIndex,
+    //     uint256 minCollateralAmountToGetBack,
+    //     bool isUsdl,
+    //     IERC20Upgradeable collateral
+    // ) public nonReentrant {
+    //     _burn(_msgSender(), amount);
+    //     IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
+    //         perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
+    //     );
+    //     require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
+    //     uint256 collateralAmountToGetBack1e_18;
+    //     uint256 collateralAmountToGetBack;
+    //     bool isShorting;
+
+    //     if (!isUsdl) {
+    //         // if isUsdl burn then isShorting should false (initially isUsdl already false)
+    //         // or if synth burn then isShorting should true
+    //         isShorting = true;
+    //     }
+
+    //     collateralAmountToGetBack1e_18 = perpDEXWrapper.getCollateralAmountGivenUnderlyingAssetAmountForPerp(
+    //         amount,
+    //         isShorting,
+    //         isUsdl
+    //     );
+    //     require(collateralAmountToGetBack1e_18 >= minCollateralAmountToGetBack, "collateral got back is too low");
+
+    //     if (!isUsdl) {
+    //         // we go short for synth
+    //         perpDEXWrapper.closeShortWithExactBaseForSynth(amount, collateralAmountToGetBack1e_18);
+    //     } else {
+    //         // we go long for usdl
+    //         perpDEXWrapper.closeLongWithExactQuoteForUSDL(amount, collateralAmountToGetBack1e_18);
+    //     }
+
+    //     collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
+    //         collateralAmountToGetBack1e_18,
+    //         address(collateral),
+    //         false
+    //     );
+    //     SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmountToGetBack);
+    //     emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, collateralAmountToGetBack);
+    // }
+
+
+    // /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc specifying the exact amount of collateral
+    // /// @param to Receipent of withdrawn collateral
+    // /// @param collateralAmount Amount of collateral to withdraw
+    // /// @param perpetualDEXIndex Index of perpetual dex, where position will be closed
+    // /// @param maxUSDLToBurn Max USDL to burn in the process
+    // /// @param isUsdl to decide weather burn usdl or synth, if burn usdl then true otherwise if synth burn then false
+    // /// @param collateral Collateral to be used to redeem USDL
+    // function withdrawToWExactCollateral1(
+    //     address to,
+    //     uint256 collateralAmount,
+    //     uint256 perpetualDEXIndex,
+    //     uint256 maxUSDLToBurn,
+    //     bool isUsdl,
+    //     IERC20Upgradeable collateral
+    // ) external nonReentrant {
+    //     IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
+    //         perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
+    //     );
+    //     require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
+
+    //     uint256 USDLToBurn;
+    //     if (!isUsdl) {
+    //         USDLToBurn = perpDEXWrapper.closeShortWithExactCollateral(collateralAmount);
+    //     } else {
+    //         USDLToBurn = perpDEXWrapper.closeLongWithExactCollateral(collateralAmount);
+    //     }
+    //     require(USDLToBurn <= maxUSDLToBurn, "USDL burnt exceeds maximum");
+    //     _burn(_msgSender(), USDLToBurn);
+    //     collateralAmount = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
+    //         collateralAmount,
+    //         address(collateral),
+    //         false
+    //     );
+    //     SafeERC20Upgradeable.safeTransfer(collateral, to, collateralAmount);
+    //     emit WithdrawTo(perpetualDEXIndex, address(collateral), to, USDLToBurn, collateralAmount);
+    // }
+
+
 }
