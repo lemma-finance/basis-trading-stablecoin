@@ -2,14 +2,11 @@
 pragma solidity =0.8.3;
 
 interface IPerpetualMixDEXWrapper {
-    function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
-        external
-        returns (uint256 collateralAmountRequired);
-
-    
-    function getAmountInCollateralDecimals(uint256 amount, bool roundUp) external view returns (uint256);
-
     function trade(uint256 amount, bool isShorting, bool isExactInput) external returns (uint256 base, uint256 quote);
+
+    function deposit(uint256 amount, address collateral) external;
+
+    function withdraw(uint256 amount, address collateral) external;
 
     function reBalance(
         address _reBalancer,
@@ -31,6 +28,14 @@ interface IPerpetualMixDEXWrapper {
 
 
 /////////////// UNNECESSARY METHODS /////////////
+
+    /*
+    function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
+        external
+        returns (uint256 collateralAmountRequired);
+
+
+    function getAmountInCollateralDecimals(uint256 amount, bool roundUp) external view returns (uint256);
 
     function open(uint256 amount, uint256 collateralAmountRequired) external;
 
@@ -63,5 +68,6 @@ interface IPerpetualMixDEXWrapper {
         bool isShorting,
         bool isUsdl
     ) external returns (uint256 collateralAmountRequired);
-
+    */
+    
 }

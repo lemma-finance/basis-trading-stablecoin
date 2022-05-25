@@ -398,8 +398,8 @@ describe("perpLemma.multiCollateral", async function () {
         // NOTE: Setting USDL collateral as tail asset 
         await perpLemma.setIsUsdlCollateralTailAsset(true);
 
-        // NOTE: Also Synth Collateral can be anything
-        await perpLemma.setIsSynthCollateralTailAsset(true);
+        // // NOTE: Also Synth Collateral can be anything
+        // await perpLemma.setIsSynthCollateralTailAsset(true);
 
         // NOTE: This is because we assume we have plenty of USDC deposited in Perp when working with tail assets 
         const initialDepositedUsdcAmount = parseEther("10");

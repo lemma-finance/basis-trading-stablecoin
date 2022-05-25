@@ -135,13 +135,13 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     }
 
     function _perpDeposit(IPerpetualMixDEXWrapper perpDEXWrapper, address collateral, uint256 amount) internal {
-        SafeERC20Upgradeable.safeTransferFrom(collateral, _msgSender(), address(perpDEXWrapper), amount);
+        SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), _msgSender(), address(perpDEXWrapper), amount);
         perpDEXWrapper.deposit(amount, collateral);
     }
 
     function _perpWithdraw(IPerpetualMixDEXWrapper perpDEXWrapper, address collateral, uint256 amount) internal {
         perpDEXWrapper.withdraw(amount, collateral);
-        SafeERC20Upgradeable.safeTransferFrom(collateral, address(perpDEXWrapper), _msgSender(), amount);
+        SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), address(perpDEXWrapper), _msgSender(), amount);
     }
 
 
@@ -167,10 +167,10 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
 
         // isShorting = true
         // isExactUsdl = true
-        (uint256 _collateralRequired1e_18, _) = perpDEXWrapper.trade(amount, true, true);
+        (uint256 _collateralRequired1e_1e18, ) = perpDEXWrapper.trade(amount, true, true);
 
-        require(collateralRequired1e_18 <= maxCollateralAmountRequired, "collateral required execeeds maximum");
-        uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(_collateralRequired1e_18, address(collateral), false);
+        require(_collateralRequired1e_1e18 <= maxCollateralAmountRequired, "collateral required execeeds maximum");
+        uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(_collateralRequired1e_1e18, address(collateral), false);
 
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
         _mint(to, amount);
@@ -199,7 +199,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         
         // isShorting = true
         // isExactUsdl = true
-        (_, uint256 _usdlToMint) = perpDEXWrapper.trade(amount, true, false);
+        (, uint256 _usdlToMint) = perpDEXWrapper.trade(collateralAmount, true, false);
 
         uint256 _collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralAmountToDeposit);
@@ -229,8 +229,8 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         // NOTE: We can't close a bigger short than the amount of USDL the user has burned 
         // isShorting = true
         // isExactUsdl = true
-        (uint256 _collateralAmountToGetBack_1e18, _) = perpDEXWrapper.trade(amount, false, true);
-        uint256 _collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimals(_collateralAmountToGetBack_1e18, false);
+        (uint256 _collateralAmountToGetBack_1e18, ) = perpDEXWrapper.trade(amount, false, true);
+        uint256 _collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(_collateralAmountToGetBack_1e18, address(collateral), false);
         require(_collateralAmountToGetBack >= minCollateralAmountToGetBack, "Not enough collateral to get back");
         _perpWithdraw(perpDEXWrapper, address(collateral), _collateralAmountToGetBack);
         emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, _collateralAmountToGetBack);
@@ -260,7 +260,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         // NOTE: We can't close a bigger short than the amount of USDL the user has burned 
         // isShorting = true
         // isExactUsdl = true
-        (_, uint256 _usdlToBurn) = perpDEXWrapper.trade(amount, false, false);
+        (, uint256 _usdlToBurn) = perpDEXWrapper.trade(collateralAmount, false, false);
         require(_usdlToBurn <= maxUSDLToBurn, "Too much USDL to burn");
         _burn(_msgSender(), _usdlToBurn);
         uint256 _collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
