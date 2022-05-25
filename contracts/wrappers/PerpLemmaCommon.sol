@@ -236,6 +236,10 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             referralCode: referrerCode
         });
         (base, quote) = clearingHouse.openPosition(params);
+
+        int256 positionSize = accountBalance.getTotalPositionSize(address(this), usdlBaseTokenAddress);
+        console.log("[trade()] positionSize.abs().toUint256() = ", positionSize.abs().toUint256());
+        require(positionSize.abs().toUint256() <= maxPosition, "max position reached");
     }
 
 
