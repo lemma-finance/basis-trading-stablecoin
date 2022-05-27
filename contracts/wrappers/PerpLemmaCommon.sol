@@ -211,14 +211,33 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     }
 
 
+    function tradeCovered(
+        uint256 amountPos,
+        bool isShorting, 
+        bool isExactInput,
+        address collateralIn,
+        uint256 amountIn,
+        address collateralOut,
+        uint256 amountOut
+    ) external override onlyUSDLemma returns(uint256, uint256) {
+        if( (amountIn > 0) && (collateralIn != address(0)) ) {
+            SafeERC20Upgradeable.safeTransferFrom(IERC20Decimals(collateralIn), msg.sender, address(this), amountIn);
+            _deposit(amountIn, collateralIn);
+        }
 
+        if( (amountOut > 0) && (collateralOut != address(0)) ) {
+            _withdraw(amountOut, collateralOut);
+            SafeERC20Upgradeable.safeTransfer(IERC20Decimals(collateralOut), msg.sender, amountOut);
+        }
 
+        return trade(amountPos, isShorting, isExactInput);
+    }
 
     function trade(
         uint256 amount,
         bool isShorting,
         bool isExactInput
-    ) external override onlyUSDLemma returns (uint256 base, uint256 quote) {
+    ) public override onlyUSDLemma returns (uint256, uint256) {
         // TODO: Fix
         // TODO: Check,we need to take into account what we close after the market has settled is the net short or long position 
         // if (hasSettled) return closeWExactUSDLAfterSettlementForUSDL(amount);
@@ -237,11 +256,12 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             sqrtPriceLimitX96: 0,
             referralCode: referrerCode
         });
-        (base, quote) = clearingHouse.openPosition(params);
+        (uint256 base, uint256 quote) = clearingHouse.openPosition(params);
 
         int256 positionSize = accountBalance.getTotalPositionSize(address(this), usdlBaseTokenAddress);
         console.log("[trade()] positionSize.abs().toUint256() = ", positionSize.abs().toUint256());
         require(positionSize.abs().toUint256() <= maxPosition, "max position reached");
+        return (base, quote);
     }
 
 
