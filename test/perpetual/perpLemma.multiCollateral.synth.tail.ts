@@ -309,7 +309,7 @@ describe("perpLemma.multiCollateral", async function () {
     // 1. Transfer collateral
     await usdCollateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount);
     const initialUsdcBalance = (await usdCollateral.balanceOf(perpLemma.address)).toString();
-    console.log(`T2 initialUsdcBalance = ${initialUsdcBalance}`);
+    console.log(`[tradeLongWExactCollateral()] T1 initialUsdcBalance = ${initialUsdcBalance}`);
     // expect(parseUnits(initialUsdcBalance, 0)).to.eq(collateralAmount);
     // console.log("T2");
   
@@ -352,8 +352,19 @@ describe("perpLemma.multiCollateral", async function () {
 
     return baseAndQuoteValue;  
   }  
-
+  
+  // NOTE: Compute leverage in 1e6 format
+  // NOTE: For longs, we do not actually need to check the leverage == 1 since we are not trying to be delta neutral, we just want to know if we are far enough from margin call to avoid liquidation so 
+  // Should we use `getMarginRequirementForLiquidation()` instead ? 
+  // https://github.com/yashnaman/perp-lushan/blob/main/contracts/AccountBalance.sol#L225
   async function calcLeverage() {
+    // Return the position in Quote Token using the TWAP on the Index Price --> maybe better than the vAMM one? 
+    const positionValue = parseUnits((await accountBalance.getTotalPositionValue(perpLemma.address, baseToken.address)).abs().toString(), 0);   // Probably in Base
+    const depositedCollateral = parseUnits((await vault.getBalance(perpLemma.address)).toString(), 0);                                  // Probably in Quote
+    return positionValue.mul(1e6).div(depositedCollateral);
+  }
+
+  async function calcLeverage1() {
     const positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
     let depositedCollateral = await vault.getBalance(perpLemma.address);
     const slot0 = await pool.slot0();
@@ -601,7 +612,14 @@ describe("perpLemma.multiCollateral", async function () {
         let positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
         expect(baseAndQuoteValue[0]).to.eq(positionSize);
         console.log("T9");
-        await calcLeverage();
+        const lev1 = await calcLeverage();
+        console.log(`T10 Leverafe = ${lev1}`);
+
+        // NOTE: If USDL Collateral is tail asset, the amount of USDC is deposited in advance is big and biases the leverage
+        if(!isUsdlCollateralTailAsset) {
+          expect(lev1).to.eq(1e6);
+        }
+
 
         baseAndQuoteValue = await callStaticOpenPosition(
           clearingHouse,
