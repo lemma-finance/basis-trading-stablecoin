@@ -27,6 +27,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
     address public usdLemma;
     address public reBalancer;
+
     address public usdlBaseTokenAddress;
     // address public synthBaseTokenAddress;
     bytes32 public referrerCode;
@@ -129,7 +130,8 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
     }
 
-    function setIsUsdlCollateralTailAsset(bool _x) external onlyOwner {
+    // TODO: Add only owner
+    function setIsUsdlCollateralTailAsset(bool _x) external {
         isUsdlCollateralTailAsset = _x;
     }
 

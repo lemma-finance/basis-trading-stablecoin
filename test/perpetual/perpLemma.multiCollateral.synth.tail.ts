@@ -9,6 +9,10 @@ import { createClearingHouseFixture } from "../shared/perpFixture/fixtures_local
 import bn from "bignumber.js";
 bn.config({ EXPONENTIAL_AT: 999999, DECIMAL_PLACES: 40 });
 
+const isUsdlCollateralTailAsset = true; 
+
+const ZERO = BigNumber.from("0");
+
 import {
   AccountBalance,
   BaseToken,
@@ -86,6 +90,9 @@ async function forwardTimestamp(clearingHouse, step) {
   const now = await clearingHouse.getBlockTimestamp();
   await clearingHouse.setBlockTimestamp(now.add(step));
 }
+
+
+
 
 describe("perpLemma.multiCollateral", async function () {
   let defaultSigner, usdLemma, reBalancer, hasWETH, keeperGasReward, signer1, signer2, signer3, longAddress;
@@ -240,7 +247,6 @@ describe("perpLemma.multiCollateral", async function () {
       { initializer: "initialize" },
     )) as TestPerpLemma;
     await perpLemma.connect(signer1).resetApprovals();
-
     // base = eth
     // quote = usd
 
@@ -286,6 +292,66 @@ describe("perpLemma.multiCollateral", async function () {
     let ethPrice_1e18 = new bn(price).multipliedBy(1e30).toFixed(0).toString();
     return [ethPrice, ethPrice_1e18];
   }
+
+  async function tradeLongWExactCollateral(isOpen, collateralAmount) {  
+    // let collateralAmount = parseUnits("100", usdCollateralDecimals); // 6 decimal
+    await usdCollateral.mint(usdLemma.address, collateralAmount);
+  
+    // // NOTE: This is not zero since we start by depositing a bunch of USDC because of the assumption we make in the tail asset case
+    // const initialVaultBalance = parseUnits((await vault.getBalance(perpLemma.address)).toString(), 0);
+  
+    // transfer Collateral to perpLemma
+    const initialBefore = (await usdCollateral.balanceOf(perpLemma.address)).toString();
+    // console.log(`T1 initialBefore = ${initialBefore}`);
+    // expect(parseUnits(initialBefore, 0)).to.eq(ZERO);
+  
+    // Open a Long Position --> This is done manually in these tests but in reality it does done automatically by USDLemma.sol contract
+    // 1. Transfer collateral
+    await usdCollateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount);
+    const initialUsdcBalance = (await usdCollateral.balanceOf(perpLemma.address)).toString();
+    console.log(`T2 initialUsdcBalance = ${initialUsdcBalance}`);
+    // expect(parseUnits(initialUsdcBalance, 0)).to.eq(collateralAmount);
+    // console.log("T2");
+  
+    const baseAmount_1e18 = collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals));
+    // Simulate the trade to know the reference value for the comparison
+    let baseAndQuoteValue = await callStaticOpenPosition(
+      clearingHouse,
+      longAddress,
+      baseToken.address,
+      !isOpen,
+      !isOpen, // true,
+      baseAmount_1e18,
+      // collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
+    ); // index0: base/usd, index1: quote/eth
+  
+    // 2. Open the Position on the underlying Perp
+    await expect(
+      perpLemma
+        .connect(usdLemma)
+        .trade(
+          baseAmount_1e18,
+          // collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)), 
+          !isOpen, 
+          !isOpen),
+    ).to.emit(clearingHouse, "PositionChanged");
+  
+    // await expect(
+    //   perpLemma
+    //     .connect(usdLemma)
+    //     .openLongWithExactCollateral(collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals))),
+    // ).to.emit(clearingHouse, "PositionChanged");
+  
+    // 3. Cover the position with collateral
+    if(isOpen) {
+      await perpLemma.connect(usdLemma).deposit(collateralAmount, usdCollateral.address);
+    }
+    else {
+      await perpLemma.connect(usdLemma).withdraw(collateralAmount, usdCollateral.address);
+    }
+
+    return baseAndQuoteValue;  
+  }  
 
   async function calcLeverage() {
     const positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
@@ -365,6 +431,7 @@ describe("perpLemma.multiCollateral", async function () {
         -887200,
         887200,
       );
+
     });
 
     it("check fees", async function () {
@@ -395,17 +462,28 @@ describe("perpLemma.multiCollateral", async function () {
 
 
 
-        // NOTE: Setting USDL collateral as tail asset 
-        await perpLemma.setIsUsdlCollateralTailAsset(true);
+        // NOTE: If working with tail assets, deposit a large initial amount of USDC 
+        if(isUsdlCollateralTailAsset) {
+          // NOTE: Setting USDL collateral as tail asset 
+          await perpLemma.setIsUsdlCollateralTailAsset(true);
 
-        // // NOTE: Also Synth Collateral can be anything
-        // await perpLemma.setIsSynthCollateralTailAsset(true);
+          // // NOTE: Also Synth Collateral can be anything
+          // await perpLemma.setIsSynthCollateralTailAsset(true);
 
-        // NOTE: This is because we assume we have plenty of USDC deposited in Perp when working with tail assets 
-        const initialDepositedUsdcAmount = parseEther("10");
-        await usdCollateral.mint(signer1.address, initialDepositedUsdcAmount);
-        await usdCollateral.connect(signer1).approve(perpLemma.address, initialDepositedUsdcAmount);
-        await perpLemma.connect(signer1).depositSettlementToken(initialDepositedUsdcAmount);
+          // NOTE: This is because we assume we have plenty of USDC deposited in Perp when working with tail assets 
+          const initialDepositedUsdcAmount = parseEther("10");
+          await usdCollateral.mint(signer1.address, initialDepositedUsdcAmount);
+          await usdCollateral.connect(signer1).approve(perpLemma.address, initialDepositedUsdcAmount);
+          await perpLemma.connect(signer1).depositSettlementToken(initialDepositedUsdcAmount);
+          
+          const depositedCollateral = parseUnits((await vault.getBalance(perpLemma.address)).toString(), 0);
+          expect(depositedCollateral).to.eq(initialDepositedUsdcAmount);
+          // perpLemma.connect(signer1).setIsUsdlCollateralTailAsset(true);
+          // const initialUsdcAmount = parseEther("100");
+          // usdCollateral.mint(perpLemma.address, initialUsdcAmount);
+          // perpLemma.connect(signer1).depositSettlementToken(initialUsdcAmount);
+        }
+
       });
 
 
@@ -450,7 +528,7 @@ describe("perpLemma.multiCollateral", async function () {
         // );
       });
 
-      it("should close position correctly", async function () {
+      it("should open and close position correctly", async function () {
         let collateralAmount = parseUnits("100", usdCollateralDecimals); // 6 decimal
         await usdCollateral.mint(usdLemma.address, collateralAmount);
 
@@ -462,28 +540,36 @@ describe("perpLemma.multiCollateral", async function () {
         console.log(`T1 initialBefore = ${initialBefore}`);
         expect(parseUnits(initialBefore, 1)).to.eq(parseUnits("0", 1));
 
+        // Open a Long Position --> This is done manually in these tests but in reality it does done automatically by USDLemma.sol contract
+        // 1. Transfer collateral
         await usdCollateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount);
         const initialUsdcBalance = (await usdCollateral.balanceOf(perpLemma.address)).toString();
         console.log(`T2 initialUsdcBalance = ${initialUsdcBalance}`);
         expect(parseUnits(initialUsdcBalance, 0)).to.eq(collateralAmount);
         console.log("T2");
 
+        const baseAmount_1e18 = collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals));
+        // Simulate the trade to know the reference value for the comparison
         let baseAndQuoteValue = await callStaticOpenPosition(
           clearingHouse,
           longAddress,
           baseToken.address,
           false,
           false, // true,
-          collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
+          baseAmount_1e18,
+          // collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
         ); // index0: base/usd, index1: quote/eth
 
-        // Deposit ethCollateral in eth and Short eth and long usdc
+        // 2. Open the Position on the underlying Perp
         await expect(
           perpLemma
             .connect(usdLemma)
-            .trade(collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)), false, false),
+            .trade(
+              baseAmount_1e18,
+              // collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)), 
+              false, 
+              false),
         ).to.emit(clearingHouse, "PositionChanged");
-
 
         // await expect(
         //   perpLemma
@@ -491,23 +577,24 @@ describe("perpLemma.multiCollateral", async function () {
         //     .openLongWithExactCollateral(collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals))),
         // ).to.emit(clearingHouse, "PositionChanged");
 
+        // 3. Cover the position with collateral
+        await perpLemma.connect(usdLemma).deposit(collateralAmount, usdCollateral.address);
+
+
         console.log("T3");
         // NOTE: Checking that tail asset remains in PerpLemma
         const balanceAfter = (await usdCollateral.balanceOf(perpLemma.address)).toString();
         console.log(`T3 balanceAfter = ${balanceAfter}`);
-        expect(parseUnits(balanceAfter, 0)).to.eq(collateralAmount);
-
-        console.log("T5");
-        const balanceAfter1 = parseUnits((await usdCollateral.balanceOf(perpLemma.address)).toString(), 0);
-
-        // NOTE: In the tail asset case, the collateral does not leave the Perp Contract Balance Sheet
-        expect(balanceAfter1).to.eq(collateralAmount);
-        // expect(balanceAfter1).to.eq(0);
+        const expectedBalanceAfter = (isUsdlCollateralTailAsset) ? collateralAmount : ZERO;
+        // NOTE: Checking all the collateral has been deposited in Perp
+        expect(parseUnits(balanceAfter, 0)).to.eq(expectedBalanceAfter);
+        // expect(parseUnits(balanceAfter, 0)).to.eq(collateralAmount);
 
         console.log("T6");
         const vaultBalance = parseUnits((await vault.getBalance(perpLemma.address)).toString(), 0);
+        const expectedVaultBalance = (isUsdlCollateralTailAsset) ? ZERO : expectedBalanceAfter;
         // NOTE: In the tail asset case, the collateral does not get deposited in the Vault
-        expect(vaultBalance.sub(initialVaultBalance)).to.eq(ZERO);
+        expect(vaultBalance.sub(initialVaultBalance)).to.eq(expectedVaultBalance);
         // expect(vaultBalance).to.eq(collateralAmount);
 
         console.log("T7");
@@ -549,66 +636,56 @@ describe("perpLemma.multiCollateral", async function () {
         console.log("T15");
       });
 
-      it("#1 openLongWithExactCollateral and closeShortWithExactCollateral ", async function () {
-        console.log(`[openLongWithExactCollateral()] Start`);
-        collateralAmountForUSDC = parseUnits("100", usdCollateralDecimals); // 6 decimal
-        await usdCollateral.connect(usdLemma).transfer(perpLemma.address, collateralAmountForUSDC);
-        // open
-        let baseAndQuoteValue = await callStaticOpenPosition(
-          clearingHouse,
-          longAddress,
-          baseToken.address,
-          false,
-          false, // true,
-          collateralAmountForUSDC.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
-        ); // index0: base/usd, index1: quote/eth
 
-        await expect(
-          perpLemma
-            .connect(usdLemma)
-            .trade(collateralAmountForUSDC.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)), false, false),
-        ).to.emit(clearingHouse, "PositionChanged");
+      it("#1 openLongWithExactCollateral and closeLongWithExactCollateral", async function () {
+        let collateralAmount = parseUnits("100", usdCollateralDecimals); // 6 decimal
+        // NOTE: This is not zero since we start by depositing a bunch of USDC because of the assumption we make in the tail asset case
+        const initialVaultBalance = parseUnits((await vault.getBalance(perpLemma.address)).toString(), 0); 
 
+        // Open Long With Exact Collateral
+        let baseAndQuoteValue = await tradeLongWExactCollateral(true, collateralAmount);
 
-        // await expect(
-        //   perpLemma.connect(usdLemma).openLongWithExactCollateral(
-        //     collateralAmountForUSDC.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
-        //     // params should in 1e18
-        //   ),
-        // ).to.emit(clearingHouse, "PositionChanged");
-        let leverage = await calcLeverage();
-        console.log(`[openLongWithExactCollateral] T1 leverage=${leverage}`);
+        console.log("T3");
+        // NOTE: Checking that tail asset remains in PerpLemma
+        const balanceAfter = (await usdCollateral.balanceOf(perpLemma.address)).toString();
+        console.log(`T3 balanceAfter = ${balanceAfter}`);
+        const expectedBalanceAfter = (isUsdlCollateralTailAsset) ? collateralAmount : ZERO;
+        // NOTE: Checking all the collateral has been deposited in Perp
+        expect(parseUnits(balanceAfter, 0)).to.eq(expectedBalanceAfter);
+        // expect(parseUnits(balanceAfter, 0)).to.eq(collateralAmount);
 
-        // TODO: Check
-        // expect(BigNumber.from(leverage).div(parseEther("1"))).to.eq(1);
+        console.log("T6");
+        const vaultBalance = parseUnits((await vault.getBalance(perpLemma.address)).toString(), 0);
+        const expectedVaultBalance = (isUsdlCollateralTailAsset) ? ZERO : expectedBalanceAfter;
+        // NOTE: In the tail asset case, the collateral does not get deposited in the Vault
+        expect(vaultBalance.sub(initialVaultBalance)).to.eq(expectedVaultBalance);
+        // expect(vaultBalance).to.eq(collateralAmount);
 
+        console.log("T7");
         let positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
-        baseAndQuoteValue = await callStaticOpenPosition(
-          clearingHouse,
-          longAddress,
-          baseToken.address,
-          true,
-          true,
-          positionSize,
-        );
+        expect(baseAndQuoteValue[0]).to.eq(positionSize);
+        console.log("T9");
+        await calcLeverage();
 
-        // long eth and close position, withdraw ethCollateral
-        await expect(await perpLemma.connect(usdLemma).trade(baseAndQuoteValue[0], true, true)).to.emit(
-          clearingHouse,
-          "PositionChanged",
-        );
-        
-        // await expect(await perpLemma.connect(usdLemma).closeShortWithExactCollateral(baseAndQuoteValue[1]));
-        leverage = await calcLeverage();
+        // Close Long With Exact Collateral
+        baseAndQuoteValue = await tradeLongWExactCollateral(false, collateralAmount);
+
+        // await expect(await perpLemma.connect(usdLemma).closeShortWithExactCollateral(baseAndQuoteValue[1])).to.emit(
+        //   clearingHouse,
+        //   "PositionChanged",
+        // );
+        console.log("T10");
         positionSize = await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address);
-        console.log(`[openLongWithExactCollateral] T2 leverage=${leverage}`);
-        expect(BigNumber.from(leverage).div(parseEther("1"))).to.eq(0);
-        console.log(`T3`);
         expect(positionSize).to.eq(0);
-        console.log(`T5`);
+        console.log("T11");
+
+        // NOTE: Removing because the vault balance is altered by the initial USDC amount we deposit for the tail asset assumption
         // expect(await vault.getBalance(perpLemma.address)).to.closeTo("2", "1"); // consider to be fee
-        // expect(await usdCollateral.balanceOf(perpLemma.address)).to.be.equal(ZERO);
+        // console.log("T12");
+        const finalUsdcBalance = await usdCollateral.balanceOf(perpLemma.address);
+        console.log("T15");
       });
+
 
       // // getCollateralAmountGivenUnderlyingAssetAmountForPerp => gCAGUAA
       // it("#2 openLongWithExactCollateral and gCAGUAA => close ", async function () {
@@ -621,17 +698,24 @@ describe("perpLemma.multiCollateral", async function () {
       //     longAddress,
       //     baseToken.address,
       //     false,
-      //     true,
+      //     false, // true,
       //     collateralAmountForUSDC.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
       //   ); // index0: base/usd, index1: quote/eth
+
       //   // Deposit ethCollateral in eth and Short eth and long usdc
       //   await expect(
       //     perpLemma
       //       .connect(usdLemma)
-      //       .openLongWithExactCollateral(
-      //         collateralAmountForUSDC.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
-      //       ),
+      //       .trade(collateralAmountForUSDC.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)), false, false),
       //   ).to.emit(clearingHouse, "PositionChanged");
+
+      //   // await expect(
+      //   //   perpLemma
+      //   //     .connect(usdLemma)
+      //   //     .openLongWithExactCollateral(
+      //   //       collateralAmountForUSDC.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
+      //   //     ),
+      //   // ).to.emit(clearingHouse, "PositionChanged");
       //   let leverage = await calcLeverage();
       //   expect(BigNumber.from(leverage).div(parseEther("1"))).to.eq(1);
 
@@ -646,15 +730,22 @@ describe("perpLemma.multiCollateral", async function () {
       //     positionSize,
       //   ); // index0: base/usd, index1: quote/eth
 
-      //   await expect(
-      //     perpLemma.connect(usdLemma).getCollateralAmountGivenUnderlyingAssetAmountForPerp(baseAndQuoteValue[0], true, false),
-      //   ).to.emit(clearingHouse, "PositionChanged");
-
-      //   await expect(perpLemma.connect(usdLemma).closeShortWithExactBaseForSynth(0, 0)).to.be.revertedWith("Amount should greater than zero");
-      //   await perpLemma.connect(usdLemma).closeShortWithExactBaseForSynth(0, baseAndQuoteValue[1]);
+      //   await expect(await perpLemma.connect(usdLemma).trade(baseAndQuoteValue[0], true, true)).to.emit(
+      //     clearingHouse,
+      //     "PositionChanged",
+      //   );
+        
+      //   // await expect(
+      //   //   perpLemma.connect(usdLemma).getCollateralAmountGivenUnderlyingAssetAmountForPerp(baseAndQuoteValue[0], true, false),
+      //   // ).to.emit(clearingHouse, "PositionChanged");
+      //   // await expect(perpLemma.connect(usdLemma).closeShortWithExactBaseForSynth(0, 0)).to.be.revertedWith("Amount should greater than zero");
+      //   // await perpLemma.connect(usdLemma).closeShortWithExactBaseForSynth(0, baseAndQuoteValue[1]);
       //   leverage = await calcLeverage();
       //   expect(leverage).to.eq(0);
       // });
+
+
+
       // // getCollateralAmountGivenUnderlyingAssetAmountForPerp => gCAGUAA
       // it("#3 gCAGUAA -> open and gCAGUAA -> close ", async function () {
       //   collateralAmountForUSDC = parseUnits("100", usdCollateralDecimals); // 6 decimal
