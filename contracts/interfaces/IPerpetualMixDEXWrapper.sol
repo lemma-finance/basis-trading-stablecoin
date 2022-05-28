@@ -3,17 +3,23 @@ pragma solidity =0.8.3;
 
 interface IPerpetualMixDEXWrapper {
 
-    function tradeCovered(
-        uint256 amountPos,
-        bool isShorting, 
-        bool isExactInput,
-        address collateralIn,
-        uint256 amountIn,
-        address collateralOut,
-        uint256 amountOut
-    ) external returns(uint256 base, uint256 quote);
-
     function trade(uint256 amount, bool isShorting, bool isExactInput) external returns (uint256 base, uint256 quote);
+
+    // Convenience trading functions 
+    function openLongWithExactBase(uint256 amount, address collateralIn, uint256 amountIn) external returns(uint256, uint256);
+    function openLongWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn) external returns(uint256, uint256);
+    function closeLongWithExactBase(uint256 amount, address collateralOut, uint256 amountOut) external returns(uint256, uint256);
+    function closeLongWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut) external returns(uint256, uint256);
+
+
+    function openShortWithExactBase(uint256 amount, address collateralIn, uint256 amountIn) external returns(uint256, uint256);
+    function openShortWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn) external returns(uint256, uint256);
+    function closeShortWithExactBase(uint256 amount, address collateralOut, uint256 amountOut) external returns(uint256, uint256);
+    function closeShortWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut) external returns(uint256, uint256);
+    /////////
+
+
+
 
     function deposit(uint256 amount, address collateral) external;
 

@@ -51,6 +51,9 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     uint256 public usdlCollateralDecimals;
     // uint256 public synthCollateralDecimals;
 
+    uint256 public amountBase;
+    uint256 public amountQuote;
+
     // Gets set only when Settlement has already happened
     // NOTE: This should be equal to the amount of USDL minted depositing on that dexIndex
     uint256 public positionAtSettlementInQuoteForUSDL;
@@ -128,6 +131,11 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         // SafeERC20Upgradeable.safeApprove(synthCollateral, address(perpVault), MAX_UINT256);
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), 0);
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
+
+        SafeERC20Upgradeable.safeApprove(usdc, usdLemma, 0);
+        SafeERC20Upgradeable.safeApprove(usdc, usdLemma, MAX_UINT256);
+        SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
+        SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, MAX_UINT256);
     }
 
     // TODO: Add only owner
@@ -156,7 +164,17 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     ///@param _usdLemma USDLemma address to set
     function setUSDLemma(address _usdLemma) external onlyOwner {
         require(_usdLemma != address(0), "UsdLemma should not ZERO address");
+
+        SafeERC20Upgradeable.safeApprove(usdc, usdLemma, 0);
+        SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
+
         usdLemma = _usdLemma;
+
+        SafeERC20Upgradeable.safeApprove(usdc, usdLemma, 0);
+        SafeERC20Upgradeable.safeApprove(usdc, usdLemma, MAX_UINT256);
+        SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
+        SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, MAX_UINT256);
+
         emit USDLemmaUpdated(usdLemma);
     }
 
@@ -211,27 +229,27 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     }
 
 
-    function tradeCovered(
-        uint256 amountPos,
-        bool isShorting, 
-        bool isExactInput,
-        address collateralIn,
-        uint256 amountIn,
-        address collateralOut,
-        uint256 amountOut
-    ) external override onlyUSDLemma returns(uint256, uint256) {
-        if( (amountIn > 0) && (collateralIn != address(0)) ) {
-            SafeERC20Upgradeable.safeTransferFrom(IERC20Decimals(collateralIn), msg.sender, address(this), amountIn);
-            _deposit(amountIn, collateralIn);
-        }
+    // function tradeCovered(
+    //     uint256 amountPos,
+    //     bool isShorting, 
+    //     bool isExactInput,
+    //     address collateralIn,
+    //     uint256 amountIn,
+    //     address collateralOut,
+    //     uint256 amountOut
+    // ) external override onlyUSDLemma returns(uint256, uint256) {
+    //     if( (amountIn > 0) && (collateralIn != address(0)) ) {
+    //         SafeERC20Upgradeable.safeTransferFrom(IERC20Decimals(collateralIn), msg.sender, address(this), amountIn);
+    //         _deposit(amountIn, collateralIn);
+    //     }
 
-        if( (amountOut > 0) && (collateralOut != address(0)) ) {
-            _withdraw(amountOut, collateralOut);
-            SafeERC20Upgradeable.safeTransfer(IERC20Decimals(collateralOut), msg.sender, amountOut);
-        }
+    //     if( (amountOut > 0) && (collateralOut != address(0)) ) {
+    //         _withdraw(amountOut, collateralOut);
+    //         SafeERC20Upgradeable.safeTransfer(IERC20Decimals(collateralOut), msg.sender, amountOut);
+    //     }
 
-        return trade(amountPos, isShorting, isExactInput);
-    }
+    //     return trade(amountPos, isShorting, isExactInput);
+    // }
 
     function trade(
         uint256 amount,
@@ -245,6 +263,8 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         bool _isBaseToQuote = isShorting;
         bool _isExactInput = isExactInput;
 
+        console.log("[trade()] Before base = %d, quote = %d", amountBase, amountQuote);
+
         totalFundingPNL = getFundingPNL(usdlBaseTokenAddress);
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: usdlBaseTokenAddress,
@@ -256,12 +276,14 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             sqrtPriceLimitX96: 0,
             referralCode: referrerCode
         });
-        (uint256 base, uint256 quote) = clearingHouse.openPosition(params);
+        (amountBase, amountQuote) = clearingHouse.openPosition(params);
+
+        console.log("[trade()] After base = %d, quote = %d", amountBase, amountQuote);
 
         int256 positionSize = accountBalance.getTotalPositionSize(address(this), usdlBaseTokenAddress);
         console.log("[trade()] positionSize.abs().toUint256() = ", positionSize.abs().toUint256());
         require(positionSize.abs().toUint256() <= maxPosition, "max position reached");
-        return (base, quote);
+        return (amountBase, amountQuote);
     }
 
 
@@ -272,6 +294,88 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function withdraw(uint256 amount, address collateral) external override onlyUSDLemma {
         _withdraw(amount, collateral);
     }
+
+
+
+
+
+    /////////// TRADING - CONVENIENCE FUNCTIONS //////////
+
+    function openLongWithExactBase(uint256 amount, address collateralIn, uint256 amountIn) public override onlyUSDLemma returns(uint256, uint256) {
+        // Open Long: Quote --> Base 
+        // ExactInput: False
+        trade(amount, false, false);
+
+        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn);
+
+        return (amountBase, amountQuote);
+    }
+
+    function openLongWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn) public override onlyUSDLemma returns(uint256, uint256) {
+        // Open Long: Quote --> Base 
+        // ExactInput: True
+        trade(amount, false, true);
+
+        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn);
+
+        return (amountBase, amountQuote);
+    }
+
+
+    function closeLongWithExactBase(uint256 amount, address collateralOut, uint256 amountOut) public override onlyUSDLemma returns(uint256, uint256) {
+        // Close Long: Base --> Quote 
+        // ExactInput: True
+        console.log("[closeLongWithExactBase()] amount = ", amount);
+        trade(amount, true, true);
+
+        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut);
+
+        return (amountBase, amountQuote);
+    }
+
+    function closeLongWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut) public override onlyUSDLemma returns(uint256, uint256) {
+        // Close Long: Base --> Quote 
+        // ExactInput: False
+        trade(amount, true, false);
+
+        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut);
+
+        return (amountBase, amountQuote);
+    }
+
+
+
+    function openShortWithExactBase(uint256 amount, address collateralIn, uint256 amountIn) public override onlyUSDLemma returns(uint256, uint256) {
+        closeLongWithExactBase(amount, address(0), 0);
+        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn);
+        return (amountBase, amountQuote);
+    }
+
+    function openShortWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn) public override onlyUSDLemma returns(uint256, uint256) {
+        closeLongWithExactQuote(amount, address(0), 0);
+        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn);
+        return (amountBase, amountQuote);
+    }
+
+
+    function closeShortWithExactBase(uint256 amount, address collateralOut, uint256 amountOut) public override onlyUSDLemma returns(uint256, uint256) {
+        openLongWithExactBase(amount, address(0), 0);
+        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut);
+        return (amountBase, amountQuote);
+    }
+
+    function closeShortWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut) public override onlyUSDLemma returns(uint256, uint256) {
+        openLongWithExactQuote(amount, address(0), 0);
+        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut);
+        return (amountBase, amountQuote);
+    }
+
+
+
+
+
+
+
 
 
 

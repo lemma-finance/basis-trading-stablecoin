@@ -32,6 +32,7 @@ import {
 } from "../../perp-lushan/typechain";
 import { QuoteToken } from "../../perp-lushan/typechain/QuoteToken";
 import { TestPerpLemma } from "../../types/TestPerpLemma";
+import { exec } from "child_process";
 
 use(solidity);
 
@@ -774,8 +775,9 @@ describe("perpLemma.multiCollateral", async function () {
         const quoteAmount_1e18 = collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals));
         console.log(`T1`);
         const baseAndQuoteValue1 = await simulateOpenLongWExactQuote(quoteAmount_1e18);
+        const targetBase = baseAndQuoteValue1[0];
         console.log(`T3`);
-        console.log(`Base = ${baseAndQuoteValue1[0]}`);
+        console.log(`Base = ${targetBase}`);
         console.log(`T5`);
         // const baseAndQuoteValue1 = await perpLemma.connect(usdLemma).callStatic.tradeCovered(
         //   quoteAmount_1e18,
@@ -787,12 +789,28 @@ describe("perpLemma.multiCollateral", async function () {
         //   0,
         // );
 
+        let executionTrace = {
+          'collateralAmount': collateralAmount,
+          'quoteAmount_1e18': quoteAmount_1e18,
+          'targetBase': targetBase,
+        };
+
         // NOTE: This is not zero since we start by depositing a bunch of USDC because of the assumption we make in the tail asset case
         const initialVaultBalance = parseUnits((await vault.getBalance(perpLemma.address)).toString(), 0); 
-
+        console.log(`T51`);
         // Open Long With Exact Collateral
-        let baseAndQuoteValue = await openLongWithExactBase(baseAndQuoteValue1[0], usdCollateral, collateralAmount);
-        console.log(`T5`);
+        await usdCollateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount);
+        console.log(`T52`);
+        console.log(`PerpLemma AmountBase before open ${await perpLemma.amountBase()}`);
+        await perpLemma.connect(usdLemma).openLongWithExactBase(targetBase, usdCollateral.address, collateralAmount);
+        console.log(`T53`);
+        {
+          console.log(`PerpLemma AmountBase after open ${await perpLemma.amountBase()}`);
+          const temp = parseUnits((await perpLemma.amountBase()).toString(), 0);
+          expect(temp).to.eq(targetBase);  
+        }
+        // let baseAndQuoteValue = await openLongWithExactBase(baseAndQuoteValue1[0], usdCollateral, collateralAmount);
+        console.log(`T6`);
         // await expect(await perpLemma.connect(usdLemma).tradeCovered(
         //   baseAndQuoteValue1[0], 
         //   false,
@@ -836,7 +854,15 @@ describe("perpLemma.multiCollateral", async function () {
         await calcLeverage();
 
         // Close Long With Exact Collateral
-        baseAndQuoteValue = await closeLongWithExactBase(positionSize, usdCollateral, collateralAmount);
+        await perpLemma.connect(usdLemma).closeLongWithExactBase(targetBase, usdCollateral.address, collateralAmount);
+        {
+          console.log(`PerpLemma AmountBase after close ${await perpLemma.amountBase()}`);
+          const temp = parseUnits((await perpLemma.amountBase()).toString(), 0);
+          // expect(temp).to.eq(ZERO);
+        }
+        await usdCollateral.connect(usdLemma).transferFrom(perpLemma.address, defaultSigner.address, collateralAmount);
+
+        // baseAndQuoteValue = await closeLongWithExactBase(positionSize, usdCollateral, collateralAmount);
         // baseAndQuoteValue = await tradeLongWExactCollateral(false, collateralAmount);
 
         // await expect(await perpLemma.connect(usdLemma).closeShortWithExactCollateral(baseAndQuoteValue[1])).to.emit(
@@ -853,6 +879,8 @@ describe("perpLemma.multiCollateral", async function () {
         // console.log("T12");
         const finalUsdcBalance = await usdCollateral.balanceOf(perpLemma.address);
         console.log("T15");
+
+        console.log(`Execution Trace\n${JSON.stringify(executionTrace)}`);
       });
 
 
