@@ -51,8 +51,8 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     uint256 public usdlCollateralDecimals;
     // uint256 public synthCollateralDecimals;
 
-    uint256 public amountBase;
-    uint256 public amountQuote;
+    int256 public amountBase;
+    int256 public amountQuote;
 
     // Gets set only when Settlement has already happened
     // NOTE: This should be equal to the amount of USDL minted depositing on that dexIndex
@@ -263,7 +263,8 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         bool _isBaseToQuote = isShorting;
         bool _isExactInput = isExactInput;
 
-        console.log("[trade()] Before base = %d, quote = %d", amountBase, amountQuote);
+        console.log("[trade()] Before base = %s %d", (amountBase < 0) ? "-":"+", amountBase.abs().toUint256());
+        console.log("[trade()] Before quote = %s %d", (amountQuote < 0) ? "-":"+", amountQuote.abs().toUint256());
 
         totalFundingPNL = getFundingPNL(usdlBaseTokenAddress);
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
@@ -276,14 +277,19 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             sqrtPriceLimitX96: 0,
             referralCode: referrerCode
         });
-        (amountBase, amountQuote) = clearingHouse.openPosition(params);
 
-        console.log("[trade()] After base = %d, quote = %d", amountBase, amountQuote);
+        // NOTE: It returns the base and quote of the last trade only
+        (uint256 _amountBase, uint256 _amountQuote) = clearingHouse.openPosition(params);
+        amountBase += (_isBaseToQuote) ? -1 * int256(_amountBase) : int256(_amountBase);
+        amountQuote += (_isBaseToQuote) ? int256(_amountQuote) : -1 * int256(_amountQuote);
+
+        console.log("[trade()] After base = %s %d", (amountBase < 0) ? "-":"+", amountBase.abs().toUint256());
+        console.log("[trade()] After quote = %s %d", (amountQuote < 0) ? "-":"+", amountQuote.abs().toUint256());
 
         int256 positionSize = accountBalance.getTotalPositionSize(address(this), usdlBaseTokenAddress);
-        console.log("[trade()] positionSize.abs().toUint256() = ", positionSize.abs().toUint256());
+        console.log("[trade()] positionSize.abs().toUint256() = %s %d", (positionSize < 0) ? "-" : "+", positionSize.abs().toUint256());
         require(positionSize.abs().toUint256() <= maxPosition, "max position reached");
-        return (amountBase, amountQuote);
+        return (_amountBase, _amountQuote);
     }
 
 
@@ -299,75 +305,68 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
 
 
+
+
     /////////// TRADING - CONVENIENCE FUNCTIONS //////////
 
     function openLongWithExactBase(uint256 amount, address collateralIn, uint256 amountIn) public override onlyUSDLemma returns(uint256, uint256) {
         // Open Long: Quote --> Base 
         // ExactInput: False
-        trade(amount, false, false);
-
+        
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn);
 
-        return (amountBase, amountQuote);
+        return trade(amount, false, false);
     }
 
     function openLongWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn) public override onlyUSDLemma returns(uint256, uint256) {
         // Open Long: Quote --> Base 
         // ExactInput: True
-        trade(amount, false, true);
 
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn);
 
-        return (amountBase, amountQuote);
+        return trade(amount, false, true);
     }
 
 
     function closeLongWithExactBase(uint256 amount, address collateralOut, uint256 amountOut) public override onlyUSDLemma returns(uint256, uint256) {
         // Close Long: Base --> Quote 
         // ExactInput: True
-        console.log("[closeLongWithExactBase()] amount = ", amount);
-        trade(amount, true, true);
 
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut);
 
-        return (amountBase, amountQuote);
+        return trade(amount, true, true);
     }
 
     function closeLongWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut) public override onlyUSDLemma returns(uint256, uint256) {
         // Close Long: Base --> Quote 
         // ExactInput: False
-        trade(amount, true, false);
 
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut);
 
-        return (amountBase, amountQuote);
+        return trade(amount, true, false);
     }
 
 
 
     function openShortWithExactBase(uint256 amount, address collateralIn, uint256 amountIn) public override onlyUSDLemma returns(uint256, uint256) {
-        closeLongWithExactBase(amount, address(0), 0);
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn);
-        return (amountBase, amountQuote);
+        return closeLongWithExactBase(amount, address(0), 0);
     }
 
     function openShortWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn) public override onlyUSDLemma returns(uint256, uint256) {
-        closeLongWithExactQuote(amount, address(0), 0);
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn);
-        return (amountBase, amountQuote);
+        return closeLongWithExactQuote(amount, address(0), 0);
     }
 
 
     function closeShortWithExactBase(uint256 amount, address collateralOut, uint256 amountOut) public override onlyUSDLemma returns(uint256, uint256) {
-        openLongWithExactBase(amount, address(0), 0);
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut);
-        return (amountBase, amountQuote);
+        return openLongWithExactBase(amount, address(0), 0);
     }
 
     function closeShortWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut) public override onlyUSDLemma returns(uint256, uint256) {
-        openLongWithExactQuote(amount, address(0), 0);
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut);
-        return (amountBase, amountQuote);
+        return openLongWithExactQuote(amount, address(0), 0);
     }
 
 
