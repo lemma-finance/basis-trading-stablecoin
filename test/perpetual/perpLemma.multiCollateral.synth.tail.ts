@@ -397,6 +397,10 @@ describe("perpLemma.multiCollateral", async function () {
 
 
 
+  const UNIT_USDC = parseUnits("1", usdCollateralDecimals);
+  const UNIT_ETH = parseUnits("1", ethCollateralDecimals);
+  const UNIT_E18 = parseEther("1");
+
 
 
 
@@ -926,7 +930,7 @@ describe("perpLemma.multiCollateral", async function () {
         executionTrace['quoteAmount_1e18'] = quoteAmount_1e18.toString();
         executionTrace['perpLemmaAmountBaseBeforeOpen'] = (await perpLemma.amountBase()).toString();
         executionTrace['perpLemmaAmountQuoteBeforeOpen'] = (await perpLemma.amountQuote()).toString();
-        await usdCollateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount);
+        // await usdCollateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount);
         const balanceAfter = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
         executionTrace['balanceAfter'] = balanceAfter.toString();
         await perpLemma.connect(usdLemma).openLongWithExactQuote(quoteAmount_1e18, usdCollateral.address, collateralAmount); 
@@ -950,16 +954,16 @@ describe("perpLemma.multiCollateral", async function () {
       }
 
 
-      async function mintSynthWExactEth(collateralAmount, expectedSynthsAmount) {
+      async function mintSynthWExactEth(collateralAmount, expectedUSDCUsed) {
         let executionTrace = {}
         const quoteAmount_1e18 = collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals));
         executionTrace['quoteAmount_1e18'] = quoteAmount_1e18.toString();
         executionTrace['perpLemmaAmountBaseBeforeOpen'] = (await perpLemma.amountBase()).toString();
         executionTrace['perpLemmaAmountQuoteBeforeOpen'] = (await perpLemma.amountQuote()).toString();
-        await usdCollateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount);
+        // await usdCollateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount);
         const balanceAfter = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
         executionTrace['balanceAfter'] = balanceAfter.toString();
-        await perpLemma.connect(usdLemma).openLongWithExactQuote(quoteAmount_1e18, usdCollateral.address, collateralAmount); 
+        await perpLemma.connect(usdLemma).openLongWithExactBase(collateralAmount, usdCollateral.address, collateralAmount); 
         executionTrace['perpLemmaAmountBaseAfterOpen'] = (await perpLemma.amountBase()).toString();
         executionTrace['perpLemmaAmountQuoteAfterOpen'] = (await perpLemma.amountQuote()).toString();
         executionTrace['afterOpenPerpLemmaUSDCBalance'] = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
@@ -969,12 +973,13 @@ describe("perpLemma.multiCollateral", async function () {
         executionTrace['deltaExposureAfterOpen'] = ((await perpLemma.getDeltaExposure()).toNumber() / 1e6).toString();
         const deltaBase_1e18 = parseUnits(executionTrace['perpLemmaAmountBaseBeforeOpen'],0).sub(parseUnits(executionTrace['perpLemmaAmountBaseAfterOpen'],0));
         const deltaQuote_1e18 = parseUnits(executionTrace['perpLemmaAmountQuoteBeforeOpen'],0).sub(parseUnits(executionTrace['perpLemmaAmountQuoteAfterOpen'],0));
-        console.log(`[mintSynthWExactUSD()] deltaQuote_1e18=${deltaQuote_1e18}`);
-        expect(deltaQuote_1e18).to.eq(quoteAmount_1e18);
-        if(expectedSynthsAmount.gt(ZERO)) 
+
+        const deltaBase = deltaBase_1e18.mul(UNIT_ETH).div(UNIT_E18);
+        expect(deltaBase.mul(MONE)).to.eq(collateralAmount);
+        if(expectedUSDCUsed.gt(ZERO)) 
         {
-          const deltaBase = deltaBase_1e18.mul(parseUnits("1", ethCollateralDecimals)).div(parseEther("1"));
-          expect(deltaBase).to.eq(expectedSynthsAmount);
+          const deltaQuote = deltaQuote_1e18.mul(UNIT_USDC).div(UNIT_E18);
+          expect(deltaQuote).to.eq(expectedUSDCUsed);
         }
         return executionTrace;
       }
@@ -1007,11 +1012,77 @@ describe("perpLemma.multiCollateral", async function () {
         {
           const deltaQuote = deltaQuote_1e18.mul(parseUnits("1", usdCollateralDecimals)).div(parseEther("1"));
           expect(deltaQuote.mul(MONE)).to.eq(expectedCollateralBack);
+          // await perpLemma.connect(signer1).withdrawSettlementToken(expectedCollateralBack);
+          // await usdCollateral.connect(usdLemma).transferFrom(perpLemma.address, usdLemma.address, 10);
         }
-
-        await usdCollateral.connect(usdLemma).transferFrom(perpLemma.address, defaultSigner.address, expectedCollateralBack);
         return executionTrace;
       }
+
+      async function redeemSynthWExactUSDC(usdcAmount, expectedSynthUsed) {
+        let executionTrace = {}
+        // const baseAndQuoteValue = await simulateCloseLongWExactBase(synthAmount);
+        // const collateralAmount = baseAndQuoteValue[1];
+        executionTrace['perpLemmaAmountBaseBeforeClose'] = (await perpLemma.amountBase()).toString();
+        executionTrace['perpLemmaAmountQuoteBeforeClose'] = (await perpLemma.amountQuote()).toString();
+        await perpLemma.connect(usdLemma).closeLongWithExactQuote(usdcAmount, AddressZero, 0);
+        executionTrace['perpLemmaAmountBaseAfterClose'] = (await perpLemma.amountBase()).toString();
+        executionTrace['perpLemmaAmountQuoteAfterClose'] = (await perpLemma.amountQuote()).toString();
+        {
+          console.log(`PerpLemma AmountBase after close ${executionTrace['perpLemmaAmountBaseAfterClose']}`);
+          const temp = parseUnits(executionTrace['perpLemmaAmountBaseAfterClose'], 0);
+          executionTrace['afterClosePerpLemmaUSDCBalance'] = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
+          executionTrace['afterCloseVaultBalance'] = (await vault.getBalance(perpLemma.address)).toString();
+          executionTrace['relativeMarginAfterClose'] = ((await perpLemma.getRelativeMargin()).toNumber() / 1e18).toString();
+          executionTrace['marginAfterClose'] = (await perpLemma.getMargin()).toString();
+          executionTrace['deltaExposureAfterClose'] = ((await perpLemma.getDeltaExposure()).toNumber() / 1e6).toString();
+
+        }
+        const deltaBase_1e18 = parseUnits(executionTrace['perpLemmaAmountBaseBeforeClose'],0).sub(parseUnits(executionTrace['perpLemmaAmountBaseAfterClose'],0));
+        const deltaQuote_1e18 = parseUnits(executionTrace['perpLemmaAmountQuoteBeforeClose'],0).sub(parseUnits(executionTrace['perpLemmaAmountQuoteAfterClose'],0));
+        
+        const deltaQuote = deltaQuote_1e18.mul(UNIT_USDC).div(UNIT_E18);
+        expect(deltaQuote).to.eq(usdcAmount);
+        if(expectedSynthUsed.gt(ZERO)) 
+        {
+          const deltaBase = deltaBase_1e18.mul(UNIT_ETH).div(UNIT_E18);
+          expect(deltaQuote.mul(MONE)).to.eq(expectedSynthUsed);
+          // await usdCollateral.connect(usdLemma).transferFrom(perpLemma.address, defaultSigner.address, expectedSynthUsed);
+        }
+        return executionTrace;
+      }
+
+
+      async function mintUSDLWExactEth(collateralAmount, expectedUSDCUsed) {
+        let executionTrace = {}
+        const quoteAmount_1e18 = collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals));
+        executionTrace['quoteAmount_1e18'] = quoteAmount_1e18.toString();
+        executionTrace['perpLemmaAmountBaseBeforeOpen'] = (await perpLemma.amountBase()).toString();
+        executionTrace['perpLemmaAmountQuoteBeforeOpen'] = (await perpLemma.amountQuote()).toString();
+        
+        // await usdCollateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount);
+        const balanceAfter = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
+        executionTrace['balanceAfter'] = balanceAfter.toString();
+        await perpLemma.connect(usdLemma).openShortWithExactBase(collateralAmount, usdCollateral.address, collateralAmount); 
+        executionTrace['perpLemmaAmountBaseAfterOpen'] = (await perpLemma.amountBase()).toString();
+        executionTrace['perpLemmaAmountQuoteAfterOpen'] = (await perpLemma.amountQuote()).toString();
+        executionTrace['afterOpenPerpLemmaUSDCBalance'] = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
+        executionTrace['afterOpenVaultBalance'] = (await vault.getBalance(perpLemma.address)).toString();
+        executionTrace['relativeMarginAfterOpen'] = ((await perpLemma.getRelativeMargin()).toNumber() / 1e18).toString();
+        executionTrace['marginAfterOpen'] = (await perpLemma.getMargin()).toString();
+        executionTrace['deltaExposureAfterOpen'] = ((await perpLemma.getDeltaExposure()).toNumber() / 1e6).toString();
+        const deltaBase_1e18 = parseUnits(executionTrace['perpLemmaAmountBaseBeforeOpen'],0).sub(parseUnits(executionTrace['perpLemmaAmountBaseAfterOpen'],0));
+        const deltaQuote_1e18 = parseUnits(executionTrace['perpLemmaAmountQuoteBeforeOpen'],0).sub(parseUnits(executionTrace['perpLemmaAmountQuoteAfterOpen'],0));
+
+        const deltaBase = deltaBase_1e18.mul(UNIT_ETH).div(UNIT_E18);
+        expect(deltaBase).to.eq(collateralAmount);
+        if(expectedUSDCUsed.gt(ZERO)) 
+        {
+          const deltaQuote = deltaQuote_1e18.mul(UNIT_USDC).div(UNIT_E18);
+          expect(deltaQuote).to.eq(expectedUSDCUsed);
+        }
+        return executionTrace;
+      }
+
 
       it("#2 mintSynth with exact USD ", async function () {
         const collateralAmount = parseUnits("100", usdCollateralDecimals); // 6 decimals
@@ -1020,13 +1091,23 @@ describe("perpLemma.multiCollateral", async function () {
 
 
       it("#3 mintSynth with exact USD and redeem Synth with Exact SynthAmount", async function () {
+        console.log(`Start`);
         const collateralAmount = parseUnits("100", usdCollateralDecimals); // 6 decimals
         const synthMintingTrace = await mintSynthWExactUSD(collateralAmount, ZERO);
         // NOTE: Compute the expected amount with a rounding
         const expectedCollateralBack = (collateralAmount.mul(parseUnits("99",0)).div(parseUnits("100", 0))).mul(parseUnits("99",0)).div(parseUnits("100", 0)).sub(parseUnits("1", 0));
+        console.log(`expectedCollateralBack = ${expectedCollateralBack}`);
         const redeemTrace = await redeemSynthWExactAmount(synthMintingTrace['perpLemmaAmountBaseAfterOpen'], expectedCollateralBack);
+        console.log(`End`);
       })
 
+      it("#5 mintSynth USDL with exact ETH and mint lemmaETH with exact ETH ", async function () {
+        const ethAmount = parseUnits("10", ethCollateralDecimals); // 6 decimals
+        const usdlMintingTrace = await mintUSDLWExactEth(ethAmount, ZERO);
+        const synthMintingTrace = await mintSynthWExactEth(ethAmount, ZERO);
+        const deltaExposure = await perpLemma.getDeltaExposure();
+        expect(parseUnits(deltaExposure.toString(), 0)).to.eq(ZERO);
+      })
 
 
       // // getCollateralAmountGivenUnderlyingAssetAmountForPerp => gCAGUAA
