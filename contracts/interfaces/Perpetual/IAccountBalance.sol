@@ -17,6 +17,11 @@ interface IAccountBalance {
             uint256 pendingFee
         );
 
+    function getMarginRequirementForLiquidation(address trader)
+        external
+        view
+        returns (int256 marginRequirementForLiquidation);
+
     function getBase(address trader, address baseToken) external view returns (int256 baseAmount);
 
     function getQuote(address trader, address baseToken) external view returns (int256);

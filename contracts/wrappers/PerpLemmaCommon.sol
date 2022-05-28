@@ -53,6 +53,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
     int256 public amountBase;
     int256 public amountQuote;
+    uint256 public amountUsdlCollateralDeposited;
 
     // Gets set only when Settlement has already happened
     // NOTE: This should be equal to the amount of USDL minted depositing on that dexIndex
@@ -212,9 +213,13 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
     }
 
+    function getSettlementTokenAmountInVault() override external view returns(int256) {
+        return perpVault.getBalance(address(this));
+    }
+
     /// @notice depositSettlementToken is used to deposit settlement token USDC into perp vault - only owner can deposit
     /// @param _amount USDC amount need to deposit into perp vault
-    function depositSettlementToken(uint256 _amount) external {
+    function depositSettlementToken(uint256 _amount) override external {
         require(_amount > 0, "Amount should greater than zero");
         SafeERC20Upgradeable.safeTransferFrom(usdc, msg.sender, address(this), _amount);
         perpVault.deposit(address(usdc), _amount);
@@ -222,7 +227,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
     /// @notice withdrawSettlementToken is used to withdraw settlement token USDC from perp vault - only owner can withdraw
     /// @param _amount USDC amount need to withdraw from perp vault
-    function withdrawSettlementToken(uint256 _amount) external onlyOwner {
+    function withdrawSettlementToken(uint256 _amount) override external onlyOwner {
         require(_amount > 0, "Amount should greater than zero");
         perpVault.withdraw(address(usdc), _amount);
         SafeERC20Upgradeable.safeTransfer(usdc, msg.sender, _amount);
@@ -250,6 +255,78 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
     //     return trade(amountPos, isShorting, isExactInput);
     // }
+
+    // Returns the leverage in 1e18 format
+    // TODO: Take into account tail assets
+    function getRelativeMargin() override external view returns(uint256) {
+        // NOTE: Returns totalCollateralValue + unrealizedPnL
+        // https://github.com/yashnaman/perp-lushan/blob/main/contracts/interface/IClearingHouse.sol#L254
+        int256 _accountValue_1e18 = clearingHouse.getAccountValue(address(this));
+        uint256 _accountValue = getAmountInCollateralDecimalsForPerp(
+            _accountValue_1e18.abs().toUint256(),
+            address(usdlCollateral),
+            false
+        );
+
+        // NOTE: Returns the margin requirement taking into account the position PnL
+        // NOTE: This is what can be compared with the Account Value according to Perp Doc 
+        // https://github.com/yashnaman/perp-lushan/blob/main/contracts/interface/IAccountBalance.sol#L158
+        int256 _margin = accountBalance.getMarginRequirementForLiquidation(address(this));
+
+        console.log("[getLeverage()] _accountValue_1e18 = %s %d", (_accountValue < 0) ? "-":"+", _accountValue_1e18.abs().toUint256());
+        console.log("[getLeverage()] _accountValue = ", _accountValue);
+        console.log("[getLeverage()] _margin = %s %d", (_margin < 0) ? "-":"+", _margin.abs().toUint256());
+
+        return ((_accountValue_1e18 <= int256(0) || (_margin < 0)) ? 
+                type(uint256).max           // No Collateral Deposited --> Max Leverage Possible
+                : 
+                _margin.abs().toUint256() * 1e18 / _accountValue);
+
+        // Returns the position balance in Settlmenet Token --> USDC 
+        // https://github.com/yashnaman/perp-lushan/blob/main/contracts/Vault.sol#L242
+        // int256 _accountValue = perpVault.getBalance(address(this));
+        // int256 _totalPosValue_1e18 = accountBalance.getTotalPositionValue(address(this), usdlBaseTokenAddress);
+        // uint256 _totalPosValue = getAmountInCollateralDecimalsForPerp(
+        //     _totalPosValue_1e18.abs().toUint256(),
+        //     address(usdlCollateral),
+        //     false
+        // );
+
+        // console.log("[getLeverage()] _totalPosValue_1e18 = %s %d", (_totalPosValue_1e18 < 0) ? "-":"+", _totalPosValue_1e18.abs().toUint256());
+        // console.log("[getLeverage()] _totalPosValue = ", _totalPosValue);
+        // console.log("[getLeverage()] _vaultBalance = %s %d", (_vaultBalance < 0) ? "-":"+", _vaultBalance.abs().toUint256());
+        // return ((_vaultBalance == int256(0)) ? 
+        //         type(uint256).max           // No Collateral Deposited --> Max Leverage Possible
+        //         : 
+        //         _totalPosValue * 1e6 / _vaultBalance.abs().toUint256());
+    }
+
+    // NOTE: Computes the delta exposure 
+    // NOTE: It does not take into account if the deposited collateral gets silently converted in USDC so that we lose positive delta exposure
+    function getDeltaExposure() override external view returns(int256) {
+        (uint256 _usdlCollateralAmount, uint256 _usdlCollateralDepositedAmount,int256 _longOrShort,,) = getExposureDetails();
+        uint256 _longOnly = _usdlCollateralAmount + _usdlCollateralDepositedAmount;
+        int256 _deltaLongShort = int256(_longOnly) + _longOrShort;
+        uint256 _absTot = _longOnly + _longOrShort.abs().toUint256();
+        int256 _delta = (_absTot == 0) ? int256(0) : _deltaLongShort * 1e6 / int256(_absTot);
+        return _delta;
+    }
+
+    function getExposureDetails() override public view returns(uint256, uint256, int256, int256, uint256) {
+        return (
+            usdlCollateral.balanceOf(address(this)),
+            amountUsdlCollateralDeposited,
+            amountBase,
+            perpVault.getBalance(address(this)),            // This number could change when PnL gets realized so it is better to read it from the Vault directly
+            usdc.balanceOf(address(this))
+        );
+    }
+
+    function getMargin() override external view returns(int256) {
+        int256 _margin = accountBalance.getMarginRequirementForLiquidation(address(this));
+        console.log("[getMargin()] Margin = %s %d", (_margin < 0) ? "-":"+", _margin.abs().toUint256());
+        return _margin;
+    }
 
     function trade(
         uint256 amount,
@@ -300,10 +377,6 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function withdraw(uint256 amount, address collateral) external override onlyUSDLemma {
         _withdraw(amount, collateral);
     }
-
-
-
-
 
 
 
@@ -544,8 +617,8 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         if( (collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset) ) 
         {
             perpVault.deposit(collateral, collateralAmount);
+            amountUsdlCollateralDeposited += collateralAmount;
         }
-
     }
 
     /// @notice to withdrae collateral from vault after long or close position
@@ -553,6 +626,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         if( (collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset) ) 
         {
             perpVault.withdraw(collateral, amountToWithdraw);
+            amountUsdlCollateralDeposited -= amountToWithdraw;
         }
     }
 

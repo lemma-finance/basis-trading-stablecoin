@@ -4,6 +4,11 @@ pragma solidity =0.8.3;
 interface IPerpetualMixDEXWrapper {
 
     function trade(uint256 amount, bool isShorting, bool isExactInput) external returns (uint256 base, uint256 quote);
+    function getRelativeMargin() external view returns(uint256);
+    function getMargin() external view returns(int256);
+
+    function getDeltaExposure() external view returns(int256);
+    function getExposureDetails() external view returns(uint256, uint256, int256, int256, uint256);
 
     // Convenience trading functions 
     function openLongWithExactBase(uint256 amount, address collateralIn, uint256 amountIn) external returns(uint256, uint256);
@@ -21,8 +26,11 @@ interface IPerpetualMixDEXWrapper {
 
 
 
-    function deposit(uint256 amount, address collateral) external;
+    function getSettlementTokenAmountInVault() external view returns(int256);
+    function depositSettlementToken(uint256 _amount) external;
+    function withdrawSettlementToken(uint256 _amount) external;
 
+    function deposit(uint256 amount, address collateral) external;
     function withdraw(uint256 amount, address collateral) external;
 
     function reBalance(
