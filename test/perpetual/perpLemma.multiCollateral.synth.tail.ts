@@ -15,6 +15,14 @@ const ZERO = BigNumber.from("0");
 const MONE = parseUnits("-1", 0);
 const AddressZero = ethers.constants.AddressZero;
 
+function toBN(x) {
+  return parseUnits(x.toString(), 0);
+}
+
+function to1e18(x, d) {
+  return x.mul(parseUnits("1", d)).div(parseEther("1"));
+}
+
 import {
   AccountBalance,
   BaseToken,
@@ -1104,7 +1112,12 @@ describe("perpLemma.multiCollateral", async function () {
       it("#5 mintSynth USDL with exact ETH and mint lemmaETH with exact ETH ", async function () {
         const ethAmount = parseUnits("10", ethCollateralDecimals); // 6 decimals
         const usdlMintingTrace = await mintUSDLWExactEth(ethAmount, ZERO);
+        const baseFirst = (await perpLemma.amountBase()).toString();
+        console.log(`baseFirst = ${baseFirst}`);
+        expect(toBN(baseFirst)).to.eq(to1e18(toBN(ethAmount), ethCollateral));
         const synthMintingTrace = await mintSynthWExactEth(ethAmount, ZERO);
+        const baseAfter = (await perpLemma.amountBase()).toString();
+        expect(toBN(baseAfter)).to.eq(ZERO);
         const deltaExposure = await perpLemma.getDeltaExposure();
         expect(parseUnits(deltaExposure.toString(), 0)).to.eq(ZERO);
       })
