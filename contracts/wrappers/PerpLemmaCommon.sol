@@ -273,9 +273,9 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         // https://github.com/yashnaman/perp-lushan/blob/main/contracts/interface/IAccountBalance.sol#L158
         int256 _margin = accountBalance.getMarginRequirementForLiquidation(address(this));
 
-        console.log("[getLeverage()] _accountValue_1e18 = %s %d", (_accountValue < 0) ? "-":"+", _accountValue_1e18.abs().toUint256());
-        console.log("[getLeverage()] _accountValue = ", _accountValue);
-        console.log("[getLeverage()] _margin = %s %d", (_margin < 0) ? "-":"+", _margin.abs().toUint256());
+        console.log("[getRelativeMargin()] _accountValue_1e18 = %s %d", (_accountValue < 0) ? "-":"+", _accountValue_1e18.abs().toUint256());
+        console.log("[getRelativeMargin()] _accountValue = ", _accountValue);
+        console.log("[getRelativeMargin()] _margin = %s %d", (_margin < 0) ? "-":"+", _margin.abs().toUint256());
 
         return ((_accountValue_1e18 <= int256(0) || (_margin < 0)) ? 
                 type(uint256).max           // No Collateral Deposited --> Max Leverage Possible
@@ -304,11 +304,18 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     // NOTE: Computes the delta exposure 
     // NOTE: It does not take into account if the deposited collateral gets silently converted in USDC so that we lose positive delta exposure
     function getDeltaExposure() override external view returns(int256) {
-        (uint256 _usdlCollateralAmount, uint256 _usdlCollateralDepositedAmount,int256 _longOrShort,,) = getExposureDetails();
-        uint256 _longOnly = _usdlCollateralAmount + _usdlCollateralDepositedAmount;
+        (uint256 _usdlCollateralAmount, uint256 _usdlCollateralDepositedAmount, int256 _longOrShort,,) = getExposureDetails();
+        uint256 _longOnly = (_usdlCollateralAmount + _usdlCollateralDepositedAmount) * 10**(18 - usdlCollateralDecimals);         // Both usdlCollateralDecimals format
+
+        console.log("[getDeltaExposure()] _longOnly = ", _longOnly);
+        console.log("[getDeltaExposure()] _longOrShort = %s %d", (_longOrShort < 0) ? "-":"+", _longOrShort.abs().toUint256() );
+
         int256 _deltaLongShort = int256(_longOnly) + _longOrShort;
+        console.log("[getDeltaExposure()] _deltaLongShort = %s %d", (_deltaLongShort < 0) ? "-":"+", _deltaLongShort.abs().toUint256() );
         uint256 _absTot = _longOnly + _longOrShort.abs().toUint256();
+        console.log("[getDeltaExposure()] _absTot = ", _absTot);
         int256 _delta = (_absTot == 0) ? int256(0) : _deltaLongShort * 1e6 / int256(_absTot);
+        console.log("[getDeltaExposure()] getDeltaExposure = %s %d", (_delta < 0) ? "-":"+", _delta.abs().toUint256());
         return _delta;
     }
 
@@ -316,7 +323,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         return (
             usdlCollateral.balanceOf(address(this)),
             amountUsdlCollateralDeposited,
-            amountBase,
+            amountBase,                     // All the other terms are in 1e6 
             perpVault.getBalance(address(this)),            // This number could change when PnL gets realized so it is better to read it from the Vault directly
             usdc.balanceOf(address(this))
         );

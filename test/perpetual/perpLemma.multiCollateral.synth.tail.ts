@@ -1102,25 +1102,98 @@ describe("perpLemma.multiCollateral", async function () {
         console.log(`Start`);
         const collateralAmount = parseUnits("100", usdCollateralDecimals); // 6 decimals
         const synthMintingTrace = await mintSynthWExactUSD(collateralAmount, ZERO);
-        // NOTE: Compute the expected amount with a rounding
+
+        // NOTE: Compute the expected amount removing the fees with a rounding
         const expectedCollateralBack = (collateralAmount.mul(parseUnits("99",0)).div(parseUnits("100", 0))).mul(parseUnits("99",0)).div(parseUnits("100", 0)).sub(parseUnits("1", 0));
         console.log(`expectedCollateralBack = ${expectedCollateralBack}`);
         const redeemTrace = await redeemSynthWExactAmount(synthMintingTrace['perpLemmaAmountBaseAfterOpen'], expectedCollateralBack);
         console.log(`End`);
       })
 
+
       it("#5 mintSynth USDL with exact ETH and mint lemmaETH with exact ETH ", async function () {
         const ethAmount = parseUnits("10", ethCollateralDecimals); // 6 decimals
         const usdlMintingTrace = await mintUSDLWExactEth(ethAmount, ZERO);
-        const baseFirst = (await perpLemma.amountBase()).toString();
-        console.log(`baseFirst = ${baseFirst}`);
-        expect(toBN(baseFirst)).to.eq(to1e18(toBN(ethAmount), ethCollateral));
+
+        // NOTE: The short for `ethAmount` should be visible on the vAMM pool as a negative base for the equivalent amount in 1e18 format
+        expect(toBN(await perpLemma.amountBase())).to.eq(to1e18(ethAmount.mul(toBN("-1")), ethCollateralDecimals));
+
+        // NOTE: As a consequence, we are delta = -1 atm as we are short on it
+        expect(toBN(await perpLemma.getDeltaExposure())).to.eq(toBN(-1e6));
+
         const synthMintingTrace = await mintSynthWExactEth(ethAmount, ZERO);
         const baseAfter = (await perpLemma.amountBase()).toString();
+
+        // NOTE: Minting a Synth for the equivalent amount should be visible on the vAMM Pool as a net zero position on it
         expect(toBN(baseAfter)).to.eq(ZERO);
-        const deltaExposure = await perpLemma.getDeltaExposure();
-        expect(parseUnits(deltaExposure.toString(), 0)).to.eq(ZERO);
+
+        // NOTE: As a consequence, we are also delta neutral
+        expect(toBN(await perpLemma.getDeltaExposure())).to.eq(ZERO);
       })
+
+
+      it("#6 mintSynth 2 x USDL with exact ETH and mint lemmaETH with exact ETH for the total USDL equivalent amount", async function () {
+        const ethAmount1 = parseUnits("5", ethCollateralDecimals); // 6 decimals
+        ethCollateral.mint(perpLemma.address, parseEther("100"));
+        // console.log(`Minting DONE`);
+        // await ethCollateral.connect(defaultSigner).transfer(perpLemma.address, ethAmount1);
+        await perpLemma.connect(usdLemma).deposit(ethAmount1, ethCollateral.address);
+        await mintUSDLWExactEth(ethAmount1, ZERO);
+        expect(toBN(await perpLemma.amountBase())).to.eq(to1e18(ethAmount1.mul(toBN("-1")), ethCollateralDecimals));
+        // expect(toBN(await perpLemma.getDeltaExposure())).to.eq(ZERO);
+
+        const ethAmount2 = parseUnits("6", ethCollateralDecimals); // 6 decimals
+        const ethAmountTot = ethAmount1.add(ethAmount2);
+        await mintUSDLWExactEth(ethAmount2, ZERO);
+        expect(toBN(await perpLemma.amountBase())).to.eq(to1e18(ethAmountTot.mul(toBN("-1")), ethCollateralDecimals));
+
+        // // NOTE: As a consequence, we are delta = 1 atm
+        // expect(toBN(await perpLemma.getDeltaExposure())).to.eq(toBN(-1e6));
+
+        await mintSynthWExactEth(ethAmountTot, ZERO);
+        const baseAfter = (await perpLemma.amountBase()).toString();
+
+        // NOTE: Minting a Synth for the equivalent amount should be visible on the vAMM Pool as a net zero position on it
+        expect(toBN(baseAfter)).to.eq(ZERO);
+
+        // NOTE: As a consequence, we are also delta neutral
+        // expect(toBN(await perpLemma.getDeltaExposure())).to.eq(ZERO);
+      })
+
+
+      it("#7 mintSynth 2 x USDL with exact ETH and mint lemmaETH with exact ETH for the total USDL equivalent amount", async function () {
+        const ethAmount1 = parseUnits("5", ethCollateralDecimals); // 6 decimals
+        // NOTE: For some reason, transfer does not work 
+        ethCollateral.mint(perpLemma.address, ethAmount1);
+        // console.log(`Minting DONE`);
+        // await ethCollateral.connect(defaultSigner).transfer(perpLemma.address, ethAmount1);
+        await perpLemma.connect(usdLemma).deposit(ethAmount1, ethCollateral.address);
+        await mintUSDLWExactEth(ethAmount1, ZERO);
+        expect(toBN(await perpLemma.amountBase())).to.eq(to1e18(ethAmount1.mul(toBN("-1")), ethCollateralDecimals));
+
+        const ethAmount2 = parseUnits("6", ethCollateralDecimals); // 6 decimals
+        const ethAmountTot = ethAmount1.add(ethAmount2);
+        await mintUSDLWExactEth(ethAmount2, ZERO);
+        expect(toBN(await perpLemma.amountBase())).to.eq(to1e18(ethAmountTot.mul(toBN("-1")), ethCollateralDecimals));
+
+        // // NOTE: As a consequence, we are delta = 1 atm
+        // expect(toBN(await perpLemma.getDeltaExposure())).to.eq(toBN(-1e6));
+
+        await mintSynthWExactEth(ethAmount1, ZERO);
+
+        // NOTE: Minting a Synth for the equivalent amount should be visible on the vAMM Pool as a net zero position on it
+        expect(toBN(await perpLemma.amountBase())).to.eq(to1e18(ethAmount2.mul("-1"), ethCollateralDecimals));
+
+        await mintSynthWExactEth(ethAmount2, ZERO);
+
+        // NOTE: Minting a Synth for the equivalent amount should be visible on the vAMM Pool as a net zero position on it
+        expect(toBN(await perpLemma.amountBase())).to.eq(ZERO);
+
+        // NOTE: As a consequence, we are also delta neutral
+        // expect(toBN(await perpLemma.getDeltaExposure())).to.eq(ZERO);
+      })
+
+
 
 
       // // getCollateralAmountGivenUnderlyingAssetAmountForPerp => gCAGUAA
