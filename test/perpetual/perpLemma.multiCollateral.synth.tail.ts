@@ -1163,18 +1163,35 @@ describe("perpLemma.multiCollateral", async function () {
 
       it("#7 mintSynth 2 x USDL with exact ETH and mint lemmaETH with exact ETH for the total USDL equivalent amount", async function () {
         const ethAmount1 = parseUnits("5", ethCollateralDecimals); // 6 decimals
-        // NOTE: For some reason, transfer does not work 
-        ethCollateral.mint(perpLemma.address, ethAmount1);
-        // console.log(`Minting DONE`);
-        // await ethCollateral.connect(defaultSigner).transfer(perpLemma.address, ethAmount1);
-        await perpLemma.connect(usdLemma).deposit(ethAmount1, ethCollateral.address);
+        // NOTE: For some reason, transfer does not work so let's replace it with minting 
+        {
+          ethCollateral.mint(perpLemma.address, ethAmount1);
+
+          // console.log(`Minting DONE`);
+          // await ethCollateral.connect(defaultSigner).transfer(perpLemma.address, ethAmount1);
+          await perpLemma.connect(usdLemma).deposit(ethAmount1, ethCollateral.address);  
+        }
+
+
         await mintUSDLWExactEth(ethAmount1, ZERO);
         expect(toBN(await perpLemma.amountBase())).to.eq(to1e18(ethAmount1.mul(toBN("-1")), ethCollateralDecimals));
+        // NOTE: After minting USDL we should be delta neutral
+        expect(toBN(await perpLemma.getDeltaExposure())).to.eq(ZERO);
 
         const ethAmount2 = parseUnits("6", ethCollateralDecimals); // 6 decimals
+        // NOTE: For some reason, transfer does not work so let's replace it with minting 
+        {
+          ethCollateral.mint(perpLemma.address, ethAmount2);
+
+          // console.log(`Minting DONE`);
+          // await ethCollateral.connect(defaultSigner).transfer(perpLemma.address, ethAmount1);
+          await perpLemma.connect(usdLemma).deposit(ethAmount2, ethCollateral.address);  
+        }
+
         const ethAmountTot = ethAmount1.add(ethAmount2);
         await mintUSDLWExactEth(ethAmount2, ZERO);
         expect(toBN(await perpLemma.amountBase())).to.eq(to1e18(ethAmountTot.mul(toBN("-1")), ethCollateralDecimals));
+        expect(toBN(await perpLemma.getDeltaExposure())).to.eq(ZERO);
 
         // // NOTE: As a consequence, we are delta = 1 atm
         // expect(toBN(await perpLemma.getDeltaExposure())).to.eq(toBN(-1e6));
