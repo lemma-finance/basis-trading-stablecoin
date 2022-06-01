@@ -620,21 +620,33 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     ////////////////////////
 
     /// @notice to deposit collateral in vault for short or open position
+    /// @notice If collateral is tail asset no need to deposit it in Perp, it has to stay in this contract balance sheet 
     function _deposit(uint256 collateralAmount, address collateral) internal {
         if( (collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset) ) 
         {
             perpVault.deposit(collateral, collateralAmount);
             amountUsdlCollateralDeposited += collateralAmount;
         }
+
+        // // NOTE: Allowing also USDLemma to deposit USDC 
+        // if(collateral == address(usdc)) {
+        //     perpVault.deposit(address(usdc), collateralAmount);
+        // }
     }
 
-    /// @notice to withdrae collateral from vault after long or close position
+    /// @notice to withdraw collateral from vault after long or close position
+    /// @notice If collateral is tail asset no need to withdraw it from Perp, it is already in this contract balance sheet 
     function _withdraw(uint256 amountToWithdraw, address collateral) internal {
         if( (collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset) ) 
         {
             perpVault.withdraw(collateral, amountToWithdraw);
             amountUsdlCollateralDeposited -= amountToWithdraw;
         }
+
+        // // NOTE: Allowing also USDLemma to deposit USDC 
+        // if(collateral == address(usdc)) {
+        //     perpVault.withdraw(address(usdc), amountToWithdraw);
+        // }
     }
 
     /// NOTE: for USDL ineternal,
