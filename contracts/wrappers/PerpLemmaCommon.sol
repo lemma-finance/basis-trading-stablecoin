@@ -98,7 +98,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         __ERC2771Context_init(_trustedForwarder);
 
         require(_usdlBaseToken != address(0), "_usdlBaseToken should not ZERO address");
-        require(_synthBaseToken != address(0), "_synthBaseToken should not ZERO address");
+        // require(_synthBaseToken != address(0), "_synthBaseToken should not ZERO address");
         require(_clearingHouse != address(0), "ClearingHouse should not ZERO address");
         require(_marketRegistry != address(0), "MarketRegistry should not ZERO address");
 
@@ -133,10 +133,12 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), 0);
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
 
-        SafeERC20Upgradeable.safeApprove(usdc, usdLemma, 0);
-        SafeERC20Upgradeable.safeApprove(usdc, usdLemma, MAX_UINT256);
-        SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
-        SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, MAX_UINT256);
+        if(usdLemma != address(0)) {
+            SafeERC20Upgradeable.safeApprove(usdc, usdLemma, 0);
+            SafeERC20Upgradeable.safeApprove(usdc, usdLemma, MAX_UINT256);
+            SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
+            SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, MAX_UINT256);
+        }
     }
 
     // TODO: Add only owner
@@ -149,16 +151,15 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     // }
 
     /// @notice getFees fees charge by perpV2 protocol for each trade
-    /// @param baseTokenAddress collateral's respective basetoken address
-    function getFees(address baseTokenAddress) external view override returns (uint256) {
-        IMarketRegistry.MarketInfo memory marketInfo = marketRegistry.getMarketInfo(baseTokenAddress);
+    function getFees() external view override returns (uint256) {
+        // NOTE: Removed prev arg address baseTokenAddress
+        IMarketRegistry.MarketInfo memory marketInfo = marketRegistry.getMarketInfo(usdlBaseTokenAddress);
         return marketInfo.exchangeFeeRatio;
     }
 
     /// @notice getTotalPosition in terms of quoteToken(in our case vUSD)
-    /// @param baseTokenAddress collateral's respective basetoken address
-    function getTotalPosition(address baseTokenAddress) external view override returns (int256) {
-        return accountBalance.getTotalPositionValue(address(this), baseTokenAddress);
+    function getTotalPosition() external view override returns (int256) {
+        return accountBalance.getTotalPositionValue(address(this), usdlBaseTokenAddress);
     }
 
     ///@notice sets USDLemma address - only owner can set
@@ -166,8 +167,10 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function setUSDLemma(address _usdLemma) external onlyOwner {
         require(_usdLemma != address(0), "UsdLemma should not ZERO address");
 
-        SafeERC20Upgradeable.safeApprove(usdc, usdLemma, 0);
-        SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
+        if(usdLemma != address(0)) {
+            SafeERC20Upgradeable.safeApprove(usdc, usdLemma, 0);
+            SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
+        }
 
         usdLemma = _usdLemma;
 
@@ -350,7 +353,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         console.log("[trade()] Before base = %s %d", (amountBase < 0) ? "-":"+", amountBase.abs().toUint256());
         console.log("[trade()] Before quote = %s %d", (amountQuote < 0) ? "-":"+", amountQuote.abs().toUint256());
 
-        totalFundingPNL = getFundingPNL(usdlBaseTokenAddress);
+        totalFundingPNL = getFundingPNL();
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: usdlBaseTokenAddress,
             isBaseToQuote: _isBaseToQuote,
@@ -583,7 +586,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
     /// @notice settleAllFunding will getPendingFundingPayment of perpLemma wrapper and then settle funding
     function settleAllFunding() public {
-        totalFundingPNL = getFundingPNL(usdlBaseTokenAddress);
+        totalFundingPNL = getFundingPNL();
         // totalFundingPNL = getFundingPNL(synthBaseTokenAddress);
         clearingHouse.settleAllFunding(address(this));
     }
@@ -594,9 +597,8 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
     /// @notice Get funding PnL for this address till now
     /// @return fundingPNL Funding PnL accumulated till now
-    /// @param baseTokenAddress collateral's respective basetoken address
-    function getFundingPNL(address baseTokenAddress) public view returns (int256 fundingPNL) {
-        return totalFundingPNL + exchange.getPendingFundingPayment(address(this), baseTokenAddress);
+    function getFundingPNL() public view returns (int256 fundingPNL) {
+        return totalFundingPNL + exchange.getPendingFundingPayment(address(this), usdlBaseTokenAddress);
     }
 
     /// @notice Get Amount in collateral decimals, provided amount is in 18 decimals

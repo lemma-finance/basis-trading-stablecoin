@@ -39,7 +39,7 @@ interface IPerpetualMixDEXWrapper {
         bytes calldata data
     ) external returns (bool);
 
-    function getTotalPosition(address baseTokenAddress) external view returns (int256);
+    function getTotalPosition() external view returns (int256);
 
     function getAmountInCollateralDecimalsForPerp(
         uint256 amount,
@@ -47,7 +47,7 @@ interface IPerpetualMixDEXWrapper {
         bool roundUp
     ) external view returns (uint256);
 
-    function getFees(address baseTokenAddress) external view returns (uint256);
+    function getFees() external view returns (uint256);
 
     function settle() external;
 

@@ -196,23 +196,25 @@ describe("perpLemma.multiCollateral", async function () {
       ),
     ).to.be.revertedWith("_usdlBaseToken should not ZERO address");
 
-    await expect(
-      upgrades.deployProxy(
-        perpLemmaFactory,
-        [
-          trustedForwarder,
-          ethCollateral.address,
-          baseToken.address,
-          usdCollateral.address,
-          ethers.constants.AddressZero,
-          clearingHouse.address,
-          marketRegistry.address,
-          usdLemma.address,
-          maxPosition,
-        ],
-        { initializer: "initialize" },
-      ),
-    ).to.be.revertedWith("_synthBaseToken should not ZERO address");
+
+    // NOTE: Unnecessary check
+    // await expect(
+    //   upgrades.deployProxy(
+    //     perpLemmaFactory,
+    //     [
+    //       trustedForwarder,
+    //       ethCollateral.address,
+    //       baseToken.address,
+    //       usdCollateral.address,
+    //       ethers.constants.AddressZero,
+    //       clearingHouse.address,
+    //       marketRegistry.address,
+    //       usdLemma.address,
+    //       maxPosition,
+    //     ],
+    //     { initializer: "initialize" },
+    //   ),
+    // ).to.be.revertedWith("_synthBaseToken should not ZERO address");
 
     await expect(
       upgrades.deployProxy(
@@ -579,7 +581,7 @@ describe("perpLemma.multiCollateral", async function () {
     });
 
     it("check fees", async function () {
-      const fees = await perpLemma.getFees(baseToken.address);
+      const fees = await perpLemma.getFees();
       expect(fees).to.eq(10000);
     });
 

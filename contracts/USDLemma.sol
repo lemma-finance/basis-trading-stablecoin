@@ -62,30 +62,27 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @notice Returns the fees of the underlying Perp DEX Wrapper
     /// @param dexIndex The DEX Index to operate on
     /// @param collateral Collateral for the minting / redeeming operation
-    /// @param baseTokenAddress collateral's respective basetoken address
     function getFees(
         uint256 dexIndex,
-        address collateral,
-        address baseTokenAddress
+        address collateral
     ) external view returns (uint256) {
+        // NOTE: Removed prev arg address baseTokenAddress
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
         require(address(perpDEXWrapper) != address(0), "DEX Wrapper should not ZERO address");
-        return perpDEXWrapper.getFees(baseTokenAddress);
+        return perpDEXWrapper.getFees();
     }
 
     /// @notice Returns the total position in quote Token on a given DEX
     /// @param dexIndex The DEX Index to operate on
     /// @param collateral Collateral for the minting / redeeming operation
-    /// @param baseTokenAddress collateral's respective basetoken address
     function getTotalPosition(
         uint256 dexIndex,
-        address collateral,
-        address baseTokenAddress
+        address collateral
     ) external view returns (int256) {
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
 
         require(address(perpDEXWrapper) != address(0), "DEX Wrapper should not ZERO address");
-        return perpDEXWrapper.getTotalPosition(baseTokenAddress);
+        return perpDEXWrapper.getTotalPosition();
     }
 
     /// @notice Set whitelist address, can only be called by owner, It will helps whitelist address to call multiple function of USDL at a time
@@ -182,14 +179,12 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @param collateralAmount Amount of collateral to deposit
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
     /// @param minUSDLToMint Minimum USDL to mint
-    /// @param isUsdl to decide weather mint usdl or synth, if mint usdl then true otherwise if synth mint then false
     /// @param collateral Collateral to be used to mint USDL
     function depositToWExactCollateral(
         address to,
         uint256 collateralAmount,
         uint256 perpetualDEXIndex,
         uint256 minUSDLToMint,
-        bool isUsdl,
         IERC20Upgradeable collateral
     ) external nonReentrant {
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
@@ -242,14 +237,12 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @param collateralAmount Amount of collateral to withdraw
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be closed
     /// @param maxUSDLToBurn Max USDL to burn in the process
-    /// @param isUsdl to decide weather burn usdl or synth, if burn usdl then true otherwise if synth burn then false
     /// @param collateral Collateral to be used to redeem USDL
     function withdrawToWExactCollateral(
         address to,
         uint256 collateralAmount,
         uint256 perpetualDEXIndex,
         uint256 maxUSDLToBurn,
-        bool isUsdl,
         IERC20Upgradeable collateral
     ) external nonReentrant {
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(

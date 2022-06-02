@@ -22,7 +22,7 @@ import {
   UniswapV3Factory,
   UniswapV3Pool,
   Vault,
-  Quoter,
+  // Quoter,
   CollateralManager,
 } from "../../perp-lushan/typechain";
 import { QuoteToken } from "../../perp-lushan/typechain/QuoteToken";
@@ -127,7 +127,7 @@ describe("usdLemma-perp", async function () {
   let mockedWethPriceFeed: MockTestAggregatorV3;
   let mockedWbtcPriceFeed: MockTestAggregatorV3;
   let univ3factory: UniswapV3Factory;
-  let quoter: Quoter;
+  // let quoter: Quoter;
   let perpLemma: TestPerpLemma;
   let usdLemma: USDLemma;
   let usdCollateralDecimals: number;
@@ -161,27 +161,49 @@ describe("usdLemma-perp", async function () {
     pool = _clearingHouseFixture.pool;
     pool2 = _clearingHouseFixture.pool2;
     univ3factory = _clearingHouseFixture.uniV3Factory;
-    quoter = _clearingHouseFixture.quoter;
+    // quoter = _clearingHouseFixture.quoter;
     usdCollateralDecimals = await usdCollateral.decimals();
     ethCollateralDecimals = await ethCollateral.decimals();
     btcCollateralDecimals = await btcCollateral.decimals();
 
     const trustedForwarder = ethers.constants.AddressZero;
     const maxPosition = ethers.constants.MaxUint256;
-    const perpLemmaFactory = await ethers.getContractFactory("PerpLemma");
+
+    console.log(`trying to deploy PerpLemmaCommon`);
+    const perpLemmaFactory = await ethers.getContractFactory("PerpLemmaCommon");
     perpLemma = (await upgrades.deployProxy(
       perpLemmaFactory,
       [
         trustedForwarder,
         ethCollateral.address,
         baseToken.address,
+        usdCollateral.address,
+        baseToken.address,
         clearingHouse.address,
         marketRegistry.address,
-        AddressZero,
+        AddressZero, // usdLemma.address,
         maxPosition,
       ],
       { initializer: "initialize" },
     )) as TestPerpLemma;
+
+    // const perpLemmaFactory = await ethers.getContractFactory("PerpLemmaCommon");
+    // perpLemma = (await upgrades.deployProxy(
+    //   perpLemmaFactory,
+    //   [
+    //     trustedForwarder,
+    //     ethCollateral.address,
+    //     baseToken.address,
+    //     usdCollateral.address,
+    //     baseToken.address,
+    //     clearingHouse.address,
+    //     marketRegistry.address,
+    //     AddressZero,
+    //     maxPosition,
+    //   ],
+    //   { initializer: "initialize" },
+    // )) as TestPerpLemma;
+    // console.log(`PerpLemmaCommon Deployed`);
     await perpLemma.connect(signer1).resetApprovals();
 
     // base = usd
@@ -290,8 +312,9 @@ describe("usdLemma-perp", async function () {
   });
 
   it("getFees", async function () {
-    await expect(usdLemma.getFees(0, AddressZero)).to.be.revertedWith("DEX Wrapper should not ZERO address");
-    await expect(usdLemma.getFees(100, AddressZero)).to.be.revertedWith("DEX Wrapper should not ZERO address");
+    await expect(usdLemma.getFees(0, ethCollateral.address)).to.be.revertedWith("DEX Wrapper should not be ZERO address");
+    // NOTE: Why repeating it 
+    // await expect(usdLemma.getFees(100, ethCollateral.address, AddressZero)).to.be.revertedWith("DEX Wrapper should not ZERO address");
     const fees = await usdLemma.getFees(0, ethCollateral.address);
     expect(fees).to.eq(10000);
   });
