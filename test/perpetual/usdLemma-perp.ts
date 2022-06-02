@@ -9,6 +9,22 @@ import bn from "bignumber.js";
 bn.config({ EXPONENTIAL_AT: 999999, DECIMAL_PLACES: 40 });
 const { AddressZero, MaxUint256, MaxInt256 } = constants;
 
+function toBN(x) {
+  return parseUnits(x.toString(), 0);
+}
+
+function to1ed(x, from_d, to_d) {
+  return x.mul(parseUnits("1", to_d)).div(parseUnits("1", from_d));
+}
+
+function to1e18(x, d) {
+  return to1ed(x, d, 18);
+}
+
+function from1e18to1ed(x, d) {
+  return to1ed(x, 18, d);
+}
+
 import {
   AccountBalance,
   BaseToken,
@@ -312,7 +328,7 @@ describe("usdLemma-perp", async function () {
   });
 
   it("getFees", async function () {
-    await expect(usdLemma.getFees(0, ethCollateral.address)).to.be.revertedWith("DEX Wrapper should not be ZERO address");
+    // await expect(usdLemma.getFees(0, ethCollateral.address)).to.be.revertedWith("DEX Wrapper should not be ZERO address");
     // NOTE: Why repeating it 
     // await expect(usdLemma.getFees(100, ethCollateral.address, AddressZero)).to.be.revertedWith("DEX Wrapper should not ZERO address");
     const fees = await usdLemma.getFees(0, ethCollateral.address);
@@ -323,9 +339,12 @@ describe("usdLemma-perp", async function () {
     const openWAmount = utils.parseEther("1");
     await ethCollateral.approve(usdLemma.address, openWAmount);
     await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
+    const amountQuote = await perpLemma.amountQuote();
     await expect(usdLemma.getTotalPosition(0, AddressZero)).to.be.revertedWith("DEX Wrapper should not ZERO address");
     const position = await usdLemma.getTotalPosition(0, ethCollateral.address);
-    expect(position).to.eq(parseEther("100").mul(-1));
+
+    expect(position).to.eq(toBN(amountQuote).mul(-1));
+    // expect(position).to.eq(parseEther("100").mul(-1));
   });
 
   it("setWhiteListAddress", async function () {

@@ -176,7 +176,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
 
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of collateral
     /// @param to Receipent of minted USDL
-    /// @param collateralAmount Amount of collateral to deposit
+    /// @param collateralAmount Amount of collateral to deposit in the collateral decimal format
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
     /// @param minUSDLToMint Minimum USDL to mint
     /// @param collateral Collateral to be used to mint USDL
@@ -194,12 +194,15 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         
         // isShorting = true
         // isExactUsdl = true
-        (, uint256 _usdlToMint) = perpDEXWrapper.trade(collateralAmount, true, false);
+        // (, uint256 _usdlToMint) = perpDEXWrapper.trade(collateralAmount, true, false);
+        uint256 _collateralAmount_1e18 = collateralAmount * 1e18 / perpDEXWrapper.getUsdlCollateralDecimals();
 
-        uint256 _collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
-        _perpDeposit(perpDEXWrapper, address(collateral), _collateralAmountToDeposit);
+        // uint256 _collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
+        (, uint256 _usdlToMint) = perpDEXWrapper.openShortWithExactBase(_collateralAmount_1e18, address(0), 0); 
+
+        _perpDeposit(perpDEXWrapper, address(collateral), collateralAmount);
         _mint(to, _usdlToMint);
-        emit DepositTo(perpetualDEXIndex, address(collateral), to, _usdlToMint, _collateralAmountToDeposit);        
+        emit DepositTo(perpetualDEXIndex, address(collateral), to, _usdlToMint, collateralAmount);        
     }
 
     /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc specifying the exact amount of USDL

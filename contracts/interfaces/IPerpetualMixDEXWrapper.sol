@@ -10,6 +10,9 @@ interface IPerpetualMixDEXWrapper {
     function getDeltaExposure() external view returns(int256);
     function getExposureDetails() external view returns(uint256, uint256, int256, int256, uint256);
 
+
+    function getUsdlCollateralDecimals() external view returns(uint256);
+
     // Convenience trading functions 
     function openLongWithExactBase(uint256 amount, address collateralIn, uint256 amountIn) external returns(uint256, uint256);
     function openLongWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn) external returns(uint256, uint256);

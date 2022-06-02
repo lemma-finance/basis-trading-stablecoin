@@ -150,6 +150,10 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     //     isSynthCollateralTailAsset = _x;
     // }
 
+    function getUsdlCollateralDecimals() override external view returns(uint256) {
+        return usdlCollateralDecimals;
+    }
+
     /// @notice getFees fees charge by perpV2 protocol for each trade
     function getFees() external view override returns (uint256) {
         // NOTE: Removed prev arg address baseTokenAddress
