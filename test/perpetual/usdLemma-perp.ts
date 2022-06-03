@@ -638,110 +638,110 @@ describe("usdLemma-perp", async function () {
       ).to.be.revertedWith("invalid DEX/collateral"); // when dex index is not valid
     });
 
-    it("when fundingPNL is negative(-ve)", async function () {
-      await openPosition(clearingHouse, longAddress, baseToken.address, true, true, parseEther("2000"));
-      await openPosition(clearingHouse, longAddress, baseToken.address, false, false, parseEther("3000"));
+    // it("when fundingPNL is negative(-ve)", async function () {
+    //   await openPosition(clearingHouse, longAddress, baseToken.address, true, true, parseEther("2000"));
+    //   await openPosition(clearingHouse, longAddress, baseToken.address, false, false, parseEther("3000"));
 
-      openWAmount = utils.parseEther("99");
-      await ethCollateral.approve(usdLemma.address, openWAmount);
-      await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
-      await ethers.provider.send("evm_increaseTime", [300]);
-      await ethers.provider.send("evm_mine", []);
-      await forwardTimestamp(clearingHouse, 1);
-      openWAmount = utils.parseEther("1");
-      await ethCollateral.approve(usdLemma.address, openWAmount);
-      await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
-      await forwardTimestamp(clearingHouse, 1);
-      await perpLemma.settleAllFunding();
+    //   openWAmount = utils.parseEther("99");
+    //   await ethCollateral.approve(usdLemma.address, openWAmount);
+    //   await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
+    //   await ethers.provider.send("evm_increaseTime", [300]);
+    //   await ethers.provider.send("evm_mine", []);
+    //   await forwardTimestamp(clearingHouse, 1);
+    //   openWAmount = utils.parseEther("1");
+    //   await ethCollateral.approve(usdLemma.address, openWAmount);
+    //   await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
+    //   await forwardTimestamp(clearingHouse, 1);
+    //   await perpLemma.settleAllFunding();
 
-      let checkPrice_before = await checkAndSyncPrice();
-      let fundingPNL = await perpLemma.getFundingPNL();
-      let totalFundingPNL = await perpLemma.totalFundingPNL();
-      let realizedFundingPnl = await perpLemma.realizedFundingPNL();
-      let rebalanceAmount = totalFundingPNL.sub(realizedFundingPnl);
+    //   let checkPrice_before = await checkAndSyncPrice();
+    //   let fundingPNL = await perpLemma.getFundingPNL();
+    //   let totalFundingPNL = await perpLemma.totalFundingPNL();
+    //   let realizedFundingPnl = await perpLemma.realizedFundingPNL();
+    //   let rebalanceAmount = totalFundingPNL.sub(realizedFundingPnl);
 
-      // console.log("fundingPNL: ", fundingPNL.toString());
-      // console.log("totalFundingPNL: ", totalFundingPNL.toString());
-      // console.log("realizedFundingPnl: ", realizedFundingPnl.toString());
-      // console.log("rebalanceAmount: ", rebalanceAmount.toString());
-      // console.log("checkPrice_before: ", checkPrice_before.toString());
+    //   // console.log("fundingPNL: ", fundingPNL.toString());
+    //   // console.log("totalFundingPNL: ", totalFundingPNL.toString());
+    //   // console.log("realizedFundingPnl: ", realizedFundingPnl.toString());
+    //   // console.log("rebalanceAmount: ", rebalanceAmount.toString());
+    //   // console.log("checkPrice_before: ", checkPrice_before.toString());
 
-      let usdlBalStakingContractBefore = await usdLemma.balanceOf(stackingContract.address);
-      let usdlBallemmatreasuryBefore = await usdLemma.balanceOf(lemmaTreasury.address);
+    //   let usdlBalStakingContractBefore = await usdLemma.balanceOf(stackingContract.address);
+    //   let usdlBallemmatreasuryBefore = await usdLemma.balanceOf(lemmaTreasury.address);
 
-      let tx = await usdLemma
-        .connect(reBalancer)
-        .reBalance(
-          0,
-          ethCollateral.address,
-          rebalanceAmount,
-          ethers.utils.defaultAbiCoder.encode(["uint160", "uint256"], [sqrtPriceLimitX96, deadline]),
-        );
+    //   let tx = await usdLemma
+    //     .connect(reBalancer)
+    //     .reBalance(
+    //       0,
+    //       ethCollateral.address,
+    //       rebalanceAmount,
+    //       ethers.utils.defaultAbiCoder.encode(["uint160", "uint256"], [sqrtPriceLimitX96, deadline]),
+    //     );
 
-      expect(tx).to.emit(usdLemma, "Rebalance");
+    //   expect(tx).to.emit(usdLemma, "Rebalance");
 
-      let usdlBalStakingContractAfter = await usdLemma.balanceOf(stackingContract.address);
-      let usdlBallemmatreasuryAfter = await usdLemma.balanceOf(lemmaTreasury.address);
+    //   let usdlBalStakingContractAfter = await usdLemma.balanceOf(stackingContract.address);
+    //   let usdlBallemmatreasuryAfter = await usdLemma.balanceOf(lemmaTreasury.address);
 
-      expect(usdlBalStakingContractBefore).to.gt(usdlBalStakingContractAfter);
-      expect(usdlBallemmatreasuryBefore).to.gt(usdlBallemmatreasuryAfter);
+    //   expect(usdlBalStakingContractBefore).to.gt(usdlBalStakingContractAfter);
+    //   expect(usdlBallemmatreasuryBefore).to.gt(usdlBallemmatreasuryAfter);
 
-      // console.log("usdlBalStakingContractBefore: ", usdlBalStakingContractBefore.toString());
-      // console.log("usdlBallemmatreasuryBefore: ", usdlBallemmatreasuryBefore.toString());
-      // console.log("usdlBalStakingContractAfter: ", usdlBalStakingContractAfter.toString());
-      // console.log("usdlBallemmatreasuryAfter: ", usdlBallemmatreasuryAfter.toString());
-    });
+    //   // console.log("usdlBalStakingContractBefore: ", usdlBalStakingContractBefore.toString());
+    //   // console.log("usdlBallemmatreasuryBefore: ", usdlBallemmatreasuryBefore.toString());
+    //   // console.log("usdlBalStakingContractAfter: ", usdlBalStakingContractAfter.toString());
+    //   // console.log("usdlBallemmatreasuryAfter: ", usdlBallemmatreasuryAfter.toString());
+    // });
 
-    it("when fundingPNL is positive(+ve)", async function () {
-      await openPosition(clearingHouse, longAddress, baseToken.address, true, true, parseEther("10000"));
-      openWAmount = utils.parseEther("490");
-      await ethCollateral.approve(usdLemma.address, openWAmount);
-      await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
-      await ethers.provider.send("evm_increaseTime", [300]);
-      await ethers.provider.send("evm_mine", []);
-      await forwardTimestamp(clearingHouse, 1);
-      openWAmount = utils.parseEther("10");
-      await ethCollateral.approve(usdLemma.address, openWAmount);
-      await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
-      await forwardTimestamp(clearingHouse, 1);
-      await perpLemma.settleAllFunding();
+    // it("when fundingPNL is positive(+ve)", async function () {
+    //   await openPosition(clearingHouse, longAddress, baseToken.address, true, true, parseEther("10000"));
+    //   openWAmount = utils.parseEther("490");
+    //   await ethCollateral.approve(usdLemma.address, openWAmount);
+    //   await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
+    //   await ethers.provider.send("evm_increaseTime", [300]);
+    //   await ethers.provider.send("evm_mine", []);
+    //   await forwardTimestamp(clearingHouse, 1);
+    //   openWAmount = utils.parseEther("10");
+    //   await ethCollateral.approve(usdLemma.address, openWAmount);
+    //   await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
+    //   await forwardTimestamp(clearingHouse, 1);
+    //   await perpLemma.settleAllFunding();
 
-      let checkPrice_before = await checkAndSyncPrice();
-      let fundingPNL = await perpLemma.getFundingPNL();
-      let totalFundingPNL = await perpLemma.totalFundingPNL();
-      let realizedFundingPnl = await perpLemma.realizedFundingPNL();
-      let rebalanceAmount = totalFundingPNL.sub(realizedFundingPnl);
+    //   let checkPrice_before = await checkAndSyncPrice();
+    //   let fundingPNL = await perpLemma.getFundingPNL();
+    //   let totalFundingPNL = await perpLemma.totalFundingPNL();
+    //   let realizedFundingPnl = await perpLemma.realizedFundingPNL();
+    //   let rebalanceAmount = totalFundingPNL.sub(realizedFundingPnl);
 
-      // console.log("fundingPNL: ", fundingPNL.toString());
-      // console.log("totalFundingPNL: ", totalFundingPNL.toString());
-      // console.log("realizedFundingPnl: ", realizedFundingPnl.toString());
-      // console.log("rebalanceAmount: ", rebalanceAmount.toString());
-      // console.log("checkPrice_before: ", checkPrice_before.toString());
+    //   // console.log("fundingPNL: ", fundingPNL.toString());
+    //   // console.log("totalFundingPNL: ", totalFundingPNL.toString());
+    //   // console.log("realizedFundingPnl: ", realizedFundingPnl.toString());
+    //   // console.log("rebalanceAmount: ", rebalanceAmount.toString());
+    //   // console.log("checkPrice_before: ", checkPrice_before.toString());
 
-      let usdlBalStakingContractBefore = await usdLemma.balanceOf(stackingContract.address);
-      let usdlBallemmatreasuryBefore = await usdLemma.balanceOf(lemmaTreasury.address);
+    //   let usdlBalStakingContractBefore = await usdLemma.balanceOf(stackingContract.address);
+    //   let usdlBallemmatreasuryBefore = await usdLemma.balanceOf(lemmaTreasury.address);
 
-      let tx = await usdLemma
-        .connect(reBalancer)
-        .reBalance(
-          0,
-          ethCollateral.address,
-          rebalanceAmount,
-          ethers.utils.defaultAbiCoder.encode(["uint160", "uint256"], [sqrtPriceLimitX96, deadline]),
-        );
+    //   let tx = await usdLemma
+    //     .connect(reBalancer)
+    //     .reBalance(
+    //       0,
+    //       ethCollateral.address,
+    //       rebalanceAmount,
+    //       ethers.utils.defaultAbiCoder.encode(["uint160", "uint256"], [sqrtPriceLimitX96, deadline]),
+    //     );
 
-      expect(tx).to.emit(usdLemma, "Rebalance");
-      let usdlBalStakingContractAfter = await usdLemma.balanceOf(stackingContract.address);
-      let usdlBallemmatreasuryAfter = await usdLemma.balanceOf(lemmaTreasury.address);
+    //   expect(tx).to.emit(usdLemma, "Rebalance");
+    //   let usdlBalStakingContractAfter = await usdLemma.balanceOf(stackingContract.address);
+    //   let usdlBallemmatreasuryAfter = await usdLemma.balanceOf(lemmaTreasury.address);
 
-      expect(usdlBalStakingContractBefore).to.lt(usdlBalStakingContractAfter);
-      expect(usdlBallemmatreasuryBefore).to.lt(usdlBallemmatreasuryAfter);
+    //   expect(usdlBalStakingContractBefore).to.lt(usdlBalStakingContractAfter);
+    //   expect(usdlBallemmatreasuryBefore).to.lt(usdlBallemmatreasuryAfter);
 
-      // console.log("usdlBalStakingContractBefore: ", usdlBalStakingContractBefore.toString());
-      // console.log("usdlBallemmatreasuryBefore: ", usdlBallemmatreasuryBefore.toString());
-      // console.log("usdlBalStakingContractAfter: ", usdlBalStakingContractAfter.toString());
-      // console.log("usdlBallemmatreasuryAfter: ", usdlBallemmatreasuryAfter.toString());
-    });
+    //   // console.log("usdlBalStakingContractBefore: ", usdlBalStakingContractBefore.toString());
+    //   // console.log("usdlBallemmatreasuryBefore: ", usdlBallemmatreasuryBefore.toString());
+    //   // console.log("usdlBalStakingContractAfter: ", usdlBalStakingContractAfter.toString());
+    //   // console.log("usdlBallemmatreasuryAfter: ", usdlBallemmatreasuryAfter.toString());
+    // });
   });
 
   it("Force Error, depositTo", async function () {
