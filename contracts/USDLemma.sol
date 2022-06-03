@@ -183,6 +183,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         (uint256 _collateralRequired_1e18, ) = perpDEXWrapper.openShortWithExactQuote(_usdlAmount_1e18, address(0), 0); 
         console.log("[depositToWExactCollateral()] T3");
         uint256 _collateralRequired = _collateralRequired_1e18 * 10**perpDEXWrapper.getUsdlCollateralDecimals() / 1e18;
+        require(_collateralRequired <= maxCollateralAmountRequired, "collateral required execeeds maximum");
         // uint256 _collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
         console.log("[depositToWExactCollateral()] T5");
@@ -231,6 +232,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         // uint256 _collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
         (, uint256 _usdlToMint) = perpDEXWrapper.openShortWithExactBase(_collateralAmount_1e18, address(0), 0); 
         console.log("[depositToWExactCollateral()] T5");
+        require(_usdlToMint >= minUSDLToMint, "USDL minted too low");
         _mint(to, _usdlToMint);
         emit DepositTo(perpetualDEXIndex, address(collateral), to, _usdlToMint, collateralAmount);        
     }
@@ -261,6 +263,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 _collateralAmount = _collateralAmountToGetBack_1e18 * 10**perpDEXWrapper.getUsdlCollateralDecimals() / 1e18;
         console.log("[withdrawTo()] T3");
         // uint256 _collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
+        require(_collateralAmount >= minCollateralAmountToGetBack, "Collateral to get back too low");
         _perpWithdraw(to, perpDEXWrapper, address(collateral), _collateralAmount);
         console.log("[withdrawTo()] T5");
 

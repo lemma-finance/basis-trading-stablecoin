@@ -764,6 +764,7 @@ describe("usdLemma-perp", async function () {
       usdLemma.depositTo(defaultSigner.address, openWAmount, 0, 1, ethCollateral.address),
     ).to.be.revertedWith("collateral required execeeds maximum");
   });
+
   it("Force Error, withdrawTo", async function () {
     const openWAmount = utils.parseEther("1");
     await ethCollateral.approve(usdLemma.address, openWAmount);
@@ -797,12 +798,13 @@ describe("usdLemma-perp", async function () {
     await usdLemma.approve(usdLemma.address, amount);
     await expect(
       usdLemma.withdrawTo(defaultSigner.address, amount, 0, baseAmount1.mul(2), ethCollateral.address),
-    ).to.be.revertedWith("collateral got back is too low");
+    ).to.be.revertedWith("Collateral to get back too low");
     tx = await usdLemma.withdrawTo(signer1.address, amount, 0, baseAmount1, ethCollateral.address);
     await expect(tx)
       .to.emit(usdLemma, "WithdrawTo")
       .withArgs(0, ethCollateral.address, signer1.address, amount, baseAmount1);
   });
+
   it("Force Error, depositToWExactCollateral", async function () {
     const openWAmount = utils.parseEther("1");
     await expect(
@@ -848,6 +850,6 @@ describe("usdLemma-perp", async function () {
     await usdLemma.approve(usdLemma.address, openWAmount);
     await expect(
       usdLemma.withdrawToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address),
-    ).to.be.revertedWith("USDL burnt exceeds maximum");
+    ).to.be.revertedWith("Too much USDL to burn");
   });
 });
