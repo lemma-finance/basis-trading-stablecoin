@@ -174,14 +174,30 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
 
+
+
+
+        uint256 _usdlAmount_1e18 = amount * 1e18 / 10**this.decimals();
+        console.log("[depositToWExactCollateral()] T1");
+        // NOTE: Could this fail for CH_NEFCI?
+        (uint256 _collateralRequired_1e18, ) = perpDEXWrapper.openShortWithExactQuote(_usdlAmount_1e18, address(0), 0); 
+        console.log("[depositToWExactCollateral()] T3");
+        uint256 _collateralRequired = _collateralRequired_1e18 * 10**perpDEXWrapper.getUsdlCollateralDecimals() / 1e18;
+        // uint256 _collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
+        _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
+        console.log("[depositToWExactCollateral()] T5");
+
+
+
+
         // isShorting = true
         // isExactUsdl = true
-        (uint256 _collateralRequired1e_1e18, ) = perpDEXWrapper.trade(amount, true, true);
+        // (uint256 _collateralRequired1e_1e18, ) = perpDEXWrapper.trade(amount, true, true);
 
-        require(_collateralRequired1e_1e18 <= maxCollateralAmountRequired, "collateral required execeeds maximum");
-        uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(_collateralRequired1e_1e18, address(collateral), false);
+        // require(_collateralRequired1e_1e18 <= maxCollateralAmountRequired, "collateral required execeeds maximum");
+        // uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(_collateralRequired1e_1e18, address(collateral), false);
 
-        _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
+        // _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
         _mint(to, amount);
         emit DepositTo(perpetualDEXIndex, address(collateral), to, amount, _collateralRequired);
     }
