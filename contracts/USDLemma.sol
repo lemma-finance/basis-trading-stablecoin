@@ -148,9 +148,9 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         perpDEXWrapper.deposit(amount, collateral);
     }
 
-    function _perpWithdraw(IPerpetualMixDEXWrapper perpDEXWrapper, address collateral, uint256 amount) internal {
+    function _perpWithdraw(address to, IPerpetualMixDEXWrapper perpDEXWrapper, address collateral, uint256 amount) internal {
         perpDEXWrapper.withdraw(amount, collateral);
-        SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), address(perpDEXWrapper), _msgSender(), amount);
+        SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), address(perpDEXWrapper), to, amount);
     }
 
 
@@ -238,14 +238,23 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
 
-        // NOTE: We can't close a bigger short than the amount of USDL the user has burned 
-        // isShorting = true
-        // isExactUsdl = true
-        (uint256 _collateralAmountToGetBack_1e18, ) = perpDEXWrapper.trade(amount, false, true);
-        uint256 _collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(_collateralAmountToGetBack_1e18, address(collateral), false);
-        require(_collateralAmountToGetBack >= minCollateralAmountToGetBack, "Not enough collateral to get back");
-        _perpWithdraw(perpDEXWrapper, address(collateral), _collateralAmountToGetBack);
-        emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, _collateralAmountToGetBack);
+        uint256 _usdlAmount_1e18 = amount * 1e18 / 10**this.decimals();
+        console.log("[withdrawTo()] T1");
+        // NOTE: USDL has same decimals as quote
+        (uint256 _collateralAmountToGetBack_1e18,) = perpDEXWrapper.closeShortWithExactQuote(_usdlAmount_1e18, address(0), 0); 
+        uint256 _collateralAmount = _collateralAmountToGetBack_1e18 * 10**perpDEXWrapper.getUsdlCollateralDecimals() / 1e18;
+        console.log("[withdrawTo()] T3");
+        // uint256 _collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
+        _perpWithdraw(to, perpDEXWrapper, address(collateral), _collateralAmount);
+        console.log("[withdrawTo()] T5");
+
+        // (uint256 _collateralAmountToGetBack_1e18, ) = perpDEXWrapper.trade(amount, false, true);
+        // uint256 _collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(_collateralAmountToGetBack_1e18, address(collateral), false);
+        // require(_collateralAmountToGetBack >= minCollateralAmountToGetBack, "Not enough collateral to get back");
+        // _perpWithdraw(perpDEXWrapper, address(collateral), _collateralAmountToGetBack);
+
+        emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, _collateralAmount);
+        // emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, _collateralAmountToGetBack);
     }
 
 
@@ -272,7 +281,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         (, uint256 _usdlToBurn) = perpDEXWrapper.closeShortWithExactBase(_collateralAmount_1e18, address(0), 0); 
         console.log("[withdrawToWExactCollateral()] T3");
         // uint256 _collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
-        _perpWithdraw(perpDEXWrapper, address(collateral), collateralAmount);
+        _perpWithdraw(to, perpDEXWrapper, address(collateral), collateralAmount);
         console.log("[withdrawToWExactCollateral()] T5");
 
 

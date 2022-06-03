@@ -460,7 +460,7 @@ describe("usdLemma-perp", async function () {
     // will need to add custom method to extract the args from the emitted events and test the following test
     // await expect(tx).to.emit(clearingHouse, "PositionChanged").withArgs(perpLemma.address, baseToken.address, baseAmount, undefined, undefined, undefined, undefined, undefined);
   });
-  
+
   it("should close entire position correctly with exact ethCollateral, depositToWExactCollateral & withdrawTo", async function () {
     const openWAmount = utils.parseEther("1");
     await ethCollateral.approve(usdLemma.address, openWAmount);
@@ -477,18 +477,24 @@ describe("usdLemma-perp", async function () {
 
     //input is whatever it costs to go long on the current usdl balance
     const collateralBalanceBefore = await ethCollateral.balanceOf(signer1.address);
-    await usdLemma.approve(usdLemma.address, amount);
+
+    // NOTE: Why this? 
+    // await usdLemma.approve(usdLemma.address, amount);
+
     let tx = await usdLemma.withdrawTo(signer1.address, amount, 0, baseAmount, ethCollateral.address);
     const collateralBalanceAfter = await ethCollateral.balanceOf(signer1.address);
     const usdlBalanceAfter = await usdLemma.balanceOf(defaultSigner.address);
-
+    console.log(`T1`);
     expect(collateralBalanceAfter.sub(collateralBalanceBefore)).to.equal(baseAmount);
+    console.log(`T3`);
     expect(usdlBalanceAfter).to.eq(ZERO);
+    console.log(`T5`);
 
     await expect(tx)
       .to.emit(usdLemma, "WithdrawTo")
       .withArgs(0, ethCollateral.address, signer1.address, amount, baseAmount);
   });
+
   it("depositTo & WithdrawTo", async function () {
     const openWAmount = utils.parseEther("1");
     await ethCollateral.approve(usdLemma.address, openWAmount);
