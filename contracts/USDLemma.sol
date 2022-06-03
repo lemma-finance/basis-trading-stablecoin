@@ -267,15 +267,22 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
 
-        // NOTE: We can't close a bigger short than the amount of USDL the user has burned 
-        // isShorting = true
-        // isExactUsdl = true
-        (, uint256 _usdlToBurn) = perpDEXWrapper.trade(collateralAmount, false, false);
+        uint256 _collateralAmount_1e18 = collateralAmount * 1e18 / 10**perpDEXWrapper.getUsdlCollateralDecimals();
+        console.log("[withdrawToWExactCollateral()] T1");
+        (, uint256 _usdlToBurn) = perpDEXWrapper.closeShortWithExactBase(_collateralAmount_1e18, address(0), 0); 
+        console.log("[withdrawToWExactCollateral()] T3");
+        // uint256 _collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
+        _perpWithdraw(perpDEXWrapper, address(collateral), collateralAmount);
+        console.log("[withdrawToWExactCollateral()] T5");
+
+
+        // (, uint256 _usdlToBurn) = perpDEXWrapper.trade(collateralAmount, false, false);
         require(_usdlToBurn <= maxUSDLToBurn, "Too much USDL to burn");
         _burn(_msgSender(), _usdlToBurn);
-        uint256 _collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
-        _perpWithdraw(perpDEXWrapper, address(collateral), _collateralAmountToGetBack);
-        emit WithdrawTo(perpetualDEXIndex, address(collateral), to, _usdlToBurn, _collateralAmountToGetBack);
+        // uint256 _collateralAmountToGetBack = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
+        // _perpWithdraw(perpDEXWrapper, address(collateral), _collateralAmountToGetBack);
+        emit WithdrawTo(perpetualDEXIndex, address(collateral), to, _usdlToBurn, collateralAmount);
+        // emit WithdrawTo(perpetualDEXIndex, address(collateral), to, _usdlToBurn, _collateralAmountToGetBack);
     }
 
 
