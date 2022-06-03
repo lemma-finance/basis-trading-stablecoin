@@ -12,6 +12,7 @@ interface IPerpetualMixDEXWrapper {
 
 
     function getUsdlCollateralDecimals() external view returns(uint256);
+    function getIndexPrice() external view returns(uint256);
 
     // Convenience trading functions 
     function openLongWithExactBase(uint256 amount, address collateralIn, uint256 amountIn) external returns(uint256, uint256);

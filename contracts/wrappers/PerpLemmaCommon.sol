@@ -12,6 +12,7 @@ import "../libraries/TransferHelper.sol";
 import "../interfaces/IERC20Decimals.sol";
 import "../interfaces/Perpetual/IClearingHouse.sol";
 import "../interfaces/Perpetual/IClearingHouseConfig.sol";
+import "../interfaces/Perpetual/IIndexPrice.sol";
 import "../interfaces/Perpetual/IAccountBalance.sol";
 import "../interfaces/Perpetual/IMarketRegistry.sol";
 import "../interfaces/Perpetual/IExchange.sol";
@@ -154,6 +155,14 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         return usdlCollateralDecimals;
     }
 
+    function getIndexPrice() override external view returns(uint256) {
+        uint256 _twapInterval = IClearingHouseConfig(clearingHouseConfig).getTwapInterval();
+        console.log("[getIndexPrice()] _twapInterval = ", _twapInterval);
+        uint256 _price = IIndexPrice(usdlBaseTokenAddress).getIndexPrice(_twapInterval);
+        console.log("[getIndexPrice()] _price = ", _price);
+        return _price;
+    }
+
     /// @notice getFees fees charge by perpV2 protocol for each trade
     function getFees() external view override returns (uint256) {
         // NOTE: Removed prev arg address baseTokenAddress
@@ -162,6 +171,8 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     }
 
     /// @notice getTotalPosition in terms of quoteToken(in our case vUSD)
+    /// https://github.com/yashnaman/perp-lushan/blob/main/contracts/interface/IAccountBalance.sol#L224
+    /// https://github.com/yashnaman/perp-lushan/blob/main/contracts/AccountBalance.sol#L320
     function getTotalPosition() external view override returns (int256) {
         return accountBalance.getTotalPositionValue(address(this), usdlBaseTokenAddress);
     }
@@ -356,8 +367,13 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
         console.log("[trade()] Before base = %s %d", (amountBase < 0) ? "-":"+", amountBase.abs().toUint256());
         console.log("[trade()] Before quote = %s %d", (amountQuote < 0) ? "-":"+", amountQuote.abs().toUint256());
+        console.log("[trade()] Trying to Trade isBaseToQuote = %d, isExactInput = %d, amount = %d",  
+            (_isBaseToQuote) ? 1 : 0,
+            (_isExactInput) ? 1 : 0,
+            amount
+        );
 
-        totalFundingPNL = getFundingPNL();
+        // totalFundingPNL = getFundingPNL();
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: usdlBaseTokenAddress,
             isBaseToQuote: _isBaseToQuote,
@@ -628,10 +644,15 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     /// @notice to deposit collateral in vault for short or open position
     /// @notice If collateral is tail asset no need to deposit it in Perp, it has to stay in this contract balance sheet 
     function _deposit(uint256 collateralAmount, address collateral) internal {
+        console.log("[_deposit()] Trying to deposit amount = ", collateralAmount);
         if( (collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset) ) 
         {
+            console.log("[_deposit()] Not a tail asset");
             perpVault.deposit(collateral, collateralAmount);
             amountUsdlCollateralDeposited += collateralAmount;
+        }
+        else {
+            console.log("[_deposit()] Tail Asset");
         }
 
         // // NOTE: Allowing also USDLemma to deposit USDC 

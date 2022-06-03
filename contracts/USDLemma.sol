@@ -11,6 +11,8 @@ import { Utils } from "./libraries/Utils.sol";
 import { SafeMathExt } from "./libraries/SafeMathExt.sol";
 import { IPerpetualMixDEXWrapper } from "./interfaces/IPerpetualMixDEXWrapper.sol";
 
+import "hardhat/console.sol";
+
 /// @author Lemma Finance
 contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
     using SafeCastUpgradeable for int256;
@@ -70,6 +72,16 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
         require(address(perpDEXWrapper) != address(0), "DEX Wrapper should not ZERO address");
         return perpDEXWrapper.getFees();
+    }
+
+    function getIndexPrice(
+        uint256 dexIndex,
+        address collateral
+    ) external view returns (uint256) {
+        IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
+
+        require(address(perpDEXWrapper) != address(0), "DEX Wrapper should not ZERO address");
+        return perpDEXWrapper.getIndexPrice();
     }
 
     /// @notice Returns the total position in quote Token on a given DEX
@@ -190,17 +202,19 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
+        console.log("[depositToWExactCollateral()] Start");
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         
         // isShorting = true
         // isExactUsdl = true
         // (, uint256 _usdlToMint) = perpDEXWrapper.trade(collateralAmount, true, false);
-        uint256 _collateralAmount_1e18 = collateralAmount * 1e18 / perpDEXWrapper.getUsdlCollateralDecimals();
-
+        uint256 _collateralAmount_1e18 = collateralAmount * 1e18 / 10**perpDEXWrapper.getUsdlCollateralDecimals();
+        console.log("[depositToWExactCollateral()] T1");
+        _perpDeposit(perpDEXWrapper, address(collateral), collateralAmount);
+        console.log("[depositToWExactCollateral()] T3");
         // uint256 _collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
         (, uint256 _usdlToMint) = perpDEXWrapper.openShortWithExactBase(_collateralAmount_1e18, address(0), 0); 
-
-        _perpDeposit(perpDEXWrapper, address(collateral), collateralAmount);
+        console.log("[depositToWExactCollateral()] T5");
         _mint(to, _usdlToMint);
         emit DepositTo(perpetualDEXIndex, address(collateral), to, _usdlToMint, collateralAmount);        
     }

@@ -336,17 +336,28 @@ describe("usdLemma-perp", async function () {
   });
 
   it("getTotalPosition", async function () {
+    // NOTE: This is only valid in our local setup
+    const assumedIndexPrice_1e18 = toBN( await usdLemma.getIndexPrice(0, ethCollateral.address) );
+    // const assumedIndexPrice = toBN("100");
     const openWAmount = utils.parseEther("1");
+
+    // await usdCollateral.mint(defaultSigner.address, collateralAmount);
+    // await usdCollateral.connect(defaultSigner).transfer(perpLemma.address, collateralAmount);
+    // await perpLemma.connect(usdLemma).deposit(collateralAmount, usdCollateral.address);  
+
     await ethCollateral.approve(usdLemma.address, openWAmount);
     await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
     const amountQuote = await perpLemma.amountQuote();
     await expect(usdLemma.getTotalPosition(0, AddressZero)).to.be.revertedWith("DEX Wrapper should not ZERO address");
-    const position = await usdLemma.getTotalPosition(0, ethCollateral.address);
+    const position_1e18 = await usdLemma.getTotalPosition(0, ethCollateral.address);
+    const position = from1e18to1ed(toBN(position_1e18), ethCollateralDecimals);
 
-    expect(position).to.eq(toBN(amountQuote).mul(-1));
+    expect(position).to.eq(openWAmount.mul(assumedIndexPrice_1e18).mul(-1).div(toBN(1e18)));
+    // expect(position).to.eq(toBN(amountQuote).mul(-1));
     // expect(position).to.eq(parseEther("100").mul(-1));
   });
 
+  
   it("setWhiteListAddress", async function () {
     await expect(usdLemma.connect(signer1).setWhiteListAddress(signer1.address, true)).to.be.revertedWith(
       "Ownable: caller is not the owner",
