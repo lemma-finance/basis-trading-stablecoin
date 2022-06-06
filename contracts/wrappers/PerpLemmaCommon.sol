@@ -539,8 +539,15 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     /// @return Amount of USDC resulting from the operation. It can also be negative as we can use this mechanism for purposes other than Arb See https://www.notion.so/lemmafinance/Rebalance-Details-f72ad11a5d8248c195762a6ac6ce037e#ffad7b09a81a4b049348e3cd38e57466 here 
     function rebalance(bool isOpenLong, uint256 amount, bool isCheckProfit) override external returns(int256) {
         if(isOpenLong) {
-
+            // TODO: Implement 
+            // 1.1 Take `amount` of ETH in this contract or Perp Vault and swap it on Uniswap for USDC
+            // 1.2 Increase Long = Reduce Short using openLongWithExactQuote() using the above amount of USDC as quote amount
+        } else {
+            // TODO: Implement 
+            // 1.1 Reduce Long = Increase Short using closeLongWithExactBase() for `amount` and get the corresponding quote amount
+            // 1.2 Take quote amount of USDC and swap it on Uniswap for ETH and deposit ETH as collateral 
         }
+        // Compute Profit and return it
     }
 
     /// @notice Rebalance position of dex based on accumulated funding, since last rebalancing
