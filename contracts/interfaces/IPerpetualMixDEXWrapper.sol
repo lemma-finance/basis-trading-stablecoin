@@ -37,6 +37,8 @@ interface IPerpetualMixDEXWrapper {
     function deposit(uint256 amount, address collateral) external;
     function withdraw(uint256 amount, address collateral) external;
 
+    function rebalance(bool isOpenLong, uint256 amount, bool isCheckProfit) external returns(int256);
+
     function reBalance(
         address _reBalancer,
         int256 amount,

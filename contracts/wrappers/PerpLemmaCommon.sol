@@ -526,6 +526,23 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         hasSettled = true;
     }
 
+
+    /// @notice Rebalances USDL or Synth emission swapping by Perp backed to Token backed  
+    /// @dev USDL can be backed by both: 1) Floating Collateral + Perp Short of the same Floating Collateral or 2) USDC 
+    /// @dev LemmaX (where X can be ETH, ...) can be backed by both: 1) USDC collateralized Perp Long or 2) X token itself 
+    /// @dev The idea is to use this mechanism for this purposes like Arbing between Mark and Spot Price or adjusting our tokens in our balance sheet for LemmaSwap supply 
+    /// @dev Details at https://www.notion.so/lemmafinance/Rebalance-Details-f72ad11a5d8248c195762a6ac6ce037e
+    /// 
+    /// @param isOpenLong If true, we need to increase long = close short which means buying base at Mark and sell base on Spot, otherwise it is the opposite way
+    /// @param amount The Amount of Base Token to buy or sell on Perp and consequently the amount of corresponding colletarl to sell or buy on Spot 
+    /// @param isCheckProfit Activates a require that checks the operation is profitable, only for the Arb case
+    /// @return Amount of USDC resulting from the operation. It can also be negative as we can use this mechanism for purposes other than Arb See https://www.notion.so/lemmafinance/Rebalance-Details-f72ad11a5d8248c195762a6ac6ce037e#ffad7b09a81a4b049348e3cd38e57466 here 
+    function rebalance(bool isOpenLong, uint256 amount, bool isCheckProfit) override external returns(int256) {
+        if(isOpenLong) {
+
+        }
+    }
+
     /// @notice Rebalance position of dex based on accumulated funding, since last rebalancing
     /// @param _reBalancer Address of rebalancer who called function on USDL contract
     /// @param amount Amount of accumulated funding fees used to rebalance by opening or closing a short position
