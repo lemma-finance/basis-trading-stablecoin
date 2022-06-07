@@ -63,8 +63,6 @@ https://github.com/foundry-rs/foundry
 foundryup
 ```
 
-
-
 3. Compile with 
 
 ```
@@ -75,7 +73,37 @@ forge build
 
 5. Tests 
 
-Foundry does not run Hardhat Tests as it requires its own tests written in Solidity in the `/test` dir so for example 
+Foundry does not run Hardhat Tests as it requires its own tests written in Solidity in the `/test` dir with 
+
+
+
+```
+forge test
+```
+
+
+
+NOTE: In theory everything should be already set properly for the above to run but in case there are issues try to inizialize the repo as Foundry Repo 
+
+```
+forge init --force --no-commit
+```
+
+It should add all the necessary files like 
+
+- the `foundry.toml`
+
+- installing `lib` the `forge-std` Standard Library that is required for tests 
+
+It could also be possible the `lib` dir is not added in the `foundry.toml` to the `libs` array that is used for the import lookups, as when Foundry detects Hardhat it could just add the `node_modules` dir so in that case remember to add it so that 
+
+```
+libs = ['lib', 'node_modules']
+```
+
+
+
+
 
 
 
