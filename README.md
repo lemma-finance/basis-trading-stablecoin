@@ -48,3 +48,36 @@ Open perp-lushan submodule repo
 
     slither .
 
+
+# Foundry 
+
+1. Install Foundry following the instructions here 
+
+https://github.com/foundry-rs/foundry
+
+
+
+2. Make the repo a Foundry Repo with 
+
+```
+foundryup
+```
+
+
+
+3. Compile with 
+
+```
+forge build
+```
+
+
+
+5. Tests 
+
+Foundry does not run Hardhat Tests as it requires its own tests written in Solidity in the `/test` dir so for example 
+
+
+
+
+

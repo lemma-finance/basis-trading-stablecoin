@@ -1,0 +1,14 @@
+[default]
+src = 'src'
+out = 'artifacts'
+libs = ['lib','node_modules']
+remappings = [
+    '@ensdomains/=node_modules/@ensdomains/',
+    '@openzeppelin/=node_modules/@openzeppelin/',
+    '@uniswap/=node_modules/@uniswap/',
+    'base64-sol/=node_modules/base64-sol/',
+    'hardhat/=node_modules/hardhat/',
+    'sol-explore/=node_modules/sol-explore/',
+]
+
+# See more config options https://github.com/foundry-rs/foundry/tree/master/config

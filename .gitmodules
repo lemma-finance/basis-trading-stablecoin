@@ -7,3 +7,6 @@
 	path = perp-lushan
 	url = git@github.com:yashnaman/perp-lushan.git
 	branch = f91926a724ec3b33e66ecec8ce42879cdb2a4540
+[submodule "lib/forge-std"]
+	path = lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
