@@ -1,6 +1,7 @@
 [default]
 src = 'src'
 out = 'artifacts'
+solc = '0.8.3'
 libs = ['lib','node_modules']
 remappings = [
     '@ensdomains/=node_modules/@ensdomains/',
