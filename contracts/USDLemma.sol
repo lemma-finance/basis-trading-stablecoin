@@ -11,7 +11,15 @@ import { Utils } from "./libraries/Utils.sol";
 import { SafeMathExt } from "./libraries/SafeMathExt.sol";
 import { IPerpetualMixDEXWrapper } from "./interfaces/IPerpetualMixDEXWrapper.sol";
 
-import "hardhat/console.sol";
+
+
+
+
+
+
+// NOTE: There is an incompatibility between Foundry and Hardhat `console.log()` 
+import "forge-std/Test.sol";
+// import "hardhat/console.sol";
 
 /// @author Lemma Finance
 contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
