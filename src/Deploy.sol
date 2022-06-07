@@ -4,5 +4,9 @@ import "contracts/USDLemma.sol";
 
 
 contract Deploy {
+    USDLemma public usdl;
 
+    constructor() {
+        usdl = new USDLemma();
+    }
 }
