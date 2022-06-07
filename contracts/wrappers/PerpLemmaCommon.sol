@@ -70,6 +70,8 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     // Has the Market Settled
     bool public hasSettled;
 
+    address public rebalancer;
+
     // events
     event USDLemmaUpdated(address usdlAddress);
     event ReferrerUpdated(bytes32 referrerCode);
@@ -78,6 +80,11 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
     modifier onlyUSDLemma() {
         require(msg.sender == usdLemma, "only usdLemma is allowed");
+        _;
+    }
+
+    modifier onlyRebalancer() {
+        require(_msgSender() == rebalancer, "! Rebalancer");
         _;
     }
 
@@ -141,6 +148,13 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
             SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, MAX_UINT256);
         }
+    }
+
+    function setRebalancer(address _rebalancer) external onlyOwner {
+        // NOTE: Setting it to address(0) is allowed, it just disables rebalancing temporarily
+        rebalancer = _rebalancer;
+
+        // TODO: Add emit event 
     }
 
     // TODO: Add only owner
@@ -527,6 +541,30 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         hasSettled = true;
     }
 
+    function _swapOnDEXSpot(address router, uint256 routerType, bool isBuyUSDLCollateral, uint256 amountIn) internal returns(uint256) {
+        if(routerType == 0) {
+            // NOTE: UniV3 
+            return _swapOnUniV3(router, isBuyUSDLCollateral, amountIn);
+        }
+        // NOTE: Unsupported Router --> Using UniV3 as default
+        return _swapOnUniV3(router, isBuyUSDLCollateral, amountIn);
+    }
+
+    function _swapOnUniV3(address router, bool isBuyUSDLCollateral, uint256 amountIn) internal returns(uint256) {
+        address tokenIn = (isBuyUSDLCollateral) ? address(usdlCollateral) : address(usdc);
+        address tokenOut = (isBuyUSDLCollateral) ? address(usdc) : address(usdlCollateral);
+        ISwapRouter.ExactInputSingleParams memory temp = ISwapRouter.ExactInputSingleParams({
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            fee: 3000,
+            recipient: address(this),
+            deadline: type(uint256).max,
+            amountIn: amountIn,
+            amountOutMinimum: 0,
+            sqrtPriceLimitX96: type(uint160).max
+        });
+        return ISwapRouter(router).exactInputSingle(temp);
+    }
 
     /// @notice Rebalances USDL or Synth emission swapping by Perp backed to Token backed  
     /// @dev USDL can be backed by both: 1) Floating Collateral + Perp Short of the same Floating Collateral or 2) USDC 
@@ -534,25 +572,32 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     /// @dev The idea is to use this mechanism for this purposes like Arbing between Mark and Spot Price or adjusting our tokens in our balance sheet for LemmaSwap supply 
     /// @dev Details at https://www.notion.so/lemmafinance/Rebalance-Details-f72ad11a5d8248c195762a6ac6ce037e
     /// 
+    /// @param router The Router to execute the swap on
+    /// @param routerType The Router Type: 0 --> UniV3, ... 
     /// @param isOpenLong If true, we need to increase long = close short which means buying base at Mark and sell base on Spot, otherwise it is the opposite way
     /// @param amount The Amount of Base Token to buy or sell on Perp and consequently the amount of corresponding colletarl to sell or buy on Spot 
     /// @param isCheckProfit Activates a require that checks the operation is profitable, only for the Arb case
     /// @return Amount of USDC resulting from the operation. It can also be negative as we can use this mechanism for purposes other than Arb See https://www.notion.so/lemmafinance/Rebalance-Details-f72ad11a5d8248c195762a6ac6ce037e#ffad7b09a81a4b049348e3cd38e57466 here 
-    function rebalance(bool isOpenLong, uint256 amount, bool isCheckProfit) override external returns(int256) {
+    function rebalance(address router, uint256 routerType, bool isOpenLong, uint256 amount, bool isCheckProfit) override external onlyRebalancer returns(int256) {
+        uint256 usdlCollateralAmount;
         if(isOpenLong) {
             // TODO: Implement 
             // 1.1 Take `amount` of ETH in this contract or Perp Vault and swap it on Uniswap for USDC
-            ISwapRouter.ExactInputSingleParams memory temp;
-            uint256 usdcBack = 0;
+            uint256 usdcAmount = _swapOnDEXSpot(router, routerType, true, amount);
             // 1.2 Increase Long = Reduce Short using openLongWithExactQuote() using the above amount of USDC as quote amount
-            perpVault.deposit(address(usdc), usdcBack);
-            openLongWithExactQuote(usdcBack, address(0), 0);
+            perpVault.deposit(address(usdc), usdcAmount);
+            (usdlCollateralAmount, ) = openLongWithExactQuote(usdcAmount, address(0), 0);
         } else {
             // TODO: Implement 
             // 1.1 Reduce Long = Increase Short using closeLongWithExactBase() for `amount` and get the corresponding quote amount
+            (, uint256 usdcAmount) = closeLongWithExactBase(amount, address(0), 0);
+            perpVault.withdraw(address(usdc), usdcAmount);
             // 1.2 Take quote amount of USDC and swap it on Uniswap for ETH and deposit ETH as collateral 
+            usdlCollateralAmount = _swapOnDEXSpot(router, routerType, false, amount);
         }
         // Compute Profit and return it
+        if(isCheckProfit) require(usdlCollateralAmount >= amount, "Unprofitable");
+        return int256(usdlCollateralAmount) - int256(amount);
     }
 
     /// @notice Rebalance position of dex based on accumulated funding, since last rebalancing
