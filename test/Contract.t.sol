@@ -6,7 +6,7 @@ import "forge-std/Test.sol";
 contract ContractTest is Test {
     Deploy public d;
     function setUp() public {
-        d = new Deploy();
+        d = new Deploy(69);
     }
 
     function testExample() public {
