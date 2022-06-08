@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.6.0 <0.9.0;
 import "src/Deploy.sol";
+
+import "../contracts/interfaces/IERC20Decimals.sol";
+
 import "forge-std/Test.sol";
 
 contract ContractTest is Test {
@@ -21,6 +24,14 @@ contract ContractTest is Test {
     function testExample() public {
         console.log("USDL Address = ", address(d.usdl()));
         assertTrue(true);
+    }
+
+    function testGetMoney() public {
+        d.bank().giveMoney(d.getTokenAddress("WETH"), address(this), 1e40);
+        assertTrue(IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(this)) == 1e40);
+
+        d.bank().giveMoney(d.getTokenAddress("USDC"), address(this), 1e40);
+        assertTrue(IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(this)) == 1e40);
     }
 
 

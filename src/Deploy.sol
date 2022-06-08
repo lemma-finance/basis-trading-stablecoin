@@ -15,6 +15,8 @@ import "../contracts/interfaces/Perpetual/IPerpVault.sol";
 import "../contracts/interfaces/Perpetual/IUSDLemma.sol";
 
 
+import "forge-std/Test.sol";
+
 struct Generic_Contracts {
     IERC20Decimals usdc;
 
@@ -42,9 +44,20 @@ struct Deploy_PerpLemma {
     address baseToken;
 }
 
+
+
+
+contract Bank is Test {
+    function giveMoney(address token, address to, uint256 amount) external {
+        deal(token, to, amount);
+    }
+}
+
 contract Deploy {
     USDLemma public usdl;
     PerpLemmaCommon public pl;
+    
+    Bank public bank = new Bank();
 
     Generic_Contracts public gc;
     Perp_Contracts public pc;
@@ -105,11 +118,18 @@ contract Deploy {
                 address(usdl)
             );
         console.log("PL = ", address(pl));
+
+        usdl.initialize(
+            address(0),
+            generic_chain_addresses["WETH"][chain_id],
+            address(pl)
+        );
+
     }
 
-
-
-
+    function getTokenAddress(string memory s) external returns(address) {
+        return generic_chain_addresses[s][chain_id];
+    }
 
     function _deployPerpLemma(Deploy_PerpLemma memory d_pl, address perp_ch, address perp_mr, address usdl) internal returns(PerpLemmaCommon) {
         PerpLemmaCommon pl = new PerpLemmaCommon();
