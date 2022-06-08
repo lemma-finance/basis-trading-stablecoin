@@ -19,7 +19,10 @@ import "../interfaces/Perpetual/IMarketRegistry.sol";
 import "../interfaces/Perpetual/IExchange.sol";
 import "../interfaces/Perpetual/IPerpVault.sol";
 import "../interfaces/Perpetual/IUSDLemma.sol";
-import "hardhat/console.sol";
+
+// NOTE: There is an incompatibility between Foundry and Hardhat `console.log()` 
+import "forge-std/Test.sol";
+// import "hardhat/console.sol";
 
 contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper {
     using SafeCastUpgradeable for uint256;
