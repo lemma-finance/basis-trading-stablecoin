@@ -61,14 +61,18 @@ contract ContractTest is Test {
         console.log("settlementTokenBalanceCap = ", settlementTokenBalanceCap);
 
         // NOTE: Unclear why I need to use 1/10 of the cap
+        // NOTE: If I do not limit this amount I get 
+        // V_GTSTBC: greater than settlement token balance cap
         d.pl().usdc().approve(address(d.pl()), settlementTokenBalanceCap/10);
         d.pl().depositSettlementToken(settlementTokenBalanceCap/10);
 
         IERC20Decimals(d.getTokenAddress("WETH")).approve(address(d.usdl()), type(uint256).max);
 
+        // NOTE: Currently getting 
+        // V_GTDC: greater than deposit cap
         d.usdl().depositToWExactCollateral(
             address(this),
-            1e18,
+            1e12,
             0,
             0,
             IERC20Upgradeable(d.getTokenAddress("WETH"))
