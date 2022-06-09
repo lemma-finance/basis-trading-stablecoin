@@ -127,6 +127,10 @@ contract Deploy {
 
     }
 
+    function getPerps() external returns(Perp_Contracts memory) {
+        return pc;
+    }
+
     function getTokenAddress(string memory s) external returns(address) {
         return generic_chain_addresses[s][chain_id];
     }
