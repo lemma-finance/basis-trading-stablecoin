@@ -743,8 +743,13 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function _withdraw(uint256 amountToWithdraw, address collateral) internal {
         if( (collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset) ) 
         {
+            console.log("[_withdraw()] Not a tail asset");
+            // NOTE: This is problematic with ETH
             perpVault.withdraw(collateral, amountToWithdraw);
             amountUsdlCollateralDeposited -= amountToWithdraw;
+        }
+        else {
+            console.log("[_withdraw()] Tail Asset");
         }
 
         // // NOTE: Allowing also USDLemma to deposit USDC 

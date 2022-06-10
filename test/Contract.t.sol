@@ -12,7 +12,7 @@ contract ContractTest is Test {
         d = new Deploy(10);
     }
 
-    function print(string memory s, int256 v) internal {
+    function print(string memory s, int256 v) internal view {
         if(v < 0) {
             console.log(s, " = -", uint256(-v));
         }
@@ -21,13 +21,23 @@ contract ContractTest is Test {
         }
     }
 
+    function _deductFees(address collateral, uint256 collateralAmount, uint256 dexIndex) internal view returns(uint256) {
+        uint256 _fees = collateralAmount * d.usdl().getFees(dexIndex, collateral) / 1e6;
+        console.log("[_deductFees)()] collateralAmount = ", collateralAmount);
+        console.log("[_deductFees)()] _fees = ", _fees);
+        uint256 total = uint256(int256(collateralAmount) - int256(_fees));
+
+        console.log("[_deductFees()] Total = ", total);
+        return total; 
+    }
+
     function _getMoney(address token, uint256 amount) internal {
         d.bank().giveMoney(token, address(this), amount);
         assertTrue(IERC20Decimals(token).balanceOf(address(this)) >= amount);
     }
 
-    function _mintUSDLWExactCollateral(uint256 amount) internal {
-        _getMoney(d.getTokenAddress("WETH"), 1e40);
+    function _mintUSDLWExactCollateral(address collateral, uint256 amount) internal {
+        _getMoney(collateral, 1e40);
         _getMoney(address(d.pl().usdc()), 1e40);
 
         // d.bank().giveMoney(d.getTokenAddress("WETH"), address(this), 1e40);
@@ -55,10 +65,59 @@ contract ContractTest is Test {
             amount,
             0,
             0,
-            IERC20Upgradeable(d.getTokenAddress("WETH"))
+            IERC20Upgradeable(collateral)
         );
 
         assertTrue(d.usdl().balanceOf(address(this)) > 0);
+    }
+
+
+    function _mintUSDLWExactUSDL(address collateral, uint256 amount) internal {
+        _getMoney(collateral, 1e40);
+        _getMoney(address(d.pl().usdc()), 1e40);
+
+        uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
+        console.log("settlementTokenBalanceCap = ", settlementTokenBalanceCap);
+
+        // NOTE: Unclear why I need to use 1/10 of the cap
+        // NOTE: If I do not limit this amount I get 
+        // V_GTSTBC: greater than settlement token balance cap
+        d.pl().usdc().approve(address(d.pl()), settlementTokenBalanceCap/10);
+        d.pl().depositSettlementToken(settlementTokenBalanceCap/10);
+
+        IERC20Decimals(d.getTokenAddress("WETH")).approve(address(d.usdl()), type(uint256).max);
+
+        // NOTE: Currently getting 
+        // V_GTDC: greater than deposit cap
+        d.usdl().depositTo(
+            address(this),
+            amount,
+            0,
+            type(uint256).max,
+            IERC20Upgradeable(collateral)
+        );
+
+        assertTrue(d.usdl().balanceOf(address(this)) > 0);
+    }
+
+
+
+    function _redeemUSDLWExactCollateral(address collateral, uint256 amount) internal {
+        uint256 _usdlBefore = d.usdl().balanceOf(address(this));
+        assertTrue(_usdlBefore > 0, "! USDL");
+
+        console.log("[_redeemUSDLWExactCollateral()] Start");
+
+        d.usdl().withdrawToWExactCollateral(
+            address(this),
+            amount,
+            0,
+            type(uint256).max,
+            IERC20Upgradeable(collateral)
+        );
+
+        uint256 _usdlAfter = d.usdl().balanceOf(address(this));
+        assertTrue(_usdlAfter < _usdlBefore);
     }
 
     function testExample() public {
@@ -89,37 +148,19 @@ contract ContractTest is Test {
         assertTrue(_deltaExposure == 0);
     }
 
-    function testMinting() public {
-        _mintUSDLWExactCollateral(1e12);
-        // d.bank().giveMoney(d.getTokenAddress("WETH"), address(this), 1e40);
-        // assertTrue(IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(this)) == 1e40);
+    function testMintingWExactCollateral() public {
+        uint256 amount = 1e12;
+        _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+    }
 
-        // console.log("d.pl().usdc() = ", address(d.pl().usdc()));
-        // d.bank().giveMoney(address(d.pl().usdc()), address(this), 1e40);
-        // assertTrue(IERC20Decimals(address(d.pl().usdc())).balanceOf(address(this)) == 1e40);
+    function testRedeemWExactCollateral() public {
+        uint256 amount = 1e12;
+        _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
 
-        // uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
-        // console.log("settlementTokenBalanceCap = ", settlementTokenBalanceCap);
-
-        // // NOTE: Unclear why I need to use 1/10 of the cap
-        // // NOTE: If I do not limit this amount I get 
-        // // V_GTSTBC: greater than settlement token balance cap
-        // d.pl().usdc().approve(address(d.pl()), settlementTokenBalanceCap/10);
-        // d.pl().depositSettlementToken(settlementTokenBalanceCap/10);
-
-        // IERC20Decimals(d.getTokenAddress("WETH")).approve(address(d.usdl()), type(uint256).max);
-
-        // // NOTE: Currently getting 
-        // // V_GTDC: greater than deposit cap
-        // d.usdl().depositToWExactCollateral(
-        //     address(this),
-        //     1e12,
-        //     0,
-        //     0,
-        //     IERC20Upgradeable(d.getTokenAddress("WETH"))
-        // );
-
-        // assertTrue(d.usdl().balanceOf(address(this)) > 0);
+        uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), amount, 0);
+        uint256 _maxETHtoRedeem = _deductFees(d.getTokenAddress("WETH"), _collateralAfterMinting, 0);
+        
+        _redeemUSDLWExactCollateral(d.getTokenAddress("WETH"), _maxETHtoRedeem);
     }
 
 

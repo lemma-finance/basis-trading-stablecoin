@@ -117,6 +117,10 @@ contract Deploy {
                 perp_chain_addresses["MarketRegistry"][chain_id],
                 address(usdl)
             );
+        
+        // NOTE: Required to avoid a weird error when depositing and withdrawing ETH in Perp
+        // pl.setIsUsdlCollateralTailAsset(true);
+
         console.log("PL = ", address(pl));
 
         usdl.initialize(
@@ -127,11 +131,11 @@ contract Deploy {
 
     }
 
-    function getPerps() external returns(Perp_Contracts memory) {
+    function getPerps() external view returns(Perp_Contracts memory) {
         return pc;
     }
 
-    function getTokenAddress(string memory s) external returns(address) {
+    function getTokenAddress(string memory s) external view returns(address) {
         return generic_chain_addresses[s][chain_id];
     }
 
