@@ -21,6 +21,46 @@ contract ContractTest is Test {
         }
     }
 
+    function _getMoney(address token, uint256 amount) internal {
+        d.bank().giveMoney(token, address(this), amount);
+        assertTrue(IERC20Decimals(token).balanceOf(address(this)) >= amount);
+    }
+
+    function _mintUSDLWExactCollateral(uint256 amount) internal {
+        _getMoney(d.getTokenAddress("WETH"), 1e40);
+        _getMoney(address(d.pl().usdc()), 1e40);
+
+        // d.bank().giveMoney(d.getTokenAddress("WETH"), address(this), 1e40);
+        // assertTrue(IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(this)) == 1e40);
+
+        // console.log("d.pl().usdc() = ", address(d.pl().usdc()));
+        // d.bank().giveMoney(address(d.pl().usdc()), address(this), 1e40);
+        // assertTrue(IERC20Decimals(address(d.pl().usdc())).balanceOf(address(this)) == 1e40);
+
+        uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
+        console.log("settlementTokenBalanceCap = ", settlementTokenBalanceCap);
+
+        // NOTE: Unclear why I need to use 1/10 of the cap
+        // NOTE: If I do not limit this amount I get 
+        // V_GTSTBC: greater than settlement token balance cap
+        d.pl().usdc().approve(address(d.pl()), settlementTokenBalanceCap/10);
+        d.pl().depositSettlementToken(settlementTokenBalanceCap/10);
+
+        IERC20Decimals(d.getTokenAddress("WETH")).approve(address(d.usdl()), type(uint256).max);
+
+        // NOTE: Currently getting 
+        // V_GTDC: greater than deposit cap
+        d.usdl().depositToWExactCollateral(
+            address(this),
+            amount,
+            0,
+            0,
+            IERC20Upgradeable(d.getTokenAddress("WETH"))
+        );
+
+        assertTrue(d.usdl().balanceOf(address(this)) > 0);
+    }
+
     function testExample() public {
         console.log("USDL Address = ", address(d.usdl()));
         assertTrue(true);
@@ -50,36 +90,38 @@ contract ContractTest is Test {
     }
 
     function testMinting() public {
-        d.bank().giveMoney(d.getTokenAddress("WETH"), address(this), 1e40);
-        assertTrue(IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(this)) == 1e40);
+        _mintUSDLWExactCollateral(1e12);
+        // d.bank().giveMoney(d.getTokenAddress("WETH"), address(this), 1e40);
+        // assertTrue(IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(this)) == 1e40);
 
-        console.log("d.pl().usdc() = ", address(d.pl().usdc()));
-        d.bank().giveMoney(address(d.pl().usdc()), address(this), 1e40);
-        assertTrue(IERC20Decimals(address(d.pl().usdc())).balanceOf(address(this)) == 1e40);
+        // console.log("d.pl().usdc() = ", address(d.pl().usdc()));
+        // d.bank().giveMoney(address(d.pl().usdc()), address(this), 1e40);
+        // assertTrue(IERC20Decimals(address(d.pl().usdc())).balanceOf(address(this)) == 1e40);
 
-        uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
-        console.log("settlementTokenBalanceCap = ", settlementTokenBalanceCap);
+        // uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
+        // console.log("settlementTokenBalanceCap = ", settlementTokenBalanceCap);
 
-        // NOTE: Unclear why I need to use 1/10 of the cap
-        // NOTE: If I do not limit this amount I get 
-        // V_GTSTBC: greater than settlement token balance cap
-        d.pl().usdc().approve(address(d.pl()), settlementTokenBalanceCap/10);
-        d.pl().depositSettlementToken(settlementTokenBalanceCap/10);
+        // // NOTE: Unclear why I need to use 1/10 of the cap
+        // // NOTE: If I do not limit this amount I get 
+        // // V_GTSTBC: greater than settlement token balance cap
+        // d.pl().usdc().approve(address(d.pl()), settlementTokenBalanceCap/10);
+        // d.pl().depositSettlementToken(settlementTokenBalanceCap/10);
 
-        IERC20Decimals(d.getTokenAddress("WETH")).approve(address(d.usdl()), type(uint256).max);
+        // IERC20Decimals(d.getTokenAddress("WETH")).approve(address(d.usdl()), type(uint256).max);
 
-        // NOTE: Currently getting 
-        // V_GTDC: greater than deposit cap
-        d.usdl().depositToWExactCollateral(
-            address(this),
-            1e12,
-            0,
-            0,
-            IERC20Upgradeable(d.getTokenAddress("WETH"))
-        );
+        // // NOTE: Currently getting 
+        // // V_GTDC: greater than deposit cap
+        // d.usdl().depositToWExactCollateral(
+        //     address(this),
+        //     1e12,
+        //     0,
+        //     0,
+        //     IERC20Upgradeable(d.getTokenAddress("WETH"))
+        // );
 
-        assertTrue(d.usdl().balanceOf(address(this)) > 0);
+        // assertTrue(d.usdl().balanceOf(address(this)) > 0);
     }
+
 
 
 }
