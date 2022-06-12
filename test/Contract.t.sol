@@ -120,6 +120,28 @@ contract ContractTest is Test {
         assertTrue(_usdlAfter < _usdlBefore);
     }
 
+    function _redeemUSDLWExactUsdl(address collateral, uint256 amount) internal {
+        uint256 _collateralBefore = IERC20Decimals(collateral).balanceOf(address(this));
+        uint256 _usdlBefore = d.usdl().balanceOf(address(this));
+        assertTrue(_usdlBefore > 0, "! USDL");
+
+        console.log("[_redeemUSDLWExactUsdl()] Start");
+
+        d.usdl().withdrawTo(
+            address(this),
+            amount,
+            0,
+            0,
+            IERC20Upgradeable(collateral)
+        );
+
+        uint256 _collateralAfter = IERC20Decimals(collateral).balanceOf(address(this));
+        uint256 _usdlAfter = d.usdl().balanceOf(address(this));
+
+        assertTrue(_collateralAfter > _collateralBefore);
+        assertTrue(_usdlAfter < _usdlBefore);
+    }
+
     function testExample() public {
         console.log("USDL Address = ", address(d.usdl()));
         assertTrue(true);
@@ -159,10 +181,16 @@ contract ContractTest is Test {
 
         uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), amount, 0);
         uint256 _maxETHtoRedeem = _deductFees(d.getTokenAddress("WETH"), _collateralAfterMinting, 0);
-        
+
         _redeemUSDLWExactCollateral(d.getTokenAddress("WETH"), _maxETHtoRedeem);
     }
 
+    function testRedeemWExactUsdl() public {
+        uint256 amount = 1e12;
+        _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+        uint256 _usdlToRedeem = d.usdl().balanceOf(address(this));
+        _redeemUSDLWExactUsdl(d.getTokenAddress("WETH"), _usdlToRedeem);
+    }
 
 
 }
