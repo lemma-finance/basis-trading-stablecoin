@@ -79,7 +79,10 @@ contract Deploy {
 
     constructor(uint256 _chain_id) {
         generic_chain_addresses["WETH"][10] = address(0x4200000000000000000000000000000000000006);
+        generic_chain_addresses["WBTC"][10] = address(0x68f180fcCe6836688e9084f035309E29Bf0A2095);
         generic_chain_addresses["USDC"][10] = address(0x7F5c764cBc14f9669B88837ca1490cCa17c31607);
+        generic_chain_addresses["UniV3Router"][10] = address(0xE592427A0AEce92De3Edee1F18E0157C05861564);
+        generic_chain_addresses["UniV3Router02"][10] = address(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
 
         perp_min_block[10] = 513473; 
         perp_chain_addresses["ClearingHouse"][10] = address(0x82ac2CE43e33683c58BE4cDc40975E73aA50f459);
