@@ -2,6 +2,7 @@
 pragma solidity >=0.6.0 <0.9.0;
 import "src/Deploy.sol";
 
+import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "../contracts/interfaces/IERC20Decimals.sol";
 
 import "forge-std/Test.sol";
@@ -190,6 +191,30 @@ contract ContractTest is Test {
         _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
         uint256 _usdlToRedeem = d.usdl().balanceOf(address(this));
         _redeemUSDLWExactUsdl(d.getTokenAddress("WETH"), _usdlToRedeem);
+    }
+
+    function testUniswapBasicSwap() public {
+        _getMoney(d.getTokenAddress("WETH"), 1e40);
+        // _getMoney(address(d.pl().usdc()), 1e40);
+
+        IERC20Decimals(d.getTokenAddress("WETH")).approve(address(d.routerUniV3()), type(uint256).max);
+        
+        uint256 amountIn = 1e18;
+        ISwapRouter.ExactInputSingleParams memory params =
+            ISwapRouter.ExactInputSingleParams({
+                tokenIn: d.getTokenAddress("WETH"),
+                tokenOut: d.getTokenAddress("WBTC"),
+                fee: 3000,
+                recipient: address(this),
+                deadline: type(uint256).max,
+                amountIn: amountIn,
+                amountOutMinimum: 0,
+                sqrtPriceLimitX96: 0
+            });
+            
+        uint256 amountOut = d.routerUniV3().exactInputSingle(params);
+        console.log("[testUniswapBasicSwap()] amountOut = ", amountOut);
+        assertTrue(amountOut > 0);
     }
 
 

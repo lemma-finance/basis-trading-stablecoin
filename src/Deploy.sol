@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.6.0 <0.9.0;
 import "contracts/USDLemma.sol";
+
 import "contracts/wrappers/PerpLemmaCommon.sol";
+import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
 import "../contracts/interfaces/IERC20Decimals.sol";
@@ -64,7 +66,9 @@ contract Deploy {
 
     uint256 public chain_id;
 
-    Deploy_PerpLemma d_pl;
+    Deploy_PerpLemma public d_pl;
+
+    ISwapRouter public routerUniV3;
 
     // NOTE: Contract Name, Chain ID --> Contract Address
     // ChainID=10 --> Optimism
@@ -94,6 +98,8 @@ contract Deploy {
         // perp_chain_addresses["ClearingHouseConfig"][69] = address(0xA4c817a425D3443BAf610CA614c8B11688a288Fb);
 
         chain_id = _chain_id;
+
+        routerUniV3 = ISwapRouter(generic_chain_addresses["UniV3Router"][chain_id]);
 
         gc.usdc = IERC20Decimals(generic_chain_addresses["USDC"][chain_id]);
         gc.weth = IERC20Decimals(generic_chain_addresses["WETH"][chain_id]);
