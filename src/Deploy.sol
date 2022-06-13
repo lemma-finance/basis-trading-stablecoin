@@ -148,6 +148,10 @@ contract Deploy {
         return generic_chain_addresses[s][chain_id];
     }
 
+    function setRebalancer(address rebalancer) external {
+        pl.setReBalancer(rebalancer);
+    }
+
     function _deployPerpLemma(Deploy_PerpLemma memory d_pl, address perp_ch, address perp_mr, address usdl) internal returns(PerpLemmaCommon) {
         PerpLemmaCommon pl = new PerpLemmaCommon();
         pl.initialize(

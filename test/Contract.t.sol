@@ -11,6 +11,7 @@ contract ContractTest is Test {
     Deploy public d;
     function setUp() public {
         d = new Deploy(10);
+        d.setRebalancer(address(this));
     }
 
     function print(string memory s, int256 v) internal view {
@@ -198,7 +199,7 @@ contract ContractTest is Test {
         // _getMoney(address(d.pl().usdc()), 1e40);
 
         IERC20Decimals(d.getTokenAddress("WETH")).approve(address(d.routerUniV3()), type(uint256).max);
-        
+
         uint256 amountIn = 1e18;
         ISwapRouter.ExactInputSingleParams memory params =
             ISwapRouter.ExactInputSingleParams({
