@@ -11,7 +11,7 @@ contract ContractTest is Test {
     Deploy public d;
     function setUp() public {
         d = new Deploy(10);
-        d.setRebalancer(address(this));
+        // d.setRebalancer(address(this));
     }
 
     function print(string memory s, int256 v) internal view {
@@ -216,6 +216,47 @@ contract ContractTest is Test {
         uint256 amountOut = d.routerUniV3().exactInputSingle(params);
         console.log("[testUniswapBasicSwap()] amountOut = ", amountOut);
         assertTrue(amountOut > 0);
+    }
+
+
+    function testRebalanceIncLong() public {
+        _getMoney(d.getTokenAddress("WETH"), 1e40);
+        IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
+
+        // uint256 amount = 1e12;
+        // // NOTE: This already gives some USDC to PerpLemma
+        // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+
+        // NOTE: Rebalancing by swapping USDC (already on PerpLemma) for Collateral (WETH)
+        int256 res = d.pl().rebalance(
+            address(d.routerUniV3()),
+            0,
+            true,
+            1e18,
+            false
+        );
+        console.log("Res = ", uint256(-res));
+        assertTrue(res != 0);
+    }
+
+    function testRebalanceDecLong() public {
+        _getMoney(address(d.pl().usdc()), 1e40);
+        d.pl().usdc().transfer(address(d.pl()), 1e20);
+
+        // uint256 amount = 1e12;
+        // // NOTE: This already gives some USDC to PerpLemma
+        // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+
+        // NOTE: Rebalancing by swapping USDC (already on PerpLemma) for Collateral (WETH)
+        int256 res = d.pl().rebalance(
+            address(d.routerUniV3()),
+            0,
+            false,
+            10e18,
+            false
+        );
+        console.log("Res = ", uint256(res));
+        assertTrue(res != 0);
     }
 
 
