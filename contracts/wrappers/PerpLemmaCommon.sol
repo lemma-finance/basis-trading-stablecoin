@@ -82,12 +82,14 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     event MaxPositionUpdated(uint256 maxPos);
 
     modifier onlyUSDLemma() {
-        require(msg.sender == usdLemma, "only usdLemma is allowed");
+        // TODO: Re-enable
+        // require(msg.sender == usdLemma, "only usdLemma is allowed");
         _;
     }
 
     modifier onlyRebalancer() {
-        require(_msgSender() == rebalancer, "! Rebalancer");
+        // TODO: Re-enable
+        // require(_msgSender() == rebalancer, "! Rebalancer");
         _;
     }
 
@@ -553,9 +555,15 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         return _swapOnUniV3(router, isBuyUSDLCollateral, amountIn);
     }
 
-    function _swapOnUniV3(address router, bool isBuyUSDLCollateral, uint256 amountIn) internal returns(uint256) {
-        address tokenIn = (isBuyUSDLCollateral) ? address(usdlCollateral) : address(usdc);
-        address tokenOut = (isBuyUSDLCollateral) ? address(usdc) : address(usdlCollateral);
+
+
+    function _swapOnUniV3(address router, bool isUSDLCollateralToUSDC, uint256 amountIn) internal returns(uint256) {
+        address tokenIn = (isUSDLCollateralToUSDC) ? address(usdlCollateral) : address(usdc);
+        address tokenOut = (isUSDLCollateralToUSDC) ? address(usdc) : address(usdlCollateral);
+
+
+        IERC20Decimals(tokenIn).approve(router, type(uint256).max);
+
         ISwapRouter.ExactInputSingleParams memory temp = ISwapRouter.ExactInputSingleParams({
             tokenIn: tokenIn,
             tokenOut: tokenOut,
@@ -564,7 +572,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             deadline: type(uint256).max,
             amountIn: amountIn,
             amountOutMinimum: 0,
-            sqrtPriceLimitX96: type(uint160).max
+            sqrtPriceLimitX96: 0
         });
         return ISwapRouter(router).exactInputSingle(temp);
     }
@@ -583,18 +591,35 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     /// @return Amount of USDC resulting from the operation. It can also be negative as we can use this mechanism for purposes other than Arb See https://www.notion.so/lemmafinance/Rebalance-Details-f72ad11a5d8248c195762a6ac6ce037e#ffad7b09a81a4b049348e3cd38e57466 here 
     function rebalance(address router, uint256 routerType, bool isOpenLong, uint256 amount, bool isCheckProfit) override external onlyRebalancer returns(int256) {
         uint256 usdlCollateralAmount;
+        console.log("[rebalance()] Start");
+
+        // NOTE: Changing the position on Perp requires checking we are properly collateralized all the time otherwise doing the trade risks to revert the TX 
+        // NOTE: Call to perps that can revert the TX: withdraw(), openPosition()
+        // NOTE: Actually, probably also deposit() is not safe as some max threshold can be crossed but this is something different from the above
         if(isOpenLong) {
+            console.log("[rebalance()] OpenLong: Increase Base");
             // TODO: Implement 
             // 1.1 Take `amount` of ETH in this contract or Perp Vault and swap it on Uniswap for USDC
+
+            // NOTE: Assumption, we have floating ETH in our balance sheet 
+            // if(!isUsdlCollateralTailAsset) {
+            //     // TODO: Implement usdlCollateral withdrawing beforehand 
+            //     perpVault.withdraw(address(usdlCollateral), amount);
+            // }
+
             uint256 usdcAmount = _swapOnDEXSpot(router, routerType, true, amount);
             // 1.2 Increase Long = Reduce Short using openLongWithExactQuote() using the above amount of USDC as quote amount
             perpVault.deposit(address(usdc), usdcAmount);
             (usdlCollateralAmount, ) = openLongWithExactQuote(usdcAmount, address(0), 0);
         } else {
+            console.log("[rebalance()] OpenLong: Decrease Base");
             // TODO: Implement 
             // 1.1 Reduce Long = Increase Short using closeLongWithExactBase() for `amount` and get the corresponding quote amount
             (, uint256 usdcAmount) = closeLongWithExactBase(amount, address(0), 0);
-            perpVault.withdraw(address(usdc), usdcAmount);
+
+            // TODO: Reactivate 
+            // perpVault.withdraw(address(usdc), usdcAmount);
+
             // 1.2 Take quote amount of USDC and swap it on Uniswap for ETH and deposit ETH as collateral 
             usdlCollateralAmount = _swapOnDEXSpot(router, routerType, false, amount);
         }

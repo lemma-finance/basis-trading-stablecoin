@@ -38,17 +38,10 @@ contract ContractTest is Test {
         assertTrue(IERC20Decimals(token).balanceOf(address(this)) >= amount);
     }
 
-    function _mintUSDLWExactCollateral(address collateral, uint256 amount) internal {
-        _getMoney(collateral, 1e40);
+    /// @dev This is recommended to be used to have a properly collateralized position for any trade 
+    /// @dev Currently, we are decoupling our position collateralization in Perp from the delta neutrality as we are assuming we have enough USDC in Perp to allow us to trade freely on it while the rest of the collateral is treated as tail asset and remains in this contract appunto 
+    function _depositSettlementTokenMax() internal {
         _getMoney(address(d.pl().usdc()), 1e40);
-
-        // d.bank().giveMoney(d.getTokenAddress("WETH"), address(this), 1e40);
-        // assertTrue(IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(this)) == 1e40);
-
-        // console.log("d.pl().usdc() = ", address(d.pl().usdc()));
-        // d.bank().giveMoney(address(d.pl().usdc()), address(this), 1e40);
-        // assertTrue(IERC20Decimals(address(d.pl().usdc())).balanceOf(address(this)) == 1e40);
-
         uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
         console.log("settlementTokenBalanceCap = ", settlementTokenBalanceCap);
 
@@ -57,6 +50,19 @@ contract ContractTest is Test {
         // V_GTSTBC: greater than settlement token balance cap
         d.pl().usdc().approve(address(d.pl()), settlementTokenBalanceCap/10);
         d.pl().depositSettlementToken(settlementTokenBalanceCap/10);
+    }
+
+    function _mintUSDLWExactCollateral(address collateral, uint256 amount) internal {
+        _getMoney(collateral, 1e40);
+
+        // uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
+        // console.log("settlementTokenBalanceCap = ", settlementTokenBalanceCap);
+
+        // // NOTE: Unclear why I need to use 1/10 of the cap
+        // // NOTE: If I do not limit this amount I get 
+        // // V_GTSTBC: greater than settlement token balance cap
+        // d.pl().usdc().approve(address(d.pl()), settlementTokenBalanceCap/10);
+        // d.pl().depositSettlementToken(settlementTokenBalanceCap/10);
 
         IERC20Decimals(d.getTokenAddress("WETH")).approve(address(d.usdl()), type(uint256).max);
 
@@ -76,16 +82,15 @@ contract ContractTest is Test {
 
     function _mintUSDLWExactUSDL(address collateral, uint256 amount) internal {
         _getMoney(collateral, 1e40);
-        _getMoney(address(d.pl().usdc()), 1e40);
 
-        uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
-        console.log("settlementTokenBalanceCap = ", settlementTokenBalanceCap);
+        // uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
+        // console.log("settlementTokenBalanceCap = ", settlementTokenBalanceCap);
 
-        // NOTE: Unclear why I need to use 1/10 of the cap
-        // NOTE: If I do not limit this amount I get 
-        // V_GTSTBC: greater than settlement token balance cap
-        d.pl().usdc().approve(address(d.pl()), settlementTokenBalanceCap/10);
-        d.pl().depositSettlementToken(settlementTokenBalanceCap/10);
+        // // NOTE: Unclear why I need to use 1/10 of the cap
+        // // NOTE: If I do not limit this amount I get 
+        // // V_GTSTBC: greater than settlement token balance cap
+        // d.pl().usdc().approve(address(d.pl()), settlementTokenBalanceCap/10);
+        // d.pl().depositSettlementToken(settlementTokenBalanceCap/10);
 
         IERC20Decimals(d.getTokenAddress("WETH")).approve(address(d.usdl()), type(uint256).max);
 
@@ -173,11 +178,13 @@ contract ContractTest is Test {
     }
 
     function testMintingWExactCollateral() public {
+        _depositSettlementTokenMax();
         uint256 amount = 1e12;
         _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
     }
 
     function testRedeemWExactCollateral() public {
+        _depositSettlementTokenMax();
         uint256 amount = 1e12;
         _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
 
@@ -188,6 +195,7 @@ contract ContractTest is Test {
     }
 
     function testRedeemWExactUsdl() public {
+        _depositSettlementTokenMax();
         uint256 amount = 1e12;
         _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
         uint256 _usdlToRedeem = d.usdl().balanceOf(address(this));
@@ -223,11 +231,14 @@ contract ContractTest is Test {
         _getMoney(d.getTokenAddress("WETH"), 1e40);
         IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
 
+        _depositSettlementTokenMax();
+
         // uint256 amount = 1e12;
         // // NOTE: This already gives some USDC to PerpLemma
         // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
 
-        // NOTE: Rebalancing by swapping USDC (already on PerpLemma) for Collateral (WETH)
+        int256 baseAmountBefore = d.pl().amountBase();
+        // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
         int256 res = d.pl().rebalance(
             address(d.routerUniV3()),
             0,
@@ -236,27 +247,34 @@ contract ContractTest is Test {
             false
         );
         console.log("Res = ", uint256(-res));
+        int256 baseAmountAfter = d.pl().amountBase();
         assertTrue(res != 0);
+        assertTrue(baseAmountAfter > baseAmountBefore);
     }
 
     function testRebalanceDecLong() public {
         _getMoney(address(d.pl().usdc()), 1e40);
-        d.pl().usdc().transfer(address(d.pl()), 1e20);
+        d.pl().usdc().transfer(address(d.pl()), 1e40);
+
+        _depositSettlementTokenMax();
 
         // uint256 amount = 1e12;
         // // NOTE: This already gives some USDC to PerpLemma
         // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
 
+        int256 baseAmountBefore = d.pl().amountBase();
         // NOTE: Rebalancing by swapping USDC (already on PerpLemma) for Collateral (WETH)
         int256 res = d.pl().rebalance(
             address(d.routerUniV3()),
             0,
             false,
-            10e18,
+            1e18,
             false
         );
         console.log("Res = ", uint256(res));
+        int256 baseAmountAfter = d.pl().amountBase();
         assertTrue(res != 0);
+        assertTrue(baseAmountBefore > baseAmountAfter);
     }
 
 
