@@ -15,7 +15,7 @@ import "../contracts/interfaces/Perpetual/IMarketRegistry.sol";
 import "../contracts/interfaces/Perpetual/IExchange.sol";
 import "../contracts/interfaces/Perpetual/IPerpVault.sol";
 import "../contracts/interfaces/Perpetual/IUSDLemma.sol";
-
+import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
 import "forge-std/Test.sol";
 
@@ -55,6 +55,56 @@ contract Bank is Test {
     }
 }
 
+
+
+contract MockUniV3Router {
+    ISwapRouter public router;
+    uint256 public nextAmount;
+    Bank bank;
+
+    constructor(Bank _bank, address _router) {
+        bank = _bank;
+        router = ISwapRouter(_router);
+    }
+
+    function setRouter(address _router) external {
+        router = ISwapRouter(_router);
+    }
+
+    function setNextSwapAmount(uint256 _amount) external {
+        nextAmount = _amount;
+    }
+
+
+
+
+    function exactInputSingle(ISwapRouter.ExactInputSingleParams memory params) external returns(uint256) {
+        if(address(router) != address(0)) {
+            console.log("[MockUniV3Router - exactInputSingle()] Using real router");
+            if(IERC20Decimals(params.tokenIn).allowance(address(this), address(router)) != type(uint256).max) {
+                IERC20Decimals(params.tokenIn).approve(address(router), type(uint256).max);
+            }
+            // uint256 balanceBefore = IERC20Decimals(params.tokenOut).balanceOf(address(this));
+            IERC20Decimals(params.tokenIn).transferFrom(msg.sender, address(this), params.amountIn);
+            uint256 result = router.exactInputSingle(params);
+            // uint256 balanceAfter = IERC20Decimals(params.tokenOut).balanceOf(address(this));
+            // uint256 result = uint256(int256(balanceAfter) - int256(balanceBefore));
+            console.log("[MockUniV3 Router - exactInputSingle()] Result = ", result);
+
+            // NOTE: This is not needed as the params.recipient field already identifies the right recipient appunto  
+            // IERC20Decimals(params.tokenOut).transfer(msg.sender, result);
+            return result;
+        } else {
+            console.log("[MockUniV3Router - exactInputSingle()] Using mock router");
+            IERC20Decimals(params.tokenIn).transferFrom(msg.sender, address(this), params.amountIn);
+            bank.giveMoney(params.tokenOut, address(params.recipient), nextAmount);
+            return nextAmount;
+        }
+    }
+
+}
+
+
 contract Deploy {
     USDLemma public usdl;
     PerpLemmaCommon public pl;
@@ -69,6 +119,7 @@ contract Deploy {
     Deploy_PerpLemma public d_pl;
 
     ISwapRouter public routerUniV3;
+    ISwapRouter public mockUniV3Router;
 
     // NOTE: Contract Name, Chain ID --> Contract Address
     // ChainID=10 --> Optimism
@@ -99,7 +150,10 @@ contract Deploy {
 
         chain_id = _chain_id;
 
+
         routerUniV3 = ISwapRouter(generic_chain_addresses["UniV3Router"][chain_id]);
+        mockUniV3Router = ISwapRouter(address(new MockUniV3Router(bank, address(routerUniV3))));
+
 
         gc.usdc = IERC20Decimals(generic_chain_addresses["USDC"][chain_id]);
         gc.weth = IERC20Decimals(generic_chain_addresses["WETH"][chain_id]);

@@ -206,7 +206,9 @@ contract ContractTest is Test {
         _getMoney(d.getTokenAddress("WETH"), 1e40);
         // _getMoney(address(d.pl().usdc()), 1e40);
 
-        IERC20Decimals(d.getTokenAddress("WETH")).approve(address(d.routerUniV3()), type(uint256).max);
+
+        IERC20Decimals(d.getTokenAddress("WETH")).approve(address(d.mockUniV3Router()), type(uint256).max);
+        // IERC20Decimals(d.getTokenAddress("WETH")).approve(address(d.routerUniV3()), type(uint256).max);
 
         uint256 amountIn = 1e18;
         ISwapRouter.ExactInputSingleParams memory params =
@@ -220,8 +222,9 @@ contract ContractTest is Test {
                 amountOutMinimum: 0,
                 sqrtPriceLimitX96: 0
             });
-            
-        uint256 amountOut = d.routerUniV3().exactInputSingle(params);
+
+        uint256 amountOut = d.mockUniV3Router().exactInputSingle(params);
+        // uint256 amountOut = d.routerUniV3().exactInputSingle(params);
         console.log("[testUniswapBasicSwap()] amountOut = ", amountOut);
         assertTrue(amountOut > 0);
     }

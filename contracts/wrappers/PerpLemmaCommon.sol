@@ -609,7 +609,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
             uint256 usdcAmount = _swapOnDEXSpot(router, routerType, true, amount);
             // 1.2 Increase Long = Reduce Short using openLongWithExactQuote() using the above amount of USDC as quote amount
-            perpVault.deposit(address(usdc), usdcAmount);
+            // perpVault.deposit(address(usdc), usdcAmount);
             (usdlCollateralAmount, ) = openLongWithExactQuote(usdcAmount, address(0), 0);
         } else {
             console.log("[rebalance()] OpenLong: Decrease Base");
