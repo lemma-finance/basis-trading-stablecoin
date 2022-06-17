@@ -587,11 +587,11 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     /// @param routerType The Router Type: 0 --> UniV3, ... 
     /// @param isOpenLong If true, we need to increase long = close short which means buying base at Mark and sell base on Spot, otherwise it is the opposite way
     /// @param amount The Amount of Base Token to buy or sell on Perp and consequently the amount of corresponding colletarl to sell or buy on Spot 
-    /// @param isCheckProfit Activates a require that checks the operation is profitable, only for the Arb case
     /// @return Amount of USDC resulting from the operation. It can also be negative as we can use this mechanism for purposes other than Arb See https://www.notion.so/lemmafinance/Rebalance-Details-f72ad11a5d8248c195762a6ac6ce037e#ffad7b09a81a4b049348e3cd38e57466 here 
-    function rebalance(address router, uint256 routerType, bool isOpenLong, uint256 amount, bool isCheckProfit) override external onlyRebalancer returns(int256) {
-        uint256 usdlCollateralAmount;
+    function rebalance(address router, uint256 routerType, bool isOpenLong, uint256 amount) override external onlyRebalancer returns(uint256, uint256) {
         console.log("[rebalance()] Start");
+        uint256 usdlCollateralAmount;
+        uint256 usdcAmount;
 
         // NOTE: Changing the position on Perp requires checking we are properly collateralized all the time otherwise doing the trade risks to revert the TX 
         // NOTE: Call to perps that can revert the TX: withdraw(), openPosition()
@@ -607,7 +607,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             //     perpVault.withdraw(address(usdlCollateral), amount);
             // }
 
-            uint256 usdcAmount = _swapOnDEXSpot(router, routerType, true, amount);
+            usdcAmount = _swapOnDEXSpot(router, routerType, true, amount);
             // 1.2 Increase Long = Reduce Short using openLongWithExactQuote() using the above amount of USDC as quote amount
             // perpVault.deposit(address(usdc), usdcAmount);
             (usdlCollateralAmount, ) = openLongWithExactQuote(usdcAmount, address(0), 0);
@@ -615,7 +615,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             console.log("[rebalance()] OpenLong: Decrease Base");
             // TODO: Implement 
             // 1.1 Reduce Long = Increase Short using closeLongWithExactBase() for `amount` and get the corresponding quote amount
-            (, uint256 usdcAmount) = closeLongWithExactBase(amount, address(0), 0);
+            (, usdcAmount) = closeLongWithExactBase(amount, address(0), 0);
 
             // TODO: Reactivate 
             // perpVault.withdraw(address(usdc), usdcAmount);
@@ -624,8 +624,8 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             usdlCollateralAmount = _swapOnDEXSpot(router, routerType, false, amount);
         }
         // Compute Profit and return it
-        if(isCheckProfit) require(usdlCollateralAmount >= amount, "Unprofitable");
-        return int256(usdlCollateralAmount) - int256(amount);
+        // if(isCheckProfit) require(usdlCollateralAmount >= amount, "Unprofitable");
+        return (usdlCollateralAmount, usdcAmount);
     }
 
     /// @notice Rebalance position of dex based on accumulated funding, since last rebalancing

@@ -119,7 +119,7 @@ contract Deploy {
     Deploy_PerpLemma public d_pl;
 
     ISwapRouter public routerUniV3;
-    ISwapRouter public mockUniV3Router;
+    MockUniV3Router public mockUniV3Router;
 
     // NOTE: Contract Name, Chain ID --> Contract Address
     // ChainID=10 --> Optimism
@@ -152,7 +152,7 @@ contract Deploy {
 
 
         routerUniV3 = ISwapRouter(generic_chain_addresses["UniV3Router"][chain_id]);
-        mockUniV3Router = ISwapRouter(address(new MockUniV3Router(bank, address(routerUniV3))));
+        mockUniV3Router = new MockUniV3Router(bank, address(routerUniV3));
 
 
         gc.usdc = IERC20Decimals(generic_chain_addresses["USDC"][chain_id]);

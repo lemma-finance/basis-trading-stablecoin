@@ -202,7 +202,7 @@ contract ContractTest is Test {
         _redeemUSDLWExactUsdl(d.getTokenAddress("WETH"), _usdlToRedeem);
     }
 
-    function testUniswapBasicSwap() public {
+    function testUniswapBasicSwapReal() public {
         _getMoney(d.getTokenAddress("WETH"), 1e40);
         // _getMoney(address(d.pl().usdc()), 1e40);
 
@@ -223,11 +223,59 @@ contract ContractTest is Test {
                 sqrtPriceLimitX96: 0
             });
 
+        uint256 balanceTokenInBefore = IERC20Decimals(params.tokenIn).balanceOf(address(this));
+        uint256 balanceTokenOutBefore = IERC20Decimals(params.tokenOut).balanceOf(address(this));
+
         uint256 amountOut = d.mockUniV3Router().exactInputSingle(params);
+
+        uint256 balanceTokenInAfter = IERC20Decimals(params.tokenIn).balanceOf(address(this));
+        uint256 balanceTokenOutAfter = IERC20Decimals(params.tokenOut).balanceOf(address(this));
+
         // uint256 amountOut = d.routerUniV3().exactInputSingle(params);
         console.log("[testUniswapBasicSwap()] amountOut = ", amountOut);
         assertTrue(amountOut > 0);
+        assertTrue(balanceTokenInBefore > balanceTokenInAfter);
+        assertTrue(balanceTokenOutBefore < balanceTokenOutAfter);
     }
+
+    function testUniswapBasicSwapMock() public {
+        _getMoney(d.getTokenAddress("WETH"), 1e40);
+        // _getMoney(address(d.pl().usdc()), 1e40);
+
+        d.mockUniV3Router().setRouter(address(0));
+        d.mockUniV3Router().setNextSwapAmount(1e40);
+
+        IERC20Decimals(d.getTokenAddress("WETH")).approve(address(d.mockUniV3Router()), type(uint256).max);
+        // IERC20Decimals(d.getTokenAddress("WETH")).approve(address(d.routerUniV3()), type(uint256).max);
+
+        uint256 amountIn = 1e18;
+        ISwapRouter.ExactInputSingleParams memory params =
+            ISwapRouter.ExactInputSingleParams({
+                tokenIn: d.getTokenAddress("WETH"),
+                tokenOut: d.getTokenAddress("WBTC"),
+                fee: 3000,
+                recipient: address(this),
+                deadline: type(uint256).max,
+                amountIn: amountIn,
+                amountOutMinimum: 0,
+                sqrtPriceLimitX96: 0
+            });
+
+        uint256 balanceTokenInBefore = IERC20Decimals(params.tokenIn).balanceOf(address(this));
+        uint256 balanceTokenOutBefore = IERC20Decimals(params.tokenOut).balanceOf(address(this));
+
+        uint256 amountOut = d.mockUniV3Router().exactInputSingle(params);
+
+        uint256 balanceTokenInAfter = IERC20Decimals(params.tokenIn).balanceOf(address(this));
+        uint256 balanceTokenOutAfter = IERC20Decimals(params.tokenOut).balanceOf(address(this));
+
+        // uint256 amountOut = d.routerUniV3().exactInputSingle(params);
+        console.log("[testUniswapBasicSwap()] amountOut = ", amountOut);
+        assertTrue(amountOut > 0);
+        assertTrue(balanceTokenInBefore > balanceTokenInAfter);
+        assertTrue(balanceTokenOutBefore < balanceTokenOutAfter);
+    }
+
 
 
     function testRebalanceIncLong() public {
@@ -242,18 +290,83 @@ contract ContractTest is Test {
 
         int256 baseAmountBefore = d.pl().amountBase();
         // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
-        int256 res = d.pl().rebalance(
-            address(d.routerUniV3()),
+        (uint256 usdlCollateralAmount, uint256 usdcAmount) = d.pl().rebalance(
+            address(d.mockUniV3Router()),
             0,
             true,
-            1e18,
-            false
+            1e18
         );
-        console.log("Res = ", uint256(-res));
+
+        console.log("usdlCollateralAmount = ", usdlCollateralAmount);
+        console.log("usdcAmount = ", usdcAmount);
         int256 baseAmountAfter = d.pl().amountBase();
-        assertTrue(res != 0);
         assertTrue(baseAmountAfter > baseAmountBefore);
     }
+
+    function testRebalanceIncLongIsProfitTrue() public {
+        console.log("[testRebalanceIncLongIsProfitTrue()] Block.number = ", block.number);
+        console.log("[testRebalanceIncLongIsProfitTrue()] Block.timestamp = ", block.timestamp);
+        _getMoney(d.getTokenAddress("WETH"), 1e40);
+        IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
+
+        _depositSettlementTokenMax();
+
+        // uint256 amount = 1e12;
+        // // NOTE: This already gives some USDC to PerpLemma
+        // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+
+        d.mockUniV3Router().setRouter(address(0));
+        d.mockUniV3Router().setNextSwapAmount(1e10);
+
+        int256 baseAmountBefore = d.pl().amountBase();
+        // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
+        uint256 usdlCollateralAmountToRebalance = 1e18;
+        (uint256 usdlCollateralAmountGotBack, uint256 usdcAmount) = d.pl().rebalance(
+            address(d.mockUniV3Router()),
+            0,
+            true,
+            usdlCollateralAmountToRebalance
+        );
+
+        console.log("[testRebalanceIncLongIsProfitTrue()] usdlCollateralAmountToRebalance = ", usdlCollateralAmountToRebalance);
+        console.log("[testRebalanceIncLongIsProfitTrue()] usdlCollateralAmountGotBack = ", usdlCollateralAmountGotBack);
+        console.log("[testRebalanceIncLongIsProfitTrue()] usdcAmount = ", usdcAmount);
+        vm.expectRevert(bytes("Unprofitable"));
+        require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
+        int256 baseAmountAfter = d.pl().amountBase();
+        assertTrue(baseAmountAfter > baseAmountBefore);
+    }
+
+
+    function testRebalanceIncLongIsProfitFalse() public {
+        _getMoney(d.getTokenAddress("WETH"), 1e40);
+        IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
+
+        _depositSettlementTokenMax();
+
+        // uint256 amount = 1e12;
+        // // NOTE: This already gives some USDC to PerpLemma
+        // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+
+        d.mockUniV3Router().setRouter(address(0));
+        d.mockUniV3Router().setNextSwapAmount(1e6);
+
+        int256 baseAmountBefore = d.pl().amountBase();
+        // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
+        // vm.expectRevert(bytes("Unprofitable"));
+        (uint256 usdlCollateralAmount, uint256 usdcAmount) = d.pl().rebalance(
+            address(d.mockUniV3Router()),
+            0,
+            true,
+            1e18
+        );
+
+        console.log("usdlCollateralAmount = ", usdlCollateralAmount);
+        console.log("usdcAmount = ", usdcAmount);
+        int256 baseAmountAfter = d.pl().amountBase();
+        assertTrue(baseAmountAfter > baseAmountBefore);
+    }
+
 
     function testRebalanceDecLong() public {
         _getMoney(address(d.pl().usdc()), 1e40);
@@ -267,16 +380,18 @@ contract ContractTest is Test {
 
         int256 baseAmountBefore = d.pl().amountBase();
         // NOTE: Rebalancing by swapping USDC (already on PerpLemma) for Collateral (WETH)
-        int256 res = d.pl().rebalance(
+        (uint256 usdlCollateralAmount, uint256 usdcAmount) = d.pl().rebalance(
             address(d.routerUniV3()),
             0,
             false,
-            1e18,
-            false
+            1e18
         );
-        console.log("Res = ", uint256(res));
+
+
+        console.log("usdlCollateralAmount = ", usdlCollateralAmount);
+        console.log("usdcAmount = ", usdcAmount);
+
         int256 baseAmountAfter = d.pl().amountBase();
-        assertTrue(res != 0);
         assertTrue(baseAmountBefore > baseAmountAfter);
     }
 
