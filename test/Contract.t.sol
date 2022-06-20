@@ -149,10 +149,10 @@ contract ContractTest is Test {
         assertTrue(_usdlAfter < _usdlBefore);
     }
 
-    function testExample() public {
-        console.log("USDL Address = ", address(d.usdl()));
-        assertTrue(true);
-    }
+    // function testExample() public {
+    //     console.log("USDL Address = ", address(d.usdl()));
+    //     assertTrue(true);
+    // }
 
     function testGetMoney() public {
         d.bank().giveMoney(d.getTokenAddress("WETH"), address(this), 1e40);

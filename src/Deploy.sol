@@ -182,7 +182,7 @@ contract Deploy {
             );
         
         // NOTE: Required to avoid a weird error when depositing and withdrawing ETH in Perp
-        // pl.setIsUsdlCollateralTailAsset(true);
+        pl.setIsUsdlCollateralTailAsset(true);
 
         console.log("PL = ", address(pl));
 
