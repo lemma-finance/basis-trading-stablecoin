@@ -373,9 +373,15 @@ contract ContractTest is Test {
     }
 
 
-    function testRebalanceDecLong() public {
-        _getMoney(address(d.pl().usdc()), 1e40);
-        d.pl().usdc().transfer(address(d.pl()), 1e40);
+    function testRebalanceDecLongIsProfitTrue() public {
+        console.log("[testRebalanceDecLongIsProfitTrue()] Block.number = ", block.number);
+        console.log("[testRebalanceDecLongIsProfitTrue()] Block.timestamp = ", block.timestamp);
+        _getMoney(d.getTokenAddress("WETH"), 1e40);
+        IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
+
+        // NOTE: For this rebalance we need to assume we have a lot of USDC available
+        // _getMoney(d.getTokenAddress("USDDC"), 1e40);
+        // IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e40);
 
         _depositSettlementTokenMax();
 
@@ -383,21 +389,26 @@ contract ContractTest is Test {
         // // NOTE: This already gives some USDC to PerpLemma
         // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
 
+        d.mockUniV3Router().setRouter(address(0));
+        d.mockUniV3Router().setNextSwapAmount(1e12);
+
         int256 baseAmountBefore = d.pl().amountBase();
-        // NOTE: Rebalancing by swapping USDC (already on PerpLemma) for Collateral (WETH)
-        (uint256 usdlCollateralAmount, uint256 usdcAmount) = d.pl().rebalance(
-            address(d.routerUniV3()),
+        // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
+        uint256 usdlCollateralAmountToRebalance = 1e8;
+        (uint256 usdlCollateralAmountGotBack, uint256 usdcAmount) = d.pl().rebalance(
+            address(d.mockUniV3Router()),
             0,
             false,
-            1e18
+            usdlCollateralAmountToRebalance
         );
 
+        console.log("[testRebalanceDecLongIsProfitTrue()] usdlCollateralAmountToRebalance = ", usdlCollateralAmountToRebalance);
+        console.log("[testRebalanceDecLongIsProfitTrue()] usdlCollateralAmountGotBack = ", usdlCollateralAmountGotBack);
+        console.log("[testRebalanceDecLongIsProfitTrue()] usdcAmount = ", usdcAmount);
 
-        console.log("usdlCollateralAmount = ", usdlCollateralAmount);
-        console.log("usdcAmount = ", usdcAmount);
-
+        require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
         int256 baseAmountAfter = d.pl().amountBase();
-        assertTrue(baseAmountBefore > baseAmountAfter);
+        assertTrue(baseAmountAfter < baseAmountBefore);
     }
 
 

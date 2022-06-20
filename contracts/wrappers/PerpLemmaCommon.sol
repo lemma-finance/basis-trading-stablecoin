@@ -618,10 +618,10 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             (, usdcAmount) = closeLongWithExactBase(amount, address(0), 0);
 
             // TODO: Reactivate 
-            // perpVault.withdraw(address(usdc), usdcAmount);
+            perpVault.withdraw(address(usdc), usdcAmount);
 
             // 1.2 Take quote amount of USDC and swap it on Uniswap for ETH and deposit ETH as collateral 
-            usdlCollateralAmount = _swapOnDEXSpot(router, routerType, false, amount);
+            usdlCollateralAmount = _swapOnDEXSpot(router, routerType, false, usdcAmount);
         }
         // Compute Profit and return it
         // if(isCheckProfit) require(usdlCollateralAmount >= amount, "Unprofitable");
