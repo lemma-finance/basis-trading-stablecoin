@@ -373,7 +373,7 @@ contract ContractTest is Test {
     }
 
 
-    function testRebalanceDecLongIsProfitTrue() public {
+    function testRebalanceDecLongWhenNetShortIsProfitTrue() public {
         console.log("[testRebalanceDecLongIsProfitTrue()] Block.number = ", block.number);
         console.log("[testRebalanceDecLongIsProfitTrue()] Block.timestamp = ", block.timestamp);
         _getMoney(d.getTokenAddress("WETH"), 1e40);
@@ -388,6 +388,8 @@ contract ContractTest is Test {
         // uint256 amount = 1e12;
         // // NOTE: This already gives some USDC to PerpLemma
         // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+
+        _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
 
         d.mockUniV3Router().setRouter(address(0));
         d.mockUniV3Router().setNextSwapAmount(1e12);
@@ -408,6 +410,8 @@ contract ContractTest is Test {
 
         require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
         int256 baseAmountAfter = d.pl().amountBase();
+
+        assertTrue(baseAmountAfter < 0);
         assertTrue(baseAmountAfter < baseAmountBefore);
     }
 
