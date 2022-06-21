@@ -629,25 +629,25 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         } else {
             console.log("[rebalance()] OpenLong: Decrease Base");
             // TODO: Fix the following --> the commented part should be the right one 
-            // if(amountBase < 0) {
-            //     // NOTE: We are net short 
-            //     usdlCollateralAmount = _swapOnDEXSpot(router, routerType, false, usdcAmount);
-            //     _deposit(usdlCollateralAmount, address(usdlCollateral));
-            //     (, usdcAmount) = openShortWithExactBase(usdlCollateralAmount, address(0), 0); 
-            // } else {
-            //     // NOTE: We are net long
-            //     (, usdcAmount) = closeLongWithExactBase(amount, address(0), 0); 
-            //     _withdraw(usdcAmount, address(usdc));
-            //     usdlCollateralAmount = _swapOnDEXSpot(router, routerType, false, usdcAmount);
-            // }
-            // 1.1 Reduce Long = Increase Short using closeLongWithExactBase() for `amount` and get the corresponding quote amount
-            (, usdcAmount) = closeLongWithExactBase(amount, address(0), 0);
+            if(amountBase <= 0) {
+                // NOTE: We are net short 
+                usdlCollateralAmount = _swapOnDEXSpot(router, routerType, false, usdcAmount);
+                _deposit(usdlCollateralAmount, address(usdlCollateral));
+                (, usdcAmount) = openShortWithExactBase(usdlCollateralAmount, address(0), 0); 
+            } else {
+                // NOTE: We are net long
+                (, usdcAmount) = closeLongWithExactBase(amount, address(0), 0); 
+                // _withdraw(usdcAmount, address(usdc));
+                usdlCollateralAmount = _swapOnDEXSpot(router, routerType, false, usdcAmount);
+            }
+            // // 1.1 Reduce Long = Increase Short using closeLongWithExactBase() for `amount` and get the corresponding quote amount
+            // (, usdcAmount) = closeLongWithExactBase(amount, address(0), 0);
 
-            // TODO: Reactivate 
-            perpVault.withdraw(address(usdc), usdcAmount);
+            // // TODO: Reactivate 
+            // perpVault.withdraw(address(usdc), usdcAmount);
 
-            // 1.2 Take quote amount of USDC and swap it on Uniswap for ETH and deposit ETH as collateral 
-            usdlCollateralAmount = _swapOnDEXSpot(router, routerType, false, usdcAmount);
+            // // 1.2 Take quote amount of USDC and swap it on Uniswap for ETH and deposit ETH as collateral 
+            // usdlCollateralAmount = _swapOnDEXSpot(router, routerType, false, usdcAmount);
         }
         // Compute Profit and return it
         // if(isCheckProfit) require(usdlCollateralAmount >= amount, "Unprofitable");
