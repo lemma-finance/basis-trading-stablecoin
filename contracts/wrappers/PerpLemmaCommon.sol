@@ -598,22 +598,48 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         // NOTE: Actually, probably also deposit() is not safe as some max threshold can be crossed but this is something different from the above
         if(isOpenLong) {
             console.log("[rebalance()] OpenLong: Increase Base");
+            if(amountBase < 0) {
+                // NOTE: Net Short Position --> USDL Collateral is currently deposited locally if tail asset or in Perp otherwise 
+                // NOTE: In this case, we need to shrink our position before we can withdraw to swap so 
+                (usdlCollateralAmount, ) = closeShortWithExactQuote(usdcAmount, address(0), 0);
+                // NOTE: Only withdraws from Perp if it is a non tail asset 
+                _withdraw(amount, address(usdlCollateral));
+                usdcAmount = _swapOnDEXSpot(router, routerType, true, amount);
+            } else {
+                // NOTE: Net Long Position --> USDL Collateral is not deposited in Perp but floating in the local balance sheet so we do not have to do anything before the trade
+                usdcAmount = _swapOnDEXSpot(router, routerType, true, amount);
+                _deposit(usdcAmount, address(usdc));
+                (usdlCollateralAmount, ) = openLongWithExactQuote(usdcAmount, address(0), 0);
+            }
+
             // TODO: Implement 
             // 1.1 Take `amount` of ETH in this contract or Perp Vault and swap it on Uniswap for USDC
 
-            // NOTE: Assumption, we have floating ETH in our balance sheet 
+            // NOTE: We have to assume this usdlCollateral is not deposited in Perp, even though it is not a tail asset, as in that 
             // if(!isUsdlCollateralTailAsset) {
             //     // TODO: Implement usdlCollateral withdrawing beforehand 
             //     perpVault.withdraw(address(usdlCollateral), amount);
             // }
 
-            usdcAmount = _swapOnDEXSpot(router, routerType, true, amount);
-            // 1.2 Increase Long = Reduce Short using openLongWithExactQuote() using the above amount of USDC as quote amount
-            // perpVault.deposit(address(usdc), usdcAmount);
-            (usdlCollateralAmount, ) = openLongWithExactQuote(usdcAmount, address(0), 0);
+            // usdcAmount = _swapOnDEXSpot(router, routerType, true, amount);
+            // // 1.2 Increase Long = Reduce Short using openLongWithExactQuote() using the above amount of USDC as quote amount
+            // // perpVault.deposit(address(usdc), usdcAmount);
+
+            // (usdlCollateralAmount, ) = openLongWithExactQuote(usdcAmount, address(0), 0);
         } else {
             console.log("[rebalance()] OpenLong: Decrease Base");
-            // TODO: Implement 
+            // TODO: Fix the following --> the commented part should be the right one 
+            // if(amountBase < 0) {
+            //     // NOTE: We are net short 
+            //     usdlCollateralAmount = _swapOnDEXSpot(router, routerType, false, usdcAmount);
+            //     _deposit(usdlCollateralAmount, address(usdlCollateral));
+            //     (, usdcAmount) = openShortWithExactBase(usdlCollateralAmount, address(0), 0); 
+            // } else {
+            //     // NOTE: We are net long
+            //     (, usdcAmount) = closeLongWithExactBase(amount, address(0), 0); 
+            //     _withdraw(usdcAmount, address(usdc));
+            //     usdlCollateralAmount = _swapOnDEXSpot(router, routerType, false, usdcAmount);
+            // }
             // 1.1 Reduce Long = Increase Short using closeLongWithExactBase() for `amount` and get the corresponding quote amount
             (, usdcAmount) = closeLongWithExactBase(amount, address(0), 0);
 
