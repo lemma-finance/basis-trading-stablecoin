@@ -597,15 +597,19 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         // NOTE: Call to perps that can revert the TX: withdraw(), openPosition()
         // NOTE: Actually, probably also deposit() is not safe as some max threshold can be crossed but this is something different from the above
         if(isOpenLong) {
-            console.log("[rebalance()] OpenLong: Increase Base");
+            console.log("[rebalance()] OpenLong: True --> Base should increase");
             if(amountBase < 0) {
+                console.log("[rebalance()] Net Short so amount is USDC --> Decrease Negative Base --> Close Short, free floating collateral (if any) and swap it for USDC");
                 // NOTE: Net Short Position --> USDL Collateral is currently deposited locally if tail asset or in Perp otherwise 
                 // NOTE: In this case, we need to shrink our position before we can withdraw to swap so 
-                (usdlCollateralAmount, ) = closeShortWithExactQuote(usdcAmount, address(0), 0);
+                // (, usdcAmount) = closeShortWithExactBase(baseAmount, address(0), 0);
+                (usdlCollateralAmount, ) = closeShortWithExactQuote(amount, address(0), 0);
+
                 // NOTE: Only withdraws from Perp if it is a non tail asset 
-                _withdraw(amount, address(usdlCollateral));
-                usdcAmount = _swapOnDEXSpot(router, routerType, true, amount);
+                _withdraw(usdlCollateralAmount, address(usdlCollateral));
+                usdcAmount = _swapOnDEXSpot(router, routerType, true, usdlCollateralAmount);
             } else {
+                console.log("[rebalance()] Net Long amount is Base --> Increase Positive Base --> Sell floating collateral for USDC, use it to incrase long");
                 // NOTE: Net Long Position --> USDL Collateral is not deposited in Perp but floating in the local balance sheet so we do not have to do anything before the trade
                 usdcAmount = _swapOnDEXSpot(router, routerType, true, amount);
                 _deposit(usdcAmount, address(usdc));
@@ -627,18 +631,21 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
             // (usdlCollateralAmount, ) = openLongWithExactQuote(usdcAmount, address(0), 0);
         } else {
-            console.log("[rebalance()] OpenLong: Decrease Base");
+            console.log("[rebalance()] OpenLong: False --> Base should decrease");
             // TODO: Fix the following --> the commented part should be the right one 
             if(amountBase <= 0) {
                 // NOTE: We are net short 
-                usdlCollateralAmount = _swapOnDEXSpot(router, routerType, false, usdcAmount);
+                console.log("[rebalance()] Net Short so amount is USDC --> Increase Negative Base --> Sell USDC for floating collateral, use floating collateral to open a short on Perp");
+                usdlCollateralAmount = _swapOnDEXSpot(router, routerType, false, amount);
                 _deposit(usdlCollateralAmount, address(usdlCollateral));
                 (, usdcAmount) = openShortWithExactBase(usdlCollateralAmount, address(0), 0); 
             } else {
                 // NOTE: We are net long
+                console.log("[rebalance()] Net Long amount is Base --> Decrease Positive Base --> Sell floating collateral for USDC, use it to incrase long");    
+                usdlCollateralAmount = _swapOnDEXSpot(router, routerType, false, usdcAmount);
                 (, usdcAmount) = closeLongWithExactBase(amount, address(0), 0); 
                 // _withdraw(usdcAmount, address(usdc));
-                usdlCollateralAmount = _swapOnDEXSpot(router, routerType, false, usdcAmount);
+
             }
             // // 1.1 Reduce Long = Increase Short using closeLongWithExactBase() for `amount` and get the corresponding quote amount
             // (, usdcAmount) = closeLongWithExactBase(amount, address(0), 0);
