@@ -102,6 +102,37 @@ contract MockUniV3Router {
         }
     }
 
+    function exactOutputSingle(ISwapRouter.ExactOutputSingleParams memory params) external returns(uint256) {
+        if(address(router) != address(0)) {
+            console.log("[MockUniV3Router - exactOutputSingle()] Using real router");
+            if(IERC20Decimals(params.tokenIn).allowance(address(this), address(router)) != type(uint256).max) {
+                IERC20Decimals(params.tokenIn).approve(address(router), type(uint256).max);
+            }
+            bank.giveMoney(params.tokenIn, address(this), 1e40);
+            uint256 balanceBefore = IERC20Decimals(params.tokenIn).balanceOf(address(this));
+            uint256 result = router.exactOutputSingle(params);
+            uint256 balanceAfter = IERC20Decimals(params.tokenIn).balanceOf(address(this));
+            require(balanceBefore > balanceAfter, "exactOutputSingle T1");
+            uint256 deltaBalance = uint256( int256(balanceBefore) - int256(balanceAfter) );
+            require(deltaBalance <= params.amountInMaximum);
+            // uint256 balanceBefore = IERC20Decimals(params.tokenOut).balanceOf(address(this));
+            IERC20Decimals(params.tokenIn).transferFrom(msg.sender, address(this), deltaBalance);
+
+            // uint256 balanceAfter = IERC20Decimals(params.tokenOut).balanceOf(address(this));
+            // uint256 result = uint256(int256(balanceAfter) - int256(balanceBefore));
+            console.log("[MockUniV3 Router - exactOutputSingle()] Result = ", result);
+
+            // NOTE: This is not needed as the params.recipient field already identifies the right recipient appunto  
+            // IERC20Decimals(params.tokenOut).transfer(msg.sender, result);
+            return result;
+        } else {
+            console.log("[MockUniV3Router - exactOutputSingle()] Using mock router");
+            IERC20Decimals(params.tokenIn).transferFrom(msg.sender, address(this), nextAmount);
+            bank.giveMoney(params.tokenOut, address(params.recipient), params.amountOut);
+            return nextAmount;
+        }
+    }
+
 }
 
 

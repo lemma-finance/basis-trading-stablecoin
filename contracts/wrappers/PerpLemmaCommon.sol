@@ -56,6 +56,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     uint256 public usdlCollateralDecimals;
     // uint256 public synthCollateralDecimals;
 
+
     int256 public amountBase;
     int256 public amountQuote;
     uint256 public amountUsdlCollateralDeposited;
@@ -293,6 +294,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
     //     return trade(amountPos, isShorting, isExactInput);
     // }
+
 
     // Returns the leverage in 1e18 format
     // TODO: Take into account tail assets
@@ -546,36 +548,81 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         hasSettled = true;
     }
 
-    function _swapOnDEXSpot(address router, uint256 routerType, bool isBuyUSDLCollateral, uint256 amountIn) internal returns(uint256) {
+
+    function _USDCToCollateral(address router, uint256 routerType, bool isExactInput, uint256 amountUSDC) internal returns(uint256) {
+        return _swapOnDEXSpot(router, routerType, false, isExactInput, amountUSDC);
+    }
+
+    function _CollateralToUSDC(address router, uint256 routerType, bool isExactInput, uint256 amountCollateral) internal returns(uint256) {
+        return _swapOnDEXSpot(router, routerType, true, isExactInput, amountCollateral);
+    }
+
+    function _swapOnDEXSpot(address router, uint256 routerType, bool isBuyUSDLCollateral, bool isExactInput, uint256 amountIn) internal returns(uint256) {
         if(routerType == 0) {
             // NOTE: UniV3 
-            return _swapOnUniV3(router, isBuyUSDLCollateral, amountIn);
+            return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn);
         }
         // NOTE: Unsupported Router --> Using UniV3 as default
-        return _swapOnUniV3(router, isBuyUSDLCollateral, amountIn);
+        return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn);
     }
 
 
 
-    function _swapOnUniV3(address router, bool isUSDLCollateralToUSDC, uint256 amountIn) internal returns(uint256) {
+    function _swapOnUniV3(address router, bool isUSDLCollateralToUSDC, bool isExactInput, uint256 amount) internal returns(uint256) {
+        uint256 res;
         address tokenIn = (isUSDLCollateralToUSDC) ? address(usdlCollateral) : address(usdc);
         address tokenOut = (isUSDLCollateralToUSDC) ? address(usdc) : address(usdlCollateral);
+
+        console.log("[_swapOnUniV3] usdlCollateral ", address(usdlCollateral));
+        console.log("[_swapOnUniV3] usdc ", address(usdc));
+
+        console.log("[_swapOnUniV3()] tokenIn = ", tokenIn);
+        console.log("[_swapOnUniV3()] tokenOut = ", tokenOut);
 
 
         IERC20Decimals(tokenIn).approve(router, type(uint256).max);
 
-        ISwapRouter.ExactInputSingleParams memory temp = ISwapRouter.ExactInputSingleParams({
-            tokenIn: tokenIn,
-            tokenOut: tokenOut,
-            fee: 3000,
-            recipient: address(this),
-            deadline: type(uint256).max,
-            amountIn: amountIn,
-            amountOutMinimum: 0,
-            sqrtPriceLimitX96: 0
-        });
-        return ISwapRouter(router).exactInputSingle(temp);
+        if(isExactInput) {
+            ISwapRouter.ExactInputSingleParams memory temp = ISwapRouter.ExactInputSingleParams({
+                tokenIn: tokenIn,
+                tokenOut: tokenOut,
+                fee: 3000,
+                recipient: address(this),
+                deadline: type(uint256).max,
+                amountIn: amount,
+                amountOutMinimum: 0,
+                sqrtPriceLimitX96: 0
+            });
+            console.log("[_swapOnUniV3] ExactInput amount = ", amount);
+            uint256 balanceBefore = IERC20Decimals(tokenOut).balanceOf(address(this));
+            res = ISwapRouter(router).exactInputSingle(temp);
+            uint256 balanceAfter = IERC20Decimals(tokenOut).balanceOf(address(this));
+            // require(balanceAfter > balanceBefore);
+            res = uint256( int256(balanceAfter) - int256(balanceBefore) );
+        }
+        else {
+            ISwapRouter.ExactOutputSingleParams memory temp = ISwapRouter.ExactOutputSingleParams({
+                tokenIn: tokenIn,
+                tokenOut: tokenOut,
+                fee: 3000,
+                recipient: address(this),
+                deadline: type(uint256).max,
+                amountOut: amount,
+                amountInMaximum: type(uint256).max,
+                sqrtPriceLimitX96: 0
+            });
+            console.log("[_swapOnUniV3()] ExactOutput = ", amount);
+            res = ISwapRouter(router).exactOutputSingle(temp);
+        }
+
+        IERC20Decimals(tokenIn).approve(router, 0);
+        console.log("[_swapOnUniV3()] res = ", res);
+        return res;
     }
+
+
+
+
 
     /// @notice Rebalances USDL or Synth emission swapping by Perp backed to Token backed  
     /// @dev USDL can be backed by both: 1) Floating Collateral + Perp Short of the same Floating Collateral or 2) USDC 
@@ -585,35 +632,51 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     /// 
     /// @param router The Router to execute the swap on
     /// @param routerType The Router Type: 0 --> UniV3, ... 
-    /// @param isOpenLong If true, we need to increase long = close short which means buying base at Mark and sell base on Spot, otherwise it is the opposite way
-    /// @param amount The Amount of Base Token to buy or sell on Perp and consequently the amount of corresponding colletarl to sell or buy on Spot 
+    /// @param amountBaseToRebalance The Amount of Base Token to buy or sell on Perp and consequently the amount of corresponding colletarl to sell or buy on Spot 
+    /// @param isCheckProfit Check the profit to possibly revert the TX in case 
     /// @return Amount of USDC resulting from the operation. It can also be negative as we can use this mechanism for purposes other than Arb See https://www.notion.so/lemmafinance/Rebalance-Details-f72ad11a5d8248c195762a6ac6ce037e#ffad7b09a81a4b049348e3cd38e57466 here 
-    function rebalance(address router, uint256 routerType, bool isOpenLong, uint256 amount) override external onlyRebalancer returns(uint256, uint256) {
+    function rebalance(address router, uint256 routerType, int256 amountBaseToRebalance, bool isCheckProfit) override external onlyRebalancer returns(uint256, uint256) {
         console.log("[rebalance()] Start");
-        uint256 usdlCollateralAmount;
-        uint256 usdcAmount;
+        // uint256 usdlCollateralAmountPerp;
+        // uint256 usdlCollateralAmountDex;
+        uint256 amountUSDCPlus;
+        uint256 amountUSDCMinus;
+
+        require(amountBaseToRebalance != 0 , "! No Rebalance with Zero Amount");
+
+        bool isIncreaseBase = amountBaseToRebalance > 0;
+        uint256 _amountBaseToRebalance = (isIncreaseBase) ? uint256(amountBaseToRebalance) : uint256(-amountBaseToRebalance);
+
 
         // NOTE: Changing the position on Perp requires checking we are properly collateralized all the time otherwise doing the trade risks to revert the TX 
         // NOTE: Call to perps that can revert the TX: withdraw(), openPosition()
         // NOTE: Actually, probably also deposit() is not safe as some max threshold can be crossed but this is something different from the above
-        if(isOpenLong) {
-            console.log("[rebalance()] OpenLong: True --> Base should increase");
+        if(isIncreaseBase) {
+            console.log("[rebalance()] isIncreaseBase: True --> Sell Collateral on Spot and Buy on Mark. Colleteral --> USDC --> vCollateral");
             if(amountBase < 0) {
-                console.log("[rebalance()] Net Short so amount is USDC --> Decrease Negative Base --> Close Short, free floating collateral (if any) and swap it for USDC");
+                console.log("[rebalance()] Net Short --> Decrease Negative Base --> Close Short, free floating collateral (if any) and swap it for USDC");
                 // NOTE: Net Short Position --> USDL Collateral is currently deposited locally if tail asset or in Perp otherwise 
                 // NOTE: In this case, we need to shrink our position before we can withdraw to swap so 
-                // (, usdcAmount) = closeShortWithExactBase(baseAmount, address(0), 0);
-                (usdlCollateralAmount, ) = closeShortWithExactQuote(amount, address(0), 0);
+                (, amountUSDCMinus) = closeShortWithExactBase(_amountBaseToRebalance, address(0), 0);
+                // (usdlCollateralAmount, ) = closeShortWithExactQuote(amount, address(0), 0);
 
                 // NOTE: Only withdraws from Perp if it is a non tail asset 
-                _withdraw(usdlCollateralAmount, address(usdlCollateral));
-                usdcAmount = _swapOnDEXSpot(router, routerType, true, usdlCollateralAmount);
+                _withdraw(_amountBaseToRebalance, address(usdlCollateral));
+
+                console.log("_amountBaseToRebalance = ", _amountBaseToRebalance);
+                console.log("usdlCollateral.balanceOf(address(this)) = ", usdlCollateral.balanceOf(address(this)));
+
+                require(usdlCollateral.balanceOf(address(this)) > _amountBaseToRebalance, "T1");
+                amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
+                // if(isCheckProfit) require(amountUSDCPlus >= amountUSDCMinus, "Unprofitable");
             } else {
                 console.log("[rebalance()] Net Long amount is Base --> Increase Positive Base --> Sell floating collateral for USDC, use it to incrase long");
                 // NOTE: Net Long Position --> USDL Collateral is not deposited in Perp but floating in the local balance sheet so we do not have to do anything before the trade
-                usdcAmount = _swapOnDEXSpot(router, routerType, true, amount);
-                _deposit(usdcAmount, address(usdc));
-                (usdlCollateralAmount, ) = openLongWithExactQuote(usdcAmount, address(0), 0);
+                amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
+                _deposit(amountUSDCPlus, address(usdc));
+                (, amountUSDCMinus) = openLongWithExactBase(_amountBaseToRebalance, address(0), 0);
+                // (usdlCollateralAmount, ) = openLongWithExactQuote(usdcAmount, address(0), 0);
+                // if(isCheckProfit) require(amountUSDCPlus >= amountUSDCMinus, "Unprofitable");
             }
 
             // TODO: Implement 
@@ -631,21 +694,23 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
             // (usdlCollateralAmount, ) = openLongWithExactQuote(usdcAmount, address(0), 0);
         } else {
-            console.log("[rebalance()] OpenLong: False --> Base should decrease");
+            console.log("[rebalance()] isIncreaseBase: False --> Base should decrease. USDC --> Collateral --> vQuote");
             // TODO: Fix the following --> the commented part should be the right one 
             if(amountBase <= 0) {
                 // NOTE: We are net short 
-                console.log("[rebalance()] Net Short so amount is USDC --> Increase Negative Base --> Sell USDC for floating collateral, use floating collateral to open a short on Perp");
-                usdlCollateralAmount = _swapOnDEXSpot(router, routerType, false, amount);
-                _deposit(usdlCollateralAmount, address(usdlCollateral));
-                (, usdcAmount) = openShortWithExactBase(usdlCollateralAmount, address(0), 0); 
+                console.log("[rebalance()] Net Short --> Increase Negative Base --> Sell USDC for floating collateral, use floating collateral to open a short on Perp");
+                // NOTE: Buy Exact Amount of UsdlCollateral
+                amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
+                _deposit(_amountBaseToRebalance, address(usdlCollateral));
+                (, amountUSDCPlus) = openShortWithExactBase(_amountBaseToRebalance, address(0), 0); 
+                // if(isCheckProfit) require(usdcAmountPerpGained >= usdcAmountDexSpent, "Unprofitable");
             } else {
                 // NOTE: We are net long
-                console.log("[rebalance()] Net Long amount is Base --> Decrease Positive Base --> Sell floating collateral for USDC, use it to incrase long");    
-                usdlCollateralAmount = _swapOnDEXSpot(router, routerType, false, usdcAmount);
-                (, usdcAmount) = closeLongWithExactBase(amount, address(0), 0); 
-                // _withdraw(usdcAmount, address(usdc));
-
+                console.log("[rebalance()] Net Long --> Decrease Positive Base --> Sell floating collateral for USDC, use it to incrase long");    
+                (, amountUSDCPlus) = closeLongWithExactBase(_amountBaseToRebalance, address(0), 0); 
+                _withdraw(amountUSDCPlus, address(usdc));
+                amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
+                // if(isCheckProfit) require(usdcAmountPerpGained >= usdcAmountDexSpent, "Unprofitable");
             }
             // // 1.1 Reduce Long = Increase Short using closeLongWithExactBase() for `amount` and get the corresponding quote amount
             // (, usdcAmount) = closeLongWithExactBase(amount, address(0), 0);
@@ -658,7 +723,9 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         }
         // Compute Profit and return it
         // if(isCheckProfit) require(usdlCollateralAmount >= amount, "Unprofitable");
-        return (usdlCollateralAmount, usdcAmount);
+
+        if(isCheckProfit) require(amountUSDCPlus >= amountUSDCMinus, "Unprofitable");
+        return (amountUSDCPlus, amountUSDCMinus);
     }
 
     /// @notice Rebalance position of dex based on accumulated funding, since last rebalancing
