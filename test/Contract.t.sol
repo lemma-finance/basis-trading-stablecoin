@@ -393,6 +393,10 @@ contract ContractTest is Test {
         _getMoney(d.getTokenAddress("WETH"), 1e40);
         IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
 
+        // NOTE: We need plenty of USDC for this kind of tests
+        _getMoney(d.getTokenAddress("USDC"), 1e40);
+        IERC20Decimals(d.getTokenAddress("USDC")).transfer(address(d.pl()), 1e20);
+
         // NOTE: For this rebalance we need to assume we have a lot of USDC available
         // _getMoney(d.getTokenAddress("USDDC"), 1e40);
         // IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e40);
@@ -406,7 +410,7 @@ contract ContractTest is Test {
         _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
 
         d.mockUniV3Router().setRouter(address(0));
-        d.mockUniV3Router().setNextSwapAmount(1e12);
+        d.mockUniV3Router().setNextSwapAmount(1e3);
 
         int256 baseAmountBefore = d.pl().amountBase();
         // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
@@ -437,6 +441,11 @@ contract ContractTest is Test {
         _getMoney(d.getTokenAddress("WETH"), 1e40);
         IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
 
+        // NOTE: We need plenty of USDC for this kind of tests
+        _getMoney(d.getTokenAddress("USDC"), 1e40);
+        IERC20Decimals(d.getTokenAddress("USDC")).transfer(address(d.pl()), 1e20);
+
+
         // NOTE: For this rebalance we need to assume we have a lot of USDC available
         // _getMoney(d.getTokenAddress("USDDC"), 1e40);
         // IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e40);
@@ -450,7 +459,7 @@ contract ContractTest is Test {
         // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
 
         d.mockUniV3Router().setRouter(address(0));
-        d.mockUniV3Router().setNextSwapAmount(1e7);
+        d.mockUniV3Router().setNextSwapAmount(1e20);
 
         int256 baseAmountBefore = d.pl().amountBase();
         // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
