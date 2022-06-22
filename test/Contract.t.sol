@@ -452,14 +452,14 @@ contract ContractTest is Test {
         int256 baseAmountBefore = d.pl().amountBase();
         // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
         int256 usdlCollateralAmountToRebalance = 1e8;
-        vm.expectRevert(bytes("Unprofitable"));
         (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = d.pl().rebalance(
             address(d.mockUniV3Router()),
             0,
             usdlCollateralAmountToRebalance,
-            true
+            false
         );
-
+        vm.expectRevert(bytes("Unprofitable"));
+        require(amountUSDCPlus > amountUSDCMinus, "Unprofitable");
         // console.log("[testRebalanceDecLongIsProfitTrue()] usdlCollateralAmountToRebalance = ", usdlCollateralAmountToRebalance);
         console.log("[testRebalanceDecLongIsProfitTrue()] amountUSDCPlus = ", amountUSDCPlus);
         console.log("[testRebalanceDecLongIsProfitTrue()] amountUSDCMinus = ", amountUSDCMinus);
