@@ -277,7 +277,6 @@ contract ContractTest is Test {
     }
 
 
-
     function testRebalanceIncLong1() public {
         _getMoney(d.getTokenAddress("WETH"), 1e40);
         IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
@@ -308,6 +307,37 @@ contract ContractTest is Test {
         console.log("baseAmountAfter = - ", uint256(-baseAmountAfter));
         assertTrue(baseAmountAfter > baseAmountBefore);
     }
+
+
+    function testRebalanceIncLongFlip1() public {
+        _getMoney(d.getTokenAddress("WETH"), 1e40);
+        IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
+
+        _depositSettlementTokenMax();
+
+        d.mockUniV3Router().setRouter(address(0));
+        // NOTE: Amount of USDC to get back
+        d.mockUniV3Router().setNextSwapAmount(1e12);
+
+        // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
+        _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e6);
+        int256 baseAmountBefore = d.pl().amountBase();
+        (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = d.pl().rebalance(
+            address(d.mockUniV3Router()),
+            0,
+            1e8,
+            false
+        );
+
+        console.log("amountUSDCPlus = ", amountUSDCPlus);
+        console.log("amountUSDCMinus = ", amountUSDCMinus);
+        int256 baseAmountAfter = d.pl().amountBase();
+        console.log("baseAmountBefore = - ", uint256(-baseAmountBefore));
+        console.log("baseAmountAfter = ", uint256(baseAmountAfter));
+        assertTrue(baseAmountAfter > 0);
+        assertTrue(baseAmountAfter > baseAmountBefore);
+    }
+
 
     function testRebalanceIncLongWhenNetShortIsProfitFalse() public {
         console.log("[testRebalanceIncLongIsProfitFalse()] Block.number = ", block.number);
