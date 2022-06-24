@@ -421,12 +421,14 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         return (_amountBase, _amountQuote);
     }
 
-
-    function deposit(uint256 amount, address collateral) external override onlyUSDLemma {
+    // TODO: Add `onlyUSDLemma`
+    function deposit(uint256 amount, address collateral) external override {
         _deposit(amount, collateral);
     }
 
-    function withdraw(uint256 amount, address collateral) external override onlyUSDLemma {
+
+    // TODO: Add `onlyUSDLemma`
+    function withdraw(uint256 amount, address collateral) external override {
         _withdraw(amount, collateral);
     }
 

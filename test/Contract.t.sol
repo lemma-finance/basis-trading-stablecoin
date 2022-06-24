@@ -79,6 +79,20 @@ contract ContractTest is Test {
         assertTrue(d.usdl().balanceOf(address(this)) > 0);
     }
 
+    // NOTE: In this branch I do not have the ETHSynt.sol so I'll skip the actual token minting and will just care on backing its emission (that does not happen) interacting with PerpLemma directly
+    // NOTE: Now I am supporting synth minting only with the related collateral, so not with USDC yet
+    function _mintSynthWExactCollateral(address collateral, uint256 amount) internal {
+        _getMoney(collateral, 1e40);
+        uint256 balanceBefore = IERC20Decimals(collateral).balanceOf(address(d.pl()));
+        IERC20Decimals(collateral).transfer(address(d.pl()), amount);
+        d.pl().deposit(amount, collateral);
+        uint256 balanceAfter = IERC20Decimals(collateral).balanceOf(address(d.pl()));
+        uint256 deltaBalance = uint256( int256(balanceAfter) - int256(balanceBefore) );
+        // NOTE: This is a tail asset so need to remain the PerpLemmaCommon.sol balance sheet appunto 
+        assertTrue(deltaBalance == amount);
+    }
+
+
 
     function _mintUSDLWExactUSDL(address collateral, uint256 amount) internal {
         _getMoney(collateral, 1e40);
@@ -177,10 +191,17 @@ contract ContractTest is Test {
         assertTrue(_deltaExposure == 0);
     }
 
-    function testMintingWExactCollateral() public {
+    function testMintingUSDLWExactCollateral() public {
         _depositSettlementTokenMax();
         uint256 amount = 1e12;
         _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+    }
+
+
+    function testMintingSynthWExactCollateral() public {
+        _depositSettlementTokenMax();
+        uint256 amount = 1e12;
+        _mintSynthWExactCollateral(d.getTokenAddress("WETH"), amount);
     }
 
     function testRedeemWExactCollateral() public {
@@ -277,7 +298,7 @@ contract ContractTest is Test {
     }
 
 
-    function testRebalanceIncLong1() public {
+    function testRebalanceIncLongWithUSDL01() public {
         _getMoney(d.getTokenAddress("WETH"), 1e40);
         IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
 
@@ -305,6 +326,38 @@ contract ContractTest is Test {
         int256 baseAmountAfter = d.pl().amountBase();
         console.log("baseAmountBefore = - ", uint256(-baseAmountBefore));
         console.log("baseAmountAfter = - ", uint256(-baseAmountAfter));
+        assertTrue(baseAmountAfter > baseAmountBefore);
+    }
+
+
+    function testRebalanceIncLongWithSynth01() public {
+        _getMoney(d.getTokenAddress("WETH"), 1e40);
+        IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
+
+        _depositSettlementTokenMax();
+
+        // uint256 amount = 1e12;
+        // // NOTE: This already gives some USDC to PerpLemma
+        // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+
+        d.mockUniV3Router().setRouter(address(0));
+        d.mockUniV3Router().setNextSwapAmount(1e10);
+
+        // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
+        _mintSynthWExactCollateral(d.getTokenAddress("WETH"), 1e12);
+        int256 baseAmountBefore = d.pl().amountBase();
+        (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = d.pl().rebalance(
+            address(d.mockUniV3Router()),
+            0,
+            1e8,
+            false
+        );
+
+        console.log("amountUSDCPlus = ", amountUSDCPlus);
+        console.log("amountUSDCMinus = ", amountUSDCMinus);
+        int256 baseAmountAfter = d.pl().amountBase();
+        console.log("baseAmountBefore = ", uint256(baseAmountBefore));
+        console.log("baseAmountAfter = ", uint256(baseAmountAfter));
         assertTrue(baseAmountAfter > baseAmountBefore);
     }
 
