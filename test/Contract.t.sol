@@ -163,6 +163,11 @@ contract ContractTest is Test {
         assertTrue(_usdlAfter < _usdlBefore);
     }
 
+    function _checkNetShort() internal returns(bool res) {
+        res = d.pl().amountBase() < 0;
+        console.log("Checking Net Short Res = ", res);
+    }
+
     // function testExample() public {
     //     console.log("USDL Address = ", address(d.usdl()));
     //     assertTrue(true);
@@ -374,9 +379,7 @@ contract ContractTest is Test {
 
         // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
         _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e6);
-
-        // NOTE: Checking net short position due to USDL Minting
-        assertTrue(d.pl().amountBase() < 0);
+        require(_checkNetShort(), "Need to be net short");
         int256 baseAmountBefore = d.pl().amountBase();
         (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = d.pl().rebalance(
             address(d.mockUniV3Router()),
@@ -409,7 +412,7 @@ contract ContractTest is Test {
 
         // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
         _mintSynthWExactCollateral(d.getTokenAddress("WETH"), 1e6);
-
+        require(!_checkNetShort(), "Need to be net long");
         // NOTE: Checking net long position due to Synth minting
         assertTrue(d.pl().amountBase() >= 0);
         int256 baseAmountBefore = d.pl().amountBase();
@@ -442,7 +445,10 @@ contract ContractTest is Test {
         // // NOTE: This already gives some USDC to PerpLemma
         // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
 
+
+
         _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
+        require(_checkNetShort(), "Need to be net short");
 
         assertTrue(d.pl().amountBase() < 0);
         d.mockUniV3Router().setRouter(address(0));
@@ -485,12 +491,13 @@ contract ContractTest is Test {
         // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
 
         _mintSynthWExactCollateral(d.getTokenAddress("WETH"), 1e10);
+        require(!_checkNetShort(), "Need to be net long");
 
-        assertTrue(d.pl().amountBase() >= 0);
         d.mockUniV3Router().setRouter(address(0));
         d.mockUniV3Router().setNextSwapAmount(1e10);
 
         int256 baseAmountBefore = d.pl().amountBase();
+        assertTrue(baseAmountBefore >= 0);
         // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
         int256 usdlCollateralAmountToRebalance = 1e18;
 
@@ -512,6 +519,8 @@ contract ContractTest is Test {
         int256 baseAmountAfter = d.pl().amountBase();
         assertTrue(baseAmountAfter > baseAmountBefore);
     }
+
+
 
 
 
@@ -550,6 +559,44 @@ contract ContractTest is Test {
         int256 baseAmountAfter = d.pl().amountBase();
         assertTrue(baseAmountAfter > baseAmountBefore);
     }
+
+
+    function testRebalanceIncLongWhenNetLongIsProfitTrue() public {
+        console.log("[testRebalanceIncLongIsProfitTrue()] Block.number = ", block.number);
+        console.log("[testRebalanceIncLongIsProfitTrue()] Block.timestamp = ", block.timestamp);
+        _getMoney(d.getTokenAddress("WETH"), 1e40);
+        IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
+
+        _depositSettlementTokenMax();
+
+        // uint256 amount = 1e12;
+        // // NOTE: This already gives some USDC to PerpLemma
+        // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+
+        _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
+
+        d.mockUniV3Router().setRouter(address(0));
+        d.mockUniV3Router().setNextSwapAmount(1e20);
+
+        int256 baseAmountBefore = d.pl().amountBase();
+        // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
+        int256 usdlCollateralAmountToRebalance = 1e12;
+        (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = d.pl().rebalance(
+            address(d.mockUniV3Router()),
+            0,
+            usdlCollateralAmountToRebalance,
+            true
+        );
+
+        // console.log("[testRebalanceIncLongIsProfitTrue()] usdlCollateralAmountToRebalance = ", usdlCollateralAmountToRebalance);
+        console.log("[testRebalanceIncLongIsProfitTrue()] amountUSDCPlus = ", amountUSDCPlus);
+        console.log("[testRebalanceIncLongIsProfitTrue()] amountUSDCMinus = ", amountUSDCMinus);
+
+        // require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
+        int256 baseAmountAfter = d.pl().amountBase();
+        assertTrue(baseAmountAfter > baseAmountBefore);
+    }
+
 
 
     function testRebalanceDecLongWhenNetShortIsProfitTrue() public {
