@@ -562,8 +562,8 @@ contract ContractTest is Test {
 
 
     function testRebalanceIncLongWhenNetLongIsProfitTrue() public {
-        console.log("[testRebalanceIncLongIsProfitTrue()] Block.number = ", block.number);
-        console.log("[testRebalanceIncLongIsProfitTrue()] Block.timestamp = ", block.timestamp);
+        console.log("[testRebalanceIncLongWhenNetLongIsProfitTrue()] Block.number = ", block.number);
+        console.log("[testRebalanceIncLongWhenNetLongIsProfitTrue()] Block.timestamp = ", block.timestamp);
         _getMoney(d.getTokenAddress("WETH"), 1e40);
         IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
 
@@ -590,8 +590,8 @@ contract ContractTest is Test {
         );
 
         // console.log("[testRebalanceIncLongIsProfitTrue()] usdlCollateralAmountToRebalance = ", usdlCollateralAmountToRebalance);
-        console.log("[testRebalanceIncLongIsProfitTrue()] amountUSDCPlus = ", amountUSDCPlus);
-        console.log("[testRebalanceIncLongIsProfitTrue()] amountUSDCMinus = ", amountUSDCMinus);
+        console.log("[testRebalanceIncLongWhenNetLongIsProfitTrue()] amountUSDCPlus = ", amountUSDCPlus);
+        console.log("[testRebalanceIncLongWhenNetLongIsProfitTrue()] amountUSDCMinus = ", amountUSDCMinus);
 
         // require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
         int256 baseAmountAfter = d.pl().amountBase();
