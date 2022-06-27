@@ -573,7 +573,8 @@ contract ContractTest is Test {
         // // NOTE: This already gives some USDC to PerpLemma
         // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
 
-        _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
+        _mintSynthWExactCollateral(d.getTokenAddress("WETH"), 1e10);
+        // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
 
         d.mockUniV3Router().setRouter(address(0));
         d.mockUniV3Router().setNextSwapAmount(1e20);
