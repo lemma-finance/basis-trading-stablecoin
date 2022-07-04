@@ -10,6 +10,7 @@ remappings = [
     'base64-sol/=node_modules/base64-sol/',
     'hardhat/=node_modules/hardhat/',
     'sol-explore/=node_modules/sol-explore/',
+    'contracts/=contracts/'
 ]
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
