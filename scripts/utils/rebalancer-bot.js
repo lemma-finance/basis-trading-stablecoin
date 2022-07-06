@@ -7,8 +7,17 @@ const { MaxInt256, MaxUint256, AddressZero, MinInt256 } = constants;
 const { toBigNumber, fromBigNumber, displayNicely } = require("./utils");
 
 
-const ContractTestArtifacts = require('../../artifacts/Contract.t.sol/ContractTest.json');
+const UniV3PoolArtifacts = require('../../node_modules/@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Pool.sol/IUniswapV3Pool.json');
+const DeployAnvilOptimismArtifacts = require('../../artifacts/Deploy.sol/DeployAnvilOptimism.json');
 const DeployArtifacts = require('../../artifacts/Deploy.sol/Deploy.json');
+const BankArtifacts = require('../../artifacts/Deploy.sol/Bank.json');
+
+const ERC20Artifacts = require('../../artifacts/ERC20Upgradeable.sol/ERC20Upgradeable.json');
+const UniV3FactoryArtifacts = require('../../node_modules/@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Factory.sol/IUniswapV3Factory.json');
+// NOTE: This is not required by the bot as it won't directly call the swap() function, however, good to have it for debug purpose
+const UniV3RouterArtifacts = require('../../node_modules/@uniswap/v3-periphery/artifacts/contracts/interfaces/ISwapRouter.sol/ISwapRouter.json');
+// const ContractTestArtifacts = require('../../artifacts/Contract.t.sol/ContractTest.json');
+// const DeployArtifacts = require('../../artifacts/Deploy.sol/Deploy.json');
 const PerpLemmaArtifacts = require('../../artifacts/PerpLemmaCommon.sol/PerpLemmaCommon.json');
 // const USDLemmaArtifacts = require("./abis/USDLemma.json");
 // const MCDEXLemmaArtifacts = require("./abis/MCDEXLemma.json");
@@ -40,10 +49,59 @@ const main = async (arbProvider, signer) => {
     console.log(`REMEMBER`);
     console.log(`When running the bot interacting with the Local Testnet, remember to update the config.json file with the local addresses`);
     console.log(addresses);
-    console.log(`Trying to connect to ${addresses['PerpLemmaETH']}`);
-    const ContractTest = new ethers.Contract(addresses['ContractTest'], PerpLemmaArtifacts.abi, signer);
-    const perpLemmaETH = new ethers.Contract(addresses['PerpLemmaETH'], PerpLemmaArtifacts.abi, signer);
+    console.log(`Trying to connect to Deployment Contract ${addresses['DeployAnvilOptimism']}`);
+    // console.log(`Trying to connect to ${addresses['PerpLemmaETH']}`);
+    // const ContractTest = new ethers.Contract(addresses['ContractTest'], PerpLemmaArtifacts.abi, signer);
+
+    const usdc = new ethers.Contract(addresses['USDC'], ERC20Artifacts.abi, signer);
+    console.log(`USDC totalSupply = ${await usdc.totalSupply()}`);
+
+    const DeployAnvilOptimism = new ethers.Contract(addresses['DeployAnvilOptimism'], DeployAnvilOptimismArtifacts.abi, signer);
+    const DeployAddress = await DeployAnvilOptimism.d();
+    console.log(`Depoly Contract Address = ${DeployAddress}`);
+
+    const Deploy = new ethers.Contract(DeployAddress, DeployArtifacts.abi, signer);
+
+    const PerpLemmaAddress = await Deploy.pl();
+    const BankAddress = await Deploy.bank();
+
+    const Bank = new ethers.Contract(BankAddress, BankArtifacts.abi, signer);
+
+    // NOTE: Unfortunately, it seems Foundry cheatcodes do not work on Anvil 
+    // NOTE: Here I am trying to get some free USDC, the automatic gas estimation does not work so need to set the gas manually, in this case the TX is sent but no money is received 
+    console.log(`Balance Before = ${await usdc.balanceOf(signer.address)}`);
+    await Bank.giveMoney(addresses['USDC'], signer.address, 1e10, {gasLimit: 1e7});
+    console.log(`Balance After = ${await usdc.balanceOf(signer.address)}`);
+
+    // await Bank.giveMoney(addresses['USDC'], signer.address, ethers.utils.defaultAbiCoder.encode(["uint256"], [1e10]));
+    // const estimation = await Bank.estimateGas.giveMoney(addresses['USDC'], signer.address, ethers.utils.defaultAbiCoder.encode(["uint256"], [1e10]));
+    // console.log(`estimation = ${estimation}`);
+
+    const perpLemmaETH = new ethers.Contract(PerpLemmaAddress, PerpLemmaArtifacts.abi, signer);
     console.log(`await perpLemmaETH.getUsdlCollateralDecimals() = ${await perpLemmaETH.getUsdlCollateralDecimals()}`);
+
+    const usdlCollateral = await perpLemmaETH.usdlCollateral();
+    console.log(`usdlCollateral = ${usdlCollateral} Appunto `);
+
+    const UniV3Factory = new ethers.Contract(addresses['UniV3_Factory'], UniV3FactoryArtifacts.abi, signer);
+    console.log(`UniV3 Factory Test = ${await UniV3Factory.owner()}`);
+
+    const UniV3PoolAddress = await UniV3Factory.getPool(addresses['USDC'], usdlCollateral, 3000);
+    console.log(`UniV3PoolAddress = ${UniV3PoolAddress}`);
+
+    const UniV3Pool = new ethers.Contract(UniV3PoolAddress, UniV3PoolArtifacts.abi, signer);
+    console.log(`UniV3 Factory Test = ${await UniV3Factory.owner()}`);
+
+    const slot0 = await UniV3Pool.slot0();
+    console.log(`Slot0 = ${slot0}`);
+
+    const sqrtRatioX96 = slot0[0];
+
+    const token0Price = (sqrtRatioX96 ** 2) / (2 ** 192);
+    console.log(`Token0 Price = ${token0Price}`);
+
+    const token1Price = (2 ** 192) / (sqrtRatioX96 ** 2);
+    console.log(`Token1 Price = ${token1Price}`);
 }
 
 const main1 = async (arbProvider, signer) => {

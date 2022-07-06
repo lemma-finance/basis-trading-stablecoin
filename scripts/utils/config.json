@@ -1,12 +1,16 @@
 
 {
     "anvil": {
-        "UniV3 Router": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
-        "PerpLemmaETH": "0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9"
+        "DeployAnvilOptimism": "0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9",
+        "UniV3_Factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984",
+        "UniV3_Router": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+        "PerpLemmaETH": "0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9",
+        "USDC": "0x7f5c764cbc14f9669b88837ca1490cca17c31607"
     },
     "optimism": {
         "PerpLemmaETH": "0xdb41ab644AbcA7f5ac579A5Cf2F41e606C2d6abc",
         "UniswapV3": {
+            "factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984",
             "router": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
             "pools": {
                 "ETHUSDC": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
