@@ -136,6 +136,15 @@ contract MockUniV3Router {
 }
 
 
+
+contract DeployAnvilOptimism {
+    Deploy public d;
+
+    constructor() {
+        d = new Deploy(10);
+    }
+}
+
 contract Deploy {
     USDLemma public usdl;
     PerpLemmaCommon public pl;
