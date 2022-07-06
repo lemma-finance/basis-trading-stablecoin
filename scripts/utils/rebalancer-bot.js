@@ -7,13 +7,18 @@ const { MaxInt256, MaxUint256, AddressZero, MinInt256 } = constants;
 const { toBigNumber, fromBigNumber, displayNicely } = require("./utils");
 
 
-const USDLemmaArtifacts = require("./abis/USDLemma.json");
+const ContractTestArtifacts = require('../../artifacts/Contract.t.sol/ContractTest.json');
+const DeployArtifacts = require('../../artifacts/Deploy.sol/Deploy.json');
+const PerpLemmaArtifacts = require('../../artifacts/PerpLemmaCommon.sol/PerpLemmaCommon.json');
+// const USDLemmaArtifacts = require("./abis/USDLemma.json");
 // const MCDEXLemmaArtifacts = require("./abis/MCDEXLemma.json");
 const config = require("./config.json");
 
-const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, getAccountStorage, computeAccount, computeAMMTradeAmountByMargin } = require('@mcdex/mai3.js');
+// const { CHAIN_ID_TO_POOL_CREATOR_ADDRESS, PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, CHAIN_ID_TO_READER_ADDRESS, getLiquidityPool, getAccountStorage, computeAccount, computeAMMTradeAmountByMargin } = require('@mcdex/mai3.js');
 
-const addresses = config.optimism;
+
+const addresses = config.anvil;
+// const addresses = config.optimism;
 
 const ZERO = BigNumber.from("0");
 // const getPerpetualIndex = async (mcdexLemma) => {
@@ -29,9 +34,26 @@ const ZERO = BigNumber.from("0");
 // const getMCDEXAddress = async (dexIndex, collateralAddress, usdLemma) => {
 //     return await usdLemma.perpetualDEXWrappers(dexIndex, collateralAddress);
 // };
+
 const main = async (arbProvider, signer) => {
-    const usdLemma = new ethers.Contract(addresses.USDLemma, USDLemmaArtifacts.abi, signer);
-    console.log(usdLemma.address);
+    console.log(`Main Start`);
+    console.log(`REMEMBER`);
+    console.log(`When running the bot interacting with the Local Testnet, remember to update the config.json file with the local addresses`);
+    console.log(addresses);
+    console.log(`Trying to connect to ${addresses['PerpLemmaETH']}`);
+    const ContractTest = new ethers.Contract(addresses['ContractTest'], PerpLemmaArtifacts.abi, signer);
+    const perpLemmaETH = new ethers.Contract(addresses['PerpLemmaETH'], PerpLemmaArtifacts.abi, signer);
+    console.log(`await perpLemmaETH.getUsdlCollateralDecimals() = ${await perpLemmaETH.getUsdlCollateralDecimals()}`);
+}
+
+const main1 = async (arbProvider, signer) => {
+    console.log(`Main Start`);
+    console.log(addresses);
+    console.log(`Trying to connect to ${addresses['PerpLemmaETH']}`);
+    const perpLemmaETH = new ethers.Contract(addresses['PerpLemmaETH'], PerpLemmaArtifacts.abi, signer);
+    console.log(`perpLemmaETH.address ${perpLemmaETH.address}`);
+    // const usdLemma = new ethers.Contract(addresses.USDLemma, USDLemmaArtifacts.abi, signer);
+    // console.log(usdLemma.address);
     const mcdexLemmaGeneral = new ethers.Contract(addresses.MCDEXLemma, MCDEXLemmaArtifacts.abi, signer);
 
     const collateralAddress = addresses.collateral;
@@ -180,17 +202,17 @@ function validateInput() {
     }
     console.log(colors.green('All inputs were successfully validated!'));
 }
-// (
-//     async function startUp() {
-//         console.log("startUp");
-//         validateInput();
-//         const arbProvider = ethers.getDefaultProvider(process.env.PROVIDER);
-//         const signer = new ethers.Wallet(process.env.PRIV_KEY, arbProvider);
+(
+    async function startUp() {
+        console.log("startUp");
+        validateInput();
+        const arbProvider = ethers.getDefaultProvider(process.env.PROVIDER);
+        const signer = new ethers.Wallet(process.env.PRIV_KEY, arbProvider);
 
-//         main(arbProvider, signer);
-//         setInterval(() => {
-//             main(arbProvider, signer);
-//         }, 50000);
-//     }
-// )();
+        main(arbProvider, signer);
+        setInterval(() => {
+            main(arbProvider, signer);
+        }, 50000);
+    }
+)();
 module.exports = { main };
