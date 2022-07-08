@@ -50,11 +50,14 @@ const main = async (arbProvider, signer) => {
     console.log(`When running the bot interacting with the Local Testnet, remember to update the config.json file with the local addresses`);
     console.log(addresses);
     console.log(`Trying to connect to Deployment Contract ${addresses['DeployAnvilOptimism']}`);
+    console.log(`Signer Address = ${signer.address}`);
+    
     // console.log(`Trying to connect to ${addresses['PerpLemmaETH']}`);
     // const ContractTest = new ethers.Contract(addresses['ContractTest'], PerpLemmaArtifacts.abi, signer);
 
     const usdc = new ethers.Contract(addresses['USDC'], ERC20Artifacts.abi, signer);
     console.log(`USDC totalSupply = ${await usdc.totalSupply()}`);
+    console.log(`My Balance USDC = ${await usdc.balanceOf(signer.address)}`);
 
     const DeployAnvilOptimism = new ethers.Contract(addresses['DeployAnvilOptimism'], DeployAnvilOptimismArtifacts.abi, signer);
     const DeployAddress = await DeployAnvilOptimism.d();
@@ -63,15 +66,15 @@ const main = async (arbProvider, signer) => {
     const Deploy = new ethers.Contract(DeployAddress, DeployArtifacts.abi, signer);
 
     const PerpLemmaAddress = await Deploy.pl();
-    const BankAddress = await Deploy.bank();
+    // const BankAddress = await Deploy.bank();
 
-    const Bank = new ethers.Contract(BankAddress, BankArtifacts.abi, signer);
+    // const Bank = new ethers.Contract(BankAddress, BankArtifacts.abi, signer);
 
     // NOTE: Unfortunately, it seems Foundry cheatcodes do not work on Anvil 
     // NOTE: Here I am trying to get some free USDC, the automatic gas estimation does not work so need to set the gas manually, in this case the TX is sent but no money is received 
-    console.log(`Balance Before = ${await usdc.balanceOf(signer.address)}`);
-    await Bank.giveMoney(addresses['USDC'], signer.address, 1e10, {gasLimit: 1e7});
-    console.log(`Balance After = ${await usdc.balanceOf(signer.address)}`);
+    // console.log(`Balance Before = ${await usdc.balanceOf(signer.address)}`);
+    // await Bank.giveMoney(addresses['USDC'], signer.address, 1e10, {gasLimit: 1e7});
+    // console.log(`Balance After = ${await usdc.balanceOf(signer.address)}`);
 
     // await Bank.giveMoney(addresses['USDC'], signer.address, ethers.utils.defaultAbiCoder.encode(["uint256"], [1e10]));
     // const estimation = await Bank.estimateGas.giveMoney(addresses['USDC'], signer.address, ethers.utils.defaultAbiCoder.encode(["uint256"], [1e10]));
