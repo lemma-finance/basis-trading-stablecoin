@@ -89,6 +89,7 @@ const main = async (arbProvider, signer) => {
 
     const usdlCollateralAddress = await perpLemmaETH.usdlCollateral();
     const usdlCollateral = new ethers.Contract(usdlCollateralAddress, ERC20Artifacts.abi, signer);
+    console.log(`USDLemmaAddress = ${USDLemmaAddress}`);
     const USDLemma = new ethers.Contract(USDLemmaAddress, USDLemmaArtifacts.abi, signer);
     console.log(`USDLemma --> GetTotalPosition = ${await USDLemma.getTotalPosition(0, usdlCollateralAddress)}`);
 
