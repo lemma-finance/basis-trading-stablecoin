@@ -107,5 +107,35 @@ libs = ['lib', 'node_modules']
 
 
 
+# How to run Anvil Cheatcode Env 
+
+1. Start Anvil Forking Optimism 
+
+```
+./anvil-start.sh
+```
+
+
+
+2. Get some money with cheatcodes enabled 
+
+```
+./anvil-get-some-tokens.sh
+```
+
+
+
+
+
+3. Deploy Contracts 
+
+```
+./anvil-deploy.sh
+```
+
+
+
+
+
 
 
