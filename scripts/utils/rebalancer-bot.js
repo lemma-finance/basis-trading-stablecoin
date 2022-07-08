@@ -10,7 +10,7 @@ const { toBigNumber, fromBigNumber, displayNicely } = require("./utils");
 const UniV3PoolArtifacts = require('../../node_modules/@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Pool.sol/IUniswapV3Pool.json');
 const DeployAnvilOptimismArtifacts = require('../../artifacts/Deploy.sol/DeployAnvilOptimism.json');
 const DeployArtifacts = require('../../artifacts/Deploy.sol/Deploy.json');
-const BankArtifacts = require('../../artifacts/Deploy.sol/Bank.json');
+// const BankArtifacts = require('../../artifacts/Deploy.sol/Bank.json');
 
 const ERC20Artifacts = require('../../artifacts/ERC20Upgradeable.sol/ERC20Upgradeable.json');
 const UniV3FactoryArtifacts = require('../../node_modules/@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Factory.sol/IUniswapV3Factory.json');
@@ -18,6 +18,8 @@ const UniV3FactoryArtifacts = require('../../node_modules/@uniswap/v3-core/artif
 const UniV3RouterArtifacts = require('../../node_modules/@uniswap/v3-periphery/artifacts/contracts/interfaces/ISwapRouter.sol/ISwapRouter.json');
 // const ContractTestArtifacts = require('../../artifacts/Contract.t.sol/ContractTest.json');
 // const DeployArtifacts = require('../../artifacts/Deploy.sol/Deploy.json');
+
+const USDLemmaArtifacts = require('../../artifacts/USDLemma.sol/USDLemma.json');
 const PerpLemmaArtifacts = require('../../artifacts/PerpLemmaCommon.sol/PerpLemmaCommon.json');
 // const USDLemmaArtifacts = require("./abis/USDLemma.json");
 // const MCDEXLemmaArtifacts = require("./abis/MCDEXLemma.json");
@@ -66,6 +68,7 @@ const main = async (arbProvider, signer) => {
     const Deploy = new ethers.Contract(DeployAddress, DeployArtifacts.abi, signer);
 
     const PerpLemmaAddress = await Deploy.pl();
+    const USDLemmaAddress = await Deploy.usdl();
     // const BankAddress = await Deploy.bank();
 
     // const Bank = new ethers.Contract(BankAddress, BankArtifacts.abi, signer);
@@ -80,6 +83,7 @@ const main = async (arbProvider, signer) => {
     // const estimation = await Bank.estimateGas.giveMoney(addresses['USDC'], signer.address, ethers.utils.defaultAbiCoder.encode(["uint256"], [1e10]));
     // console.log(`estimation = ${estimation}`);
 
+    const USDLemma = new ethers.Contract(USDLemmaAddress, USDLemmaArtifacts.abi, signer);
     const perpLemmaETH = new ethers.Contract(PerpLemmaAddress, PerpLemmaArtifacts.abi, signer);
     console.log(`await perpLemmaETH.getUsdlCollateralDecimals() = ${await perpLemmaETH.getUsdlCollateralDecimals()}`);
 
