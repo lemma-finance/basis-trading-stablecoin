@@ -83,17 +83,23 @@ const main = async (arbProvider, signer) => {
     // const estimation = await Bank.estimateGas.giveMoney(addresses['USDC'], signer.address, ethers.utils.defaultAbiCoder.encode(["uint256"], [1e10]));
     // console.log(`estimation = ${estimation}`);
 
-    const USDLemma = new ethers.Contract(USDLemmaAddress, USDLemmaArtifacts.abi, signer);
     const perpLemmaETH = new ethers.Contract(PerpLemmaAddress, PerpLemmaArtifacts.abi, signer);
     console.log(`await perpLemmaETH.getUsdlCollateralDecimals() = ${await perpLemmaETH.getUsdlCollateralDecimals()}`);
 
-    const usdlCollateral = await perpLemmaETH.usdlCollateral();
-    console.log(`usdlCollateral = ${usdlCollateral} Appunto `);
+
+    const usdlCollateralAddress = await perpLemmaETH.usdlCollateral();
+    const usdlCollateral = new ethers.Contract(usdlCollateralAddress, ERC20Artifacts.abi, signer);
+    const USDLemma = new ethers.Contract(USDLemmaAddress, USDLemmaArtifacts.abi, signer);
+    console.log(`USDLemma --> GetTotalPosition = ${await USDLemma.getTotalPosition(0, usdlCollateralAddress)}`);
+
+
+    console.log(`usdlCollateral = ${usdlCollateralAddress} Appunto `);
+    console.log(`MyBalance of usdlCollateral = ${await usdlCollateral.balanceOf(signer.address)}`);
 
     const UniV3Factory = new ethers.Contract(addresses['UniV3_Factory'], UniV3FactoryArtifacts.abi, signer);
     console.log(`UniV3 Factory Test = ${await UniV3Factory.owner()}`);
 
-    const UniV3PoolAddress = await UniV3Factory.getPool(addresses['USDC'], usdlCollateral, 3000);
+    const UniV3PoolAddress = await UniV3Factory.getPool(addresses['USDC'], usdlCollateralAddress, 3000);
     console.log(`UniV3PoolAddress = ${UniV3PoolAddress}`);
 
     const UniV3Pool = new ethers.Contract(UniV3PoolAddress, UniV3PoolArtifacts.abi, signer);
@@ -109,6 +115,21 @@ const main = async (arbProvider, signer) => {
 
     const token1Price = (2 ** 192) / (sqrtRatioX96 ** 2);
     console.log(`Token1 Price = ${token1Price}`);
+
+
+
+    
+    
+    console.log(`Trying Minting`);
+    console.log(`USDL Balance Before = ${await USDLemma.balanceOf(signer.address)}`);
+    const collateralBalanceBefore = await usdlCollateral.balanceOf(signer.address);
+    console.log(`Collateral Balance Before = ${await usdlCollateral.balanceOf(signer.address)}`);
+    await usdlCollateral.connect(signer).approve(USDLemmaAddress, MaxUint256);
+    console.log(`Checking for usdlCollateral the allowance between me and USDLemma = ${await usdlCollateral.allowance(signer.address, USDLemmaAddress)}`);
+    await USDLemma.connect(signer).depositToWExactCollateral(signer.address, utils.parseUnits((collateralBalanceBefore/2).toString(), 0), 0, 0, usdlCollateralAddress, {gasLimit: 10000});
+    console.log(`USDL Balance After = ${await USDLemma.balanceOf(signer.address)}`);
+    console.log(`Collateral Balance After = ${await usdlCollateral.balanceOf(signer.address)}`);
+    console.log(`DONE`);
 }
 
 const main1 = async (arbProvider, signer) => {

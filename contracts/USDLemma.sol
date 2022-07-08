@@ -186,15 +186,15 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
 
 
         uint256 _usdlAmount_1e18 = amount * 1e18 / 10**this.decimals();
-        console.log("[depositToWExactCollateral()] T1");
+        console.log("[depositTo()] T1");
         // NOTE: Could this fail for CH_NEFCI?
         (uint256 _collateralRequired_1e18, ) = perpDEXWrapper.openShortWithExactQuote(_usdlAmount_1e18, address(0), 0); 
-        console.log("[depositToWExactCollateral()] T3");
+        console.log("[depositTo()] T3");
         uint256 _collateralRequired = _collateralRequired_1e18 * 10**perpDEXWrapper.getUsdlCollateralDecimals() / 1e18;
         require(_collateralRequired <= maxCollateralAmountRequired, "collateral required execeeds maximum");
         // uint256 _collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
-        console.log("[depositToWExactCollateral()] T5");
+        console.log("[depositTo()] T5");
 
 
 
