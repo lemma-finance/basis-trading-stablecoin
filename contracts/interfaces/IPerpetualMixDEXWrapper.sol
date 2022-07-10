@@ -14,8 +14,13 @@ interface IPerpetualMixDEXWrapper {
     function getUsdlCollateralDecimals() external view returns(uint256);
     function getIndexPrice() external view returns(uint256);
 
+
     // NOTE: Used by the rebalancer bot 
+    function getPerpUniV3Pool() external view returns(address);
+    function getUniV3PoolPrice(address pool) external view returns(uint256);
+    function getSpotPrice() external view returns(uint256);
     function getMarkPrice() external view returns(uint256);
+    function getMarkPriceWithImpact(bool isBaseTokenIn, uint256 amount) external returns(uint256);
 
     // Convenience trading functions 
     function openLongWithExactBase(uint256 amount, address collateralIn, uint256 amountIn) external returns(uint256, uint256);

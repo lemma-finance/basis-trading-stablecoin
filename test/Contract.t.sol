@@ -181,6 +181,20 @@ contract ContractTest is Test {
         assertTrue(IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(this)) == 1e40);
     }
 
+    function testGetMarkPrice1() public {
+        uint256 token0Price = d.pl().getMarkPrice();
+        console.log("[testGetMarkPrice1()] token0Price = ", token0Price);
+        assertTrue(token0Price > 0);
+    }
+
+
+    function testGetMarkPrice2() public {
+        uint256 token0Price = d.pl().getUniV3PoolPrice(d.pl().getPerpUniV3Pool());
+        console.log("[testGetMarkPrice2()] token0Price = ", token0Price);
+        assertTrue(token0Price > 0);
+    }
+
+
 
     function testPerpLemmaAccess() public {
         uint256 _indexPrice = d.pl().getIndexPrice();

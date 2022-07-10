@@ -4,6 +4,8 @@ pragma solidity ^0.8.3;
 import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
+import {IUniswapV3Factory} from "node_modules/@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
+import {IUniswapV3Pool} from "node_modules/@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import { IPerpetualMixDEXWrapper } from "../interfaces/IPerpetualMixDEXWrapper.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import { Utils } from "../libraries/Utils.sol";
@@ -23,6 +25,12 @@ import "../interfaces/Perpetual/IUSDLemma.sol";
 // NOTE: There is an incompatibility between Foundry and Hardhat `console.log()` 
 import "forge-std/Test.sol";
 // import "hardhat/console.sol";
+
+
+interface IERC20Details {
+    function name() external view returns(string memory);
+    function symbol() external view returns(string memory);
+}
 
 contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper {
     using SafeCastUpgradeable for uint256;
@@ -184,8 +192,61 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         return _price;
     }
 
-    function getMarkPrice() override external view returns(uint256) {
+
+
+    function getPerpUniV3Pool() override public view returns(address uniV3Pool) {
+        IUniswapV3Factory uniV3Factory = IUniswapV3Factory(clearingHouse.getUniswapV3Factory());
+        uniV3Pool = uniV3Factory.getPool(usdlBaseTokenAddress, clearingHouse.getQuoteToken(), 3000);
+        console.log("[getPerpUniV3Pool] uniV3Pool = ", uniV3Pool);
+    }
+
+    function getUniV3PoolPrice(address _pool) override external view returns(uint256 token0Price) {
         // TODO: Implement
+        IUniswapV3Pool pool = IUniswapV3Pool(_pool);
+        console.log("Getting Price for Token = ", pool.token0());
+        console.log("Name = ", IERC20Details(pool.token0()).symbol());
+        console.log("Decimals = ", IERC20Decimals(pool.token0()).decimals());
+        (uint160 _sqrtPriceX96,,,,,,) = pool.slot0();
+        uint256 sqrtPriceX96 = uint256(_sqrtPriceX96);
+        console.log("[getUniV3PoolPrice()] sqrtPriceX96 = ", sqrtPriceX96);
+        // (10 ** IERC20Decimals(IUniswapV3Pool(getPerpUniV3Pool()).token0()).decimals())
+        token0Price = ((sqrtPriceX96 ** 2) / (2**(192)));
+        console.log("[getUniV3PoolPrice()] token0Price = ", token0Price);
+    }
+
+
+
+
+    function getSpotPrice() override external view returns(uint256 token0Price) {
+        // TODO: Implement
+        IUniswapV3Pool pool = IUniswapV3Pool(address(0xB589969D38CE76D3d7AA319De7133bC9755fD840));
+        console.log("Getting Price for Token = ", pool.token0());
+        console.log("Name = ", IERC20Details(pool.token0()).symbol());
+        console.log("Decimals = ", IERC20Decimals(pool.token0()).decimals());
+        (uint160 _sqrtPriceX96,,,,,,) = pool.slot0();
+        uint256 sqrtPriceX96 = uint256(_sqrtPriceX96);
+        console.log("[getSpotPrice()] sqrtPriceX96 = ", sqrtPriceX96);
+        // (10 ** IERC20Decimals(IUniswapV3Pool(getPerpUniV3Pool()).token0()).decimals())
+        token0Price = ((sqrtPriceX96 ** 2) / (2**(192)));
+        console.log("[getSpotPrice()] token0Price = ", token0Price);
+    }
+
+
+    function getMarkPrice() override external view returns(uint256 token0Price) {
+        // TODO: Implement
+        console.log("Getting Price for Token = ", IUniswapV3Pool(getPerpUniV3Pool()).token0());
+        console.log("Name = ", IERC20Details(IUniswapV3Pool(getPerpUniV3Pool()).token0()).symbol());
+        console.log("Decimals = ", IERC20Decimals(IUniswapV3Pool(getPerpUniV3Pool()).token0()).decimals());
+        (uint160 _sqrtPriceX96,,,,,,) = IUniswapV3Pool(getPerpUniV3Pool()).slot0();
+        uint256 sqrtPriceX96 = uint256(_sqrtPriceX96);
+        console.log("[getMarkPrice()] sqrtPriceX96 = ", sqrtPriceX96);
+        // (10 ** IERC20Decimals(IUniswapV3Pool(getPerpUniV3Pool()).token0()).decimals())
+        token0Price = ((sqrtPriceX96 ** 2) / (2**(192)));
+        console.log("[getMarkPrice()] token0Price = ", token0Price);
+    }
+
+    function getMarkPriceWithImpact(bool isBaseTokenIn, uint256 amount) override external returns(uint256) {
+        require(false, "Unimplemented");
     }
 
     /// @notice getFees fees charge by perpV2 protocol for each trade

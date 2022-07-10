@@ -103,24 +103,61 @@ const main = async (arbProvider, signer) => {
     const UniV3PoolAddress = await UniV3Factory.getPool(addresses['USDC'], usdlCollateralAddress, 3000);
     console.log(`UniV3PoolAddress = ${UniV3PoolAddress}`);
 
+    const PerpUniV3PoolAddress = await perpLemmaETH.getPerpUniV3Pool();
+    console.log(`Perp Pool = ${PerpUniV3PoolAddress}`);
+
+
+    // const spotPrice = await perpLemmaETH.getSpotPrice();
+    const spotPrice = await perpLemmaETH.getUniV3PoolPrice(UniV3PoolAddress);
+
+    // const markPrice = await perpLemmaETH.getMarkPrice();
+    const markPrice = await perpLemmaETH.getUniV3PoolPrice(PerpUniV3PoolAddress);
+
+
+    console.log(`spotPrice = ${spotPrice}`);
+    console.log(`markPrice = ${markPrice}`);
+
+    /*
     const UniV3Pool = new ethers.Contract(UniV3PoolAddress, UniV3PoolArtifacts.abi, signer);
     console.log(`UniV3 Factory Test = ${await UniV3Factory.owner()}`);
 
     const slot0 = await UniV3Pool.slot0();
     console.log(`Slot0 = ${slot0}`);
 
-    const sqrtRatioX96 = slot0[0];
+    const _sqrtRatioX96 = slot0[0];
+    const sqrtRatioX96 = utils.parseUnits(_sqrtRatioX96.toString(), 0);
+    console.log(`sqrtRatioX96 = ${sqrtRatioX96}`);
 
-    const token0Price = (sqrtRatioX96 ** 2) / (2 ** 192);
-    console.log(`Token0 Price = ${token0Price}`);
+    const token0Address = await UniV3Pool.token0();
+    const token0 = new ethers.Contract(token0Address, ERC20Artifacts.abi, signer);
 
-    const token1Price = (2 ** 192) / (sqrtRatioX96 ** 2);
-    console.log(`Token1 Price = ${token1Price}`);
+    const token1Address = await UniV3Pool.token1();
+    const token1 = new ethers.Contract(token1Address, ERC20Artifacts.abi, signer);
+
+    const token0Price = sqrtRatioX96.mul(sqrtRatioX96).div(utils.parseUnits('2',0).pow(utils.parseUnits('192', 0)));
+    console.log(`token0Price = ${token0Price}`);
+    // const _token1Price = (2 ** 192) / (sqrtRatioX96 ** 2);
+
+    // const _token0Price = (sqrtRatioX96 ** 2) / (2 ** 192);
+    // const _token1Price = (2 ** 192) / (sqrtRatioX96 ** 2);
+
+    // const _token0PriceInUSDC = (sqrtRatioX96 ** 2) / (2 ** 192);
+    */
 
 
+    // console.log(`Temp = ${(_sqrtRatioX96 ** 2) / ((2 ** 192))}`);
+    // const _token0Price_1eD1 = (_sqrtRatioX96 ** 2) * (10 ** (await token0.decimals())) / ((2 ** 192));
+    // console.log(`_token0Price (float) = ${_token0Price_1eD1 / (10 ** (await token1.decimals()))}`);
+    // const token0Price_1eD1 = utils.parseUnits(_token0Price_1eD1.toFixed().toString(), 0);
 
-    
-    
+    // const _token0PriceInUSDC_1e18 = (2 ** 192) * (10**18) / ((sqrtRatioX96 ** 2) * (10 ** (await token1.decimals())));
+    // const token0PriceInUSDC_1e18 = utils.parseUnits(_token0PriceInUSDC_1e18.toString(), 0);
+    // const token0Price = toBigNumber(_token0Price.toString()).times(utils.parseUnits('1', 18)).div(utils.parseUnits('1', (await token0.decimals())));
+    // console.log(`Uniswap Token0 Address=${token0Address} and Name=${await token0.name()} and Decimals=${await token0.decimals()} and current Uniswap Price = ${token0Price_1eD1}`);
+    // console.log(`Uniswap Token0 Address=${token0Address} and Name=${await token0.name()} and Decimals=${await token0.decimals()} and current Uniswap Price = ${_token0Price}`);
+    // console.log(`Uniswap Token0 Address=${token1Address} and Name=${await token1.name()} and Decimals=${await token1.decimals()} and current Uniswap Price = ${_token1Price}`);
+
+
     console.log(`Trying Minting`);
     console.log(`USDL Balance Before = ${await USDLemma.balanceOf(signer.address)}`);
     const collateralBalanceBefore = await usdlCollateral.balanceOf(signer.address);
