@@ -184,6 +184,10 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         return _price;
     }
 
+    function getMarkPrice() override external view returns(uint256) {
+        // TODO: Implement
+    }
+
     /// @notice getFees fees charge by perpV2 protocol for each trade
     function getFees() external view override returns (uint256) {
         // NOTE: Removed prev arg address baseTokenAddress
