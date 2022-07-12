@@ -46,6 +46,31 @@ const ZERO = BigNumber.from("0");
 //     return await usdLemma.perpetualDEXWrappers(dexIndex, collateralAddress);
 // };
 
+
+const computePrice = async(pool, signer) => {
+    const slot0 = await pool.slot0();
+    console.log(`Slot0 = ${slot0}`);
+
+    const _sqrtRatioX96 = slot0[0];
+    console.log(`_sqrtRatioX96 = ${_sqrtRatioX96}`);
+    const sqrtRatioX96 = utils.parseUnits(_sqrtRatioX96.toString(), 0);
+    console.log(`sqrtRatioX96 = ${sqrtRatioX96}`);
+
+
+    const token0 = new ethers.Contract(await pool.token0(), ERC20Artifacts.abi, signer);
+    const token0Decimals = await token0.decimals();
+    console.log(`token0Decimals = ${token0Decimals}`);
+
+    const token1 = new ethers.Contract(await pool.token1(), ERC20Artifacts.abi, signer);
+    const token1Decimals = await token1.decimals();
+    console.log(`token1Decimals = ${token1Decimals}`);
+
+    const token0Price = sqrtRatioX96.mul(sqrtRatioX96).mul(utils.parseUnits('1',token0Decimals)).div(utils.parseUnits('2',0).pow(utils.parseUnits('192', 0))).div(utils.parseUnits('1', token1Decimals));
+    console.log(`token0Price = ${token0Price}`);
+
+    return token0Price;
+}
+
 const main = async (arbProvider, signer) => {
     console.log(`Main Start`);
     console.log(`REMEMBER`);
@@ -107,12 +132,34 @@ const main = async (arbProvider, signer) => {
     console.log(`Perp Pool = ${PerpUniV3PoolAddress}`);
 
 
+    const UniV3Pool = new ethers.Contract(UniV3PoolAddress, UniV3PoolArtifacts.abi, signer);
+    console.log(`UniV3 Factory Test = ${await UniV3Factory.owner()}`);
+
+
+    const PerpUniV3Pool = new ethers.Contract(PerpUniV3PoolAddress, UniV3PoolArtifacts.abi, signer);
+    console.log(`Perp UniV3 Factory Test = ${await UniV3Factory.owner()}`);
+
+    /*
+    const slot0 = await UniV3Pool.slot0();
+    console.log(`Slot0 = ${slot0}`);
+
+    const _sqrtRatioX96 = slot0[0];
+    const sqrtRatioX96 = utils.parseUnits(_sqrtRatioX96.toString(), 0);
+    console.log(`sqrtRatioX96 = ${sqrtRatioX96}`);
+
+
+    const token0Price = sqrtRatioX96.mul(sqrtRatioX96).div(utils.parseUnits('2',0).pow(utils.parseUnits('192', 0)));
+    console.log(`token0Price = ${token0Price}`);
+
     // const spotPrice = await perpLemmaETH.getSpotPrice();
     const spotPrice = await perpLemmaETH.getUniV3PoolPrice(UniV3PoolAddress);
 
     // const markPrice = await perpLemmaETH.getMarkPrice();
     const markPrice = await perpLemmaETH.getUniV3PoolPrice(PerpUniV3PoolAddress);
+    */
 
+    const spotPrice = await computePrice(UniV3Pool, signer);
+    const markPrice = await computePrice(PerpUniV3Pool, signer);
 
     console.log(`spotPrice = ${spotPrice}`);
     console.log(`markPrice = ${markPrice}`);
