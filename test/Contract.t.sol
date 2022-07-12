@@ -4,6 +4,7 @@ import "src/Deploy.sol";
 
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "../contracts/interfaces/IERC20Decimals.sol";
+import { IPerpetualMixDEXWrapper } from "../contracts/interfaces/IPerpetualMixDEXWrapper.sol";
 
 import "forge-std/Test.sol";
 
@@ -85,7 +86,7 @@ contract ContractTest is Test {
         _getMoney(collateral, 1e40);
         uint256 balanceBefore = IERC20Decimals(collateral).balanceOf(address(d.pl()));
         IERC20Decimals(collateral).transfer(address(d.pl()), amount);
-        d.pl().deposit(amount, collateral);
+        d.pl().deposit(amount, collateral, IPerpetualMixDEXWrapper.Basis.IsUsdl);
         uint256 balanceAfter = IERC20Decimals(collateral).balanceOf(address(d.pl()));
         uint256 deltaBalance = uint256( int256(balanceAfter) - int256(balanceBefore) );
         // NOTE: This is a tail asset so need to remain the PerpLemmaCommon.sol balance sheet appunto 
@@ -597,8 +598,6 @@ contract ContractTest is Test {
         int256 baseAmountAfter = d.pl().amountBase();
         assertTrue(baseAmountAfter > baseAmountBefore);
     }
-
-
 
     function testRebalanceDecLongWhenNetShortIsProfitTrue() public {
         console.log("[testRebalanceDecLongWhenNetShortIsProfitTrue()] Block.number = ", block.number);

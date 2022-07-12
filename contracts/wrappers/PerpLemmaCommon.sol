@@ -19,6 +19,7 @@ import "../interfaces/Perpetual/IMarketRegistry.sol";
 import "../interfaces/Perpetual/IExchange.sol";
 import "../interfaces/Perpetual/IPerpVault.sol";
 import "../interfaces/Perpetual/IUSDLemma.sol";
+import "../interfaces/Perpetual/IBaseToken.sol";
 
 // NOTE: There is an incompatibility between Foundry and Hardhat `console.log()` 
 import "forge-std/Test.sol";
@@ -30,11 +31,11 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     using Utils for int256;
     using SafeMathExt for int256;
 
+    // enum Basis {IsUsdl, IsSynth, IsRebalance}
+
     address public usdLemma;
     address public reBalancer;
-
     address public usdlBaseTokenAddress;
-    // address public synthBaseTokenAddress;
     bytes32 public referrerCode;
 
     IClearingHouse public clearingHouse;
@@ -45,35 +46,28 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     IExchange public exchange;
 
     bool public isUsdlCollateralTailAsset;
-    // bool public isSynthCollateralTailAsset;
     IERC20Decimals public usdlCollateral;
-    // IERC20Decimals public synthCollateral;
     IERC20Decimals public usdc;
-
 
     uint256 public constant MAX_UINT256 = type(uint256).max;
     uint256 public maxPosition;
     uint256 public usdlCollateralDecimals;
-    // uint256 public synthCollateralDecimals;
-
 
     int256 public amountBase;
     int256 public amountQuote;
     uint256 public amountUsdlCollateralDeposited;
+    uint256 public totalUsdlCollateral; // Tail Asset
+    uint256 public totalSynthCollateral; // USDC
 
     // Gets set only when Settlement has already happened
     // NOTE: This should be equal to the amount of USDL minted depositing on that dexIndex
     uint256 public positionAtSettlementInQuoteForUSDL;
-    // uint256 public positionAtSettlementInQuoteForSynth;
-    uint256 public positionAtSettlementInBaseForUSDL;
-    // uint256 public positionAtSettlementInBaseForSynth;
-
-    int256 public totalFundingPNL;
-    int256 public realizedFundingPNL;
+    uint256 public positionAtSettlementInQuoteForSynth;
+    uint256 public mintedUsdlForThisWrapper;
+    uint256 public mintedSynthForThisWrapper;
 
     // Has the Market Settled
-    bool public hasSettled;
-
+    bool public override hasSettled;
     address public rebalancer;
 
     // events
@@ -135,11 +129,6 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         usdlCollateralDecimals = usdlCollateral.decimals(); // need to verify
         usdlCollateral.approve(_clearingHouse, MAX_UINT256);
 
-        // synthBaseTokenAddress = _synthBaseToken;
-        // synthCollateral = IERC20Decimals(_synthCollateral);
-        // synthCollateralDecimals = synthCollateral.decimals(); // need to verify
-        // synthCollateral.approve(_clearingHouse, MAX_UINT256);
-
         // NOTE: Even though it is not necessary, it is for clarity
         hasSettled = false;
 
@@ -167,10 +156,6 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function setIsUsdlCollateralTailAsset(bool _x) external {
         isUsdlCollateralTailAsset = _x;
     }
-
-    // function setIsSynthCollateralTailAsset(bool _x) external onlyOwner {
-    //     isSynthCollateralTailAsset = _x;
-    // }
 
     function getUsdlCollateralDecimals() override external view returns(uint256) {
         return usdlCollateralDecimals;
@@ -207,14 +192,12 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             SafeERC20Upgradeable.safeApprove(usdc, usdLemma, 0);
             SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
         }
-
         usdLemma = _usdLemma;
 
         SafeERC20Upgradeable.safeApprove(usdc, usdLemma, 0);
         SafeERC20Upgradeable.safeApprove(usdc, usdLemma, MAX_UINT256);
         SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
         SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, MAX_UINT256);
-
         emit USDLemmaUpdated(usdLemma);
     }
 
@@ -244,10 +227,6 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function resetApprovals() external {
         SafeERC20Upgradeable.safeApprove(usdlCollateral, address(perpVault), 0);
         SafeERC20Upgradeable.safeApprove(usdlCollateral, address(perpVault), MAX_UINT256);
-
-        // SafeERC20Upgradeable.safeApprove(synthCollateral, address(perpVault), 0);
-        // SafeERC20Upgradeable.safeApprove(synthCollateral, address(perpVault), MAX_UINT256);
-
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), 0);
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
     }
@@ -271,30 +250,6 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         perpVault.withdraw(address(usdc), _amount);
         SafeERC20Upgradeable.safeTransfer(usdc, msg.sender, _amount);
     }
-
-
-    // function tradeCovered(
-    //     uint256 amountPos,
-    //     bool isShorting, 
-    //     bool isExactInput,
-    //     address collateralIn,
-    //     uint256 amountIn,
-    //     address collateralOut,
-    //     uint256 amountOut
-    // ) external override onlyUSDLemma returns(uint256, uint256) {
-    //     if( (amountIn > 0) && (collateralIn != address(0)) ) {
-    //         SafeERC20Upgradeable.safeTransferFrom(IERC20Decimals(collateralIn), msg.sender, address(this), amountIn);
-    //         _deposit(amountIn, collateralIn);
-    //     }
-
-    //     if( (amountOut > 0) && (collateralOut != address(0)) ) {
-    //         _withdraw(amountOut, collateralOut);
-    //         SafeERC20Upgradeable.safeTransfer(IERC20Decimals(collateralOut), msg.sender, amountOut);
-    //     }
-
-    //     return trade(amountPos, isShorting, isExactInput);
-    // }
-
 
     // Returns the leverage in 1e18 format
     // TODO: Take into account tail assets
@@ -380,22 +335,9 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         bool isShorting,
         bool isExactInput
     ) public override onlyUSDLemma returns (uint256, uint256) {
-        // TODO: Fix
-        // TODO: Check,we need to take into account what we close after the market has settled is the net short or long position 
-        // if (hasSettled) return closeWExactUSDLAfterSettlementForUSDL(amount);
-
         bool _isBaseToQuote = isShorting;
         bool _isExactInput = isExactInput;
 
-        console.log("[trade()] Before base = %s %d", (amountBase < 0) ? "-":"+", amountBase.abs().toUint256());
-        console.log("[trade()] Before quote = %s %d", (amountQuote < 0) ? "-":"+", amountQuote.abs().toUint256());
-        console.log("[trade()] Trying to Trade isBaseToQuote = %d, isExactInput = %d, amount = %d",  
-            (_isBaseToQuote) ? 1 : 0,
-            (_isExactInput) ? 1 : 0,
-            amount
-        );
-
-        // totalFundingPNL = getFundingPNL();
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: usdlBaseTokenAddress,
             isBaseToQuote: _isBaseToQuote,
@@ -412,144 +354,125 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         amountBase += (_isBaseToQuote) ? -1 * int256(_amountBase) : int256(_amountBase);
         amountQuote += (_isBaseToQuote) ? int256(_amountQuote) : -1 * int256(_amountQuote);
 
-        console.log("[trade()] After base = %s %d", (amountBase < 0) ? "-":"+", amountBase.abs().toUint256());
-        console.log("[trade()] After quote = %s %d", (amountQuote < 0) ? "-":"+", amountQuote.abs().toUint256());
-
         int256 positionSize = accountBalance.getTotalPositionSize(address(this), usdlBaseTokenAddress);
-        console.log("[trade()] positionSize.abs().toUint256() = %s %d", (positionSize < 0) ? "-" : "+", positionSize.abs().toUint256());
         require(positionSize.abs().toUint256() <= maxPosition, "max position reached");
         return (_amountBase, _amountQuote);
     }
 
     // TODO: Add `onlyUSDLemma`
-    function deposit(uint256 amount, address collateral) external override {
-        _deposit(amount, collateral);
+    function deposit(uint256 amount, address collateral, Basis basis) external override {
+        _deposit(amount, collateral, basis);
     }
-
 
     // TODO: Add `onlyUSDLemma`
-    function withdraw(uint256 amount, address collateral) external override {
-        _withdraw(amount, collateral);
+    function withdraw(uint256 amount, address collateral, Basis basis) external override {
+        _withdraw(amount, collateral, basis);
     }
 
-
-
-    /////////// TRADING - CONVENIENCE FUNCTIONS //////////
-
-    function openLongWithExactBase(uint256 amount, address collateralIn, uint256 amountIn) public override onlyUSDLemma returns(uint256, uint256) {
+    /////////// TRADING - CONVENIENCE FUNCTIONS     
+    function openLongWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
         // Open Long: Quote --> Base 
         // ExactInput: False
-        
-        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn);
-
+        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         return trade(amount, false, false);
     }
 
-    function openLongWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn) public override onlyUSDLemma returns(uint256, uint256) {
+    function openLongWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
         // Open Long: Quote --> Base 
         // ExactInput: True
-
-        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn);
-
+        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         return trade(amount, false, true);
     }
 
-
-    function closeLongWithExactBase(uint256 amount, address collateralOut, uint256 amountOut) public override onlyUSDLemma returns(uint256, uint256) {
+    function closeLongWithExactBase(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
         // Close Long: Base --> Quote 
         // ExactInput: True
-
-        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut);
-
+        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
         return trade(amount, true, true);
     }
 
-    function closeLongWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut) public override onlyUSDLemma returns(uint256, uint256) {
+    function closeLongWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
         // Close Long: Base --> Quote 
         // ExactInput: False
-
-        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut);
-
+        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
         return trade(amount, true, false);
     }
 
-
-
-    function openShortWithExactBase(uint256 amount, address collateralIn, uint256 amountIn) public override onlyUSDLemma returns(uint256, uint256) {
-        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn);
-        return closeLongWithExactBase(amount, address(0), 0);
+    function openShortWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
+        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
+        (uint256 base, uint256 quote) = closeLongWithExactBase(amount, address(0), 0, basis);
+        if (Basis.IsUsdl == basis) {
+            mintedUsdlForThisWrapper += quote;
+        } else if (Basis.IsSynth == basis) {
+            mintedSynthForThisWrapper -= base;
+        }
+        return (base, quote);
     }
 
-    function openShortWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn) public override onlyUSDLemma returns(uint256, uint256) {
-        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn);
-        return closeLongWithExactQuote(amount, address(0), 0);
+    function openShortWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
+        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
+        (uint256 base, uint256 quote) = closeLongWithExactQuote(amount, address(0), 0, basis);
+        if (Basis.IsUsdl == basis) {
+            mintedUsdlForThisWrapper += quote;
+        } else if (Basis.IsSynth == basis) {
+            mintedSynthForThisWrapper -= base;
+        }
+        return (base, quote);
     }
 
-
-    function closeShortWithExactBase(uint256 amount, address collateralOut, uint256 amountOut) public override onlyUSDLemma returns(uint256, uint256) {
-        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut);
-        return openLongWithExactBase(amount, address(0), 0);
+    function closeShortWithExactBase(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
+        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
+        (uint256 base, uint256 quote) = openLongWithExactBase(amount, address(0), 0, basis);
+        if (Basis.IsUsdl == basis) {
+            mintedUsdlForThisWrapper -= quote;
+        } else if (Basis.IsSynth == basis) {
+            mintedSynthForThisWrapper += base;
+        }
+        return (base, quote);
     }
 
-    function closeShortWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut) public override onlyUSDLemma returns(uint256, uint256) {
-        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut);
-        return openLongWithExactQuote(amount, address(0), 0);
+    function closeShortWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
+        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
+        (uint256 base, uint256 quote) = openLongWithExactQuote(amount, address(0), 0, basis);
+        if (Basis.IsUsdl == basis) {
+            mintedUsdlForThisWrapper -= quote;
+        } else if (Basis.IsSynth == basis) {
+            mintedSynthForThisWrapper += base;
+        }
+        return (base, quote);
     }
-
-
-
-
-
-
-
-
-
 
     //// @notice when perpetual is in CLEARED state, withdraw the collateral
     function settle() external override {
-        positionAtSettlementInQuoteForUSDL = accountBalance
-            .getQuote(address(this), usdlBaseTokenAddress)
-            .abs()
-            .toUint256();
+        positionAtSettlementInQuoteForUSDL = getAmountInCollateralDecimalsForPerp(
+            mintedUsdlForThisWrapper,
+            address(usdlCollateral),
+            false
+        ); // for USDL
 
-        // NOTE: This checks the market is in CLOSED state, otherwise reverts
-        // NOTE: For some reason, the amountQuoteClosed < freeCollateral and freeCollateral is the max withdrawable for us so this is the one we want to use to withdraw
+        positionAtSettlementInQuoteForSynth = getAmountInCollateralDecimalsForPerp(
+            mintedSynthForThisWrapper,
+            address(usdc),
+            false
+        ); // for Synth
 
         clearingHouse.quitMarket(address(this), usdlBaseTokenAddress);
 
-        // if (usdlBaseTokenAddress != synthBaseTokenAddress) {
-        //     clearingHouse.quitMarket(address(this), usdlBaseTokenAddress);
-        //     clearingHouse.quitMarket(address(this), synthBaseTokenAddress);
-        // } else {
-        //     clearingHouse.quitMarket(address(this), usdlBaseTokenAddress);
-        // }
-
         // NOTE: Settle pending funding rates
-        settleAllFunding();
+        clearingHouse.settleAllFunding(address(this));
 
-        // NOTE: This amount of free collateral is the one internally used to check for the V_NEFC error, so this is the max withdrawable
-        uint256 freeCollateralUSDL = perpVault.getFreeCollateralByToken(address(this), address(usdlCollateral));
-        positionAtSettlementInBaseForUSDL = freeCollateralUSDL;
+        uint256 freeUSDCCollateral = perpVault.getFreeCollateral(address(this));
+        _withdraw(freeUSDCCollateral, address(usdc), Basis.IsSynth);
 
-        // uint256 freeCollateralForSynth = perpVault.getFreeCollateralByToken(address(this), address(synthCollateral));
-        // positionAtSettlementInQuoteForSynth = freeCollateralForSynth;
-
-        _withdraw(positionAtSettlementInBaseForUSDL, address(usdlCollateral));
-        // _withdraw(positionAtSettlementInQuoteForSynth, address(synthCollateral));
-
-        // if(! isUsdlCollateralTailAsset) {
-        //     perpVault.withdraw(address(usdlCollateral), positionAtSettlementInBaseForUSDL);
-        // }
-
-        // if(! isUsdlCollateralTailAsset) {
-        //     perpVault.withdraw(address(synthCollateral), positionAtSettlementInQuoteForSynth);
-        // }
-
+        if(! isUsdlCollateralTailAsset) {
+            // NOTE: This amount of free collateral is the one internally used to check for the V_NEFC error, so this is the max withdrawable
+            uint256 freeCollateralUSDL = perpVault.getFreeCollateralByToken(address(this), address(usdlCollateral));
+            _withdraw(freeCollateralUSDL, address(usdlCollateral), Basis.IsUsdl);
+        }
 
         // All the collateral is now back
         hasSettled = true;
     }
-
 
     function _USDCToCollateral(address router, uint256 routerType, bool isExactInput, uint256 amountUSDC) internal returns(uint256) {
         return _swapOnDEXSpot(router, routerType, false, isExactInput, amountUSDC);
@@ -567,8 +490,6 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         // NOTE: Unsupported Router --> Using UniV3 as default
         return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn);
     }
-
-
 
     function _swapOnUniV3(address router, bool isUSDLCollateralToUSDC, bool isExactInput, uint256 amount) internal returns(uint256) {
         uint256 res;
@@ -622,10 +543,6 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         return res;
     }
 
-
-
-
-
     /// @notice Rebalances USDL or Synth emission swapping by Perp backed to Token backed  
     /// @dev USDL can be backed by both: 1) Floating Collateral + Perp Short of the same Floating Collateral or 2) USDC 
     /// @dev LemmaX (where X can be ETH, ...) can be backed by both: 1) USDC collateralized Perp Long or 2) X token itself 
@@ -659,11 +576,11 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
                 console.log("[rebalance()] Net Short --> Decrease Negative Base --> Close Short, free floating collateral (if any) and swap it for USDC");
                 // NOTE: Net Short Position --> USDL Collateral is currently deposited locally if tail asset or in Perp otherwise 
                 // NOTE: In this case, we need to shrink our position before we can withdraw to swap so 
-                (, amountUSDCMinus) = closeShortWithExactBase(_amountBaseToRebalance, address(0), 0);
+                (, amountUSDCMinus) = closeShortWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance);
                 // (usdlCollateralAmount, ) = closeShortWithExactQuote(amount, address(0), 0);
 
                 // NOTE: Only withdraws from Perp if it is a non tail asset 
-                _withdraw(_amountBaseToRebalance, address(usdlCollateral));
+                _withdraw(_amountBaseToRebalance, address(usdlCollateral), Basis.IsRebalance);
 
                 console.log("_amountBaseToRebalance = ", _amountBaseToRebalance);
                 console.log("usdlCollateral.balanceOf(address(this)) = ", usdlCollateral.balanceOf(address(this)));
@@ -675,8 +592,8 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
                 console.log("[rebalance()] Net Long amount is Base --> Increase Positive Base --> Sell floating collateral for USDC, use it to incrase long");
                 // NOTE: Net Long Position --> USDL Collateral is not deposited in Perp but floating in the local balance sheet so we do not have to do anything before the trade
                 amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
-                _deposit(amountUSDCPlus, address(usdc));
-                (, amountUSDCMinus) = openLongWithExactBase(_amountBaseToRebalance, address(0), 0);
+                _deposit(amountUSDCPlus, address(usdc), Basis.IsRebalance);
+                (, amountUSDCMinus) = openLongWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance);
                 // (usdlCollateralAmount, ) = openLongWithExactQuote(usdcAmount, address(0), 0);
                 // if(isCheckProfit) require(amountUSDCPlus >= amountUSDCMinus, "Unprofitable");
             }
@@ -703,14 +620,14 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
                 console.log("[rebalance()] Net Short --> Increase Negative Base --> Sell USDC for floating collateral, use floating collateral to open a short on Perp");
                 // NOTE: Buy Exact Amount of UsdlCollateral
                 amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
-                _deposit(_amountBaseToRebalance, address(usdlCollateral));
-                (, amountUSDCPlus) = openShortWithExactBase(_amountBaseToRebalance, address(0), 0); 
+                _deposit(_amountBaseToRebalance, address(usdlCollateral), Basis.IsRebalance);
+                (, amountUSDCPlus) = openShortWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance); 
                 // if(isCheckProfit) require(usdcAmountPerpGained >= usdcAmountDexSpent, "Unprofitable");
             } else {
                 // NOTE: We are net long
                 console.log("[rebalance()] Net Long --> Decrease Positive Base --> Sell floating collateral for USDC, use it to incrase long");    
-                (, amountUSDCPlus) = closeLongWithExactBase(_amountBaseToRebalance, address(0), 0); 
-                _withdraw(amountUSDCPlus, address(usdc));
+                (, amountUSDCPlus) = closeLongWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance); 
+                _withdraw(amountUSDCPlus, address(usdc), Basis.IsRebalance);
                 amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
                 // if(isCheckProfit) require(usdcAmountPerpGained >= usdcAmountDexSpent, "Unprofitable");
             }
@@ -730,105 +647,10 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         return (amountUSDCPlus, amountUSDCMinus);
     }
 
-    /// @notice Rebalance position of dex based on accumulated funding, since last rebalancing
-    /// @param _reBalancer Address of rebalancer who called function on USDL contract
-    /// @param amount Amount of accumulated funding fees used to rebalance by opening or closing a short position
-    /// NOTE: amount will be in vUSD or as quoteToken
-    /// @param data Abi encoded data to call respective perpetual function, contains limitPrice, deadline and fundingPNL(while calling rebalance)
-    /// @return True if successful, False if unsuccessful
-    function reBalance(
-        address _reBalancer,
-        int256 amount,
-        bytes calldata data
-    ) external override onlyUSDLemma returns (bool) {
-        require(_reBalancer == reBalancer, "only rebalancer is allowed");
-
-        // (uint160 _sqrtPriceLimitX96, uint256 _deadline, bool isUsdl) = abi.decode(data, (uint160, uint256, bool));
-
-        // bool _isBaseToQuote;
-        // bool _isExactInput;
-        // address baseTokenAddress;
-
-        // int256 fundingPNL = totalFundingPNL;
-        // if (isUsdl) {
-        //     // only if USDL rebalance
-        //     // If USDL rebalace happens then realizedFundingPNL will set before trade
-        //     realizedFundingPNL += amount;
-
-        //     baseTokenAddress = usdlBaseTokenAddress;
-        //     if (amount < 0) {
-        //         // open long position for eth and amount in vUSD
-        //         _isBaseToQuote = false;
-        //         _isExactInput = true;
-        //     } else {
-        //         // open short position for eth and amount in vUSD
-        //         _isBaseToQuote = true;
-        //         _isExactInput = false;
-        //     }
-        // } else {
-        //     // only if Synth rebalance
-        //     baseTokenAddress = synthBaseTokenAddress;
-        //     if (amount < 0) {
-        //         // open short position for eth and amount in vETH
-        //         _isBaseToQuote = true;
-        //         _isExactInput = true;
-        //     } else {
-        //         // open long position for eth and amount in vETH
-        //         _isBaseToQuote = false;
-        //         _isExactInput = false;
-        //     }
-        // }
-
-        // totalFundingPNL = getFundingPNL(baseTokenAddress);
-
-        // IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
-        //     baseToken: baseTokenAddress,
-        //     isBaseToQuote: _isBaseToQuote,
-        //     isExactInput: _isExactInput,
-        //     amount: uint256(amount.abs()),
-        //     oppositeAmountBound: 0,
-        //     deadline: _deadline,
-        //     sqrtPriceLimitX96: _sqrtPriceLimitX96,
-        //     referralCode: referrerCode
-        // });
-        // (, uint256 quote) = clearingHouse.openPosition(params);
-
-        // if (!isUsdl) {
-        //     // If Synth rebalace happens then realizedFundingPNL will set after trade
-        //     if (amount < 0) {
-        //         realizedFundingPNL -= int256(quote);
-        //     } else {
-        //         realizedFundingPNL += int256(quote);
-        //     }
-        // }
-
-        // int256 difference = fundingPNL - realizedFundingPNL;
-        // // //error +-10**12 is allowed in calculation
-        // require(difference.abs() <= 10**12, "not allowed");
-        // return true;
-    }
-
-    /// @notice settleAllFunding will getPendingFundingPayment of perpLemma wrapper and then settle funding
-    function settleAllFunding() public {
-        totalFundingPNL = getFundingPNL();
-        // totalFundingPNL = getFundingPNL(synthBaseTokenAddress);
-        clearingHouse.settleAllFunding(address(this));
-    }
-
     //////////////////////
     /// PUBLIC METHODS ///
     //////////////////////
 
-    /// @notice Get funding PnL for this address till now
-    /// @return fundingPNL Funding PnL accumulated till now
-    function getFundingPNL() public view returns (int256 fundingPNL) {
-        return totalFundingPNL + exchange.getPendingFundingPayment(address(this), usdlBaseTokenAddress);
-    }
-
-    /// @notice Get Amount in collateral decimals, provided amount is in 18 decimals
-    /// @param amount Amount in 18 decimals
-    /// @param roundUp If needs to round up
-    /// @return decimal adjusted value
     function getAmountInCollateralDecimalsForPerp(
         uint256 amount,
         address collateral,
@@ -841,142 +663,109 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         return amount / uint256(10**(18 - collateralDecimals));
     }
 
+    function getCollateralBackAfterSettlement(uint256 amount, address to, bool isUsdl) external override onlyUSDLemma returns(uint256, uint256) {
+        return settleCollateral(amount, to, isUsdl);
+    }
+
     ////////////////////////
     /// INTERNAL METHODS ///
     ////////////////////////
 
     /// @notice to deposit collateral in vault for short or open position
     /// @notice If collateral is tail asset no need to deposit it in Perp, it has to stay in this contract balance sheet 
-    function _deposit(uint256 collateralAmount, address collateral) internal {
-        console.log("[_deposit()] Trying to deposit amount = ", collateralAmount);
-        if( (collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset) ) 
-        {
-            console.log("[_deposit()] Not a tail asset");
+    function _deposit(uint256 collateralAmount, address collateral, Basis basis) internal {
+        if(collateral == address(usdc)) {
+            perpVault.deposit(address(usdc), collateralAmount);
+        } else if((collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset)) {
             perpVault.deposit(collateral, collateralAmount);
             amountUsdlCollateralDeposited += collateralAmount;
         }
-        else {
-            console.log("[_deposit()] Tail Asset");
-        }
 
-        // // NOTE: Allowing also USDLemma to deposit USDC 
-        // if(collateral == address(usdc)) {
-        //     perpVault.deposit(address(usdc), collateralAmount);
-        // }
+        if (Basis.IsRebalance != basis) { 
+            if (Basis.IsUsdl == basis) { 
+                totalUsdlCollateral += collateralAmount;
+            } else {
+                totalSynthCollateral += collateralAmount;
+            }
+        }
     }
 
     /// @notice to withdraw collateral from vault after long or close position
     /// @notice If collateral is tail asset no need to withdraw it from Perp, it is already in this contract balance sheet 
-    function _withdraw(uint256 amountToWithdraw, address collateral) internal {
-        if( (collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset) ) 
-        {
-            console.log("[_withdraw()] Not a tail asset");
+    function _withdraw(uint256 amountToWithdraw, address collateral, Basis basis) internal {
+        if(collateral == address(usdc)) {
+            perpVault.withdraw(address(usdc), amountToWithdraw);
+        } else if((collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset)) {
             // NOTE: This is problematic with ETH
             perpVault.withdraw(collateral, amountToWithdraw);
             amountUsdlCollateralDeposited -= amountToWithdraw;
         }
-        else {
-            console.log("[_withdraw()] Tail Asset");
+
+        if (Basis.IsRebalance != basis) { 
+            if (Basis.IsUsdl == basis) { 
+                totalUsdlCollateral -= amountToWithdraw;
+            } else {
+                totalSynthCollateral -= amountToWithdraw;
+            }
+        }
+    }
+
+    function getAllBalance() internal view returns(
+        uint256, uint256, uint256, uint256
+    ) {
+        return (
+            totalUsdlCollateral,
+            usdlCollateral.balanceOf(address(this)),
+            totalSynthCollateral,
+            usdc.balanceOf(address(this))
+        ); 
+    }
+
+    function settleCollateral(uint256 usdlOrSynthAmount, address to, bool isUsdl) internal returns(
+        uint256 amountUsdlCollateralToTransfer1e_18, 
+        uint256 amountUsdcCollateralToTransfer1e_18
+    ) {
+        uint256 positionAtSettlementInQuote;
+        uint256 tailAmount;
+        uint256 usdcAmount;
+        if (isUsdl) {
+            positionAtSettlementInQuote = positionAtSettlementInQuoteForUSDL;
+            require(positionAtSettlementInQuoteForUSDL > 0, "Settled vUSD position amount should not ZERO");
+        } else {
+            positionAtSettlementInQuote = positionAtSettlementInQuoteForSynth;
+            require(positionAtSettlementInQuoteForSynth > 0, "Settled vUSD position amount should not ZERO");
+        }
+        require(positionAtSettlementInQuote > 0, "Settled vUSD position amount should not ZERO");
+        
+        (uint256 a, uint256 b, uint256 c, uint256 d) = getAllBalance();
+        if (isUsdl) {
+            tailAmount = a > b ? b : a;
+            usdcAmount = c >= d ? 0 : d - c;
+        } else {
+            usdcAmount = c < d ? c : d;
+            tailAmount = a >= b ? 0 : b - a;
+        }
+        if (tailAmount != 0) {
+            uint256 amountForUsdl = getAmountInCollateralDecimalsForPerp(usdlOrSynthAmount, address(usdlCollateral), false);
+            uint256 amountUsdlCollateralToTransfer = (amountForUsdl * tailAmount) / positionAtSettlementInQuote;
+            uint256 collateralDecimals = IERC20Decimals(address(usdlCollateral)).decimals();
+            amountUsdlCollateralToTransfer1e_18 = amountUsdlCollateralToTransfer * 1e18 / (10**collateralDecimals);
+            SafeERC20Upgradeable.safeTransfer(usdlCollateral, to, amountUsdlCollateralToTransfer);
         }
 
-        // // NOTE: Allowing also USDLemma to deposit USDC 
-        // if(collateral == address(usdc)) {
-        //     perpVault.withdraw(address(usdc), amountToWithdraw);
-        // }
+        if (usdcAmount != 0) {
+            uint256 amountForSynth = getAmountInCollateralDecimalsForPerp(usdlOrSynthAmount, address(usdc), false);
+            uint256 amountUsdcCollateralToTransfer = (amountForSynth * usdcAmount) / positionAtSettlementInQuote;
+            uint256 collateralDecimals = IERC20Decimals(address(usdc)).decimals();
+            amountUsdcCollateralToTransfer1e_18 = amountUsdcCollateralToTransfer * 1e18 / (10**collateralDecimals);
+            SafeERC20Upgradeable.safeTransfer(usdc, to, amountUsdcCollateralToTransfer);
+        }
+        if (isUsdl) {
+            positionAtSettlementInQuoteForUSDL -= usdlOrSynthAmount;
+        } else {
+            positionAtSettlementInQuoteForSynth -= usdlOrSynthAmount;
+        }
     }
-
-    /// NOTE: for USDL ineternal,
-    /// closeWExactCollateralAfterSettlementForUSDL & closeWExactUSDLAfterSettlementForUSDL
-
-    /// @notice closeWExactCollateralAfterSettlementForUSDL is use to distribute collateral using on pro rata based user's share(USDL).
-    /// @param collateralAmount this method distribute collateral by exact collateral
-    function closeWExactCollateralAfterSettlementForUSDL(uint256 collateralAmount)
-        internal
-        returns (uint256 USDLToBurn)
-    {
-        //No Position at settlement --> no more USDL to Burn
-        require(positionAtSettlementInQuoteForUSDL > 0, "Settled vUSD position amount should not ZERO");
-        //No collateral --> no more collateralt to give out
-        require(usdlCollateral.balanceOf(address(this)) > 0, "Settled collateral amount should not ZERO");
-        uint256 amountCollateralToTransfer = getAmountInCollateralDecimalsForPerp(
-            collateralAmount,
-            address(usdlCollateral),
-            false
-        );
-        require(amountCollateralToTransfer > 0, "Amount should greater than zero");
-        USDLToBurn =
-            (amountCollateralToTransfer * positionAtSettlementInQuoteForUSDL) /
-            usdlCollateral.balanceOf(address(this));
-        SafeERC20Upgradeable.safeTransfer(usdlCollateral, usdLemma, amountCollateralToTransfer);
-        positionAtSettlementInQuoteForUSDL -= USDLToBurn;
-    }
-
-    /// @notice closeWExactUSDLAfterSettlementForUSDL is used to distribute collateral using on pro rata based user's share(USDL).
-    /// @param usdlAmount this method distribute collateral by exact usdlAmount
-    function closeWExactUSDLAfterSettlementForUSDL(uint256 usdlAmount)
-        internal
-        returns (uint256 amountCollateralToTransfer1e_18)
-    {
-        // WPL_NP : Wrapper PerpLemma, No Position at settlement --> no more USDL to Burn
-        require(positionAtSettlementInQuoteForUSDL > 0, "Settled vUSD position amount should not ZERO");
-        // WPL_NC : Wrapper PerpLemma, No Collateral
-        require(usdlCollateral.balanceOf(address(this)) > 0, "Settled collateral amount should not ZERO");
-        amountCollateralToTransfer1e_18 =
-            (usdlAmount * usdlCollateral.balanceOf(address(this))) /
-            positionAtSettlementInQuoteForUSDL;
-        uint256 amountCollateralToTransfer = getAmountInCollateralDecimalsForPerp(
-            amountCollateralToTransfer1e_18,
-            address(usdlCollateral),
-            false
-        );
-        require(amountCollateralToTransfer > 0, "Amount should greater than zero");
-        SafeERC20Upgradeable.safeTransfer(usdlCollateral, usdLemma, amountCollateralToTransfer);
-        positionAtSettlementInQuoteForUSDL -= usdlAmount;
-    }
-
-    /*
-    /// NOTE: for Synth ineternal,
-    /// closeWExactCollateralAfterSettlementForSynth & closeWExactETHLAfterSettlementForSynth
-    /// @notice closeWExactCollateralAfterSettlementForSynth is use to distribute collateral using on pro rata based user's share(ETHL).
-    /// @param collateralAmount this method distribute collateral by exact collateral
-    // function closeWExactCollateralAfterSettlementForSynth(uint256 collateralAmount)
-    //     internal
-    //     returns (uint256 ETHLToBurn)
-    // {
-    //     // WPL_NP : Wrapper PerpLemma, No Position at settlement --> no more ETHL to Burn
-    //     require(positionAtSettlementInQuoteForSynth > 0, "Settled vUSD position amount should not ZERO");
-    //     // WPL_NC : Wrapper PerpLemma, No Collateral
-    //     require(synthCollateral.balanceOf(address(this)) > 0, "Settled collateral amount should not ZERO");
-    //     uint256 amountCollateralToTransfer = getAmountInCollateralDecimalsForPerp(
-    //         collateralAmount,
-    //         address(synthCollateral),
-    //         false
-    //     );
-    //     ETHLToBurn =
-    //         (amountCollateralToTransfer * positionAtSettlementInQuoteForSynth) /
-    //         synthCollateral.balanceOf(address(this));
-    //     SafeERC20Upgradeable.safeTransfer(synthCollateral, usdLemma, amountCollateralToTransfer);
-    //     positionAtSettlementInQuoteForSynth -= ETHLToBurn;
-    // }
-    */
-
-
-    /*
-    /// @notice closeWExactETHLAfterSettlementForSynth is use to distribute collateral using on pro rata based user's share(ETHL).
-    /// @param ethlAmount this method distribute collateral by exact ethlAmount
-    // function closeWExactETHLAfterSettlementForSynth(uint256 ethlAmount) internal returns (uint256 ETHLToBurn) {
-    //     // WPL_NP : Wrapper PerpLemma, No Position at settlement --> no more ETHL to Burn
-    //     require(positionAtSettlementInQuoteForSynth > 0, "Settled vUSD position amount should not ZERO");
-    //     // WPL_NC : Wrapper PerpLemma, No Collateral
-    //     require(synthCollateral.balanceOf(address(this)) > 0, "Settled collateral amount should not ZERO");
-    //     ethlAmount = getAmountInCollateralDecimalsForPerp(ethlAmount, address(synthCollateral), false);
-    //     uint256 amountCollateralToTransfer = (ethlAmount * synthCollateral.balanceOf(address(this))) /
-    //         positionAtSettlementInQuoteForSynth;
-    //     SafeERC20Upgradeable.safeTransfer(synthCollateral, usdLemma, amountCollateralToTransfer);
-    //     positionAtSettlementInQuoteForSynth -= ethlAmount;
-    //     ETHLToBurn = ethlAmount;
-    // }
-    */
 
     function _msgSender()
         internal
@@ -997,389 +786,4 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     {
         return super._msgData();
     }
-
-//////////////////// UNNECESSARY CODE ////////////////
-
-    /*
-    /// METHODS WITH EXACT USDL or vUSD(quote or vUSD)
-    /// 1). getCollateralAmountGivenUnderlyingAssetAmountForPerp and openShortWithExactQuoteForUSDL
-    /// 2). getCollateralAmountGivenUnderlyingAssetAmountForPerp and closeLongWithExactQuoteForUSDL
-
-    /// METHODS WITH EXACT ETH or vETH(base or vETH)
-    /// 3). getCollateralAmountGivenUnderlyingAssetAmountForPerp and openLongWithExactBaseForSynth
-    /// 4). getCollateralAmountGivenUnderlyingAssetAmountForPerp and closeShortWithExactBaseForSynth
-
-    /// @notice getCollateralAmountGivenUnderlyingAssetAmountForPerp will create short or long position and give base or quote amount as collateral
-    /// @param amount is for exact amount of USDL will use to create a short or long position instead ethCollateral
-    /// @param isShorting is bool for need to do short or long
-    function getCollateralAmountGivenUnderlyingAssetAmountForPerp1(
-        uint256 amount,
-        bool isShorting
-        // bool isUsdl
-    ) external override onlyUSDLemma returns (uint256 collateral) {
-        bool _isBaseToQuote;
-        bool _isExactInput;
-        address baseTokenAddress;
-
-        baseTokenAddress = usdlBaseTokenAddress;
-        if (isShorting) {
-            // before openShortWithExactQuoteForUSDL
-            // open short position for eth and amount in vUSD
-            _isBaseToQuote = true;
-            _isExactInput = false;
-        } else {
-            // before closeLongWithExactQuoteForUSDL
-            // open long position for eth and amount in vUSD
-            _isBaseToQuote = false;
-            _isExactInput = true;
-            if (hasSettled) return closeWExactUSDLAfterSettlementForUSDL(amount);
-        }
-
-        // if (isUsdl) {
-        //     baseTokenAddress = usdlBaseTokenAddress;
-        //     if (isShorting) {
-        //         // before openShortWithExactQuoteForUSDL
-        //         // open short position for eth and amount in vUSD
-        //         _isBaseToQuote = true;
-        //         _isExactInput = false;
-        //     } else {
-        //         // before closeLongWithExactQuoteForUSDL
-        //         // open long position for eth and amount in vUSD
-        //         _isBaseToQuote = false;
-        //         _isExactInput = true;
-        //         if (hasSettled) return closeWExactUSDLAfterSettlementForUSDL(amount);
-        //     }
-        // } else {
-        //     baseTokenAddress = synthBaseTokenAddress;
-        //     if (isShorting) {
-        //         // before closeShortWithExactBaseForSynth
-        //         _isBaseToQuote = true;
-        //         _isExactInput = true;
-        //         if (hasSettled) return closeWExactCollateralAfterSettlementForSynth(amount);
-        //     } else {
-        //         // before openLongWithExactBaseForSynth
-        //         _isBaseToQuote = false;
-        //         _isExactInput = false;
-        //     }
-        // }
-
-        totalFundingPNL = getFundingPNL(baseTokenAddress);
-        IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
-            baseToken: baseTokenAddress,
-            isBaseToQuote: _isBaseToQuote,
-            isExactInput: _isExactInput,
-            amount: amount,
-            oppositeAmountBound: 0,
-            deadline: MAX_UINT256,
-            sqrtPriceLimitX96: 0,
-            referralCode: referrerCode
-        });
-        (uint256 base, uint256 quote) = clearingHouse.openPosition(params);
-        collateral = base;
-
-        // if (isUsdl) {
-        //     collateral = base;
-        // } else {
-        //     collateral = quote;
-        // }
-    }
-
-    // NOT IMPLEMENTED
-
-    function getCollateralAmountGivenUnderlyingAssetAmount(uint256, bool) public override returns (uint256) {
-        revert("not supported");
-    }
-
-    function open(uint256, uint256) public override {
-        revert("not supported");
-    }
-
-    function close(uint256, uint256) public override {
-        revert("not supported");
-    }
-
-    function openWExactCollateral(uint256) public override returns (uint256) {
-        revert("not supported");
-    }
-
-    function closeWExactCollateral(uint256) public override returns (uint256) {
-        revert("not supported");
-    }
-
-    function getAmountInCollateralDecimals(uint256, bool) public pure override returns (uint256) {
-        revert("not supported");
-    }
-
-    // /// getCollateralAmountGivenUnderlyingAssetAmountForPerp =>
-    // /// @notice Open short position for eth(baseToken) on gCAGUAAFP method first using exact amount of USDL(or vUSD you can say) and then deposit collateral here
-    // /// @param collateralAmountRequired collateral amount required to open the position
-    // function openShortWithExactQuoteForUSDL(uint256 amount, address collateral) external override onlyUSDLemma returns(uint256 amountBase) {
-    //     require(amount > 0, "Input Amount should be greater than zero");
-
-    //     // isShorting = true 
-    //     // isExactUSDL = true
-    //     (amountBase, _) = _trade(amount, true, true);
-
-    //     // uint256 _collateralAmountRequired = _trade(amount, true, true);
-    //     // uint256 _collateralAmountToDeposit = getAmountInCollateralDecimalsForPerp(
-    //     //     _collateralAmountRequired,
-    //     //     address(usdlCollateral),
-    //     //     false
-    //     // );
-    //     // require(_collateralAmountToDeposit > 0, "Collateral to deposit Amount should be greater than zero");
-    //     // require(usdlCollateral.balanceOf(address(this)) >= _collateralAmountToDeposit, "Not enough collateral to Open");
-
-
-    //     // // NOTE: Only non-tail assets can be deposited in Perp, the other assets have to remain in this contract balance sheet
-    //     // _deposit(collateralAmountToDeposit, address(collateral));
-    // }
-
-
-    // /// @notice Open long position for eth(baseToken) on gCAGUAAFP first using exact amount of USDL(or vUSD you can say) and withdraw collateral here
-    // /// @param collateralAmountToGetBack collateral amount to withdraw after close position
-    // function closeLongWithExactQuoteForUSDL(uint256, uint256 collateralAmountToGetBack) external override onlyUSDLemma {
-    //     require(collateralAmountToGetBack > 0, "Amount should be greater than zero");
-    //     uint256 amountToWithdraw = getAmountInCollateralDecimalsForPerp(
-    //         collateralAmountToGetBack,
-    //         address(usdlCollateral),
-    //         false
-    //     );
-    //     require(amountToWithdraw > 0, "Amount should be greater than zero");
-
-    //     // NOTE: Only non-tail asset can be withdrawn, the other one is already on this contract balance sheet 
-    //     _withdraw(amountToWithdraw, address(usdlCollateral));
-    //     SafeERC20Upgradeable.safeTransfer(usdlCollateral, usdLemma, amountToWithdraw);
-    // }
-
-    // /// @notice Open long position for eth(baseToken) on gCAGUAAFP first and deposit collateral here
-    // /// @param collateralAmountRequired collateral amount required to open the position
-    // function openLongWithExactBaseForSynth(uint256, uint256 collateralAmountRequired) external override onlyUSDLemma {
-    //     require(collateralAmountRequired > 0, "Amount should greater than zero");
-    //     uint256 collateralAmountToDeposit = getAmountInCollateralDecimalsForPerp(
-    //         collateralAmountRequired,
-    //         address(synthCollateral),
-    //         false
-    //     );
-    //     require(collateralAmountToDeposit > 0, "Amount should greater than zero");
-    //     require(synthCollateral.balanceOf(address(this)) >= collateralAmountToDeposit, "not enough collateral");
-    //     _deposit(collateralAmountToDeposit, address(synthCollateral));
-    //     // _deposit(collateralAmountToDeposit, address(synthCollateral));
-    // }
-
-    // /// @notice Open short position for eth(quoteToken) on gCAGUAAFP first and withdraw collateral here
-    // /// @param collateralAmountToGetBack collateral amount to withdraw after close position
-    // function closeShortWithExactBaseForSynth(uint256, uint256 collateralAmountToGetBack)
-    //     external
-    //     override
-    //     onlyUSDLemma
-    // {
-    //     require(collateralAmountToGetBack > 0, "Amount should greater than zero");
-    //     uint256 amountToWithdraw = getAmountInCollateralDecimalsForPerp(
-    //         collateralAmountToGetBack,
-    //         address(synthCollateral),
-    //         false
-    //     );
-    //     require(amountToWithdraw > 0, "Amount should greater than zero");
-    //     _withdraw(amountToWithdraw, address(synthCollateral));
-    //     SafeERC20Upgradeable.safeTransfer(synthCollateral, usdLemma, amountToWithdraw);
-    // }
-
-    // /// METHODS WITH EXACT COLLATERAL FOR USDL Token(Base or Eth)
-    // /// 1). openShortWithExactCollateral
-    // /// 2). closeLongWithExactCollateral
-
-    // /// @notice Open short position for eth(baseToken) first and deposit collateral here
-    // /// @param collateralAmount collateral amount required to open the position
-    // function openShortWithExactCollateral(uint256 collateralAmount)
-    //     external
-    //     override
-    //     onlyUSDLemma
-    //     returns (uint256 USDLToMint)
-    // {
-    //     require(!hasSettled, "Market Closed");
-    //     uint256 collateralAmountToDeposit = getAmountInCollateralDecimalsForPerp(
-    //         collateralAmount,
-    //         address(usdlCollateral),
-    //         false
-    //     );
-    //     require(collateralAmountToDeposit > 0, "Amount should greater than zero");
-    //     require(
-    //         usdlCollateral.balanceOf(address(this)) >= collateralAmountToDeposit,
-    //         "Not enough collateral for openShortWithExactCollateral"
-    //     );
-
-    //     totalFundingPNL = getFundingPNL(usdlBaseTokenAddress);
-
-    //     _deposit(collateralAmountToDeposit, address(usdlCollateral));
-
-    //     // if(! isUsdlCollateralTailAsset) {
-    //     //     perpVault.deposit(address(usdlCollateral), collateralAmountToDeposit);
-    //     // }
-
-
-    //     // create long for usdc and short for eth position by giving isBaseToQuote=true
-    //     // and amount in eth(baseToken) by giving isExactInput=true
-    //     IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
-    //         baseToken: usdlBaseTokenAddress,
-    //         isBaseToQuote: true,
-    //         isExactInput: true,
-    //         amount: collateralAmount,
-    //         oppositeAmountBound: 0,
-    //         deadline: MAX_UINT256,
-    //         sqrtPriceLimitX96: 0,
-    //         referralCode: referrerCode
-    //     });
-    //     (, uint256 quote) = clearingHouse.openPosition(params);
-
-    //     int256 positionSize = accountBalance.getTotalPositionSize(address(this), usdlBaseTokenAddress);
-    //     require(positionSize.abs().toUint256() <= maxPosition, "max position reached");
-    //     USDLToMint = quote;
-    // }
-
-    // /// @notice Open long position for eth(baseToken) first and withdraw collateral here
-    // /// @param collateralAmount collateral amount require to close or long position
-    // function closeLongWithExactCollateral(uint256 collateralAmount)
-    //     external
-    //     override
-    //     onlyUSDLemma
-    //     returns (uint256 USDLToBurn)
-    // {
-    //     if (hasSettled) return closeWExactCollateralAfterSettlementForUSDL(collateralAmount);
-
-    //     totalFundingPNL = getFundingPNL(usdlBaseTokenAddress);
-
-    //     //simillar to openWExactCollateral but for close
-    //     IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
-    //         baseToken: usdlBaseTokenAddress,
-    //         isBaseToQuote: false,
-    //         isExactInput: false,
-    //         amount: collateralAmount,
-    //         oppositeAmountBound: 0,
-    //         deadline: MAX_UINT256,
-    //         sqrtPriceLimitX96: 0,
-    //         referralCode: referrerCode
-    //     });
-    //     (, uint256 quote) = clearingHouse.openPosition(params);
-    //     USDLToBurn = quote;
-
-    //     uint256 amountToWithdraw = getAmountInCollateralDecimalsForPerp(
-    //         collateralAmount,
-    //         address(usdlCollateral),
-    //         false
-    //     );
-    //     require(amountToWithdraw > 0, "Amount should greater than zero");
-
-    //     _withdraw(amountToWithdraw, address(usdlCollateral));
-    //     // if(! isUsdlCollateralTailAsset) {
-    //     //     perpVault.withdraw(address(usdlCollateral), amountToWithdraw); // withdraw closed position fund            
-    //     // }
-
-    //     SafeERC20Upgradeable.safeTransfer(usdlCollateral, usdLemma, amountToWithdraw);
-    // }
-
-    // /// METHODS WITH EXACT COLLATERAL FOR SyntheticToken(Base or Eth)
-    // /// 1). openLongWithExactCollateral
-    // /// 2). closeShortWithExactCollateral
-
-    // /// @notice Open long position for eth(quoteToken) first and deposit collateral here
-    // /// @param collateralAmount collateral amount required to open the position. amount is in vUSD(quoteToken)
-    // function openLongWithExactCollateral(uint256 collateralAmount)
-    //     external
-    //     override
-    //     onlyUSDLemma
-    //     returns (uint256 ETHLToMint)
-    // {
-    //     console.log("[openLongWithExactCollateral()] T1");
-    //     require(!hasSettled, "Market Closed");
-    //     console.log("[openLongWithExactCollateral()] T2");
-    //     uint256 collateralAmountToDeposit = getAmountInCollateralDecimalsForPerp(
-    //         collateralAmount,
-    //         address(synthCollateral),
-    //         false
-    //     );
-    //     require(collateralAmountToDeposit > 0, "Amount should greater than zero");
-    //     console.log("[openLongWithExactCollateral()] T3");
-    //     require(
-    //         synthCollateral.balanceOf(address(this)) >= collateralAmountToDeposit,
-    //         "Not enough collateral for openLongWithExactCollateral"
-    //     );
-    //     console.log("[openLongWithExactCollateral()] T5");
-
-    //     totalFundingPNL = getFundingPNL(usdlBaseTokenAddress);
-    //     // totalFundingPNL = getFundingPNL(synthBaseTokenAddress);
-    //     _deposit(collateralAmountToDeposit, address(synthCollateral));
-    //     console.log("[openLongWithExactCollateral()] T6");
-
-    //     // if(! isUsdlCollateralTailAsset) {
-    //     //     perpVault.deposit(address(synthCollateral), collateralAmountToDeposit);
-    //     // }
-
-
-    //     // create long for usdc and short for eth position by giving isBaseToQuote=false
-    //     // and amount in usdc(quoteToken) by giving isExactInput=true
-    //     IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
-    //         baseToken: synthBaseTokenAddress,
-    //         isBaseToQuote: false,
-    //         isExactInput: true,
-    //         amount: collateralAmount,
-    //         oppositeAmountBound: 0,
-    //         deadline: MAX_UINT256,
-    //         sqrtPriceLimitX96: 0,
-    //         referralCode: referrerCode
-    //     });
-    //     (uint256 base, ) = clearingHouse.openPosition(params);
-    //     console.log("[openLongWithExactCollateral()] T7");
-
-    //     int256 positionSize = accountBalance.getTotalPositionSize(address(this), synthBaseTokenAddress);
-    //     console.log("[openLongWithExactCollateral()] positionSize.abs().toUint256() = ", positionSize.abs().toUint256());
-    //     require(positionSize.abs().toUint256() <= maxPosition, "max position reached");
-    //     console.log("[openLongWithExactCollateral()] T10");
-    //     ETHLToMint = base;
-    // }
-
-    // /// @notice Open short position for eth(quoteToken) first and withdraw collateral here
-    // /// @param collateralAmount collateral amount require to close or long position. amount is in vUSD(quoteToken)
-    // function closeShortWithExactCollateral(uint256 collateralAmount)
-    //     external
-    //     override
-    //     onlyUSDLemma
-    //     returns (uint256 ETHLToBurn)
-    // {
-    //     if (hasSettled) return closeWExactETHLAfterSettlementForSynth(collateralAmount);
-
-    //     totalFundingPNL = getFundingPNL(synthBaseTokenAddress);
-
-    //     // simillar to openWExactCollateral but for close
-    //     IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
-    //         baseToken: synthBaseTokenAddress,
-    //         isBaseToQuote: true,
-    //         isExactInput: false,
-    //         amount: collateralAmount,
-    //         oppositeAmountBound: 0,
-    //         deadline: MAX_UINT256,
-    //         sqrtPriceLimitX96: 0,
-    //         referralCode: referrerCode
-    //     });
-    //     (uint256 base, ) = clearingHouse.openPosition(params);
-    //     ETHLToBurn = base;
-
-    //     uint256 amountToWithdraw = getAmountInCollateralDecimalsForPerp(
-    //         collateralAmount,
-    //         address(synthCollateral),
-    //         false
-    //     );
-    //     require(amountToWithdraw > 0, "Amount should greater than zero");
-    //     _withdraw(amountToWithdraw, address(synthCollateral));
-    //     // if(! isUsdlCollateralTailAsset) {
-    //     //     perpVault.withdraw(address(synthCollateral), amountToWithdraw); // withdraw closed position fund
-    //     // }
-
-    //     SafeERC20Upgradeable.safeTransfer(synthCollateral, usdLemma, amountToWithdraw);
-    // }
-
-
-    */
-
-
-
 }
