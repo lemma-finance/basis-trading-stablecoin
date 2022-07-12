@@ -202,7 +202,7 @@ const main = async (arbProvider, signer) => {
 
         // NOTE: Uniswap Router 
         const routerType = 0;
-        perpLemmaETH.rebalance(optimism['UniswapV3']['router'], routerType, amount, false);
+        perpLemmaETH.rebalance(optimism['UniswapV3']['router'], routerType, amount, false, {gasLimit:10000});
     }
 
     /*
