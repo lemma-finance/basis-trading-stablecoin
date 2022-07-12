@@ -29,6 +29,7 @@ const config = require("./config.json");
 
 
 const addresses = config.anvil;
+const optimism = config.optimism;
 // const addresses = config.optimism;
 
 const ZERO = BigNumber.from("0");
@@ -71,6 +72,13 @@ const computePrice = async(pool, signer) => {
     return token0Price;
 }
 
+const getAmount = async() => {
+    // TODO: Implement 
+
+    // NOTE: Returning an arbitrary amount 
+    return utils.parseEther('1');
+}
+
 const getArb = async(spotPrice, markPrice, deltaPerc_1e6) => {
     const deltaPrice = spotPrice.sub(markPrice).abs();
     const deltaThreshold = spotPrice.mul(deltaPerc_1e6).div(utils.parseUnits('1', 6));
@@ -78,15 +86,15 @@ const getArb = async(spotPrice, markPrice, deltaPerc_1e6) => {
     console.log(`[getArb()] deltaThreshold = ${deltaThreshold}`);
     if(deltaPrice.lte(deltaThreshold)) {
         console.log(`[getArb()] No Arb`);
-        return 0;
+        return utils.parseUnits('0', 0);
     }
 
     if(spotPrice.gt(markPrice)) {
-        console.log(`Spot > Mark --> Sell on Collateral Spot and get USDC`);
-        return -1;
+        console.log(`Spot > Mark --> Sell Collateral on Spot and get USDC`);
+        return (await getAmount()).mul(utils.parseUnits('1',0));
     } else {
         console.log(`Mark > Spot --> Buy Collateral on Spot for USDC`);
-        return 1;
+        return (await getAmount()).mul(utils.parseUnits('1',0));
     }
 }
 
@@ -141,7 +149,8 @@ const main = async (arbProvider, signer) => {
     console.log(`usdlCollateral = ${usdlCollateralAddress} Appunto `);
     console.log(`MyBalance of usdlCollateral = ${await usdlCollateral.balanceOf(signer.address)}`);
 
-    const UniV3Factory = new ethers.Contract(addresses['UniV3_Factory'], UniV3FactoryArtifacts.abi, signer);
+    const UniV3Factory = new ethers.Contract(optimism['UniswapV3']['factory'], UniV3FactoryArtifacts.abi, signer);
+    // const UniV3Factory = new ethers.Contract(addresses['UniV3_Factory'], UniV3FactoryArtifacts.abi, signer);
     console.log(`UniV3 Factory Test = ${await UniV3Factory.owner()}`);
 
     const UniV3PoolAddress = await UniV3Factory.getPool(addresses['USDC'], usdlCollateralAddress, 3000);
@@ -185,7 +194,16 @@ const main = async (arbProvider, signer) => {
 
 
     // NOTE: Use a 1% threshold
-    const arbType = getArb(spotPrice, markPrice, utils.parseUnits('1', 4)); 
+    const amount = await getArb(spotPrice, markPrice, utils.parseUnits('0', 4)); 
+    console.log(`amount = ${amount}`);
+
+    if(!(amount.eq(utils.parseUnits('0',0)))) {
+        console.log(`Rebalancing with amount=${amount}`);
+
+        // NOTE: Uniswap Router 
+        const routerType = 0;
+        perpLemmaETH.rebalance(optimism['UniswapV3']['router'], routerType, amount, false);
+    }
 
     /*
     const UniV3Pool = new ethers.Contract(UniV3PoolAddress, UniV3PoolArtifacts.abi, signer);
