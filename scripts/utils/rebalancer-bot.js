@@ -71,6 +71,25 @@ const computePrice = async(pool, signer) => {
     return token0Price;
 }
 
+const getArb = async(spotPrice, markPrice, deltaPerc_1e6) => {
+    const deltaPrice = spotPrice.sub(markPrice).abs();
+    const deltaThreshold = spotPrice.mul(deltaPerc_1e6).div(utils.parseUnits('1', 6));
+    console.log(`[getArb()] deltaPrice = ${deltaPrice}`);
+    console.log(`[getArb()] deltaThreshold = ${deltaThreshold}`);
+    if(deltaPrice.lte(deltaThreshold)) {
+        console.log(`[getArb()] No Arb`);
+        return 0;
+    }
+
+    if(spotPrice.gt(markPrice)) {
+        console.log(`Spot > Mark --> Sell on Collateral Spot and get USDC`);
+        return -1;
+    } else {
+        console.log(`Mark > Spot --> Buy Collateral on Spot for USDC`);
+        return 1;
+    }
+}
+
 const main = async (arbProvider, signer) => {
     console.log(`Main Start`);
     console.log(`REMEMBER`);
@@ -163,6 +182,10 @@ const main = async (arbProvider, signer) => {
 
     console.log(`spotPrice = ${spotPrice}`);
     console.log(`markPrice = ${markPrice}`);
+
+
+    // NOTE: Use a 1% threshold
+    const arbType = getArb(spotPrice, markPrice, utils.parseUnits('1', 4)); 
 
     /*
     const UniV3Pool = new ethers.Contract(UniV3PoolAddress, UniV3PoolArtifacts.abi, signer);
