@@ -3,7 +3,11 @@ pragma solidity =0.8.3;
 
 interface IBaseToken {
     // Do NOT change the order of enum values because it will break backwards compatibility
-    enum Status { Open, Paused, Closed }
+    enum Status {
+        Open,
+        Paused,
+        Closed
+    }
 
     event PriceFeedChanged(address indexed priceFeed);
     event StatusUpdated(Status indexed status);

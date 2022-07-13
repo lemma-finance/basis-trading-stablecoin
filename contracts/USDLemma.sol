@@ -11,8 +11,9 @@ import { Utils } from "./libraries/Utils.sol";
 import { SafeMathExt } from "./libraries/SafeMathExt.sol";
 import { IPerpetualMixDEXWrapper } from "./interfaces/IPerpetualMixDEXWrapper.sol";
 
-// NOTE: There is an incompatibility between Foundry and Hardhat `console.log()` 
+// NOTE: There is an incompatibility between Foundry and Hardhat `console.log()`
 import "forge-std/Test.sol";
+
 // import "hardhat/console.sol";
 
 /// @author Lemma Finance
@@ -66,20 +67,14 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @notice Returns the fees of the underlying Perp DEX Wrapper
     /// @param dexIndex The DEX Index to operate on
     /// @param collateral Collateral for the minting / redeeming operation
-    function getFees(
-        uint256 dexIndex,
-        address collateral
-    ) external view returns (uint256) {
+    function getFees(uint256 dexIndex, address collateral) external view returns (uint256) {
         // NOTE: Removed prev arg address baseTokenAddress
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
         require(address(perpDEXWrapper) != address(0), "DEX Wrapper should not ZERO address");
         return perpDEXWrapper.getFees();
     }
 
-    function getIndexPrice(
-        uint256 dexIndex,
-        address collateral
-    ) external view returns (uint256) {
+    function getIndexPrice(uint256 dexIndex, address collateral) external view returns (uint256) {
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
 
         require(address(perpDEXWrapper) != address(0), "DEX Wrapper should not ZERO address");
@@ -89,10 +84,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     /// @notice Returns the total position in quote Token on a given DEX
     /// @param dexIndex The DEX Index to operate on
     /// @param collateral Collateral for the minting / redeeming operation
-    function getTotalPosition(
-        uint256 dexIndex,
-        address collateral
-    ) external view returns (int256) {
+    function getTotalPosition(uint256 dexIndex, address collateral) external view returns (int256) {
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
 
         require(address(perpDEXWrapper) != address(0), "DEX Wrapper should not ZERO address");
@@ -145,17 +137,31 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         emit PerpetualDexWrapperAdded(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
     }
 
-    function _perpDeposit(IPerpetualMixDEXWrapper perpDEXWrapper, address collateral, uint256 amount) internal {
-        SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), _msgSender(), address(perpDEXWrapper), amount);
+    function _perpDeposit(
+        IPerpetualMixDEXWrapper perpDEXWrapper,
+        address collateral,
+        uint256 amount
+    ) internal {
+        SafeERC20Upgradeable.safeTransferFrom(
+            IERC20Upgradeable(collateral),
+            _msgSender(),
+            address(perpDEXWrapper),
+            amount
+        );
         perpDEXWrapper.deposit(amount, collateral, IPerpetualMixDEXWrapper.Basis.IsUsdl);
     }
 
-    function _perpWithdraw(address to, IPerpetualMixDEXWrapper perpDEXWrapper, address collateral, uint256 amount) internal {
+    function _perpWithdraw(
+        address to,
+        IPerpetualMixDEXWrapper perpDEXWrapper,
+        address collateral,
+        uint256 amount
+    ) internal {
         // if (hasSettled) {
         //     SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), address(perpDEXWrapper), to, amount);
         // } else {
-            perpDEXWrapper.withdraw(amount, collateral, IPerpetualMixDEXWrapper.Basis.IsUsdl);
-            SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), address(perpDEXWrapper), to, amount);
+        perpDEXWrapper.withdraw(amount, collateral, IPerpetualMixDEXWrapper.Basis.IsUsdl);
+        SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), address(perpDEXWrapper), to, amount);
         // }
     }
 
@@ -176,8 +182,17 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
-        (uint256 _collateralRequired_1e18, ) = perpDEXWrapper.openShortWithExactQuote(amount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl); 
-        uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(_collateralRequired_1e18, address(collateral), false);
+        (uint256 _collateralRequired_1e18, ) = perpDEXWrapper.openShortWithExactQuote(
+            amount,
+            address(0),
+            0,
+            IPerpetualMixDEXWrapper.Basis.IsUsdl
+        );
+        uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
+            _collateralRequired_1e18,
+            address(collateral),
+            false
+        );
         require(_collateralRequired_1e18 <= maxCollateralAmountRequired, "collateral required execeeds maximum");
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
         _mint(to, amount);
@@ -207,10 +222,15 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             false
         );
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
-        (, uint256 _usdlToMint) = perpDEXWrapper.openShortWithExactBase(collateralAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl); 
+        (, uint256 _usdlToMint) = perpDEXWrapper.openShortWithExactBase(
+            collateralAmount,
+            address(0),
+            0,
+            IPerpetualMixDEXWrapper.Basis.IsUsdl
+        );
         require(_usdlToMint >= minUSDLToMint, "USDL minted too low");
         _mint(to, _usdlToMint);
-        emit DepositTo(perpetualDEXIndex, address(collateral), to, _usdlToMint, _collateralRequired);        
+        emit DepositTo(perpetualDEXIndex, address(collateral), to, _usdlToMint, _collateralRequired);
     }
 
     /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc specifying the exact amount of USDL
@@ -237,7 +257,12 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             perpDEXWrapper.getCollateralBackAfterSettlement(amount, to, true);
             return;
         } else {
-            (_collateralAmountToWithdraw1e_18,) = perpDEXWrapper.closeShortWithExactQuote(amount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl); 
+            (_collateralAmountToWithdraw1e_18, ) = perpDEXWrapper.closeShortWithExactQuote(
+                amount,
+                address(0),
+                0,
+                IPerpetualMixDEXWrapper.Basis.IsUsdl
+            );
         }
         uint256 _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
             _collateralAmountToWithdraw1e_18,
@@ -266,19 +291,27 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
-        
+
         bool hasSettled = perpDEXWrapper.hasSettled();
         /// NOTE:- hasSettled Error: PerpLemma is settled call withdrawTo method to settle your collateral using exact usdl
         require(!hasSettled, "hasSettled Error");
 
-        (, uint256 _usdlToBurn) = perpDEXWrapper.closeShortWithExactBase(collateralAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl); 
+        (, uint256 _usdlToBurn) = perpDEXWrapper.closeShortWithExactBase(
+            collateralAmount,
+            address(0),
+            0,
+            IPerpetualMixDEXWrapper.Basis.IsUsdl
+        );
         require(_usdlToBurn <= maxUSDLToBurn, "Too much USDL to burn");
-        uint256 _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
+        uint256 _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
+            collateralAmount,
+            address(collateral),
+            false
+        );
         _perpWithdraw(to, perpDEXWrapper, address(collateral), _collateralAmountToWithdraw);
         _burn(_msgSender(), _usdlToBurn);
         emit WithdrawTo(perpetualDEXIndex, address(collateral), to, _usdlToBurn, _collateralAmountToWithdraw);
     }
-
 
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL
     /// @param amount Amount of USDL to mint
@@ -337,7 +370,6 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         //         allowance(stakingContractAddress, address(this))
         //     );
         //     uint256 balanceOfLemmaTreasury = balanceOf(lemmaTreasury).min(allowance(lemmaTreasury, address(this)));
-
         //     uint256 amountBurntFromStakingContract = balanceOfStakingContract.min(totalAmountToBurn);
         //     uint256 amountBurntFromLemmaTreasury = balanceOfLemmaTreasury.min(
         //         totalAmountToBurn - amountBurntFromStakingContract
@@ -351,7 +383,6 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         //         _burnFrom(lemmaTreasury, amountBurntFromLemmaTreasury);
         //     }
         // }
-
         // emit Rebalance(perpetualDEXIndex, address(collateral), amount);
     }
 
@@ -395,6 +426,4 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         //ERC2771ContextUpgradeable._msgData();
         return super._msgData();
     }
-
-
 }
