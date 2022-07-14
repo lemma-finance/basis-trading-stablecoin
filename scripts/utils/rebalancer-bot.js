@@ -21,6 +21,7 @@ const UniV3RouterArtifacts = require('../../node_modules/@uniswap/v3-periphery/a
 
 const USDLemmaArtifacts = require('../../artifacts/USDLemma.sol/USDLemma.json');
 const PerpLemmaArtifacts = require('../../artifacts/PerpLemmaCommon.sol/PerpLemmaCommon.json');
+const QuoterArtifacts = require('../../node_modules/@uniswap/v3-periphery/artifacts/contracts/interfaces/IQuoter.sol/IQuoter.json');
 // const USDLemmaArtifacts = require("./abis/USDLemma.json");
 // const MCDEXLemmaArtifacts = require("./abis/MCDEXLemma.json");
 const config = require("./config.json");
@@ -163,6 +164,9 @@ const main = async (arbProvider, signer) => {
     const UniV3Pool = new ethers.Contract(UniV3PoolAddress, UniV3PoolArtifacts.abi, signer);
     console.log(`UniV3 Factory Test = ${await UniV3Factory.owner()}`);
 
+    const QuoterSpot = new ethers.Contract(optimism['UniswapV3']['Quoter'], QuoterArtifacts.abi, signer);
+    const testQuote = await QuoterSpot.callStatic.quoteExactInputSingle(addresses['USDC'], usdlCollateralAddress, 3000, utils.parseUnits('1', 10), 0);
+    console.log(`testQuote = ${testQuote}`);
 
     const PerpUniV3Pool = new ethers.Contract(PerpUniV3PoolAddress, UniV3PoolArtifacts.abi, signer);
     console.log(`Perp UniV3 Factory Test = ${await UniV3Factory.owner()}`);
@@ -202,7 +206,9 @@ const main = async (arbProvider, signer) => {
 
         // NOTE: Uniswap Router 
         const routerType = 0;
-        perpLemmaETH.rebalance(optimism['UniswapV3']['router'], routerType, amount, false, {gasLimit:10000});
+        const res = await perpLemmaETH.rebalance(optimism['UniswapV3']['router'], routerType, amount, false, {gasLimit:10000});
+        console.log(`amountUSDCPlus = ${res[0]}`);
+        console.log(`amountUSDCMinus = ${res[1]}`);
     }
 
     /*
