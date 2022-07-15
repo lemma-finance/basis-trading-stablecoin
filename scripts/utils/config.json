@@ -17,6 +17,11 @@
             },
             "Quoter": "0xb27308f9f90d607463bb33ea1bebb41c27ce5ab6",
             "SwapRouter": "0xE592427A0AEce92De3Edee1F18E0157C05861564"
+        },
+        "Perp": {
+            "Quoter": "0x125e0CFB77ca7b369eE773C507cf59C019e6C6ee",
+            "vETH": "0x8C835DFaA34e2AE61775e80EE29E2c724c6AE2BB",
+            "vUSD": "0xC84Da6c8ec7A57cD10B939E79eaF9d2D17834E04"
         }
     }
 }
