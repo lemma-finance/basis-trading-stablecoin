@@ -11,11 +11,11 @@ USDL=0xDa307F699cdA8bBAa8a2DFd38c8c5d890E306A81
 
 echo "Initialization"
 
-cast rpc anvil_impersonateAccount $PERPLEMMA_ETH
-cast rpc anvil_setBalance $PERPLEMMA_ETH 0xFFFFFFFFFFFFFFFF
-cast send --from $PERPLEMMA_ETH $USDC "approve(address,uint256)" $UNISWAPV3_ROUTER 100000000000000000000000
-cast send --from $PERPLEMMA_ETH $WETH "approve(address,uint256)" $UNISWAPV3_ROUTER 100000000000000000000000
-cast rpc anvil_stopImpersonatingAccount $PERPLEMMA_ETH
+# cast rpc anvil_impersonateAccount $PERPLEMMA_ETH
+# cast rpc anvil_setBalance $PERPLEMMA_ETH 0xFFFFFFFFFFFFFFFF
+# cast send --from $PERPLEMMA_ETH $USDC "approve(address,uint256)" $UNISWAPV3_ROUTER 100000000000000000000000
+# cast send --from $PERPLEMMA_ETH $WETH "approve(address,uint256)" $UNISWAPV3_ROUTER 100000000000000000000000
+# cast rpc anvil_stopImpersonatingAccount $PERPLEMMA_ETH
 
 echo "Minting some USDL"
 
@@ -25,7 +25,15 @@ echo "Balance of USDL Before"
 
 cast call $USDL "balanceOf(address)(uint256)" $ME 
 
-cast send --from $ME $USDL "depositToWExactCollateral(address,uint256,uint256,uint256,address)" $ME 1000000 0 0 $WETH
+echo "Balance WETH Before"
+
+cast send --from $ME $WETH "approve(address,uint256)" $USDL 100000000000000000000000
+
+cast call $WETH "balanceOf(address)(uint256)" $ME 
+
+cast call $WETH "allowance(address,address)(uint256)" $ME $USDL
+
+cast send --from $ME $USDL "depositToWExactCollateral(address,uint256,uint256,uint256,address)" $ME 1000 0 0 $WETH
 
 echo "Balance of USDL After"
 
