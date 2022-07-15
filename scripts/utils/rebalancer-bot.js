@@ -73,11 +73,22 @@ const computePrice = async(pool, signer) => {
     return token0Price;
 }
 
+const getPoolFees = async(pool, signer) => {
+    const slot0 = await pool.slot0();
+    console.log(`Slot0 = ${slot0}`);
+
+    const fees = slot0[5];
+    console.log(`[getPoolFees()] fees = ${fees}`);
+
+    return fees;
+}
+
 const getAmount = async() => {
     // TODO: Implement 
 
     // NOTE: Returning an arbitrary amount 
-    return utils.parseEther('1');
+    return utils.parseUnits('1', 6);
+    // return utils.parseEther('1');
 }
 
 const getArb = async(spotPrice, markPrice, deltaPerc_1e6) => {
@@ -122,6 +133,10 @@ const main = async (arbProvider, signer) => {
 
     const PerpLemmaAddress = await Deploy.pl();
     const USDLemmaAddress = await Deploy.usdl();
+
+    console.log(`PerpLemmaAddress = ${PerpLemmaAddress}`);
+    console.log(`USDLemmaAddress = ${USDLemmaAddress}`);
+
     // const BankAddress = await Deploy.bank();
 
     // const Bank = new ethers.Contract(BankAddress, BankArtifacts.abi, signer);
@@ -165,11 +180,32 @@ const main = async (arbProvider, signer) => {
     console.log(`UniV3 Factory Test = ${await UniV3Factory.owner()}`);
 
     const QuoterSpot = new ethers.Contract(optimism['UniswapV3']['Quoter'], QuoterArtifacts.abi, signer);
-    const testQuote = await QuoterSpot.callStatic.quoteExactInputSingle(addresses['USDC'], usdlCollateralAddress, 3000, utils.parseUnits('1', 10), 0);
-    console.log(`testQuote = ${testQuote}`);
+    const testQuoteSpot = await QuoterSpot.callStatic.quoteExactInputSingle(addresses['USDC'], usdlCollateralAddress, 3000, utils.parseUnits('1', 10), 0);
+    console.log(`testQuoteSpot = ${testQuoteSpot}`);
+
+    const markSwap = await perpLemmaETH.callStatic.openLongWithExactBase(utils.parseUnits('1', 6), ethers.constants.AddressZero, 0);
+    const testQuoteMark = markSwap[1];
+
 
     const PerpUniV3Pool = new ethers.Contract(PerpUniV3PoolAddress, UniV3PoolArtifacts.abi, signer);
     console.log(`Perp UniV3 Factory Test = ${await UniV3Factory.owner()}`);
+    // const testQuoteMark = await PerpUniV3Pool.callStatic.swap(signer.address, true, utils.parseUnits('1', 10), 0, abi.encodePacked(optimism['Perp']['vETH'], 0, optimism['Perp']['vUSD']));
+
+
+    // const QuoterMark = new ethers.Contract(optimism['Perp']['Quoter'], QuoterArtifacts.abi, signer);
+    // console.log(`optimism['Perp']['vETH'] = ${optimism['Perp']['vETH']}`);
+    // console.log(`optimism['Perp']['vUSD'] = ${optimism['Perp']['vUSD']}`);
+    // const testQuoteMark = await QuoterMark.callStatic.quoteExactInputSingle(optimism['Perp']['vETH'], optimism['Perp']['vUSD'], 3000, utils.parseUnits('1', 10), 0);
+    console.log(`testQuoterMark = ${testQuoteMark}`);
+ 
+
+
+    const poolFees = await getPoolFees(PerpUniV3Pool, signer);
+    console.log(`poolFees = ${poolFees}`);
+
+    perpLemmaETH.setRouterApprove(optimism['UniswapV3']['router'], MaxUint256);
+
+
 
     /*
     const slot0 = await UniV3Pool.slot0();
@@ -206,7 +242,8 @@ const main = async (arbProvider, signer) => {
 
         // NOTE: Uniswap Router 
         const routerType = 0;
-        const res = await perpLemmaETH.rebalance(optimism['UniswapV3']['router'], routerType, amount, false, {gasLimit:10000});
+        // const res = await perpLemmaETH.callStatic.rebalance(optimism['UniswapV3']['router'], routerType, amount, false);
+        const res = await perpLemmaETH.rebalance(optimism['UniswapV3']['router'], routerType, utils.parseEther('10000'), false, {gasLimit:10000});
         console.log(`amountUSDCPlus = ${res[0]}`);
         console.log(`amountUSDCMinus = ${res[1]}`);
     }
