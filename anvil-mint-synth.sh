@@ -9,27 +9,17 @@ PERPLEMMA_ETH=0xB40D99B1Eb2446784Cf15972D43dd1538FD116A5
 UNISWAPV3_ROUTER=0xE592427A0AEce92De3Edee1F18E0157C05861564
 USDL=0xDa307F699cdA8bBAa8a2DFd38c8c5d890E306A81
 
-echo "Initialization"
 
-cast rpc anvil_impersonateAccount $PERPLEMMA_ETH
-cast rpc anvil_setBalance $PERPLEMMA_ETH 0xFFFFFFFFFFFFFFFF
-cast send --from $PERPLEMMA_ETH $USDC "approve(address,uint256)" $UNISWAPV3_ROUTER 100000000000000000000000
-cast send --from $PERPLEMMA_ETH $WETH "approve(address,uint256)" $UNISWAPV3_ROUTER 100000000000000000000000
-cast rpc anvil_stopImpersonatingAccount $PERPLEMMA_ETH
 
-echo "Minting some USDL"
+echo "Minting some Synth"
 
 cast rpc anvil_impersonateAccount $ME
 
-echo "Balance of USDL Before"
+cast send --from $ME $USDC "transfer(address,uint256)" $PERPLEMMA_ETH 10000
 
-cast call $USDL "balanceOf(address)(uint256)" $ME 
+echo "Balance of USDC"
 
-cast send --from $ME $USDL "depositToWExactCollateral(address,uint256,uint256,uint256,address)" $ME 1000000 0 0 $WETH
-
-echo "Balance of USDL After"
-
-cast call $USDL "balanceOf(address)(uint256)" $ME 
+cast call $USDC "balanceOf(address)(uint256)" $PERPLEMMA_ETH
 
 cast rpc anvil_stopImpersonatingAccount $ME
 
