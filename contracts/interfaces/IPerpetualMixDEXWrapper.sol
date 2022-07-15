@@ -15,6 +15,9 @@ interface IPerpetualMixDEXWrapper {
     function getIndexPrice() external view returns(uint256);
 
 
+    function setRouterApprove(address router, uint256 amount) external;
+
+
     // NOTE: Used by the rebalancer bot 
     function getPerpUniV3Pool() external view returns(address);
     function getUniV3PoolPrice(address pool) external view returns(uint256);

@@ -648,8 +648,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         console.log("[_swapOnUniV3()] tokenIn = ", tokenIn);
         console.log("[_swapOnUniV3()] tokenOut = ", tokenOut);
 
-
-        IERC20Decimals(tokenIn).approve(router, type(uint256).max);
+        // IERC20Decimals(tokenIn).approve(router, type(uint256).max);
 
         if(isExactInput) {
             ISwapRouter.ExactInputSingleParams memory temp = ISwapRouter.ExactInputSingleParams({
@@ -663,11 +662,15 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
                 sqrtPriceLimitX96: 0
             });
             console.log("[_swapOnUniV3] ExactInput amount = ", amount);
-            uint256 balanceBefore = IERC20Decimals(tokenOut).balanceOf(address(this));
+            uint256 balanceInBefore = IERC20Decimals(tokenIn).balanceOf(address(this));
+            uint256 balanceOutBefore = IERC20Decimals(tokenOut).balanceOf(address(this));
+            uint256 allowance = IERC20Decimals(tokenIn).allowance(address(this), router);
+            require(amount <= balanceInBefore, "balanceInBefore");
+            require(amount <= allowance, "allowance");
             res = ISwapRouter(router).exactInputSingle(temp);
-            uint256 balanceAfter = IERC20Decimals(tokenOut).balanceOf(address(this));
+            uint256 balanceOutAfter = IERC20Decimals(tokenOut).balanceOf(address(this));
             // require(balanceAfter > balanceBefore);
-            res = uint256( int256(balanceAfter) - int256(balanceBefore) );
+            res = uint256( int256(balanceOutAfter) - int256(balanceOutBefore) );
         }
         else {
             ISwapRouter.ExactOutputSingleParams memory temp = ISwapRouter.ExactOutputSingleParams({
@@ -684,13 +687,16 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             res = ISwapRouter(router).exactOutputSingle(temp);
         }
 
-        IERC20Decimals(tokenIn).approve(router, 0);
+        // IERC20Decimals(tokenIn).approve(router, 0);
         console.log("[_swapOnUniV3()] res = ", res);
         return res;
     }
 
 
-
+    function setRouterApprove(address router, uint256 amount) override external {
+        usdlCollateral.approve(router, type(uint256).max);
+        usdc.approve(router, type(uint256).max);
+    }
 
 
     /// @notice Rebalances USDL or Synth emission swapping by Perp backed to Token backed  
