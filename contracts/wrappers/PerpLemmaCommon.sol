@@ -635,6 +635,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn);
     }
 
+    event Log1(string, address, uint256, uint256);
 
 
     function _swapOnUniV3(address router, bool isUSDLCollateralToUSDC, bool isExactInput, uint256 amount) internal returns(uint256) {
@@ -665,6 +666,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             uint256 balanceInBefore = IERC20Decimals(tokenIn).balanceOf(address(this));
             uint256 balanceOutBefore = IERC20Decimals(tokenOut).balanceOf(address(this));
             uint256 allowance = IERC20Decimals(tokenIn).allowance(address(this), router);
+            emit Log1("balanceInBefore", tokenIn, amount, balanceInBefore);
             require(amount <= balanceInBefore, "balanceInBefore");
             require(amount <= allowance, "allowance");
             res = ISwapRouter(router).exactInputSingle(temp);
@@ -698,6 +700,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         usdc.approve(router, type(uint256).max);
     }
 
+    event RebalanceStart(int256);
 
     /// @notice Rebalances USDL or Synth emission swapping by Perp backed to Token backed  
     /// @dev USDL can be backed by both: 1) Floating Collateral + Perp Short of the same Floating Collateral or 2) USDC 
@@ -711,6 +714,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     /// @param isCheckProfit Check the profit to possibly revert the TX in case 
     /// @return Amount of USDC resulting from the operation. It can also be negative as we can use this mechanism for purposes other than Arb See https://www.notion.so/lemmafinance/Rebalance-Details-f72ad11a5d8248c195762a6ac6ce037e#ffad7b09a81a4b049348e3cd38e57466 here 
     function rebalance(address router, uint256 routerType, int256 amountBaseToRebalance, bool isCheckProfit) override external onlyRebalancer returns(uint256, uint256) {
+        emit RebalanceStart(amountBaseToRebalance);
         console.log("[rebalance()] Start");
         // uint256 usdlCollateralAmountPerp;
         // uint256 usdlCollateralAmountDex;
@@ -741,7 +745,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
                 console.log("_amountBaseToRebalance = ", _amountBaseToRebalance);
                 console.log("usdlCollateral.balanceOf(address(this)) = ", usdlCollateral.balanceOf(address(this)));
 
-                require(usdlCollateral.balanceOf(address(this)) > _amountBaseToRebalance, "T1");
+                require(usdlCollateral.balanceOf(address(this)) > _amountBaseToRebalance, "usdlCollateral.balanceOf(address(this)) > _amountBaseToRebalance");
                 amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
                 // if(isCheckProfit) require(amountUSDCPlus >= amountUSDCMinus, "Unprofitable");
             } else {
