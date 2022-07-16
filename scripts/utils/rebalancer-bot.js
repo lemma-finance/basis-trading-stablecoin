@@ -87,7 +87,7 @@ const getAmount = async() => {
     // TODO: Implement 
 
     // NOTE: Returning an arbitrary amount 
-    return utils.parseUnits('1', 6);
+    return utils.parseUnits('1', 1);
     // return utils.parseEther('1');
 }
 
@@ -226,6 +226,18 @@ const main = async (arbProvider, signer) => {
     const markPrice = await perpLemmaETH.getUniV3PoolPrice(PerpUniV3PoolAddress);
     */
 
+
+    console.log(`Trying Minting`);
+    console.log(`USDL Balance Before = ${await USDLemma.balanceOf(signer.address)}`);
+    const collateralBalanceBefore = await usdlCollateral.balanceOf(signer.address);
+    console.log(`Collateral Balance Before = ${await usdlCollateral.balanceOf(signer.address)}`);
+    await usdlCollateral.connect(signer).approve(USDLemmaAddress, MaxUint256);
+    console.log(`Checking for usdlCollateral the allowance between me and USDLemma = ${await usdlCollateral.allowance(signer.address, USDLemmaAddress)}`);
+    await USDLemma.connect(signer).depositToWExactCollateral(signer.address, utils.parseUnits((collateralBalanceBefore/2).toString(), 0), 0, 0, usdlCollateralAddress, {gasLimit: 10000});
+    console.log(`USDL Balance After = ${await USDLemma.balanceOf(signer.address)}`);
+    console.log(`Collateral Balance After = ${await usdlCollateral.balanceOf(signer.address)}`);
+    console.log(`DONE`);
+
     const spotPrice = await computePrice(UniV3Pool, signer);
     const markPrice = await computePrice(PerpUniV3Pool, signer);
 
@@ -242,8 +254,8 @@ const main = async (arbProvider, signer) => {
 
         // NOTE: Uniswap Router 
         const routerType = 0;
-        // const res = await perpLemmaETH.callStatic.rebalance(optimism['UniswapV3']['router'], routerType, amount, false);
-        const res = await perpLemmaETH.rebalance(optimism['UniswapV3']['router'], routerType, utils.parseEther('10000'), false, {gasLimit:10000});
+        const res = await perpLemmaETH.callStatic.rebalance(optimism['UniswapV3']['router'], routerType, amount, false);
+        // const res = await perpLemmaETH.rebalance(optimism['UniswapV3']['router'], routerType, utils.parseEther('10000'), false, {gasLimit:10000});
         console.log(`amountUSDCPlus = ${res[0]}`);
         console.log(`amountUSDCMinus = ${res[1]}`);
     }
@@ -289,16 +301,7 @@ const main = async (arbProvider, signer) => {
     // console.log(`Uniswap Token0 Address=${token1Address} and Name=${await token1.name()} and Decimals=${await token1.decimals()} and current Uniswap Price = ${_token1Price}`);
 
 
-    console.log(`Trying Minting`);
-    console.log(`USDL Balance Before = ${await USDLemma.balanceOf(signer.address)}`);
-    const collateralBalanceBefore = await usdlCollateral.balanceOf(signer.address);
-    console.log(`Collateral Balance Before = ${await usdlCollateral.balanceOf(signer.address)}`);
-    await usdlCollateral.connect(signer).approve(USDLemmaAddress, MaxUint256);
-    console.log(`Checking for usdlCollateral the allowance between me and USDLemma = ${await usdlCollateral.allowance(signer.address, USDLemmaAddress)}`);
-    await USDLemma.connect(signer).depositToWExactCollateral(signer.address, utils.parseUnits((collateralBalanceBefore/2).toString(), 0), 0, 0, usdlCollateralAddress, {gasLimit: 10000});
-    console.log(`USDL Balance After = ${await USDLemma.balanceOf(signer.address)}`);
-    console.log(`Collateral Balance After = ${await usdlCollateral.balanceOf(signer.address)}`);
-    console.log(`DONE`);
+
 }
 
 const main1 = async (arbProvider, signer) => {
