@@ -87,7 +87,7 @@ const getAmount = async() => {
     // TODO: Implement 
 
     // NOTE: Returning an arbitrary amount 
-    return utils.parseUnits('1', 1);
+    return utils.parseUnits('1', 6);
     // return utils.parseEther('1');
 }
 
