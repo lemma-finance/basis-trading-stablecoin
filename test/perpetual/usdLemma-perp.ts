@@ -329,7 +329,7 @@ describe("usdLemma-perp", async function () {
 
   it("getFees", async function () {
     // await expect(usdLemma.getFees(0, ethCollateral.address)).to.be.revertedWith("DEX Wrapper should not be ZERO address");
-    // NOTE: Why repeating it 
+    // NOTE: Why repeating it
     // await expect(usdLemma.getFees(100, ethCollateral.address, AddressZero)).to.be.revertedWith("DEX Wrapper should not ZERO address");
     const fees = await usdLemma.getFees(0, ethCollateral.address);
     expect(fees).to.eq(10000);
@@ -337,13 +337,13 @@ describe("usdLemma-perp", async function () {
 
   it("getTotalPosition", async function () {
     // NOTE: This is only valid in our local setup
-    const assumedIndexPrice_1e18 = toBN( await usdLemma.getIndexPrice(0, ethCollateral.address) );
+    const assumedIndexPrice_1e18 = toBN(await usdLemma.getIndexPrice(0, ethCollateral.address));
     // const assumedIndexPrice = toBN("100");
     const openWAmount = utils.parseEther("1");
 
     // await usdCollateral.mint(defaultSigner.address, collateralAmount);
     // await usdCollateral.connect(defaultSigner).transfer(perpLemma.address, collateralAmount);
-    // await perpLemma.connect(usdLemma).deposit(collateralAmount, usdCollateral.address);  
+    // await perpLemma.connect(usdLemma).deposit(collateralAmount, usdCollateral.address);
 
     await ethCollateral.approve(usdLemma.address, openWAmount);
     await usdLemma.depositToWExactCollateral(defaultSigner.address, openWAmount, 0, 0, ethCollateral.address);
@@ -357,7 +357,6 @@ describe("usdLemma-perp", async function () {
     // expect(position).to.eq(parseEther("100").mul(-1));
   });
 
-  
   it("setWhiteListAddress", async function () {
     await expect(usdLemma.connect(signer1).setWhiteListAddress(signer1.address, true)).to.be.revertedWith(
       "Ownable: caller is not the owner",
@@ -440,7 +439,13 @@ describe("usdLemma-perp", async function () {
     // const collateralBalanceBefore = await ethCollateral.balanceOf(signer1.address);
     const usdlBalanceBefore = await usdLemma.balanceOf(defaultSigner.address);
 
-    let tx = await usdLemma.withdrawToWExactCollateral(defaultSigner.address, amount, 0, usdlToBurn, ethCollateral.address);
+    let tx = await usdLemma.withdrawToWExactCollateral(
+      defaultSigner.address,
+      amount,
+      0,
+      usdlToBurn,
+      ethCollateral.address,
+    );
     // let tx = await usdLemma.withdrawToWExactCollateral(signer1.address, amount, 0, quoteAmount, ethCollateral.address);
 
     const collateralBalanceAfter = await ethCollateral.balanceOf(defaultSigner.address);
@@ -478,7 +483,7 @@ describe("usdLemma-perp", async function () {
     //input is whatever it costs to go long on the current usdl balance
     const collateralBalanceBefore = await ethCollateral.balanceOf(signer1.address);
 
-    // NOTE: Why this? 
+    // NOTE: Why this?
     // await usdLemma.approve(usdLemma.address, amount);
 
     let tx = await usdLemma.withdrawTo(signer1.address, amount, 0, baseAmount, ethCollateral.address);

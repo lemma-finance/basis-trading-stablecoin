@@ -21,8 +21,9 @@ import "../interfaces/Perpetual/IPerpVault.sol";
 import "../interfaces/Perpetual/IUSDLemma.sol";
 import "../interfaces/Perpetual/IBaseToken.sol";
 
-// NOTE: There is an incompatibility between Foundry and Hardhat `console.log()` 
+// NOTE: There is an incompatibility between Foundry and Hardhat `console.log()`
 import "forge-std/Test.sol";
+
 // import "hardhat/console.sol";
 
 contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper {
@@ -127,7 +128,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), 0);
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
 
-        if(usdLemma != address(0)) {
+        if (usdLemma != address(0)) {
             SafeERC20Upgradeable.safeApprove(usdc, usdLemma, 0);
             SafeERC20Upgradeable.safeApprove(usdc, usdLemma, MAX_UINT256);
             SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
@@ -186,20 +187,25 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         );
 
         // NOTE: Returns the margin requirement taking into account the position PnL
-        // NOTE: This is what can be compared with the Account Value according to Perp Doc 
+        // NOTE: This is what can be compared with the Account Value according to Perp Doc
         // https://github.com/yashnaman/perp-lushan/blob/main/contracts/interface/IAccountBalance.sol#L158
         int256 _margin = accountBalance.getMarginRequirementForLiquidation(address(this));
 
-        console.log("[getRelativeMargin()] _accountValue_1e18 = %s %d", (_accountValue < 0) ? "-":"+", _accountValue_1e18.abs().toUint256());
+        console.log(
+            "[getRelativeMargin()] _accountValue_1e18 = %s %d",
+            (_accountValue < 0) ? "-" : "+",
+            _accountValue_1e18.abs().toUint256()
+        );
         console.log("[getRelativeMargin()] _accountValue = ", _accountValue);
-        console.log("[getRelativeMargin()] _margin = %s %d", (_margin < 0) ? "-":"+", _margin.abs().toUint256());
+        console.log("[getRelativeMargin()] _margin = %s %d", (_margin < 0) ? "-" : "+", _margin.abs().toUint256());
 
-        return ((_accountValue_1e18 <= int256(0) || (_margin < 0)) ? 
-                type(uint256).max           // No Collateral Deposited --> Max Leverage Possible
-                : 
-                _margin.abs().toUint256() * 1e18 / _accountValue);
+        return (
+            (_accountValue_1e18 <= int256(0) || (_margin < 0))
+                ? type(uint256).max // No Collateral Deposited --> Max Leverage Possible
+                : (_margin.abs().toUint256() * 1e18) / _accountValue
+        );
 
-        // Returns the position balance in Settlmenet Token --> USDC 
+        // Returns the position balance in Settlmenet Token --> USDC
         // https://github.com/yashnaman/perp-lushan/blob/main/contracts/Vault.sol#L242
         // int256 _accountValue = perpVault.getBalance(address(this));
         // int256 _totalPosValue_1e18 = accountBalance.getTotalPositionValue(address(this), usdlBaseTokenAddress);
@@ -212,27 +218,39 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         // console.log("[getLeverage()] _totalPosValue_1e18 = %s %d", (_totalPosValue_1e18 < 0) ? "-":"+", _totalPosValue_1e18.abs().toUint256());
         // console.log("[getLeverage()] _totalPosValue = ", _totalPosValue);
         // console.log("[getLeverage()] _vaultBalance = %s %d", (_vaultBalance < 0) ? "-":"+", _vaultBalance.abs().toUint256());
-        // return ((_vaultBalance == int256(0)) ? 
+        // return ((_vaultBalance == int256(0)) ?
         //         type(uint256).max           // No Collateral Deposited --> Max Leverage Possible
-        //         : 
+        //         :
         //         _totalPosValue * 1e6 / _vaultBalance.abs().toUint256());
     }
 
-    // NOTE: Computes the delta exposure 
+    // NOTE: Computes the delta exposure
     // NOTE: It does not take into account if the deposited collateral gets silently converted in USDC so that we lose positive delta exposure
     function getDeltaExposure() external view override returns(int256) {
         (uint256 _usdlCollateralAmount, uint256 _usdlCollateralDepositedAmount, int256 _longOrShort,,) = getExposureDetails();
         uint256 _longOnly = (_usdlCollateralAmount + _usdlCollateralDepositedAmount) * 10**(18 - usdlCollateralDecimals);         // Both usdlCollateralDecimals format
 
         console.log("[getDeltaExposure()] _longOnly = ", _longOnly);
-        console.log("[getDeltaExposure()] _longOrShort = %s %d", (_longOrShort < 0) ? "-":"+", _longOrShort.abs().toUint256() );
+        console.log(
+            "[getDeltaExposure()] _longOrShort = %s %d",
+            (_longOrShort < 0) ? "-" : "+",
+            _longOrShort.abs().toUint256()
+        );
 
         int256 _deltaLongShort = int256(_longOnly) + _longOrShort;
-        console.log("[getDeltaExposure()] _deltaLongShort = %s %d", (_deltaLongShort < 0) ? "-":"+", _deltaLongShort.abs().toUint256() );
+        console.log(
+            "[getDeltaExposure()] _deltaLongShort = %s %d",
+            (_deltaLongShort < 0) ? "-" : "+",
+            _deltaLongShort.abs().toUint256()
+        );
         uint256 _absTot = _longOnly + _longOrShort.abs().toUint256();
         console.log("[getDeltaExposure()] _absTot = ", _absTot);
-        int256 _delta = (_absTot == 0) ? int256(0) : _deltaLongShort * 1e6 / int256(_absTot);
-        console.log("[getDeltaExposure()] getDeltaExposure = %s %d", (_delta < 0) ? "-":"+", _delta.abs().toUint256());
+        int256 _delta = (_absTot == 0) ? int256(0) : (_deltaLongShort * 1e6) / int256(_absTot);
+        console.log(
+            "[getDeltaExposure()] getDeltaExposure = %s %d",
+            (_delta < 0) ? "-" : "+",
+            _delta.abs().toUint256()
+        );
         return _delta;
     }
 
@@ -240,15 +258,15 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         return (
             usdlCollateral.balanceOf(address(this)),
             amountUsdlCollateralDeposited,
-            amountBase,                     // All the other terms are in 1e6 
-            perpVault.getBalance(address(this)),            // This number could change when PnL gets realized so it is better to read it from the Vault directly
+            amountBase, // All the other terms are in 1e6
+            perpVault.getBalance(address(this)), // This number could change when PnL gets realized so it is better to read it from the Vault directly
             usdc.balanceOf(address(this))
         );
     }
 
     function getMargin() external view override returns(int256) {
         int256 _margin = accountBalance.getMarginRequirementForLiquidation(address(this));
-        console.log("[getMargin()] Margin = %s %d", (_margin < 0) ? "-":"+", _margin.abs().toUint256());
+        console.log("[getMargin()] Margin = %s %d", (_margin < 0) ? "-" : "+", _margin.abs().toUint256());
         return _margin;
     }
 
@@ -332,7 +350,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         uint256 freeUSDCCollateral = perpVault.getFreeCollateral(address(this));
         _withdraw(freeUSDCCollateral, address(usdc), Basis.IsSettle);
 
-        if(! isUsdlCollateralTailAsset) {
+        if (!isUsdlCollateralTailAsset) {
             // NOTE: This amount of free collateral is the one internally used to check for the V_NEFC error, so this is the max withdrawable
             uint256 freeCollateralUSDL = perpVault.getFreeCollateralByToken(address(this), address(usdlCollateral));
             _withdraw(freeCollateralUSDL, address(usdlCollateral), Basis.IsSettle);
@@ -348,12 +366,12 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         return settleCollateral(amount, to, isUsdl);
     }
 
-    /// @notice Rebalances USDL or Synth emission swapping by Perp backed to Token backed  
-    /// @dev USDL can be backed by both: 1) Floating Collateral + Perp Short of the same Floating Collateral or 2) USDC 
-    /// @dev LemmaX (where X can be ETH, ...) can be backed by both: 1) USDC collateralized Perp Long or 2) X token itself 
-    /// @dev The idea is to use this mechanism for this purposes like Arbing between Mark and Spot Price or adjusting our tokens in our balance sheet for LemmaSwap supply 
+    /// @notice Rebalances USDL or Synth emission swapping by Perp backed to Token backed
+    /// @dev USDL can be backed by both: 1) Floating Collateral + Perp Short of the same Floating Collateral or 2) USDC
+    /// @dev LemmaX (where X can be ETH, ...) can be backed by both: 1) USDC collateralized Perp Long or 2) X token itself
+    /// @dev The idea is to use this mechanism for this purposes like Arbing between Mark and Spot Price or adjusting our tokens in our balance sheet for LemmaSwap supply
     /// @dev Details at https://www.notion.so/lemmafinance/Rebalance-Details-f72ad11a5d8248c195762a6ac6ce037e
-    /// 
+    ///
     /// @param router The Router to execute the swap on
     /// @param routerType The Router Type: 0 --> UniV3, ... 
     /// @param amountBaseToRebalance The Amount of Base Token to buy or sell on Perp and consequently the amount of corresponding colletarl to sell or buy on Spot 
@@ -366,25 +384,30 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         uint256 amountUSDCPlus;
         uint256 amountUSDCMinus;
 
-        require(amountBaseToRebalance != 0 , "! No Rebalance with Zero Amount");
+        require(amountBaseToRebalance != 0, "! No Rebalance with Zero Amount");
 
         bool isIncreaseBase = amountBaseToRebalance > 0;
-        uint256 _amountBaseToRebalance = (isIncreaseBase) ? uint256(amountBaseToRebalance) : uint256(-amountBaseToRebalance);
+        uint256 _amountBaseToRebalance = (isIncreaseBase)
+            ? uint256(amountBaseToRebalance)
+            : uint256(-amountBaseToRebalance);
 
-
-        // NOTE: Changing the position on Perp requires checking we are properly collateralized all the time otherwise doing the trade risks to revert the TX 
+        // NOTE: Changing the position on Perp requires checking we are properly collateralized all the time otherwise doing the trade risks to revert the TX
         // NOTE: Call to perps that can revert the TX: withdraw(), openPosition()
         // NOTE: Actually, probably also deposit() is not safe as some max threshold can be crossed but this is something different from the above
-        if(isIncreaseBase) {
-            console.log("[rebalance()] isIncreaseBase: True --> Sell Collateral on Spot and Buy on Mark. Colleteral --> USDC --> vCollateral");
-            if(amountBase < 0) {
-                console.log("[rebalance()] Net Short --> Decrease Negative Base --> Close Short, free floating collateral (if any) and swap it for USDC");
-                // NOTE: Net Short Position --> USDL Collateral is currently deposited locally if tail asset or in Perp otherwise 
-                // NOTE: In this case, we need to shrink our position before we can withdraw to swap so 
+        if (isIncreaseBase) {
+            console.log(
+                "[rebalance()] isIncreaseBase: True --> Sell Collateral on Spot and Buy on Mark. Colleteral --> USDC --> vCollateral"
+            );
+            if (amountBase < 0) {
+                console.log(
+                    "[rebalance()] Net Short --> Decrease Negative Base --> Close Short, free floating collateral (if any) and swap it for USDC"
+                );
+                // NOTE: Net Short Position --> USDL Collateral is currently deposited locally if tail asset or in Perp otherwise
+                // NOTE: In this case, we need to shrink our position before we can withdraw to swap so
                 (, amountUSDCMinus) = closeShortWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance);
                 // (usdlCollateralAmount, ) = closeShortWithExactQuote(amount, address(0), 0);
 
-                // NOTE: Only withdraws from Perp if it is a non tail asset 
+                // NOTE: Only withdraws from Perp if it is a non tail asset
                 _withdraw(_amountBaseToRebalance, address(usdlCollateral), Basis.IsRebalance);
 
                 console.log("_amountBaseToRebalance = ", _amountBaseToRebalance);
@@ -394,7 +417,9 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
                 amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
                 // if(isCheckProfit) require(amountUSDCPlus >= amountUSDCMinus, "Unprofitable");
             } else {
-                console.log("[rebalance()] Net Long amount is Base --> Increase Positive Base --> Sell floating collateral for USDC, use it to incrase long");
+                console.log(
+                    "[rebalance()] Net Long amount is Base --> Increase Positive Base --> Sell floating collateral for USDC, use it to incrase long"
+                );
                 // NOTE: Net Long Position --> USDL Collateral is not deposited in Perp but floating in the local balance sheet so we do not have to do anything before the trade
                 amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
                 _deposit(amountUSDCPlus, address(usdc), Basis.IsRebalance);
@@ -403,12 +428,12 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
                 // if(isCheckProfit) require(amountUSDCPlus >= amountUSDCMinus, "Unprofitable");
             }
 
-            // TODO: Implement 
+            // TODO: Implement
             // 1.1 Take `amount` of ETH in this contract or Perp Vault and swap it on Uniswap for USDC
 
-            // NOTE: We have to assume this usdlCollateral is not deposited in Perp, even though it is not a tail asset, as in that 
+            // NOTE: We have to assume this usdlCollateral is not deposited in Perp, even though it is not a tail asset, as in that
             // if(!isUsdlCollateralTailAsset) {
-            //     // TODO: Implement usdlCollateral withdrawing beforehand 
+            //     // TODO: Implement usdlCollateral withdrawing beforehand
             //     perpVault.withdraw(address(usdlCollateral), amount);
             // }
 
@@ -419,19 +444,23 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             // (usdlCollateralAmount, ) = openLongWithExactQuote(usdcAmount, address(0), 0);
         } else {
             console.log("[rebalance()] isIncreaseBase: False --> Base should decrease. USDC --> Collateral --> vQuote");
-            // TODO: Fix the following --> the commented part should be the right one 
-            if(amountBase <= 0) {
-                // NOTE: We are net short 
-                console.log("[rebalance()] Net Short --> Increase Negative Base --> Sell USDC for floating collateral, use floating collateral to open a short on Perp");
+            // TODO: Fix the following --> the commented part should be the right one
+            if (amountBase <= 0) {
+                // NOTE: We are net short
+                console.log(
+                    "[rebalance()] Net Short --> Increase Negative Base --> Sell USDC for floating collateral, use floating collateral to open a short on Perp"
+                );
                 // NOTE: Buy Exact Amount of UsdlCollateral
                 amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
                 _deposit(_amountBaseToRebalance, address(usdlCollateral), Basis.IsRebalance);
-                (, amountUSDCPlus) = openShortWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance); 
+                (, amountUSDCPlus) = openShortWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance);
                 // if(isCheckProfit) require(usdcAmountPerpGained >= usdcAmountDexSpent, "Unprofitable");
             } else {
                 // NOTE: We are net long
-                console.log("[rebalance()] Net Long --> Decrease Positive Base --> Sell floating collateral for USDC, use it to incrase long");    
-                (, amountUSDCPlus) = closeLongWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance); 
+                console.log(
+                    "[rebalance()] Net Long --> Decrease Positive Base --> Sell floating collateral for USDC, use it to incrase long"
+                );
+                (, amountUSDCPlus) = closeLongWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance);
                 _withdraw(amountUSDCPlus, address(usdc), Basis.IsRebalance);
                 amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
                 // if(isCheckProfit) require(usdcAmountPerpGained >= usdcAmountDexSpent, "Unprofitable");
@@ -439,16 +468,16 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             // // 1.1 Reduce Long = Increase Short using closeLongWithExactBase() for `amount` and get the corresponding quote amount
             // (, usdcAmount) = closeLongWithExactBase(amount, address(0), 0);
 
-            // // TODO: Reactivate 
+            // // TODO: Reactivate
             // perpVault.withdraw(address(usdc), usdcAmount);
 
-            // // 1.2 Take quote amount of USDC and swap it on Uniswap for ETH and deposit ETH as collateral 
+            // // 1.2 Take quote amount of USDC and swap it on Uniswap for ETH and deposit ETH as collateral
             // usdlCollateralAmount = _swapOnDEXSpot(router, routerType, false, usdcAmount);
         }
         // Compute Profit and return it
         // if(isCheckProfit) require(usdlCollateralAmount >= amount, "Unprofitable");
 
-        if(isCheckProfit) require(amountUSDCPlus >= amountUSDCMinus, "Unprofitable");
+        if (isCheckProfit) require(amountUSDCPlus >= amountUSDCMinus, "Unprofitable");
         return (amountUSDCPlus, amountUSDCMinus);
     }
 
@@ -571,11 +600,15 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     }
 
     /// @notice to deposit collateral in vault for short or open position
-    /// @notice If collateral is tail asset no need to deposit it in Perp, it has to stay in this contract balance sheet 
-    function _deposit(uint256 collateralAmount, address collateral, Basis basis) internal {
-        if(collateral == address(usdc)) {
+    /// @notice If collateral is tail asset no need to deposit it in Perp, it has to stay in this contract balance sheet
+    function _deposit(
+        uint256 collateralAmount,
+        address collateral,
+        Basis basis
+    ) internal {
+        if (collateral == address(usdc)) {
             perpVault.deposit(address(usdc), collateralAmount);
-        } else if((collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset)) {
+        } else if ((collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset)) {
             perpVault.deposit(collateral, collateralAmount);
             amountUsdlCollateralDeposited += collateralAmount;
         }
@@ -590,11 +623,15 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     }
 
     /// @notice to withdraw collateral from vault after long or close position
-    /// @notice If collateral is tail asset no need to withdraw it from Perp, it is already in this contract balance sheet 
-    function _withdraw(uint256 amountToWithdraw, address collateral, Basis basis) internal {
-        if(collateral == address(usdc)) {
+    /// @notice If collateral is tail asset no need to withdraw it from Perp, it is already in this contract balance sheet
+    function _withdraw(
+        uint256 amountToWithdraw,
+        address collateral,
+        Basis basis
+    ) internal {
+        if (collateral == address(usdc)) {
             perpVault.withdraw(address(usdc), amountToWithdraw);
-        } else if((collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset)) {
+        } else if ((collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset)) {
             // NOTE: This is problematic with ETH
             perpVault.withdraw(collateral, amountToWithdraw);
             amountUsdlCollateralDeposited -= amountToWithdraw;

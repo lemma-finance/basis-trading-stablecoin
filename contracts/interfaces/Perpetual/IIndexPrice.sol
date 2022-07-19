@@ -7,5 +7,3 @@ interface IIndexPrice {
     /// @return indexPrice Twap price with interval
     function getIndexPrice(uint256 interval) external view returns (uint256 indexPrice);
 }
-
-

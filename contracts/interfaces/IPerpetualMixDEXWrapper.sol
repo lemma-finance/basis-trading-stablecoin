@@ -30,14 +30,30 @@ interface IPerpetualMixDEXWrapper {
     function closeShortWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) external returns(uint256, uint256);
     /////////
 
-    function getSettlementTokenAmountInVault() external view returns(int256);
+    function getSettlementTokenAmountInVault() external view returns (int256);
+
     function depositSettlementToken(uint256 _amount) external;
+
     function withdrawSettlementToken(uint256 _amount) external;
 
-    function deposit(uint256 amount, address collateral, Basis basis) external;
-    function withdraw(uint256 amount, address collateral, Basis basis) external;
+    function deposit(
+        uint256 amount,
+        address collateral,
+        Basis basis
+    ) external;
 
-    function rebalance(address router, uint256 routerType, int256 amountBase, bool isCheckProfit) external returns(uint256, uint256);
+    function withdraw(
+        uint256 amount,
+        address collateral,
+        Basis basis
+    ) external;
+
+    function rebalance(
+        address router,
+        uint256 routerType,
+        int256 amountBase,
+        bool isCheckProfit
+    ) external returns (uint256, uint256);
 
     // function reBalance(
     //     address _reBalancer,
@@ -57,8 +73,7 @@ interface IPerpetualMixDEXWrapper {
 
     function settle() external;
 
-
-/////////////// UNNECESSARY METHODS /////////////
+    /////////////// UNNECESSARY METHODS /////////////
 
     /*
     function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
@@ -100,5 +115,4 @@ interface IPerpetualMixDEXWrapper {
         bool isUsdl
     ) external returns (uint256 collateralAmountRequired);
     */
-
 }

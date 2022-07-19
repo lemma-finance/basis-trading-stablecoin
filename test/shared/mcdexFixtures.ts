@@ -3,17 +3,8 @@ import { JsonRpcProvider } from "@ethersproject/providers";
 import { expect } from "chai";
 import { BigNumber, constants } from "ethers";
 const { AddressZero, MaxUint256, MaxInt256 } = constants;
-import {
-  loadMCDEXInfo,
-} from "./utils";
-import {
-  PoolCreatorFactory,
-  ReaderFactory,
-  LiquidityPoolFactory,
-  IERC20Factory,
-  _0,
-  _1,
-} from "@mcdex/mai3.js";
+import { loadMCDEXInfo } from "./utils";
+import { PoolCreatorFactory, ReaderFactory, LiquidityPoolFactory, IERC20Factory, _0, _1 } from "@mcdex/mai3.js";
 import { MCDEXLemma } from "../../types/MCDEXLemma";
 import { USDLemma } from "../../types/USDLemma";
 import hre from "hardhat";

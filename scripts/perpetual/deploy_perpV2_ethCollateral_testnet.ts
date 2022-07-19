@@ -1,5 +1,5 @@
 import hre from "hardhat";
-const { ethers, upgrades} = hre;
+const { ethers, upgrades } = hre;
 const { constants } = ethers;
 const { AddressZero } = constants;
 import { fetchFromURL, delay } from "../../test/shared/utils";
@@ -54,7 +54,11 @@ async function main() {
   let quoteToken = new ethers.Contract(contracts.QuoteToken.address, QuoteTokenAbi.abi, defaultSigner);
   let accountBalance = new ethers.Contract(contracts.AccountBalance.address, AccountBalanceAbi.abi, defaultSigner);
 
-  let uniswapV3Factory = new ethers.Contract(externalContracts.UniswapV3Factory, UniswapV3FactoryAbi.abi, defaultSigner);
+  let uniswapV3Factory = new ethers.Contract(
+    externalContracts.UniswapV3Factory,
+    UniswapV3FactoryAbi.abi,
+    defaultSigner,
+  );
   let pool = new ethers.Contract(perpV2Config.pools[0].address, UniswapV3PoolAbi.abi, defaultSigner); //vETH-vUSD pool
   let collateralDecimals = await collateral.decimals();
 
