@@ -7,6 +7,7 @@ import "../contracts/interfaces/IERC20Decimals.sol";
 import { IPerpetualMixDEXWrapper } from "../contracts/interfaces/IPerpetualMixDEXWrapper.sol";
 
 import "forge-std/Test.sol";
+import "forge-std/console.sol";
 
 contract ContractTest is Test {
     Deploy public d;
@@ -39,12 +40,16 @@ contract ContractTest is Test {
         assertTrue(IERC20Decimals(token).balanceOf(address(this)) >= amount);
     }
 
+    function _getMoneyForTo(address to, address token, uint256 amount) internal {
+        d.bank().giveMoney(token, to, amount);
+        assertTrue(IERC20Decimals(token).balanceOf(to) >= amount);
+    }
+
     /// @dev This is recommended to be used to have a properly collateralized position for any trade 
     /// @dev Currently, we are decoupling our position collateralization in Perp from the delta neutrality as we are assuming we have enough USDC in Perp to allow us to trade freely on it while the rest of the collateral is treated as tail asset and remains in this contract appunto 
     function _depositSettlementTokenMax() internal {
         _getMoney(address(d.pl().usdc()), 1e40);
         uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
-        console.log("settlementTokenBalanceCap = ", settlementTokenBalanceCap);
 
         // NOTE: Unclear why I need to use 1/10 of the cap
         // NOTE: If I do not limit this amount I get 
@@ -78,6 +83,33 @@ contract ContractTest is Test {
         );
 
         assertTrue(d.usdl().balanceOf(address(this)) > 0);
+    }
+
+    function _mintUSDLWExactCollateralForTo(address to, address collateral, uint256 amount) internal {
+        _getMoneyForTo(to, collateral, 1e40);
+
+        // uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
+        // console.log("settlementTokenBalanceCap = ", settlementTokenBalanceCap);
+
+        // // NOTE: Unclear why I need to use 1/10 of the cap
+        // // NOTE: If I do not limit this amount I get 
+        // // V_GTSTBC: greater than settlement token balance cap
+        // d.pl().usdc().approve(address(d.pl()), settlementTokenBalanceCap/10);
+        // d.pl().depositSettlementToken(settlementTokenBalanceCap/10);
+
+        IERC20Decimals(collateral).approve(address(d.usdl()), type(uint256).max);
+
+        // NOTE: Currently getting 
+        // V_GTDC: greater than deposit cap
+        d.usdl().depositToWExactCollateral(
+            to,
+            amount,
+            0,
+            0,
+            IERC20Upgradeable(collateral)
+        );
+
+        assertTrue(d.usdl().balanceOf(to) > 0);
     }
 
     // NOTE: In this branch I do not have the ETHSynt.sol so I'll skip the actual token minting and will just care on backing its emission (that does not happen) interacting with PerpLemma directly
@@ -164,6 +196,28 @@ contract ContractTest is Test {
         assertTrue(_usdlAfter < _usdlBefore);
     }
 
+    function _redeemUSDLWExactUsdlForTo(address to, address collateral, uint256 amount) internal {
+        uint256 _collateralBefore = IERC20Decimals(collateral).balanceOf(to);
+        uint256 _usdlBefore = d.usdl().balanceOf(to);
+        assertTrue(_usdlBefore > 0, "! USDL");
+
+        console.log("[_redeemUSDLWExactUsdl()] Start");
+
+        d.usdl().withdrawTo(
+            to,
+            amount,
+            0,
+            0,
+            IERC20Upgradeable(collateral)
+        );
+
+        uint256 _collateralAfter = IERC20Decimals(collateral).balanceOf(to);
+        uint256 _usdlAfter = d.usdl().balanceOf(to);
+
+        assertTrue(_collateralAfter > _collateralBefore);
+        assertTrue(_usdlAfter < _usdlBefore);
+    }
+
     function _checkNetShort() internal returns(bool res) {
         res = d.pl().amountBase() < 0;
         console.log("Checking Net Short Res = ", res);
@@ -202,7 +256,6 @@ contract ContractTest is Test {
         uint256 amount = 1e12;
         _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
     }
-
 
     function testMintingSynthWExactCollateral() public {
         _depositSettlementTokenMax();
@@ -791,12 +844,72 @@ contract ContractTest is Test {
     }
 
 
+    function testSettleForSingleUserUSDL() public {
+        _depositSettlementTokenMax();
+        uint256 amount = 1e18;
 
+        _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+        
+        address owner = d.getPerps().ib.owner();
+        vm.startPrank(owner);
+        d.getPerps().ib.pause(); // pause market
+        vm.warp(block.timestamp + 6 days); // need to spend 5 days after pause as per perpv2 
+        d.getPerps().ib.close(); // Close market after 5 days
+        vm.stopPrank();
 
+        d.pl().settle(); // PerpLemma settle call
+        uint256 beforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(this));
+        uint256 _usdlToRedeem = d.usdl().balanceOf(address(this));
+        _redeemUSDLWExactUsdl(d.getTokenAddress("WETH"), _usdlToRedeem); // get back user collateral after settlement
+        uint256 afterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(this));
+        assertEq(afterBal-beforeBal, amount);
+        uint256 perpLemmaAfterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
+        assertEq(perpLemmaAfterBal, 0);
+    }
 
+    function testSettleForMultipleUserUSDL() public {
+        address alice = vm.addr(1);
+        address bob = vm.addr(2);
+
+        _depositSettlementTokenMax();
+        uint256 amount = 1e18;
+
+        vm.startPrank(alice);
+        _mintUSDLWExactCollateralForTo(alice, d.getTokenAddress("WETH"), amount);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        _mintUSDLWExactCollateralForTo(bob, d.getTokenAddress("WETH"), amount);
+        vm.stopPrank();
+
+        address owner = d.getPerps().ib.owner();
+        vm.startPrank(owner);
+        d.getPerps().ib.pause(); // pause market
+        vm.warp(block.timestamp + 6 days); // need to spend 5 days after pause as per perpv2 
+        d.getPerps().ib.close(); // Close market after 5 days
+        vm.stopPrank();
+        d.pl().settle(); // PerpLemma settle call
+
+        uint256 aliceBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(alice);
+        uint256 bobBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(bob);
+        uint256 perpLemmaBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
+
+        uint256 aliceUsdlToRedeem = d.usdl().balanceOf(alice);
+        uint256 bobUsdlToRedeem = d.usdl().balanceOf(bob);
+
+        vm.startPrank(alice);
+        _redeemUSDLWExactUsdlForTo(alice, d.getTokenAddress("WETH"), aliceUsdlToRedeem); // get back user collateral after settlement
+        uint256 aliceAfterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(alice);
+        assertGt(aliceAfterBal-aliceBeforeBal, 9e17);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        _redeemUSDLWExactUsdlForTo(bob, d.getTokenAddress("WETH"), bobUsdlToRedeem); // get back user collateral after settlement
+        uint256 bobAfterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(bob);
+        assertGt(bobAfterBal-bobBeforeBal, 9e17);
+        vm.stopPrank();
+
+        uint256 perpLemmaAfterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
+        assertEq(perpLemmaAfterBal, 0);
+    }
 }
-
-
-
-
-

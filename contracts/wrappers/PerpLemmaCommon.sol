@@ -31,8 +31,6 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     using Utils for int256;
     using SafeMathExt for int256;
 
-    // enum Basis {IsUsdl, IsSynth, IsRebalance}
-
     address public usdLemma;
     address public reBalancer;
     address public usdlBaseTokenAddress;
@@ -56,15 +54,14 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     int256 public amountBase;
     int256 public amountQuote;
     uint256 public amountUsdlCollateralDeposited;
+
     uint256 public totalUsdlCollateral; // Tail Asset
     uint256 public totalSynthCollateral; // USDC
 
     // Gets set only when Settlement has already happened
     // NOTE: This should be equal to the amount of USDL minted depositing on that dexIndex
-    uint256 public positionAtSettlementInQuoteForUSDL;
-    uint256 public positionAtSettlementInQuoteForSynth;
-    uint256 public mintedUsdlForThisWrapper;
-    uint256 public mintedSynthForThisWrapper;
+    uint256 public mintedPositionUsdlForThisWrapper;
+    uint256 public mintedPositionSynthForThisWrapper;
 
     // Has the Market Settled
     bool public override hasSettled;
@@ -77,14 +74,12 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     event MaxPositionUpdated(uint256 maxPos);
 
     modifier onlyUSDLemma() {
-        // TODO: Re-enable
-        // require(msg.sender == usdLemma, "only usdLemma is allowed");
+        require(msg.sender == usdLemma, "only usdLemma is allowed");
         _;
     }
 
     modifier onlyRebalancer() {
-        // TODO: Re-enable
-        // require(_msgSender() == rebalancer, "! Rebalancer");
+        require(_msgSender() == rebalancer, "! Rebalancer");
         _;
     }
 
@@ -97,7 +92,6 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         address _usdlCollateral,
         address _usdlBaseToken,
         address _synthCollateral,
-        address _synthBaseToken,
         address _clearingHouse,
         address _marketRegistry,
         address _usdLemma,
@@ -107,11 +101,13 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         __ERC2771Context_init(_trustedForwarder);
 
         require(_usdlBaseToken != address(0), "_usdlBaseToken should not ZERO address");
-        // require(_synthBaseToken != address(0), "_synthBaseToken should not ZERO address");
         require(_clearingHouse != address(0), "ClearingHouse should not ZERO address");
         require(_marketRegistry != address(0), "MarketRegistry should not ZERO address");
 
+        // NOTE: Even though it is not necessary, it is for clarity
+        hasSettled = false;
         usdLemma = _usdLemma;
+        usdlBaseTokenAddress = _usdlBaseToken;
         maxPosition = _maxPosition;
 
         clearingHouse = IClearingHouse(_clearingHouse);
@@ -119,21 +115,15 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         perpVault = IPerpVault(clearingHouse.getVault());
         exchange = IExchange(clearingHouse.getExchange());
         accountBalance = IAccountBalance(clearingHouse.getAccountBalance());
-
         marketRegistry = IMarketRegistry(_marketRegistry);
-
         usdc = IERC20Decimals(perpVault.getSettlementToken());
 
-        usdlBaseTokenAddress = _usdlBaseToken;
         usdlCollateral = IERC20Decimals(_usdlCollateral);
         usdlCollateralDecimals = usdlCollateral.decimals(); // need to verify
         usdlCollateral.approve(_clearingHouse, MAX_UINT256);
 
-        // NOTE: Even though it is not necessary, it is for clarity
-        hasSettled = false;
-
+        SafeERC20Upgradeable.safeApprove(usdlCollateral, address(perpVault), 0);
         SafeERC20Upgradeable.safeApprove(usdlCollateral, address(perpVault), MAX_UINT256);
-        // SafeERC20Upgradeable.safeApprove(synthCollateral, address(perpVault), MAX_UINT256);
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), 0);
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
 
@@ -145,26 +135,22 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         }
     }
 
-    function setRebalancer(address _rebalancer) external onlyOwner {
-        // NOTE: Setting it to address(0) is allowed, it just disables rebalancing temporarily
-        rebalancer = _rebalancer;
-
-        // TODO: Add emit event 
+    /// @notice reset approvals
+    function resetApprovals() external {
+        SafeERC20Upgradeable.safeApprove(usdlCollateral, address(perpVault), 0);
+        SafeERC20Upgradeable.safeApprove(usdlCollateral, address(perpVault), MAX_UINT256);
+        SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), 0);
+        SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
     }
 
-    // TODO: Add only owner
-    function setIsUsdlCollateralTailAsset(bool _x) external {
-        isUsdlCollateralTailAsset = _x;
-    }
-
-    function getUsdlCollateralDecimals() override external view returns(uint256) {
+    function getUsdlCollateralDecimals() external view override returns(uint256) {
         return usdlCollateralDecimals;
     }
 
-    function getIndexPrice() override external view returns(uint256) {
+    function getIndexPrice() external view override returns(uint256) {
         uint256 _twapInterval = IClearingHouseConfig(clearingHouseConfig).getTwapInterval();
-        console.log("[getIndexPrice()] _twapInterval = ", _twapInterval);
         uint256 _price = IIndexPrice(usdlBaseTokenAddress).getIndexPrice(_twapInterval);
+        console.log("[getIndexPrice()] _twapInterval = ", _twapInterval);
         console.log("[getIndexPrice()] _price = ", _price);
         return _price;
     }
@@ -183,77 +169,13 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         return accountBalance.getTotalPositionValue(address(this), usdlBaseTokenAddress);
     }
 
-    ///@notice sets USDLemma address - only owner can set
-    ///@param _usdLemma USDLemma address to set
-    function setUSDLemma(address _usdLemma) external onlyOwner {
-        require(_usdLemma != address(0), "UsdLemma should not ZERO address");
-
-        if(usdLemma != address(0)) {
-            SafeERC20Upgradeable.safeApprove(usdc, usdLemma, 0);
-            SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
-        }
-        usdLemma = _usdLemma;
-
-        SafeERC20Upgradeable.safeApprove(usdc, usdLemma, 0);
-        SafeERC20Upgradeable.safeApprove(usdc, usdLemma, MAX_UINT256);
-        SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
-        SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, MAX_UINT256);
-        emit USDLemmaUpdated(usdLemma);
-    }
-
-    ///@notice sets refferer code - only owner can set
-    ///@param _referrerCode referrerCode of address to set
-    function setReferrerCode(bytes32 _referrerCode) external onlyOwner {
-        referrerCode = _referrerCode;
-        emit ReferrerUpdated(referrerCode);
-    }
-
-    ///@notice sets reBalncer address - only owner can set
-    ///@param _reBalancer reBalancer address to set
-    function setReBalancer(address _reBalancer) external onlyOwner {
-        require(_reBalancer != address(0), "ReBalancer should not ZERO address");
-        reBalancer = _reBalancer;
-        emit RebalancerUpdated(reBalancer);
-    }
-
-    ///@notice sets maximum position the wrapper can take (in terms of base) - only owner can set
-    ///@param _maxPosition reBalancer address to set
-    function setMaxPosition(uint256 _maxPosition) external onlyOwner {
-        maxPosition = _maxPosition;
-        emit MaxPositionUpdated(maxPosition);
-    }
-
-    /// @notice reset approvals
-    function resetApprovals() external {
-        SafeERC20Upgradeable.safeApprove(usdlCollateral, address(perpVault), 0);
-        SafeERC20Upgradeable.safeApprove(usdlCollateral, address(perpVault), MAX_UINT256);
-        SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), 0);
-        SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
-    }
-
-    function getSettlementTokenAmountInVault() override external view returns(int256) {
+    function getSettlementTokenAmountInVault() external view override returns(int256) {
         return perpVault.getBalance(address(this));
-    }
-
-    /// @notice depositSettlementToken is used to deposit settlement token USDC into perp vault - only owner can deposit
-    /// @param _amount USDC amount need to deposit into perp vault
-    function depositSettlementToken(uint256 _amount) override external {
-        require(_amount > 0, "Amount should greater than zero");
-        SafeERC20Upgradeable.safeTransferFrom(usdc, msg.sender, address(this), _amount);
-        perpVault.deposit(address(usdc), _amount);
-    }
-
-    /// @notice withdrawSettlementToken is used to withdraw settlement token USDC from perp vault - only owner can withdraw
-    /// @param _amount USDC amount need to withdraw from perp vault
-    function withdrawSettlementToken(uint256 _amount) override external onlyOwner {
-        require(_amount > 0, "Amount should greater than zero");
-        perpVault.withdraw(address(usdc), _amount);
-        SafeERC20Upgradeable.safeTransfer(usdc, msg.sender, _amount);
     }
 
     // Returns the leverage in 1e18 format
     // TODO: Take into account tail assets
-    function getRelativeMargin() override external view returns(uint256) {
+    function getRelativeMargin() external view override returns(uint256) {
         // NOTE: Returns totalCollateralValue + unrealizedPnL
         // https://github.com/yashnaman/perp-lushan/blob/main/contracts/interface/IClearingHouse.sol#L254
         int256 _accountValue_1e18 = clearingHouse.getAccountValue(address(this));
@@ -298,7 +220,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
     // NOTE: Computes the delta exposure 
     // NOTE: It does not take into account if the deposited collateral gets silently converted in USDC so that we lose positive delta exposure
-    function getDeltaExposure() override external view returns(int256) {
+    function getDeltaExposure() external view override returns(int256) {
         (uint256 _usdlCollateralAmount, uint256 _usdlCollateralDepositedAmount, int256 _longOrShort,,) = getExposureDetails();
         uint256 _longOnly = (_usdlCollateralAmount + _usdlCollateralDepositedAmount) * 10**(18 - usdlCollateralDecimals);         // Both usdlCollateralDecimals format
 
@@ -314,7 +236,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         return _delta;
     }
 
-    function getExposureDetails() override public view returns(uint256, uint256, int256, int256, uint256) {
+    function getExposureDetails() public view override returns(uint256, uint256, int256, int256, uint256) {
         return (
             usdlCollateral.balanceOf(address(this)),
             amountUsdlCollateralDeposited,
@@ -324,223 +246,106 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         );
     }
 
-    function getMargin() override external view returns(int256) {
+    function getMargin() external view override returns(int256) {
         int256 _margin = accountBalance.getMarginRequirementForLiquidation(address(this));
         console.log("[getMargin()] Margin = %s %d", (_margin < 0) ? "-":"+", _margin.abs().toUint256());
         return _margin;
     }
 
-    function trade(
-        uint256 amount,
-        bool isShorting,
-        bool isExactInput
-    ) public override onlyUSDLemma returns (uint256, uint256) {
-        bool _isBaseToQuote = isShorting;
-        bool _isExactInput = isExactInput;
-
-        IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
-            baseToken: usdlBaseTokenAddress,
-            isBaseToQuote: _isBaseToQuote,
-            isExactInput: _isExactInput,
-            amount: amount,
-            oppositeAmountBound: 0,
-            deadline: MAX_UINT256,
-            sqrtPriceLimitX96: 0,
-            referralCode: referrerCode
-        });
-
-        // NOTE: It returns the base and quote of the last trade only
-        (uint256 _amountBase, uint256 _amountQuote) = clearingHouse.openPosition(params);
-        amountBase += (_isBaseToQuote) ? -1 * int256(_amountBase) : int256(_amountBase);
-        amountQuote += (_isBaseToQuote) ? int256(_amountQuote) : -1 * int256(_amountQuote);
-
-        int256 positionSize = accountBalance.getTotalPositionSize(address(this), usdlBaseTokenAddress);
-        require(positionSize.abs().toUint256() <= maxPosition, "max position reached");
-        return (_amountBase, _amountQuote);
+    function setIsUsdlCollateralTailAsset(bool _x) external onlyOwner {
+        isUsdlCollateralTailAsset = _x;
     }
 
-    // TODO: Add `onlyUSDLemma`
-    function deposit(uint256 amount, address collateral, Basis basis) external override {
+    ///@notice sets USDLemma address - only owner can set
+    ///@param _usdLemma USDLemma address to set
+    function setUSDLemma(address _usdLemma) external onlyOwner {
+        require(_usdLemma != address(0), "UsdLemma should not ZERO address");
+
+        if(usdLemma != address(0)) {
+            SafeERC20Upgradeable.safeApprove(usdc, usdLemma, 0);
+            SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
+        }
+        usdLemma = _usdLemma;
+
+        SafeERC20Upgradeable.safeApprove(usdc, usdLemma, 0);
+        SafeERC20Upgradeable.safeApprove(usdc, usdLemma, MAX_UINT256);
+        SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
+        SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, MAX_UINT256);
+        emit USDLemmaUpdated(usdLemma);
+    }
+
+    ///@notice sets refferer code - only owner can set
+    ///@param _referrerCode referrerCode of address to set
+    function setReferrerCode(bytes32 _referrerCode) external onlyOwner {
+        referrerCode = _referrerCode;
+        emit ReferrerUpdated(referrerCode);
+    }
+
+    ///@notice sets reBalncer address - only owner can set
+    ///@param _reBalancer reBalancer address to set
+    function setReBalancer(address _reBalancer) external onlyOwner {
+        require(_reBalancer != address(0), "ReBalancer should not ZERO address");
+        reBalancer = _reBalancer;
+        emit RebalancerUpdated(reBalancer);
+    }
+
+    ///@notice sets maximum position the wrapper can take (in terms of base) - only owner can set
+    ///@param _maxPosition reBalancer address to set
+    function setMaxPosition(uint256 _maxPosition) external onlyOwner {
+        maxPosition = _maxPosition;
+        emit MaxPositionUpdated(maxPosition);
+    }
+
+    /// @notice depositSettlementToken is used to deposit settlement token USDC into perp vault - only owner can deposit
+    /// @param _amount USDC amount need to deposit into perp vault
+    function depositSettlementToken(uint256 _amount) external override onlyOwner {
+        require(_amount > 0, "Amount should greater than zero");
+        SafeERC20Upgradeable.safeTransferFrom(usdc, msg.sender, address(this), _amount);
+        perpVault.deposit(address(usdc), _amount);
+        totalSynthCollateral += _amount;
+    }
+
+    /// @notice withdrawSettlementToken is used to withdraw settlement token USDC from perp vault - only owner can withdraw
+    /// @param _amount USDC amount need to withdraw from perp vault
+    function withdrawSettlementToken(uint256 _amount) external override onlyOwner {
+        require(_amount > 0, "Amount should greater than zero");
+        perpVault.withdraw(address(usdc), _amount);
+        SafeERC20Upgradeable.safeTransfer(usdc, msg.sender, _amount);
+        totalSynthCollateral -= _amount;
+    }
+
+    function deposit(uint256 amount, address collateral, Basis basis) external override onlyUSDLemma {
         _deposit(amount, collateral, basis);
     }
 
-    // TODO: Add `onlyUSDLemma`
-    function withdraw(uint256 amount, address collateral, Basis basis) external override {
+    function withdraw(uint256 amount, address collateral, Basis basis) external override onlyUSDLemma {
         _withdraw(amount, collateral, basis);
-    }
-
-    /////////// TRADING - CONVENIENCE FUNCTIONS     
-    function openLongWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
-        // Open Long: Quote --> Base 
-        // ExactInput: False
-        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
-        return trade(amount, false, false);
-    }
-
-    function openLongWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
-        // Open Long: Quote --> Base 
-        // ExactInput: True
-        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
-        return trade(amount, false, true);
-    }
-
-    function closeLongWithExactBase(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
-        // Close Long: Base --> Quote 
-        // ExactInput: True
-        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
-        return trade(amount, true, true);
-    }
-
-    function closeLongWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
-        // Close Long: Base --> Quote 
-        // ExactInput: False
-        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
-        return trade(amount, true, false);
-    }
-
-    function openShortWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
-        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
-        (uint256 base, uint256 quote) = closeLongWithExactBase(amount, address(0), 0, basis);
-        if (Basis.IsUsdl == basis) {
-            mintedUsdlForThisWrapper += quote;
-        } else if (Basis.IsSynth == basis) {
-            mintedSynthForThisWrapper -= base;
-        }
-        return (base, quote);
-    }
-
-    function openShortWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
-        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
-        (uint256 base, uint256 quote) = closeLongWithExactQuote(amount, address(0), 0, basis);
-        if (Basis.IsUsdl == basis) {
-            mintedUsdlForThisWrapper += quote;
-        } else if (Basis.IsSynth == basis) {
-            mintedSynthForThisWrapper -= base;
-        }
-        return (base, quote);
-    }
-
-    function closeShortWithExactBase(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
-        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
-        (uint256 base, uint256 quote) = openLongWithExactBase(amount, address(0), 0, basis);
-        if (Basis.IsUsdl == basis) {
-            mintedUsdlForThisWrapper -= quote;
-        } else if (Basis.IsSynth == basis) {
-            mintedSynthForThisWrapper += base;
-        }
-        return (base, quote);
-    }
-
-    function closeShortWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
-        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
-        (uint256 base, uint256 quote) = openLongWithExactQuote(amount, address(0), 0, basis);
-        if (Basis.IsUsdl == basis) {
-            mintedUsdlForThisWrapper -= quote;
-        } else if (Basis.IsSynth == basis) {
-            mintedSynthForThisWrapper += base;
-        }
-        return (base, quote);
     }
 
     //// @notice when perpetual is in CLEARED state, withdraw the collateral
     function settle() external override {
-        positionAtSettlementInQuoteForUSDL = getAmountInCollateralDecimalsForPerp(
-            mintedUsdlForThisWrapper,
-            address(usdlCollateral),
-            false
-        ); // for USDL
-
-        positionAtSettlementInQuoteForSynth = getAmountInCollateralDecimalsForPerp(
-            mintedSynthForThisWrapper,
-            address(usdc),
-            false
-        ); // for Synth
-
         clearingHouse.quitMarket(address(this), usdlBaseTokenAddress);
 
         // NOTE: Settle pending funding rates
         clearingHouse.settleAllFunding(address(this));
 
         uint256 freeUSDCCollateral = perpVault.getFreeCollateral(address(this));
-        _withdraw(freeUSDCCollateral, address(usdc), Basis.IsSynth);
+        _withdraw(freeUSDCCollateral, address(usdc), Basis.IsSettle);
 
         if(! isUsdlCollateralTailAsset) {
             // NOTE: This amount of free collateral is the one internally used to check for the V_NEFC error, so this is the max withdrawable
             uint256 freeCollateralUSDL = perpVault.getFreeCollateralByToken(address(this), address(usdlCollateral));
-            _withdraw(freeCollateralUSDL, address(usdlCollateral), Basis.IsUsdl);
+            _withdraw(freeCollateralUSDL, address(usdlCollateral), Basis.IsSettle);
         }
 
         // All the collateral is now back
         hasSettled = true;
     }
 
-    function _USDCToCollateral(address router, uint256 routerType, bool isExactInput, uint256 amountUSDC) internal returns(uint256) {
-        return _swapOnDEXSpot(router, routerType, false, isExactInput, amountUSDC);
-    }
-
-    function _CollateralToUSDC(address router, uint256 routerType, bool isExactInput, uint256 amountCollateral) internal returns(uint256) {
-        return _swapOnDEXSpot(router, routerType, true, isExactInput, amountCollateral);
-    }
-
-    function _swapOnDEXSpot(address router, uint256 routerType, bool isBuyUSDLCollateral, bool isExactInput, uint256 amountIn) internal returns(uint256) {
-        if(routerType == 0) {
-            // NOTE: UniV3 
-            return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn);
-        }
-        // NOTE: Unsupported Router --> Using UniV3 as default
-        return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn);
-    }
-
-    function _swapOnUniV3(address router, bool isUSDLCollateralToUSDC, bool isExactInput, uint256 amount) internal returns(uint256) {
-        uint256 res;
-        address tokenIn = (isUSDLCollateralToUSDC) ? address(usdlCollateral) : address(usdc);
-        address tokenOut = (isUSDLCollateralToUSDC) ? address(usdc) : address(usdlCollateral);
-
-        console.log("[_swapOnUniV3] usdlCollateral ", address(usdlCollateral));
-        console.log("[_swapOnUniV3] usdc ", address(usdc));
-
-        console.log("[_swapOnUniV3()] tokenIn = ", tokenIn);
-        console.log("[_swapOnUniV3()] tokenOut = ", tokenOut);
-
-
-        IERC20Decimals(tokenIn).approve(router, type(uint256).max);
-
-        if(isExactInput) {
-            ISwapRouter.ExactInputSingleParams memory temp = ISwapRouter.ExactInputSingleParams({
-                tokenIn: tokenIn,
-                tokenOut: tokenOut,
-                fee: 3000,
-                recipient: address(this),
-                deadline: type(uint256).max,
-                amountIn: amount,
-                amountOutMinimum: 0,
-                sqrtPriceLimitX96: 0
-            });
-            console.log("[_swapOnUniV3] ExactInput amount = ", amount);
-            uint256 balanceBefore = IERC20Decimals(tokenOut).balanceOf(address(this));
-            res = ISwapRouter(router).exactInputSingle(temp);
-            uint256 balanceAfter = IERC20Decimals(tokenOut).balanceOf(address(this));
-            // require(balanceAfter > balanceBefore);
-            res = uint256( int256(balanceAfter) - int256(balanceBefore) );
-        }
-        else {
-            ISwapRouter.ExactOutputSingleParams memory temp = ISwapRouter.ExactOutputSingleParams({
-                tokenIn: tokenIn,
-                tokenOut: tokenOut,
-                fee: 3000,
-                recipient: address(this),
-                deadline: type(uint256).max,
-                amountOut: amount,
-                amountInMaximum: type(uint256).max,
-                sqrtPriceLimitX96: 0
-            });
-            console.log("[_swapOnUniV3()] ExactOutput = ", amount);
-            res = ISwapRouter(router).exactOutputSingle(temp);
-        }
-
-        IERC20Decimals(tokenIn).approve(router, 0);
-        console.log("[_swapOnUniV3()] res = ", res);
-        return res;
+    function getCollateralBackAfterSettlement(
+        uint256 amount, address to, bool isUsdl
+    ) external override onlyUSDLemma returns(uint256, uint256) {
+        return settleCollateral(amount, to, isUsdl);
     }
 
     /// @notice Rebalances USDL or Synth emission swapping by Perp backed to Token backed  
@@ -554,7 +359,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     /// @param amountBaseToRebalance The Amount of Base Token to buy or sell on Perp and consequently the amount of corresponding colletarl to sell or buy on Spot 
     /// @param isCheckProfit Check the profit to possibly revert the TX in case 
     /// @return Amount of USDC resulting from the operation. It can also be negative as we can use this mechanism for purposes other than Arb See https://www.notion.so/lemmafinance/Rebalance-Details-f72ad11a5d8248c195762a6ac6ce037e#ffad7b09a81a4b049348e3cd38e57466 here 
-    function rebalance(address router, uint256 routerType, int256 amountBaseToRebalance, bool isCheckProfit) override external onlyRebalancer returns(uint256, uint256) {
+    function rebalance(address router, uint256 routerType, int256 amountBaseToRebalance, bool isCheckProfit) external override onlyRebalancer returns(uint256, uint256) {
         console.log("[rebalance()] Start");
         // uint256 usdlCollateralAmountPerp;
         // uint256 usdlCollateralAmountDex;
@@ -651,10 +456,99 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     /// PUBLIC METHODS ///
     //////////////////////
 
-    function getAmountInCollateralDecimalsForPerp(
+    function trade(
         uint256 amount,
-        address collateral,
-        bool roundUp
+        bool isShorting,
+        bool isExactInput
+    ) public override onlyUSDLemma returns (uint256, uint256) {
+        bool _isBaseToQuote = isShorting;
+        bool _isExactInput = isExactInput;
+
+        IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
+            baseToken: usdlBaseTokenAddress,
+            isBaseToQuote: _isBaseToQuote,
+            isExactInput: _isExactInput,
+            amount: amount,
+            oppositeAmountBound: 0,
+            deadline: MAX_UINT256,
+            sqrtPriceLimitX96: 0,
+            referralCode: referrerCode
+        });
+
+        // NOTE: It returns the base and quote of the last trade only
+        (uint256 _amountBase, uint256 _amountQuote) = clearingHouse.openPosition(params);
+        amountBase += (_isBaseToQuote) ? -1 * int256(_amountBase) : int256(_amountBase);
+        amountQuote += (_isBaseToQuote) ? int256(_amountQuote) : -1 * int256(_amountQuote);
+
+        int256 positionSize = accountBalance.getTotalPositionSize(address(this), usdlBaseTokenAddress);
+        require(positionSize.abs().toUint256() <= maxPosition, "max position reached");
+        return (_amountBase, _amountQuote);
+    }
+
+    ////////////// TRADING - CONVENIENCE FUNCTIONS ////////////// 
+    // openLongWithExactBase & closeShortWithExactBase: Quote --> Base, ExactInput: False
+    // openLongWithExactQuote & closeShortWithExactQuote: Quote --> Base, ExactInput: True
+    // closeLongWithExactBase & openShortWithExactBase: Base --> Quote, ExactInput: True
+    // closeLongWithExactQuote & openShortWithExactQuote: Base --> Quote, ExactInput: False
+
+    function openLongWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
+        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
+        (uint256 base, uint256 quote) = trade(amount, false, false);
+        calculateMintingAsset(base, basis, false);
+        return (base, quote);
+    }
+
+    function openLongWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
+        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
+        (uint256 base, uint256 quote) = trade(amount, false, true);
+        calculateMintingAsset(base, basis, false);
+        return (base, quote);
+    }
+
+    function closeLongWithExactBase(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
+        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
+        (uint256 base, uint256 quote) = trade(amount, true, true);
+        calculateMintingAsset(base, basis, true);
+        return (base, quote);
+    }
+
+    function closeLongWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
+        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
+        (uint256 base, uint256 quote) = trade(amount, true, false);
+        calculateMintingAsset(base, basis, true);
+        return (base, quote);
+    }
+
+    function openShortWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
+        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
+        (uint256 base, uint256 quote) = trade(amount, true, true);
+        calculateMintingAsset(quote, basis, true);
+        return (base, quote);
+    }
+
+    function openShortWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
+        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
+        (uint256 base, uint256 quote) = trade(amount, true, false);
+        calculateMintingAsset(quote, basis, true);
+        return (base, quote);
+    }
+
+    function closeShortWithExactBase(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
+        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
+        (uint256 base, uint256 quote) = trade(amount, false, false);
+        calculateMintingAsset(quote, basis, false);
+        return (base, quote);
+    }
+
+    function closeShortWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
+        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
+        (uint256 base, uint256 quote) = trade(amount, false, true);
+        calculateMintingAsset(quote, basis, false);
+        return (base, quote);
+    }
+
+    function getAmountInCollateralDecimalsForPerp(
+        uint256 amount, address collateral, bool roundUp
     ) public view override returns (uint256) {
         uint256 collateralDecimals = IERC20Decimals(collateral).decimals();
         if (roundUp && (amount % (uint256(10**(18 - collateralDecimals))) != 0)) {
@@ -663,13 +557,18 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         return amount / uint256(10**(18 - collateralDecimals));
     }
 
-    function getCollateralBackAfterSettlement(uint256 amount, address to, bool isUsdl) external override onlyUSDLemma returns(uint256, uint256) {
-        return settleCollateral(amount, to, isUsdl);
-    }
-
     ////////////////////////
     /// INTERNAL METHODS ///
     ////////////////////////
+
+    function getAllBalance() internal view returns(uint256, uint256, uint256, uint256) {
+        return (
+            totalUsdlCollateral,
+            usdlCollateral.balanceOf(address(this)),
+            totalSynthCollateral,
+            usdc.balanceOf(address(this))
+        ); 
+    }
 
     /// @notice to deposit collateral in vault for short or open position
     /// @notice If collateral is tail asset no need to deposit it in Perp, it has to stay in this contract balance sheet 
@@ -681,7 +580,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             amountUsdlCollateralDeposited += collateralAmount;
         }
 
-        if (Basis.IsRebalance != basis) { 
+        if (Basis.IsRebalance != basis) {
             if (Basis.IsUsdl == basis) { 
                 totalUsdlCollateral += collateralAmount;
             } else {
@@ -701,42 +600,44 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             amountUsdlCollateralDeposited -= amountToWithdraw;
         }
 
-        if (Basis.IsRebalance != basis) { 
-            if (Basis.IsUsdl == basis) { 
-                totalUsdlCollateral -= amountToWithdraw;
-            } else {
-                totalSynthCollateral -= amountToWithdraw;
+        if (Basis.IsUsdl == basis) { 
+            totalUsdlCollateral -= amountToWithdraw;
+            // totalUsdlCollateral =  (totalUsdlCollateral < amountToWithdraw) ? 0 : (totalUsdlCollateral - amountToWithdraw);
+        } else if (Basis.IsSynth == basis) {
+            totalSynthCollateral -= amountToWithdraw;
+            // totalSynthCollateral =  (totalSynthCollateral < amountToWithdraw) ? 0 : (totalSynthCollateral - amountToWithdraw);
+        }
+    }
+
+    function calculateMintingAsset(uint256 amount, Basis basis, bool isOpenShort) internal {
+        if (isOpenShort) {
+            // is openShort or closeLong
+            if (Basis.IsUsdl == basis) {
+                mintedPositionUsdlForThisWrapper += amount; // quote
+            } else if (Basis.IsSynth == basis) {
+                mintedPositionSynthForThisWrapper -= amount; // base
+            }
+        } else {
+            // is openLong or closeShort
+            if (Basis.IsUsdl == basis) {
+                mintedPositionUsdlForThisWrapper -= amount; // quote
+            } else if (Basis.IsSynth == basis) {
+                mintedPositionSynthForThisWrapper += amount; // base
             }
         }
     }
 
-    function getAllBalance() internal view returns(
-        uint256, uint256, uint256, uint256
-    ) {
-        return (
-            totalUsdlCollateral,
-            usdlCollateral.balanceOf(address(this)),
-            totalSynthCollateral,
-            usdc.balanceOf(address(this))
-        ); 
-    }
-
-    function settleCollateral(uint256 usdlOrSynthAmount, address to, bool isUsdl) internal returns(
-        uint256 amountUsdlCollateralToTransfer1e_18, 
-        uint256 amountUsdcCollateralToTransfer1e_18
-    ) {
-        uint256 positionAtSettlementInQuote;
-        uint256 tailAmount;
-        uint256 usdcAmount;
-        if (isUsdl) {
-            positionAtSettlementInQuote = positionAtSettlementInQuoteForUSDL;
-            require(positionAtSettlementInQuoteForUSDL > 0, "Settled vUSD position amount should not ZERO");
-        } else {
-            positionAtSettlementInQuote = positionAtSettlementInQuoteForSynth;
-            require(positionAtSettlementInQuoteForSynth > 0, "Settled vUSD position amount should not ZERO");
-        }
+    function settleCollateral(uint256 usdlOrSynthAmount, address to, bool isUsdl) internal returns(uint256 amountUsdlCollateral1e_18, uint256 amountUsdcCollateral1e_18) {
+        uint256 positionAtSettlementInQuote = isUsdl ? mintedPositionUsdlForThisWrapper : mintedPositionSynthForThisWrapper;
         require(positionAtSettlementInQuote > 0, "Settled vUSD position amount should not ZERO");
         
+        uint256 tailAmount;
+        uint256 usdcAmount;
+
+        // a = totalUsdlCollateral ===> Total usdlcollateral that is deposited in perpLemma.
+        // b = usdlCollateral.balanceOf(address(this)) ===> Current Total usdlcollateral perpLemma has.
+        // c = totalSynthCollateral ===> Total synthcollateral that is deposited in perpLemma.
+        // d = usdc.balanceOf(address(this)) ===> Current Total synthcollateral perpLemma has.
         (uint256 a, uint256 b, uint256 c, uint256 d) = getAllBalance();
         if (isUsdl) {
             tailAmount = a > b ? b : a;
@@ -746,25 +647,90 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             tailAmount = a >= b ? 0 : b - a;
         }
         if (tailAmount != 0) {
-            uint256 amountForUsdl = getAmountInCollateralDecimalsForPerp(usdlOrSynthAmount, address(usdlCollateral), false);
-            uint256 amountUsdlCollateralToTransfer = (amountForUsdl * tailAmount) / positionAtSettlementInQuote;
             uint256 collateralDecimals = IERC20Decimals(address(usdlCollateral)).decimals();
-            amountUsdlCollateralToTransfer1e_18 = amountUsdlCollateralToTransfer * 1e18 / (10**collateralDecimals);
-            SafeERC20Upgradeable.safeTransfer(usdlCollateral, to, amountUsdlCollateralToTransfer);
+            tailAmount = tailAmount * 1e18 / (10**collateralDecimals);
+            amountUsdlCollateral1e_18 = (usdlOrSynthAmount * tailAmount) / positionAtSettlementInQuote;
+            uint256 amountUsdlCollateral = getAmountInCollateralDecimalsForPerp(amountUsdlCollateral1e_18, address(usdlCollateral), false);
+            SafeERC20Upgradeable.safeTransfer(usdlCollateral, to, amountUsdlCollateral);
+            totalUsdlCollateral -= amountUsdlCollateral;
         }
-
         if (usdcAmount != 0) {
-            uint256 amountForSynth = getAmountInCollateralDecimalsForPerp(usdlOrSynthAmount, address(usdc), false);
-            uint256 amountUsdcCollateralToTransfer = (amountForSynth * usdcAmount) / positionAtSettlementInQuote;
             uint256 collateralDecimals = IERC20Decimals(address(usdc)).decimals();
-            amountUsdcCollateralToTransfer1e_18 = amountUsdcCollateralToTransfer * 1e18 / (10**collateralDecimals);
-            SafeERC20Upgradeable.safeTransfer(usdc, to, amountUsdcCollateralToTransfer);
+            usdcAmount = usdcAmount * 1e18 / (10**collateralDecimals);
+            amountUsdcCollateral1e_18 = (usdlOrSynthAmount * usdcAmount) / positionAtSettlementInQuote;
+            uint256 amountUsdcCollateral = getAmountInCollateralDecimalsForPerp(amountUsdcCollateral1e_18, address(usdc), false);
+            SafeERC20Upgradeable.safeTransfer(usdc, to, amountUsdcCollateral);
+            totalSynthCollateral -= amountUsdcCollateral;
         }
         if (isUsdl) {
-            positionAtSettlementInQuoteForUSDL -= usdlOrSynthAmount;
+            mintedPositionUsdlForThisWrapper -= usdlOrSynthAmount;
         } else {
-            positionAtSettlementInQuoteForSynth -= usdlOrSynthAmount;
+            mintedPositionSynthForThisWrapper -= usdlOrSynthAmount;
         }
+    }
+
+    function _USDCToCollateral(address router, uint256 routerType, bool isExactInput, uint256 amountUSDC) internal returns(uint256) {
+        return _swapOnDEXSpot(router, routerType, false, isExactInput, amountUSDC);
+    }
+
+    function _CollateralToUSDC(address router, uint256 routerType, bool isExactInput, uint256 amountCollateral) internal returns(uint256) {
+        return _swapOnDEXSpot(router, routerType, true, isExactInput, amountCollateral);
+    }
+
+    function _swapOnDEXSpot(address router, uint256 routerType, bool isBuyUSDLCollateral, bool isExactInput, uint256 amountIn) internal returns(uint256) {
+        if(routerType == 0) {
+            // NOTE: UniV3 
+            return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn);
+        }
+        // NOTE: Unsupported Router --> Using UniV3 as default
+        return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn);
+    }
+
+    function _swapOnUniV3(address router, bool isUSDLCollateralToUSDC, bool isExactInput, uint256 amount) internal returns(uint256) {
+        uint256 res;
+        address tokenIn = (isUSDLCollateralToUSDC) ? address(usdlCollateral) : address(usdc);
+        address tokenOut = (isUSDLCollateralToUSDC) ? address(usdc) : address(usdlCollateral);
+        console.log("[_swapOnUniV3] usdlCollateral ", address(usdlCollateral));
+        console.log("[_swapOnUniV3] usdc ", address(usdc));
+        console.log("[_swapOnUniV3()] tokenIn = ", tokenIn);
+        console.log("[_swapOnUniV3()] tokenOut = ", tokenOut);
+
+        IERC20Decimals(tokenIn).approve(router, type(uint256).max);
+        if(isExactInput) {
+            ISwapRouter.ExactInputSingleParams memory temp = ISwapRouter.ExactInputSingleParams({
+                tokenIn: tokenIn,
+                tokenOut: tokenOut,
+                fee: 3000,
+                recipient: address(this),
+                deadline: type(uint256).max,
+                amountIn: amount,
+                amountOutMinimum: 0,
+                sqrtPriceLimitX96: 0
+            });
+            console.log("[_swapOnUniV3] ExactInput amount = ", amount);
+            uint256 balanceBefore = IERC20Decimals(tokenOut).balanceOf(address(this));
+            res = ISwapRouter(router).exactInputSingle(temp);
+            uint256 balanceAfter = IERC20Decimals(tokenOut).balanceOf(address(this));
+            // require(balanceAfter > balanceBefore);
+            res = uint256( int256(balanceAfter) - int256(balanceBefore) );
+        }
+        else {
+            ISwapRouter.ExactOutputSingleParams memory temp = ISwapRouter.ExactOutputSingleParams({
+                tokenIn: tokenIn,
+                tokenOut: tokenOut,
+                fee: 3000,
+                recipient: address(this),
+                deadline: type(uint256).max,
+                amountOut: amount,
+                amountInMaximum: type(uint256).max,
+                sqrtPriceLimitX96: 0
+            });
+            console.log("[_swapOnUniV3()] ExactOutput = ", amount);
+            res = ISwapRouter(router).exactOutputSingle(temp);
+        }
+        IERC20Decimals(tokenIn).approve(router, 0);
+        console.log("[_swapOnUniV3()] res = ", res);
+        return res;
     }
 
     function _msgSender()
@@ -772,8 +738,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         view
         virtual
         override(ContextUpgradeable, ERC2771ContextUpgradeable)
-        returns (address sender)
-    {
+    returns (address sender) {
         return super._msgSender();
     }
 
@@ -782,8 +747,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         view
         virtual
         override(ContextUpgradeable, ERC2771ContextUpgradeable)
-        returns (bytes calldata)
-    {
+    returns (bytes calldata) {
         return super._msgData();
     }
 }

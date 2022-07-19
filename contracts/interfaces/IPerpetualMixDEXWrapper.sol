@@ -4,7 +4,7 @@ pragma solidity =0.8.3;
 import "../interfaces/IERC20Decimals.sol";
 
 interface IPerpetualMixDEXWrapper {
-    enum Basis {IsUsdl, IsSynth, IsRebalance}
+    enum Basis {IsUsdl, IsSynth, IsRebalance, IsSettle}
     function hasSettled() external view returns(bool);
     function getCollateralBackAfterSettlement(uint256 amount, address to, bool isUsdl) external returns(uint256 collateralAmount1, uint256 collateralAmount2);
     function trade(uint256 amount, bool isShorting, bool isExactInput) external returns (uint256 base, uint256 quote);
