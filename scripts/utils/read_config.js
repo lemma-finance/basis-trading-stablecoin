@@ -4,9 +4,10 @@ const myArgs = process.argv.slice(2);
 
 
 
-const res = eval(myArgs[0]);
+const keyType = myArgs[0];
+const res = eval(myArgs[1]);
 // console.log(`Converting res = ${res}`);
-console.log(ethers.utils.defaultAbiCoder.encode(["address"], [res]));
+console.log(ethers.utils.defaultAbiCoder.encode([keyType], [res]));
 
 // test = "config['optimism']['UniswapV3']['router']";
 // console.log(eval(test));

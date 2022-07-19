@@ -1,5 +1,9 @@
 
 {
+    "deployment": {
+        "type": "local",
+        "chainId": 10
+    },
     "anvil": {
         "DeployAnvilOptimism": "0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9",
         "UniV3_Factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984",

@@ -15,12 +15,24 @@ struct ExternalContracts {
 }
 
 
+struct Deployment {
+    bool isLocal;
+    uint256 chainId;
+}
+
+
 
 
 
 contract MyScript is Script, Test {
-    DeployAnvilOptimism public dao;
+    Deploy public d;
     ExternalContracts public ec;
+    Deployment configDeployment;
+
+    function _strEq(string memory a, string memory b) internal pure returns(bool) {
+        if(bytes(a).length != bytes(b).length) return false;
+        return keccak256(bytes(a)) == keccak256(bytes(b));
+    }
 
     function test1() internal {
         string[] memory inputs = new string[](2);
@@ -40,26 +52,57 @@ contract MyScript is Script, Test {
     }
 
     function _getConfig() internal {
-        string[] memory temp = new string[](3);
+        string[] memory temp = new string[](4);
         temp[0] = "node";
         temp[1] = "scripts/utils/read_config.js";
 
-        temp[2] = "config['optimism']['WETH']";
+        temp[2] = "address";
+        temp[3] = "config['optimism']['WETH']";
         ec.WETH = IERC20Decimals(abi.decode(vm.ffi(temp), (address)));
         console.log(address(ec.WETH));
 
-        temp[2] = "config['optimism']['USDC']";
+        temp[2] = "address";
+        temp[3] = "config['optimism']['USDC']";
         ec.USDC = IERC20Decimals(abi.decode(vm.ffi(temp), (address)));
         console.log(address(ec.USDC));
 
-        temp[2] = "config['optimism']['UniswapV3']['router']";
+        temp[2] = "address";
+        temp[3] = "config['optimism']['UniswapV3']['router']";
         // bytes memory res = vm.ffi(temp);
         ec.uniV3Router = abi.decode(vm.ffi(temp), (address));
         console.log(ec.uniV3Router);
 
-        temp[2] = "config['optimism']['UniswapV3']['factory']";
+        temp[2] = "address";
+        temp[3] = "config['optimism']['UniswapV3']['factory']";
         ec.uniV3Factory = IUniswapV3Factory(abi.decode(vm.ffi(temp), (address)));
         console.log(address(ec.uniV3Factory));
+
+        temp[2] = "uint256";
+        temp[3] = "config['deployment']['chainId']";
+        configDeployment.chainId = abi.decode(vm.ffi(temp), (uint256));
+        console.log("configDeployment.chainId = ", configDeployment.chainId);
+
+        {
+            temp[2] = "string";
+            temp[3] = "config['deployment']['type']";
+            string memory res = abi.decode(vm.ffi(temp), (string));
+            console.log(res);
+
+            if(_strEq(res, "local")) {
+                configDeployment.isLocal = true;
+            } else {
+                configDeployment.isLocal = false;
+            }
+
+            console.log("configDeployment.isLocal = ", configDeployment.isLocal);
+        }
+        
+    }
+
+    function _deploy() internal {
+        if(configDeployment.isLocal) {
+            d = new Deploy(configDeployment.chainId);
+        }
     }
 
     function _testUniV3Factory() internal {
@@ -95,6 +138,7 @@ contract MyScript is Script, Test {
         console.log("Starting Script");
         // test1();
         _getConfig();
+        _deploy();
         console.log("USDC Balance Before = ", ec.USDC.balanceOf(address(this)));
         console.log("WETH Balance Before = ", ec.WETH.balanceOf(address(this)));
         _getMoney(address(ec.USDC), 1e12);
