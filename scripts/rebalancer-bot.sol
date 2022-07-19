@@ -5,6 +5,7 @@ import "forge-std/Script.sol";
 import "../src/Deploy.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "../contracts/interfaces/IERC20Decimals.sol";
 
 struct ExternalContracts {
@@ -110,6 +111,13 @@ contract MyScript is Script, Test {
         console.log("UniV3 WETH-USDC Pool = ", pool);
     }
 
+    function _testPrices() internal {
+        uint256 spotPrice = _computeSpotPrice(address(ec.WETH), address(ec.USDC), 3000);
+        uint256 markPrice = _computeMarkPrice(d.pl().getPerpUniV3Pool(), ec.USDC.decimals());
+        console.log("[_testPrices()] spotPrice = ", spotPrice);
+        console.log("[_testPrices()] markPrice = ", markPrice);
+    }
+
 
     function _testUniV3Swap(address tokenIn, address tokenOut, uint256 amountIn) internal returns(uint256 amountOut) {
         IERC20Decimals(tokenIn).approve(ec.uniV3Router, type(uint256).max);
@@ -147,6 +155,33 @@ contract MyScript is Script, Test {
         d.pl().rebalance(address(ec.uniV3Router), 0, 1e18, false);
     }
 
+    function _computeSpotPrice(address token0, address token1, uint256 fees) internal returns(uint256) {
+        address pool = ec.uniV3Factory.getPool(address(ec.WETH), address(ec.USDC), 3000);
+        return _computeSpotPrice(pool);
+    }
+
+    function _computeSpotPrice(address pool) internal returns(uint256 res) {
+        (uint160 _sqrtRatioX96,,,,,,) = IUniswapV3Pool(pool).slot0();
+        uint256 token0Decimals = IERC20Decimals(IUniswapV3Pool(pool).token0()).decimals();
+        uint256 token1Decimals = IERC20Decimals(IUniswapV3Pool(pool).token1()).decimals();
+        console.log("[_computeSpotPrice()] Token0 = ", IUniswapV3Pool(pool).token0());
+        console.log("[_computeSpotPrice()] Token1 = ", IUniswapV3Pool(pool).token1());
+        console.log("[_computeSpotPrice()] _sqrtRatioX96 = ", uint256(_sqrtRatioX96));
+        res = (uint256(_sqrtRatioX96) ** 2) * (10 ** token0Decimals) / (2 ** 192);
+        console.log("[_computeSpotPrice()] Price = ", res, " in Decimals = ", token1Decimals);
+    }
+
+    function _computeMarkPrice(address pool, uint256 token0Decimals) internal returns(uint256 res) {
+        (uint160 _sqrtRatioX96,,,,,,) = IUniswapV3Pool(pool).slot0();
+        // uint256 token0Decimals = IERC20Decimals(IUniswapV3Pool(pool).token0()).decimals();
+        // uint256 token1Decimals = IERC20Decimals(IUniswapV3Pool(pool).token1()).decimals();
+        // console.log("[_computeMarkPrice()] Token0 = ", IUniswapV3Pool(pool).token0());
+        // console.log("[_computeMarkPrice()] Token1 = ", IUniswapV3Pool(pool).token1());
+        console.log("[_computeMarkPrice()] _sqrtRatioX96 = ", uint256(_sqrtRatioX96));
+        res = ((uint256(_sqrtRatioX96) ** 2) / (2 ** 192)) * (10 ** token0Decimals);
+        console.log("[_computeMarkPrice()] Price = ", res, " in Decimals = ", token0Decimals);
+    }
+
     function run() external {
         console.log("Starting Script");
         // test1();
@@ -167,8 +202,11 @@ contract MyScript is Script, Test {
         console.log("USDC Balance Swap After = ", ec.USDC.balanceOf(address(this)));
         console.log("WETH Balance Swap After = ", ec.WETH.balanceOf(address(this)));
 
+        _testPrices();
+
+
         // _testUniV3Factory();
-        _testUniV3Rebalance();
+        // _testUniV3Rebalance();
 
         // vm.startBroadcast();
         // dao = new DeployAnvilOptimism();
