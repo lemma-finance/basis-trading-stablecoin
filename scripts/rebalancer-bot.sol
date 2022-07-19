@@ -111,12 +111,12 @@ contract MyScript is Script, Test {
     }
 
 
-    function _testUniV3Swap(address tokenIn, uint256 amountIn) internal returns(uint256 amountOut) {
+    function _testUniV3Swap(address tokenIn, address tokenOut, uint256 amountIn) internal returns(uint256 amountOut) {
         IERC20Decimals(tokenIn).approve(ec.uniV3Router, type(uint256).max);
         ISwapRouter.ExactInputSingleParams memory params =
             ISwapRouter.ExactInputSingleParams({
-                tokenIn: address(ec.USDC),
-                tokenOut: address(ec.WETH),
+                tokenIn: tokenIn,
+                tokenOut: tokenOut,
                 fee: 3000,
                 recipient: address(this),
                 deadline: block.timestamp,
@@ -130,8 +130,21 @@ contract MyScript is Script, Test {
         console.log("[_testUniV3Swap()] Swap Result = ", amountOut);
     }
 
-    function _testUniV3Rebalance() internal {
+    function _init() internal {
+        // NOTE: Setting Approval
+        _getMoney(address(ec.WETH), 1e22);
+        _getMoney(address(ec.USDC), 1e20);
 
+        ec.WETH.approve(address(d.usdl()), type(uint256).max); 
+        ec.USDC.approve(address(d.usdl()), type(uint256).max); 
+        ec.USDC.approve(address(d.pl()), type(uint256).max); 
+
+        d.pl().depositSettlementToken(1e12);
+    }
+
+    function _testUniV3Rebalance() internal {
+        d.usdl().depositToWExactCollateral(address(this), 6e18, 0, 0, ec.WETH);
+        d.pl().rebalance(address(ec.uniV3Router), 0, 1e18, false);
     }
 
     function run() external {
@@ -139,6 +152,7 @@ contract MyScript is Script, Test {
         // test1();
         _getConfig();
         _deploy();
+        _init();
         console.log("USDC Balance Before = ", ec.USDC.balanceOf(address(this)));
         console.log("WETH Balance Before = ", ec.WETH.balanceOf(address(this)));
         _getMoney(address(ec.USDC), 1e12);
@@ -148,12 +162,14 @@ contract MyScript is Script, Test {
 
         console.log("Test ISDC --> WETH Swap");
 
-        _testUniV3Swap(address(ec.USDC), 1e6);
+        _testUniV3Swap(address(ec.WETH), address(ec.USDC), 1e18);
 
         console.log("USDC Balance Swap After = ", ec.USDC.balanceOf(address(this)));
         console.log("WETH Balance Swap After = ", ec.WETH.balanceOf(address(this)));
 
-        _testUniV3Factory();
+        // _testUniV3Factory();
+        _testUniV3Rebalance();
+
         // vm.startBroadcast();
         // dao = new DeployAnvilOptimism();
         // console.log("Trying to get config");

@@ -649,7 +649,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         console.log("[_swapOnUniV3()] tokenIn = ", tokenIn);
         console.log("[_swapOnUniV3()] tokenOut = ", tokenOut);
 
-        // IERC20Decimals(tokenIn).approve(router, type(uint256).max);
+        IERC20Decimals(tokenIn).approve(router, type(uint256).max);
 
         if(isExactInput) {
             ISwapRouter.ExactInputSingleParams memory temp = ISwapRouter.ExactInputSingleParams({
@@ -668,11 +668,12 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             uint256 allowance = IERC20Decimals(tokenIn).allowance(address(this), router);
             emit Log1("balanceInBefore", tokenIn, amount, balanceInBefore);
             require(amount <= balanceInBefore, "balanceInBefore");
+            console.log("Checking Allowance = ", allowance);
             require(amount <= allowance, "allowance");
             res = ISwapRouter(router).exactInputSingle(temp);
             uint256 balanceOutAfter = IERC20Decimals(tokenOut).balanceOf(address(this));
             // require(balanceAfter > balanceBefore);
-            res = uint256( int256(balanceOutAfter) - int256(balanceOutBefore) );
+            // res = uint256( int256(balanceOutAfter) - int256(balanceOutBefore) );
         }
         else {
             ISwapRouter.ExactOutputSingleParams memory temp = ISwapRouter.ExactOutputSingleParams({
