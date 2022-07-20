@@ -8,7 +8,7 @@ import {
   BaseToken__factory,
   UniswapV3Factory__factory,
 } from "../../../perp-lushan/typechain";
-import { ChainlinkPriceFeed__factory } from "../../../perp-lushan/typechain/perp-oracle"
+import { ChainlinkPriceFeed__factory } from "../../../perp-lushan/typechain/perp-oracle";
 import { isAscendingTokenOrder } from "./utilities";
 
 interface TokensFixture {
