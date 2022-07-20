@@ -927,11 +927,11 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     /// @notice If collateral is tail asset no need to deposit it in Perp, it has to stay in this contract balance sheet 
     function _deposit(uint256 collateralAmount, address collateral) internal {
         console.log("[_deposit()] Trying to deposit amount = ", collateralAmount);
+        amountUsdlCollateralDeposited += collateralAmount;
         if( (collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset) ) 
         {
             console.log("[_deposit()] Not a tail asset");
             perpVault.deposit(collateral, collateralAmount);
-            amountUsdlCollateralDeposited += collateralAmount;
         }
         else {
             console.log("[_deposit()] Tail Asset");
