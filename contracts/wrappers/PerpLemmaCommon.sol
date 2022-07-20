@@ -6,6 +6,10 @@ import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/m
 import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import { IPerpetualMixDEXWrapper } from "../interfaces/IPerpetualMixDEXWrapper.sol";
+
+import "../interfaces/IERC20Decimals.sol";
+import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
+import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import { Utils } from "../libraries/Utils.sol";
 import { SafeMathExt } from "../libraries/SafeMathExt.sol";
@@ -26,6 +30,11 @@ import "../interfaces/Perpetual/IBaseToken.sol";
 import "forge-std/Test.sol";
 
 // import "hardhat/console.sol";
+
+interface IERC20Details {
+    function name() external view returns(string memory);
+    function symbol() external view returns(string memory);
+}
 
 contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, AccessControlUpgradeable {
     using SafeCastUpgradeable for uint256;
@@ -527,7 +536,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     /// @param amountBaseToRebalance The Amount of Base Token to buy or sell on Perp and consequently the amount of corresponding colletarl to sell or buy on Spot 
     /// @param isCheckProfit Check the profit to possibly revert the TX in case 
     /// @return Amount of USDC resulting from the operation. It can also be negative as we can use this mechanism for purposes other than Arb See https://www.notion.so/lemmafinance/Rebalance-Details-f72ad11a5d8248c195762a6ac6ce037e#ffad7b09a81a4b049348e3cd38e57466 here 
-    function rebalance(address router, uint256 routerType, int256 amountBaseToRebalance, bool isCheckProfit) override external onlyRebalancer returns(uint256, uint256) {
+    function rebalance(address router, uint256 routerType, int256 amountBaseToRebalance, bool isCheckProfit) override external returns(uint256, uint256) {
         emit RebalanceStart(amountBaseToRebalance);
         console.log("[rebalance()] Start");
         // uint256 usdlCollateralAmountPerp;
@@ -864,61 +873,61 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         return _swapOnDEXSpot(router, routerType, true, isExactInput, amountCollateral);
     }
 
-    function _swapOnDEXSpot(address router, uint256 routerType, bool isBuyUSDLCollateral, bool isExactInput, uint256 amountIn) internal returns(uint256) {
-        if(routerType == 0) {
-            // NOTE: UniV3 
-            return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn);
-        }
-        // NOTE: Unsupported Router --> Using UniV3 as default
-        return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn);
-    }
+    // function _swapOnDEXSpot(address router, uint256 routerType, bool isBuyUSDLCollateral, bool isExactInput, uint256 amountIn) internal returns(uint256) {
+    //     if(routerType == 0) {
+    //         // NOTE: UniV3 
+    //         return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn);
+    //     }
+    //     // NOTE: Unsupported Router --> Using UniV3 as default
+    //     return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn);
+    // }
 
-    function _swapOnUniV3(address router, bool isUSDLCollateralToUSDC, bool isExactInput, uint256 amount) internal returns(uint256) {
-        uint256 res;
-        address tokenIn = (isUSDLCollateralToUSDC) ? address(usdlCollateral) : address(usdc);
-        address tokenOut = (isUSDLCollateralToUSDC) ? address(usdc) : address(usdlCollateral);
-        console.log("[_swapOnUniV3] usdlCollateral ", address(usdlCollateral));
-        console.log("[_swapOnUniV3] usdc ", address(usdc));
-        console.log("[_swapOnUniV3()] tokenIn = ", tokenIn);
-        console.log("[_swapOnUniV3()] tokenOut = ", tokenOut);
+    // function _swapOnUniV3(address router, bool isUSDLCollateralToUSDC, bool isExactInput, uint256 amount) internal returns(uint256) {
+    //     uint256 res;
+    //     address tokenIn = (isUSDLCollateralToUSDC) ? address(usdlCollateral) : address(usdc);
+    //     address tokenOut = (isUSDLCollateralToUSDC) ? address(usdc) : address(usdlCollateral);
+    //     console.log("[_swapOnUniV3] usdlCollateral ", address(usdlCollateral));
+    //     console.log("[_swapOnUniV3] usdc ", address(usdc));
+    //     console.log("[_swapOnUniV3()] tokenIn = ", tokenIn);
+    //     console.log("[_swapOnUniV3()] tokenOut = ", tokenOut);
 
-        IERC20Decimals(tokenIn).approve(router, type(uint256).max);
-        if(isExactInput) {
-            ISwapRouter.ExactInputSingleParams memory temp = ISwapRouter.ExactInputSingleParams({
-                tokenIn: tokenIn,
-                tokenOut: tokenOut,
-                fee: 3000,
-                recipient: address(this),
-                deadline: type(uint256).max,
-                amountIn: amount,
-                amountOutMinimum: 0,
-                sqrtPriceLimitX96: 0
-            });
-            console.log("[_swapOnUniV3] ExactInput amount = ", amount);
-            uint256 balanceBefore = IERC20Decimals(tokenOut).balanceOf(address(this));
-            res = ISwapRouter(router).exactInputSingle(temp);
-            uint256 balanceAfter = IERC20Decimals(tokenOut).balanceOf(address(this));
-            // require(balanceAfter > balanceBefore);
-            res = uint256( int256(balanceAfter) - int256(balanceBefore) );
-        }
-        else {
-            ISwapRouter.ExactOutputSingleParams memory temp = ISwapRouter.ExactOutputSingleParams({
-                tokenIn: tokenIn,
-                tokenOut: tokenOut,
-                fee: 3000,
-                recipient: address(this),
-                deadline: type(uint256).max,
-                amountOut: amount,
-                amountInMaximum: type(uint256).max,
-                sqrtPriceLimitX96: 0
-            });
-            console.log("[_swapOnUniV3()] ExactOutput = ", amount);
-            res = ISwapRouter(router).exactOutputSingle(temp);
-        }
-        IERC20Decimals(tokenIn).approve(router, 0);
-        console.log("[_swapOnUniV3()] res = ", res);
-        return res;
-    }
+    //     IERC20Decimals(tokenIn).approve(router, type(uint256).max);
+    //     if(isExactInput) {
+    //         ISwapRouter.ExactInputSingleParams memory temp = ISwapRouter.ExactInputSingleParams({
+    //             tokenIn: tokenIn,
+    //             tokenOut: tokenOut,
+    //             fee: 3000,
+    //             recipient: address(this),
+    //             deadline: type(uint256).max,
+    //             amountIn: amount,
+    //             amountOutMinimum: 0,
+    //             sqrtPriceLimitX96: 0
+    //         });
+    //         console.log("[_swapOnUniV3] ExactInput amount = ", amount);
+    //         uint256 balanceBefore = IERC20Decimals(tokenOut).balanceOf(address(this));
+    //         res = ISwapRouter(router).exactInputSingle(temp);
+    //         uint256 balanceAfter = IERC20Decimals(tokenOut).balanceOf(address(this));
+    //         // require(balanceAfter > balanceBefore);
+    //         res = uint256( int256(balanceAfter) - int256(balanceBefore) );
+    //     }
+    //     else {
+    //         ISwapRouter.ExactOutputSingleParams memory temp = ISwapRouter.ExactOutputSingleParams({
+    //             tokenIn: tokenIn,
+    //             tokenOut: tokenOut,
+    //             fee: 3000,
+    //             recipient: address(this),
+    //             deadline: type(uint256).max,
+    //             amountOut: amount,
+    //             amountInMaximum: type(uint256).max,
+    //             sqrtPriceLimitX96: 0
+    //         });
+    //         console.log("[_swapOnUniV3()] ExactOutput = ", amount);
+    //         res = ISwapRouter(router).exactOutputSingle(temp);
+    //     }
+    //     IERC20Decimals(tokenIn).approve(router, 0);
+    //     console.log("[_swapOnUniV3()] res = ", res);
+    //     return res;
+    // }
 
     function _msgSender()
         internal

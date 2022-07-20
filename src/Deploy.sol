@@ -49,6 +49,18 @@ struct Deploy_PerpLemma {
     address baseToken;
 }
 
+struct PerpAddresses {
+    address clearingHouse;
+    address marketRegistry;
+}
+
+struct USDLAddresses {
+    USDLemma usdl;
+    address synth;
+}
+
+
+
 contract Bank is Test {
     function giveMoney(address token, address to, uint256 amount) external {
         deal(token, to, amount);
@@ -207,6 +219,11 @@ contract Deploy {
         usdl = new USDLemma();
         lSynth = new LemmaSynth();
 
+        USDLAddresses memory usdlAddresses = USDLAddresses({
+            usdl: address(new USDLemma()),
+            synth: address(new LemmaSynth())
+        });
+
         pl = _deployPerpLemma(
                 Deploy_PerpLemma({
                     trustedForwarder: address(0),
@@ -226,13 +243,13 @@ contract Deploy {
 
         console.log("PL = ", address(pl));
 
-        usdl.initialize(
+        usdlAddresses.usdl.initialize(
             address(0),
             generic_chain_addresses["WETH"][chain_id],
             address(pl)
         );
 
-        lSynth.initialize(
+        usdlAddresses.synth.initialize(
             address(0),
             address(pl),
             "LemmaSynth",
@@ -253,7 +270,7 @@ contract Deploy {
         pl.setReBalancer(rebalancer);
     }
 
-    function _deployPerpLemma(Deploy_PerpLemma memory d_pl, address perp_ch, address perp_mr, address usdl, address lemmaSynth) internal returns(PerpLemmaCommon) {
+    function _deployPerpLemma(Deploy_PerpLemma memory d_pl, address perp_ch, address perp_mr, address usdl, address lemmaSynth) internal returns(PerpLemmaCommon pl) {
         PerpLemmaCommon pl = new PerpLemmaCommon();
         pl.initialize(
             d_pl.trustedForwarder,
@@ -266,8 +283,6 @@ contract Deploy {
             address(lemmaSynth),
             d_pl.maxPosition
         );
-
-        return pl;
     }
 
 }

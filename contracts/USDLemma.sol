@@ -137,34 +137,6 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     ) public nonReentrant {
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]);
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
-<<<<<<< HEAD
-
-
-
-
-        uint256 _usdlAmount_1e18 = amount * 1e18 / 10**this.decimals();
-        console.log("[depositTo()] T1");
-        // NOTE: Could this fail for CH_NEFCI?
-        (uint256 _collateralRequired_1e18, ) = perpDEXWrapper.openShortWithExactQuote(_usdlAmount_1e18, address(0), 0); 
-        console.log("[depositTo()] T3");
-        uint256 _collateralRequired = _collateralRequired_1e18 * 10**perpDEXWrapper.getUsdlCollateralDecimals() / 1e18;
-        require(_collateralRequired <= maxCollateralAmountRequired, "collateral required execeeds maximum");
-        // uint256 _collateralAmountToDeposit = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
-        _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
-        console.log("[depositTo()] T5");
-
-
-
-
-        // isShorting = true
-        // isExactUsdl = true
-        // (uint256 _collateralRequired1e_1e18, ) = perpDEXWrapper.trade(amount, true, true);
-
-        // require(_collateralRequired1e_1e18 <= maxCollateralAmountRequired, "collateral required execeeds maximum");
-        // uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(_collateralRequired1e_1e18, address(collateral), false);
-
-        // _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
-=======
         (uint256 _collateralRequired_1e18, ) = perpDEXWrapper.openShortWithExactQuote(
             amount,
             address(0),
@@ -178,7 +150,6 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         );
         require(_collateralRequired_1e18 <= maxCollateralAmountRequired, "collateral required execeeds maximum");
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
->>>>>>> origin/perpLemma-redesign-settlement
         _mint(to, amount);
         emit DepositTo(perpetualDEXIndex, address(collateral), to, amount, _collateralRequired);
     }
