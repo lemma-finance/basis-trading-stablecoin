@@ -33,7 +33,14 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     using Utils for int256;
     using SafeMathExt for int256;
 
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    bytes32 public constant ONLY_OWNER = keccak256("ONLY_OWNER");
+    bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
+    bytes32 public constant PERPLEMMA_ROLE = keccak256("PERPLEMMA_ROLE");
+    bytes32 public constant REBALANCER_ROLE = keccak256("REBALANCER_ROLE");
+
     address public usdLemma;
+    address public lemmaSynth;
     address public reBalancer;
     address public usdlBaseTokenAddress;
     bytes32 public referrerCode;
@@ -75,16 +82,6 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     event RebalancerUpdated(address rebalancerAddress);
     event MaxPositionUpdated(uint256 maxPos);
 
-    modifier onlyUSDLemma() {
-        require(msg.sender == usdLemma, "only usdLemma is allowed");
-        _;
-    }
-
-    modifier onlyRebalancer() {
-        require(_msgSender() == rebalancer, "! Rebalancer");
-        _;
-    }
-
     ////////////////////////
     /// EXTERNAL METHODS ///
     ////////////////////////
@@ -97,20 +94,30 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         address _clearingHouse,
         address _marketRegistry,
         address _usdLemma,
+        address _lemmaSynth,
         uint256 _maxPosition
     ) external initializer {
         __Ownable_init();
         __ERC2771Context_init(_trustedForwarder);
+        
         __AccessControl_init();
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _setRoleAdmin(PERPLEMMA_ROLE, ADMIN_ROLE);
+        _setRoleAdmin(ONLY_OWNER, ADMIN_ROLE);
+        _setRoleAdmin(USDC_TREASURY, ADMIN_ROLE);
+        _setRoleAdmin(REBALANCER_ROLE, ADMIN_ROLE);
+        _setupRole(ADMIN_ROLE, msg.sender);
+        grantRole(ONLY_OWNER, msg.sender);
+        grantRole(PERPLEMMA_ROLE, _usdLemma);
+        grantRole(PERPLEMMA_ROLE, _lemmaSynth);
 
-        require(_usdlBaseToken != address(0), "_usdlBaseToken should not ZERO address");
+        require(_usdlBaseToken != address(0), "UsdlBaseToken should not ZERO address");
         require(_clearingHouse != address(0), "ClearingHouse should not ZERO address");
         require(_marketRegistry != address(0), "MarketRegistry should not ZERO address");
 
         // NOTE: Even though it is not necessary, it is for clarity
         hasSettled = false;
         usdLemma = _usdLemma;
+        lemmaSynth = _lemmaSynth;
         usdlBaseTokenAddress = _usdlBaseToken;
         maxPosition = _maxPosition;
 
@@ -137,6 +144,20 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
             SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, MAX_UINT256);
         }
+    }
+
+    function changeAdmin(address newAdmin) public onlyRole(ADMIN_ROLE) {
+        require(newAdmin != msg.sender, "Admin Addresses should not be same");
+        _setupRole(ADMIN_ROLE, newAdmin);
+        renounceRole(ADMIN_ROLE, msg.sender);
+    }
+
+    ///@notice sets reBalncer address - only owner can set
+    ///@param _reBalancer reBalancer address to set
+    function setReBalancer(address _reBalancer) external onlyRole(ADMIN_ROLE) {
+        require(_reBalancer != address(0), "ReBalancer should not ZERO address");
+        grantRole(REBALANCER_ROLE, _reBalancer);
+        emit RebalancerUpdated(_reBalancer);
     }
 
     /// @notice reset approvals
@@ -273,13 +294,13 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         return _margin;
     }
 
-    function setIsUsdlCollateralTailAsset(bool _x) external onlyOwner {
+    function setIsUsdlCollateralTailAsset(bool _x) external onlyRole(ONLY_OWNER) {
         isUsdlCollateralTailAsset = _x;
     }
 
     ///@notice sets USDLemma address - only owner can set
     ///@param _usdLemma USDLemma address to set
-    function setUSDLemma(address _usdLemma) external onlyOwner {
+    function setUSDLemma(address _usdLemma) external onlyRole(ONLY_OWNER) {
         require(_usdLemma != address(0), "UsdLemma should not ZERO address");
 
         if(usdLemma != address(0)) {
@@ -297,29 +318,21 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
     ///@notice sets refferer code - only owner can set
     ///@param _referrerCode referrerCode of address to set
-    function setReferrerCode(bytes32 _referrerCode) external onlyOwner {
+    function setReferrerCode(bytes32 _referrerCode) external onlyRole(ONLY_OWNER) {
         referrerCode = _referrerCode;
         emit ReferrerUpdated(referrerCode);
     }
 
-    ///@notice sets reBalncer address - only owner can set
-    ///@param _reBalancer reBalancer address to set
-    function setReBalancer(address _reBalancer) external onlyOwner {
-        require(_reBalancer != address(0), "ReBalancer should not ZERO address");
-        reBalancer = _reBalancer;
-        emit RebalancerUpdated(reBalancer);
-    }
-
     ///@notice sets maximum position the wrapper can take (in terms of base) - only owner can set
     ///@param _maxPosition reBalancer address to set
-    function setMaxPosition(uint256 _maxPosition) external onlyOwner {
+    function setMaxPosition(uint256 _maxPosition) external onlyRole(ONLY_OWNER)  {
         maxPosition = _maxPosition;
         emit MaxPositionUpdated(maxPosition);
     }
 
     /// @notice depositSettlementToken is used to deposit settlement token USDC into perp vault - only owner can deposit
     /// @param _amount USDC amount need to deposit into perp vault
-    function depositSettlementToken(uint256 _amount) external override onlyOwner {
+    function depositSettlementToken(uint256 _amount) external override onlyRole(USDC_TREASURY) {
         require(_amount > 0, "Amount should greater than zero");
         SafeERC20Upgradeable.safeTransferFrom(usdc, msg.sender, address(this), _amount);
         perpVault.deposit(address(usdc), _amount);
@@ -328,18 +341,18 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
     /// @notice withdrawSettlementToken is used to withdraw settlement token USDC from perp vault - only owner can withdraw
     /// @param _amount USDC amount need to withdraw from perp vault
-    function withdrawSettlementToken(uint256 _amount) external override onlyOwner {
+    function withdrawSettlementToken(uint256 _amount) external override onlyRole(USDC_TREASURY) {
         require(_amount > 0, "Amount should greater than zero");
         perpVault.withdraw(address(usdc), _amount);
         SafeERC20Upgradeable.safeTransfer(usdc, msg.sender, _amount);
         totalSynthCollateral -= _amount;
     }
 
-    function deposit(uint256 amount, address collateral, Basis basis) external override onlyUSDLemma {
+    function deposit(uint256 amount, address collateral, Basis basis) external override onlyRole(PERPLEMMA_ROLE) {
         _deposit(amount, collateral, basis);
     }
 
-    function withdraw(uint256 amount, address collateral, Basis basis) external override onlyUSDLemma {
+    function withdraw(uint256 amount, address collateral, Basis basis) external override onlyRole(PERPLEMMA_ROLE) {
         _withdraw(amount, collateral, basis);
     }
 
@@ -365,7 +378,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
     function getCollateralBackAfterSettlement(
         uint256 amount, address to, bool isUsdl
-    ) external override onlyUSDLemma returns(uint256, uint256) {
+    ) external override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         return settleCollateral(amount, to, isUsdl);
     }
 
@@ -380,7 +393,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     /// @param amountBaseToRebalance The Amount of Base Token to buy or sell on Perp and consequently the amount of corresponding colletarl to sell or buy on Spot 
     /// @param isCheckProfit Check the profit to possibly revert the TX in case 
     /// @return Amount of USDC resulting from the operation. It can also be negative as we can use this mechanism for purposes other than Arb See https://www.notion.so/lemmafinance/Rebalance-Details-f72ad11a5d8248c195762a6ac6ce037e#ffad7b09a81a4b049348e3cd38e57466 here 
-    function rebalance(address router, uint256 routerType, int256 amountBaseToRebalance, bool isCheckProfit) external override onlyRebalancer returns(uint256, uint256) {
+    function rebalance(address router, uint256 routerType, int256 amountBaseToRebalance, bool isCheckProfit) external override onlyRole(REBALANCER_ROLE) returns(uint256, uint256) {
         console.log("[rebalance()] Start");
         // uint256 usdlCollateralAmountPerp;
         // uint256 usdlCollateralAmountDex;
@@ -492,7 +505,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         uint256 amount,
         bool isShorting,
         bool isExactInput
-    ) public override onlyUSDLemma returns (uint256, uint256) {
+    ) public override onlyRole(PERPLEMMA_ROLE) returns (uint256, uint256) {
         bool _isBaseToQuote = isShorting;
         bool _isExactInput = isExactInput;
 
@@ -523,56 +536,56 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     // closeLongWithExactBase & openShortWithExactBase: Base --> Quote, ExactInput: True
     // closeLongWithExactQuote & openShortWithExactQuote: Base --> Quote, ExactInput: False
 
-    function openLongWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
+    function openLongWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         (uint256 base, uint256 quote) = trade(amount, false, false);
         calculateMintingAsset(base, basis, false);
         return (base, quote);
     }
 
-    function openLongWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
+    function openLongWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         (uint256 base, uint256 quote) = trade(amount, false, true);
         calculateMintingAsset(base, basis, false);
         return (base, quote);
     }
 
-    function closeLongWithExactBase(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
+    function closeLongWithExactBase(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
         (uint256 base, uint256 quote) = trade(amount, true, true);
         calculateMintingAsset(base, basis, true);
         return (base, quote);
     }
 
-    function closeLongWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
+    function closeLongWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
         (uint256 base, uint256 quote) = trade(amount, true, false);
         calculateMintingAsset(base, basis, true);
         return (base, quote);
     }
 
-    function openShortWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
+    function openShortWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         (uint256 base, uint256 quote) = trade(amount, true, true);
         calculateMintingAsset(quote, basis, true);
         return (base, quote);
     }
 
-    function openShortWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
+    function openShortWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         (uint256 base, uint256 quote) = trade(amount, true, false);
         calculateMintingAsset(quote, basis, true);
         return (base, quote);
     }
 
-    function closeShortWithExactBase(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
+    function closeShortWithExactBase(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
         (uint256 base, uint256 quote) = trade(amount, false, false);
         calculateMintingAsset(quote, basis, false);
         return (base, quote);
     }
 
-    function closeShortWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyUSDLemma returns(uint256, uint256) {
+    function closeShortWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
         (uint256 base, uint256 quote) = trade(amount, false, true);
         calculateMintingAsset(quote, basis, false);

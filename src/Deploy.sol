@@ -206,7 +206,8 @@ contract Deploy {
                 }),
                 perp_chain_addresses["ClearingHouse"][chain_id],
                 perp_chain_addresses["MarketRegistry"][chain_id],
-                address(usdl)
+                address(usdl),
+                address(lSynth)
             );
         
         // NOTE: Required to avoid a weird error when depositing and withdrawing ETH in Perp
@@ -242,7 +243,7 @@ contract Deploy {
         pl.setReBalancer(rebalancer);
     }
 
-    function _deployPerpLemma(Deploy_PerpLemma memory d_pl, address perp_ch, address perp_mr, address usdl) internal returns(PerpLemmaCommon) {
+    function _deployPerpLemma(Deploy_PerpLemma memory d_pl, address perp_ch, address perp_mr, address usdl, address lemmaSynth) internal returns(PerpLemmaCommon) {
         PerpLemmaCommon pl = new PerpLemmaCommon();
         pl.initialize(
             d_pl.trustedForwarder,
@@ -252,6 +253,7 @@ contract Deploy {
             perp_ch,
             perp_mr,
             address(usdl),
+            address(lemmaSynth),
             d_pl.maxPosition
         );
 
