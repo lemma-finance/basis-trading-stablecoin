@@ -14,6 +14,7 @@ contract ContractTest is Test {
         // d.setRebalancer(address(this));
     }
 
+
     function print(string memory s, int256 v) internal view {
         if(v < 0) {
             console.log(s, " = -", uint256(-v));

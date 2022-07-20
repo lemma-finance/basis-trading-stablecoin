@@ -48,8 +48,8 @@ contract MyScript is Script, Test {
         // assertEq(output, "gm");
     }
 
-    function _getMoney(address token, uint256 amount) internal {
-        deal(token, address(this), amount);
+    function _getMoney(address token, address to, uint256 amount) internal {
+        deal(token, to, amount);
     }
 
     function _getConfig() internal {
@@ -140,19 +140,61 @@ contract MyScript is Script, Test {
 
     function _init() internal {
         // NOTE: Setting Approval
-        _getMoney(address(ec.WETH), 1e22);
-        _getMoney(address(ec.USDC), 1e20);
+        _getMoney(address(ec.WETH), address(this), 1e22);
+        _getMoney(address(ec.USDC), address(this), 1e20);
+        _getMoney(address(ec.USDC), address(d.pl()), 1e20);
 
         ec.WETH.approve(address(d.usdl()), type(uint256).max); 
         ec.USDC.approve(address(d.usdl()), type(uint256).max); 
         ec.USDC.approve(address(d.pl()), type(uint256).max); 
+        
+        uint256 perpVaultUSDCBefore = ec.USDC.balanceOf(address(d.pl().perpVault()));
+        console.log("[_init()] perpVaultUSDCBefore = ", perpVaultUSDCBefore);
+        uint256 maxSettlementTokenInPerpVault = d.pl().clearingHouseConfig().getSettlementTokenBalanceCap();
+        console.log("[_init()] maxSettlementTokenInPerpVault = ", maxSettlementTokenInPerpVault);
+        uint256 maxSettlementTokenToDeposit = maxSettlementTokenInPerpVault - perpVaultUSDCBefore;
+        console.log("[_init()] Adding maxSettlementTokenToDeposit = ", maxSettlementTokenToDeposit);
 
-        d.pl().depositSettlementToken(1e12);
+        d.pl().depositSettlementToken(maxSettlementTokenToDeposit);
+
+        d.usdl().depositToWExactCollateral(address(this), 6e18, 0, 0, ec.WETH);
     }
 
     function _testUniV3Rebalance() internal {
-        d.usdl().depositToWExactCollateral(address(this), 6e18, 0, 0, ec.WETH);
-        d.pl().rebalance(address(ec.uniV3Router), 0, 1e18, false);
+        int256 amount = _getArb(0);
+        if(amount == 0) {
+            console.log("[_testUniV3Rebalance()] No Arb");
+            return;
+        }
+        console.log("[_testUniV3Rebalance()] Arb Found");
+        (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = d.pl().rebalance(address(ec.uniV3Router), 0, amount, false);
+        console.log("[_testUniV3Rebalance()] amountUSDCPlus = ", amountUSDCPlus);
+        console.log("[_testUniV3Rebalance()] amountUSDCMinus = ", amountUSDCMinus);
+        console.log("[_testUniV3Rebalance()] isProfitable = ", (amountUSDCPlus > amountUSDCMinus) ? "true" : "false");
+    }
+
+
+
+    function _getArb(uint256 th_1e6) internal returns(int256 amount) {
+        uint256 spotPrice = _computeSpotPrice(address(ec.WETH), address(ec.USDC), 3000);
+        uint256 markPrice = _computeMarkPrice(d.pl().getPerpUniV3Pool(), ec.USDC.decimals());
+
+        uint256 deltaPrice = (spotPrice * th_1e6 / 1e6);
+
+        console.log("[_getArb()] d.pl().amountUsdlCollateralDeposited() = ", d.pl().amountUsdlCollateralDeposited());
+
+        if((spotPrice > markPrice) && ( uint256(int256(spotPrice) - int256(markPrice)) > deltaPrice )) {
+            console.log("[_getArb()] Arb Found --> Sell Collateral on Spot so Increase Base to compensate");
+
+            // NOTE: Compute Amount
+            amount = int256(d.pl().amountUsdlCollateralDeposited()) / 2;
+        }
+
+        if((spotPrice < markPrice) && ( uint256(int256(markPrice) - int256(spotPrice)) > deltaPrice )) {
+            console.log("[_getArb()] Arb Found --> Buy Collateral on Spot so Decrease Base to compensate");
+
+            amount = -1 * int256(d.pl().amountUsdlCollateralDeposited()) / 2;
+        }
     }
 
     function _computeSpotPrice(address token0, address token1, uint256 fees) internal returns(uint256) {
@@ -190,7 +232,7 @@ contract MyScript is Script, Test {
         _init();
         console.log("USDC Balance Before = ", ec.USDC.balanceOf(address(this)));
         console.log("WETH Balance Before = ", ec.WETH.balanceOf(address(this)));
-        _getMoney(address(ec.USDC), 1e12);
+        _getMoney(address(ec.USDC), address(this), 1e12);
 
         console.log("USDC Balance After = ", ec.USDC.balanceOf(address(this)));
         console.log("WETH Balance After = ", ec.WETH.balanceOf(address(this)));
@@ -206,7 +248,7 @@ contract MyScript is Script, Test {
 
 
         // _testUniV3Factory();
-        // _testUniV3Rebalance();
+        _testUniV3Rebalance();
 
         // vm.startBroadcast();
         // dao = new DeployAnvilOptimism();
