@@ -22,12 +22,8 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     using SafeMathExt for int256;
     using SafeMathExt for uint256;
 
-    address public lemmaTreasury;
-    address public stakingContractAddress;
     uint256 public fees;
-
     mapping(uint256 => mapping(address => address)) public perpetualDEXWrappers;
-    mapping(address => bool) private whiteListAddress; // It will used in future deployments
 
     // events
     event DepositTo(
@@ -44,10 +40,6 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 amount,
         uint256 collateralGotBack
     );
-    event Rebalance(uint256 indexed dexIndex, address indexed collateral, int256 amount);
-    event StakingContractUpdated(address indexed current);
-    event SetWhiteListAddress(address indexed account, bool indexed isWhiteList);
-    event LemmaTreasuryUpdated(address indexed current);
     event FeesUpdated(uint256 newFees);
     event PerpetualDexWrapperAdded(uint256 indexed dexIndex, address indexed collateral, address dexWrapper);
 
@@ -89,32 +81,6 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
 
         require(address(perpDEXWrapper) != address(0), "DEX Wrapper should not ZERO address");
         return perpDEXWrapper.getTotalPosition();
-    }
-
-    /// @notice Set whitelist address, can only be called by owner, It will helps whitelist address to call multiple function of USDL at a time
-    /// NOTE:  whiteListAddress is not used anywhere in contract but it will use in future updates.
-    /// @param _account Address of whitelist EOA or contract address
-    /// @param _isWhiteList add or remove of whitelist tag for any address
-    function setWhiteListAddress(address _account, bool _isWhiteList) external onlyOwner {
-        require(_account != address(0), "Account should not ZERO address");
-        whiteListAddress[_account] = _isWhiteList;
-        emit SetWhiteListAddress(_account, _isWhiteList);
-    }
-
-    /// @notice Set staking contract address, can only be called by owner
-    /// @param _stakingContractAddress Address of staking contract
-    function setStakingContractAddress(address _stakingContractAddress) external onlyOwner {
-        require(_stakingContractAddress != address(0), "StakingContractAddress should not ZERO address");
-        stakingContractAddress = _stakingContractAddress;
-        emit StakingContractUpdated(stakingContractAddress);
-    }
-
-    /// @notice Set Lemma treasury, can only be called by owner
-    /// @param _lemmaTreasury Address of Lemma Treasury
-    function setLemmaTreasury(address _lemmaTreasury) external onlyOwner {
-        require(_lemmaTreasury != address(0), "LemmaTreasury should not ZERO address");
-        lemmaTreasury = _lemmaTreasury;
-        emit LemmaTreasuryUpdated(lemmaTreasury);
     }
 
     /// @notice Set Fees, can only be called by owner
@@ -310,25 +276,6 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         IERC20Upgradeable collateral
     ) external {
         withdrawTo(_msgSender(), amount, perpetualDEXIndex, minCollateralAmountToGetBack, collateral);
-    }
-
-    /**
-     * @dev This is a slightly different implementation of _burnFrom then usually seen.
-     * Destroys `amount` tokens from `account`, deducting from this contract's
-     * allowance.(instead of _msgSender()'s)
-     *
-     * Requirements:
-     *
-     * - this contract must have allowance for ``accounts``'s tokens of at least
-     * `amount`.
-     */
-    function _burnFrom(address account, uint256 amount) internal {
-        uint256 currentAllowance = allowance(account, address(this));
-        require(currentAllowance >= amount, "ERC20: burn amount exceeds allowance");
-        unchecked {
-            _approve(account, address(this), currentAllowance - amount);
-        }
-        _burn(account, amount);
     }
 
     function _msgSender()

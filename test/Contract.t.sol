@@ -255,8 +255,6 @@ contract ContractTest is Test {
         assertTrue(_deltaExposure == 0);
     }
 
-//here1
-
     function testMintingUSDLWExactCollateral() public {
         _depositSettlementTokenMax();
         uint256 amount = 1e12;
