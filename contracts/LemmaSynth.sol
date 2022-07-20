@@ -49,13 +49,13 @@ contract LemmaSynth is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownab
     event SetWhiteListAddress(address indexed account, bool indexed isWhiteList);
     event LemmaTreasuryUpdated(address indexed current);
     event FeesUpdated(uint256 newFees);
-    event PerpetualDexWrapperUpdated(uint256 indexed perpLemma);
+    event PerpetualDexWrapperUpdated(address indexed perpLemma);
 
     function initialize(
         address trustedForwarder,
         address _perpLemma,
-        string _name,
-        string _symbol
+        string memory _name,
+        string memory _symbol
     ) external initializer {
         __ReentrancyGuard_init();
         __Ownable_init();
@@ -249,7 +249,7 @@ contract LemmaSynth is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownab
         bool hasSettled = perpDEXWrapper.hasSettled();
         uint256 _lemmaSynthToBurn;
         if (hasSettled) {
-            perpDEXWrapper.getCollateralBackAfterSettlement(amount, to, false);
+            perpDEXWrapper.getCollateralBackAfterSettlement(collateralAmount, to, false);
             return;
         } else {
             (uint256 _lemmaSynthToBurn,) = perpDEXWrapper.closeLongWithExactQuote(collateralAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsSynth); 

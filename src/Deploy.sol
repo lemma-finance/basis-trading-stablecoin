@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.6.0 <0.9.0;
 import "contracts/USDLemma.sol";
+import "contracts/LemmaSynth.sol";
 
 import "contracts/wrappers/PerpLemmaCommon.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
@@ -131,6 +132,7 @@ contract MockUniV3Router {
 
 contract Deploy {
     USDLemma public usdl;
+    LemmaSynth public lSynth;
     PerpLemmaCommon public pl;
     
     Bank public bank = new Bank();
@@ -193,6 +195,7 @@ contract Deploy {
         pc.pv = IPerpVault(pc.ch.getVault());
 
         usdl = new USDLemma();
+        lSynth = new LemmaSynth();
 
         pl = _deployPerpLemma(
                 Deploy_PerpLemma({
@@ -207,6 +210,7 @@ contract Deploy {
             );
         
         // NOTE: Required to avoid a weird error when depositing and withdrawing ETH in Perp
+        // pl.transferOwnership(address(this));
         pl.setIsUsdlCollateralTailAsset(true);
 
         console.log("PL = ", address(pl));
@@ -215,6 +219,13 @@ contract Deploy {
             address(0),
             generic_chain_addresses["WETH"][chain_id],
             address(pl)
+        );
+
+        lSynth.initialize(
+            address(0),
+            address(pl),
+            "LemmaSynth",
+            "LSynth"
         );
 
     }
