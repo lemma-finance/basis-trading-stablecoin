@@ -188,10 +188,10 @@ contract Deploy {
         pc.ib = IBaseToken(perp_chain_addresses["vETH"][chain_id]);
         // pc.mr = IMarketRegistry(perp_chain_addresses["MarketRegistry"][chain_id]);
 
-        console.log("Account Balance = ", pc.ch.getAccountBalance());
+        // console.log("Account Balance = ", pc.ch.getAccountBalance());
         pc.ab = IAccountBalance(pc.ch.getAccountBalance());
 
-        console.log("Vault = ", pc.ch.getVault());
+        // console.log("Vault = ", pc.ch.getVault());
         pc.pv = IPerpVault(pc.ch.getVault());
 
         usdl = new USDLemma();
@@ -213,8 +213,7 @@ contract Deploy {
         // NOTE: Required to avoid a weird error when depositing and withdrawing ETH in Perp
         // pl.transferOwnership(address(this));
         pl.setIsUsdlCollateralTailAsset(true);
-
-        console.log("PL = ", address(pl));
+        // console.log("PL = ", address(pl));
 
         usdl.initialize(
             address(0),
@@ -243,17 +242,16 @@ contract Deploy {
         pl.setReBalancer(rebalancer);
     }
 
-    function _deployPerpLemma(Deploy_PerpLemma memory d_pl, address perp_ch, address perp_mr, address usdl, address lemmaSynth) internal returns(PerpLemmaCommon) {
+    function _deployPerpLemma(Deploy_PerpLemma memory d_pl, address perp_ch, address perp_mr, address _usdl, address _lemmaSynth) internal returns(PerpLemmaCommon) {
         PerpLemmaCommon pl = new PerpLemmaCommon();
         pl.initialize(
             d_pl.trustedForwarder,
             d_pl.usdlCollateral,
-            d_pl.baseToken,
-            d_pl.usdlCollateral,            // NOTE: At some point, we will need to remove these ones as they regard Synth but it is the same as USDL Collateral
+            d_pl.baseToken,          // NOTE: At some point, we will need to remove these ones as they regard Synth but it is the same as USDL Collateral
             perp_ch,
             perp_mr,
-            address(usdl),
-            address(lemmaSynth),
+            _usdl,
+            _lemmaSynth,
             d_pl.maxPosition
         );
 

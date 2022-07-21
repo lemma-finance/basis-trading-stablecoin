@@ -57,8 +57,6 @@ contract LemmaSynth is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownab
     }
 
     /// @notice Returns the fees of the underlying Perp DEX Wrapper
-    /// @param dexIndex The DEX Index to operate on
-    /// @param collateral Collateral for the minting / redeeming operation
     function getFees() external view returns (uint256) {
         // NOTE: Removed prev arg address baseTokenAddress
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpLemma);
@@ -92,9 +90,6 @@ contract LemmaSynth is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownab
     }
 
     /// @notice Add address for perpetual dex wrapper for perpetual index and collateral - can only be called by owner
-    /// @param perpetualDEXIndex, index of perpetual dex
-    /// @param collateralAddress, address of collateral to be used in the dex
-    /// @param perpetualDEXWrapperAddress, address of perpetual dex wrapper
     function updatePerpetualDEXWrapper(
         address _perpLemma
     ) public onlyOwner {
