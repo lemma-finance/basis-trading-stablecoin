@@ -9,7 +9,7 @@ import "src/Deploy.sol";
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 
-contract PerpLemmaTest is Test {
+contract USDLemmaTest is Test {
     Deploy public d;
 
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");

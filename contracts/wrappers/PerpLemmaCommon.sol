@@ -143,6 +143,13 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
             SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, MAX_UINT256);
         }
+
+        if (lemmaSynth != address(0)) {
+            SafeERC20Upgradeable.safeApprove(usdc, lemmaSynth, 0);
+            SafeERC20Upgradeable.safeApprove(usdc, lemmaSynth, MAX_UINT256);
+            SafeERC20Upgradeable.safeApprove(usdlCollateral, lemmaSynth, 0);
+            SafeERC20Upgradeable.safeApprove(usdlCollateral, lemmaSynth, MAX_UINT256);
+        }
     }
 
     function changeAdmin(address newAdmin) public onlyRole(ADMIN_ROLE) {
@@ -538,6 +545,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function openLongWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         (uint256 base, uint256 quote) = trade(amount, false, false);
+        // console.log('openLongWithExactBase, base, quote: ', base, quote, amount);
         calculateMintingAsset(base, basis, false);
         return (base, quote);
     }
@@ -545,6 +553,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function openLongWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         (uint256 base, uint256 quote) = trade(amount, false, true);
+        // console.log('openLongWithExactQuote, base, quote: ', base, quote, amount);
         calculateMintingAsset(base, basis, false);
         return (base, quote);
     }
@@ -552,6 +561,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function closeLongWithExactBase(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
         (uint256 base, uint256 quote) = trade(amount, true, true);
+        // console.log('closeLongWithExactBase, base, quote: ', base, quote, amount);
         calculateMintingAsset(base, basis, true);
         return (base, quote);
     }
@@ -559,6 +569,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function closeLongWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
         (uint256 base, uint256 quote) = trade(amount, true, false);
+        // console.log('closeLongWithExactQuote, base, quote: ', base, quote, amount);
         calculateMintingAsset(base, basis, true);
         return (base, quote);
     }
@@ -566,7 +577,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function openShortWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         (uint256 base, uint256 quote) = trade(amount, true, true);
-        console.log('openShortWithExactBase, base, quote: ', base, quote);
+        // console.log('openShortWithExactBase, base, quote: ', base, quote);
         calculateMintingAsset(quote, basis, true);
         return (base, quote);
     }
@@ -574,7 +585,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function openShortWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         (uint256 base, uint256 quote) = trade(amount, true, false);
-        console.log('openShortWithExactQuote, base, quote: ', base, quote, amount);
+        // console.log('openShortWithExactQuote, base, quote: ', base, quote, amount);
         calculateMintingAsset(quote, basis, true);
         return (base, quote);
     }
@@ -582,7 +593,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function closeShortWithExactBase(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
         (uint256 base, uint256 quote) = trade(amount, false, false);
-        console.log('closeShortWithExactBase, base, quote, amount: ', base, quote, amount);
+        // console.log('closeShortWithExactBase, base, quote, amount: ', base, quote, amount);
         calculateMintingAsset(quote, basis, false);
         return (base, quote);
     }
@@ -590,7 +601,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function closeShortWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
         (uint256 base, uint256 quote) = trade(amount, false, true);
-        console.log('closeShortWithExactQuote, base, quote, amount: ', base, quote, amount);
+        // console.log('closeShortWithExactQuote, base, quote, amount: ', base, quote, amount);
         calculateMintingAsset(amount, basis, false);
         return (base, quote);
     }
