@@ -158,7 +158,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
 
     // NOTE: The underlying Perp Protocol (so far we only have PerpV2) can have a limit on the total amount of Settlement Token the Vault can accept 
-    function getMaxSettlementTokenAcceptableByVault() override external view returns(uint256) {
+    function getMaxSettlementTokenAcceptableByVault() override public view returns(uint256) {
         IERC20Decimals settlementToken = IERC20Decimals(perpVault.getSettlementToken());
         uint256 perpVaultSettlementTokenBalanceBefore = settlementToken.balanceOf(address(perpVault));
         uint256 settlementTokenBalanceCap = IClearingHouseConfig(clearingHouse.getClearingHouseConfig()).getSettlementTokenBalanceCap();
@@ -186,7 +186,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         return usdlCollateralDecimals;
     }
 
-    function getIndexPrice() override external view returns(uint256) {
+    function getIndexPrice() override public view returns(uint256) {
         uint256 _twapInterval = IClearingHouseConfig(clearingHouseConfig).getTwapInterval();
         console.log("[getIndexPrice()] _twapInterval = ", _twapInterval);
         uint256 _price = IIndexPrice(usdlBaseTokenAddress).getIndexPrice(_twapInterval);
@@ -208,7 +208,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     /// 
     /// https://github.com/yashnaman/perp-lushan/blob/main/contracts/interface/IAccountBalance.sol#L224
     /// https://github.com/yashnaman/perp-lushan/blob/main/contracts/AccountBalance.sol#L320
-    function getTotalPosition() external view override returns (int256) {
+    function getTotalPosition() override public view returns (int256) {
         return accountBalance.getTotalPositionValue(address(this), usdlBaseTokenAddress);
     }
 
@@ -309,11 +309,36 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     //     return trade(amountPos, isShorting, isExactInput);
     // }
 
+    function getRequiredUSDCToBackMinting(uint256 amount) override external view returns(bool isAcceptable, uint256 extraUSDC) {
+        int256 currentTotalPositionValue = getTotalPosition();
+        uint256 currentPrice = getIndexPrice();
+        int256 deltaPosition = int256(currentPrice) * int256(amount);
+        // NOTE: More short --> Increase Negative Base
+        int256 futureTotalPositionValue = currentTotalPositionValue - deltaPosition;
+        int256 currentAccountValue = getAccountValue();
+        int256 futureAccountValue = futureTotalPositionValue + currentAccountValue;
+
+        extraUSDC = (futureAccountValue >= 0) ? 0 : uint256(-futureAccountValue);
+        console.log("[_getExtraUSDCToBackMinting()] extraUSDC = ", extraUSDC);
+
+        uint256 maxSettlementTokenAcceptableFromPerpVault = getMaxSettlementTokenAcceptableByVault(); 
+        console.log("[_getExtraUSDCToBackMinting()] maxSettlementTokenAcceptableFromPerpVault = ", maxSettlementTokenAcceptableFromPerpVault);
+
+        if(extraUSDC > maxSettlementTokenAcceptableFromPerpVault) {
+            isAcceptable = false;
+            console.log("[_getExtraUSDCToBackMinting()] extraUSDC > maxSettlementTokenAcceptableFromPerpVault so can't deposit the required amount to fully collateralize the new short");            
+        }
+        else {
+            isAcceptable = true;
+            console.log("[_getExtraUSDCToBackMinting()] extraUSDC <= maxSettlementTokenAcceptableFromPerpVault so can deposit the required amount");
+        }
+    }
+
 
 
     // Returns the current amount of collateral value (in USDC) after the PnL in 1e18 format
     // TODO: Take into account tail assets
-    function getAccountValue() override external view returns(int256 value_1e18) {
+    function getAccountValue() override public view returns(int256 value_1e18) {
         value_1e18 = clearingHouse.getAccountValue(address(this)); 
     }
 
