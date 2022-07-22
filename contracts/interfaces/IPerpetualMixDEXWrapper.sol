@@ -2,6 +2,7 @@
 pragma solidity =0.8.3;
 
 interface IPerpetualMixDEXWrapper {
+    enum Basis {IsUsdl, IsSynth, IsRebalance, IsSettle}
 
     function trade(uint256 amount, bool isShorting, bool isExactInput) external returns (uint256 base, uint256 quote);
     function getRelativeMargin() external view returns(uint256);
@@ -11,6 +12,7 @@ interface IPerpetualMixDEXWrapper {
     function getExposureDetails() external view returns(uint256, uint256, int256, int256, uint256);
 
 
+    function getAccountValue() external view returns(int256);
     function getUsdlCollateralDecimals() external view returns(uint256);
     function getIndexPrice() external view returns(uint256);
 
@@ -27,9 +29,7 @@ interface IPerpetualMixDEXWrapper {
     function closeShortWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut) external returns(uint256, uint256);
     /////////
 
-
-
-
+    function getMaxSettlementTokenAcceptableByVault() external view returns(uint256);
     function getSettlementTokenAmountInVault() external view returns(int256);
     function depositSettlementToken(uint256 _amount) external;
     function withdrawSettlementToken(uint256 _amount) external;

@@ -156,6 +156,16 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         }
     }
 
+
+    // NOTE: The underlying Perp Protocol (so far we only have PerpV2) can have a limit on the total amount of Settlement Token the Vault can accept 
+    function getMaxSettlementTokenAcceptableByVault() override external view returns(uint256) {
+        IERC20Decimals settlementToken = IERC20Decimals(perpVault.getSettlementToken());
+        uint256 perpVaultSettlementTokenBalanceBefore = settlementToken.balanceOf(address(perpVault));
+        uint256 settlementTokenBalanceCap = IClearingHouseConfig(clearingHouse.getClearingHouseConfig()).getSettlementTokenBalanceCap();
+        require(settlementTokenBalanceCap >= perpVaultSettlementTokenBalanceBefore, "[getVaultSettlementTokenLimit] Unexpected");
+        return uint256( int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore) );
+    }
+
     function setRebalancer(address _rebalancer) external onlyOwner {
         // NOTE: Setting it to address(0) is allowed, it just disables rebalancing temporarily
         rebalancer = _rebalancer;
@@ -192,6 +202,10 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     }
 
     /// @notice getTotalPosition in terms of quoteToken(in our case vUSD)
+    /// 
+    /// https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/AccountBalance.sol#L339
+    /// https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/interface/IAccountBalance.sol#L218
+    /// 
     /// https://github.com/yashnaman/perp-lushan/blob/main/contracts/interface/IAccountBalance.sol#L224
     /// https://github.com/yashnaman/perp-lushan/blob/main/contracts/AccountBalance.sol#L320
     function getTotalPosition() external view override returns (int256) {
@@ -296,11 +310,22 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     // }
 
 
-    // Returns the leverage in 1e18 format
+
+    // Returns the current amount of collateral value (in USDC) after the PnL in 1e18 format
     // TODO: Take into account tail assets
+    function getAccountValue() override external view returns(int256 value_1e18) {
+        value_1e18 = clearingHouse.getAccountValue(address(this)); 
+    }
+
+    // Returns the margin
+    // NOTE: Returns totalCollateralValue + unrealizedPnL
+    /// Functions 
+    /// clearingHouse.getAccountValue()
+    /// https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/ClearingHouse.sol#L684
+    /// https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/ClearingHouse.sol#L684
+    /// 
+    /// https://github.com/yashnaman/perp-lushan/blob/main/contracts/interface/IClearingHouse.sol#L254
     function getRelativeMargin() override external view returns(uint256) {
-        // NOTE: Returns totalCollateralValue + unrealizedPnL
-        // https://github.com/yashnaman/perp-lushan/blob/main/contracts/interface/IClearingHouse.sol#L254
         int256 _accountValue_1e18 = clearingHouse.getAccountValue(address(this));
         uint256 _accountValue = getAmountInCollateralDecimalsForPerp(
             _accountValue_1e18.abs().toUint256(),

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.6.0 <0.9.0;
 import "contracts/USDLemma.sol";
+// import "contracts/LemmaSynth.sol";
 
 import "contracts/wrappers/PerpLemmaCommon.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
@@ -138,6 +139,7 @@ contract MockUniV3Router {
 
 contract Deploy {
     USDLemma public usdl;
+    // LemmaSynth public lSynth;
     PerpLemmaCommon public pl;
     
     Bank public bank = new Bank();
@@ -199,6 +201,8 @@ contract Deploy {
         pc.pv = IPerpVault(pc.ch.getVault());
 
         usdl = new USDLemma();
+        // lSynth = new LemmaSynth();
+
 
         pl = _deployPerpLemma(
                 Deploy_PerpLemma({

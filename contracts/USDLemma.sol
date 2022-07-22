@@ -162,6 +162,32 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     }
 
 
+    function _getExtraUSDCToBackMinting(IPerpetualMixDEXWrapper perpDEXWrapper, uint256 amount) internal returns(bool isAcceptable, uint256 extraUSDC) {
+        int256 currentTotalPositionValue = perpDEXWrapper.getTotalPosition();
+        uint256 currentPrice = perpDEXWrapper.getIndexPrice();
+        int256 deltaPosition = int256(currentPrice) * int256(amount);
+        // NOTE: More short --> Increase Negative Base
+        int256 futureTotalPositionValue = currentTotalPositionValue - deltaPosition;
+        int256 currentAccountValue = perpDEXWrapper.getAccountValue();
+        int256 futureAccountValue = futureTotalPositionValue + currentAccountValue;
+
+        extraUSDC = (futureAccountValue >= 0) ? 0 : uint256(-futureAccountValue);
+        console.log("[_getExtraUSDCToBackMinting()] extraUSDC = ", extraUSDC);
+
+        uint256 maxSettlementTokenAcceptableFromPerpVault = perpDEXWrapper.getMaxSettlementTokenAcceptableByVault(); 
+        console.log("[_getExtraUSDCToBackMinting()] maxSettlementTokenAcceptableFromPerpVault = ", maxSettlementTokenAcceptableFromPerpVault);
+
+        if(extraUSDC > maxSettlementTokenAcceptableFromPerpVault) {
+            isAcceptable = false;
+            console.log("[_getExtraUSDCToBackMinting()] extraUSDC > maxSettlementTokenAcceptableFromPerpVault so can't deposit the required amount to fully collateralize the new short");            
+        }
+        else {
+            isAcceptable = true;
+            console.log("[_getExtraUSDCToBackMinting()] extraUSDC <= maxSettlementTokenAcceptableFromPerpVault so can deposit the required amount");
+        }
+    }
+
+
 
 
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of USDL
@@ -224,11 +250,15 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 minUSDLToMint,
         IERC20Upgradeable collateral
     ) external nonReentrant {
+        console.log("[depositToWExactCollateral()] Start");
+        // NOTE: We need to check if collateral is USDC as in this case we need a simpler track and not to look for the related `IPerpetualMixDEXWrapper` as this one is only for volatile collateral
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
-        console.log("[depositToWExactCollateral()] Start");
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
+
+        (bool isAcceptable, uint256 _extraUSDC) = _getExtraUSDCToBackMinting(perpDEXWrapper, collateralAmount);
+        // TODO: Add check and decide where to take it
         
         // isShorting = true
         // isExactUsdl = true
