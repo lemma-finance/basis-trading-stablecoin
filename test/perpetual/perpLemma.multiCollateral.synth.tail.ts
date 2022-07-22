@@ -9,7 +9,7 @@ import { createClearingHouseFixture } from "../shared/perpFixture/fixtures_local
 import bn from "bignumber.js";
 bn.config({ EXPONENTIAL_AT: 999999, DECIMAL_PLACES: 40 });
 
-const isUsdlCollateralTailAsset = true; 
+const isUsdlCollateralTailAsset = true;
 
 const ZERO = BigNumber.from("0");
 const MONE = parseUnits("-1", 0);
@@ -110,9 +110,6 @@ async function forwardTimestamp(clearingHouse, step) {
   await clearingHouse.setBlockTimestamp(now.add(step));
 }
 
-
-
-
 describe("perpLemma.multiCollateral", async function () {
   let defaultSigner, usdLemma, reBalancer, hasWETH, keeperGasReward, signer1, signer2, signer3, longAddress;
   let perpAddresses: any;
@@ -195,7 +192,6 @@ describe("perpLemma.multiCollateral", async function () {
         { initializer: "initialize" },
       ),
     ).to.be.revertedWith("_usdlBaseToken should not ZERO address");
-
 
     // NOTE: Unnecessary check
     // await expect(
@@ -330,7 +326,6 @@ describe("perpLemma.multiCollateral", async function () {
     return await perpLemma.connect(usdLemma).callStatic.trade(amount, true, false);
   }
 
-
   async function simulateOpenShortWExactBase(amount) {
     return await simulateCloseLongWExactBase(amount);
   }
@@ -340,31 +335,24 @@ describe("perpLemma.multiCollateral", async function () {
   }
 
   async function simulateCloseShortWExactBase(amount) {
-    return await simulateOpenLongWExactBase(amount)
+    return await simulateOpenLongWExactBase(amount);
   }
 
   async function simulateCloseShortWExactQuote(amount) {
     return await simulateOpenLongWExactQuote(amount);
   }
 
-
   async function openLongWithExactBase(amount, collateralIn, amountIn) {
-    if(
-      (collateralIn != AddressZero) && 
-      (amountIn > 0)
-    ) {
+    if (collateralIn != AddressZero && amountIn > 0) {
       await collateralIn.connect(usdLemma).transfer(perpLemma.address, amountIn);
-    } 
+    }
 
     await perpLemma.connect(usdLemma).deposit(amountIn, collateralIn.address);
     return await perpLemma.connect(usdLemma).trade(amount, false, false);
   }
 
   async function openLongWithExactQuote(amount, collateralIn, amountIn) {
-    if(
-      (collateralIn != AddressZero) && 
-      (amountIn > 0)
-    ) {
+    if (collateralIn != AddressZero && amountIn > 0) {
       await collateralIn.connect(usdLemma).transfer(perpLemma.address, amountIn);
     }
 
@@ -383,21 +371,16 @@ describe("perpLemma.multiCollateral", async function () {
     return await perpLemma.connect(usdLemma).trade(amount, true, false);
   }
 
-
   async function openShortWithExactBase(amount, collateralIn, amountIn) {
-    if(
-      (collateralIn != AddressZero) && 
-      (amountIn > 0)
-    ) await collateralIn.connect(usdLemma).transfer(perpLemma.address, amountIn);
+    if (collateralIn != AddressZero && amountIn > 0)
+      await collateralIn.connect(usdLemma).transfer(perpLemma.address, amountIn);
     await perpLemma.connect(usdLemma).deposit(amountIn, collateralIn.address);
     return await closeLongWithExactBase(amount, AddressZero, 0);
   }
 
   async function openShortWithExactQuote(amount, collateralIn, amountIn) {
-    if(
-      (collateralIn != AddressZero) && 
-      (amountIn > 0)
-    ) await collateralIn.connect(usdLemma).transfer(perpLemma.address, amountIn);
+    if (collateralIn != AddressZero && amountIn > 0)
+      await collateralIn.connect(usdLemma).transfer(perpLemma.address, amountIn);
     await perpLemma.connect(usdLemma).deposit(amountIn, collateralIn.address);
 
     return await closeLongWithExactQuote(amount, AddressZero, 0);
@@ -413,32 +396,22 @@ describe("perpLemma.multiCollateral", async function () {
     return await openLongWithExactQuote(amount, AddressZero, 0);
   }
 
-
-
   const UNIT_USDC = parseUnits("1", usdCollateralDecimals);
   const UNIT_ETH = parseUnits("1", ethCollateralDecimals);
   const UNIT_E18 = parseEther("1");
 
-
-
-
-
-
-
-
-  
-  async function tradeLongWExactCollateral(isOpen, collateralAmount) {  
+  async function tradeLongWExactCollateral(isOpen, collateralAmount) {
     // let collateralAmount = parseUnits("100", usdCollateralDecimals); // 6 decimal
     await usdCollateral.mint(usdLemma.address, collateralAmount);
-  
+
     // // NOTE: This is not zero since we start by depositing a bunch of USDC because of the assumption we make in the tail asset case
     // const initialVaultBalance = parseUnits((await vault.getBalance(perpLemma.address)).toString(), 0);
-  
+
     // transfer Collateral to perpLemma
     const initialBefore = (await usdCollateral.balanceOf(perpLemma.address)).toString();
     // console.log(`T1 initialBefore = ${initialBefore}`);
     // expect(parseUnits(initialBefore, 0)).to.eq(ZERO);
-  
+
     // Open a Long Position --> This is done manually in these tests but in reality it does done automatically by USDLemma.sol contract
     // 1. Transfer collateral
     await usdCollateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount);
@@ -446,8 +419,7 @@ describe("perpLemma.multiCollateral", async function () {
     console.log(`[tradeLongWExactCollateral()] T1 initialUsdcBalance = ${initialUsdcBalance}`);
     // expect(parseUnits(initialUsdcBalance, 0)).to.eq(collateralAmount);
     // console.log("T2");
-    
-    
+
     const baseAmount_1e18 = collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals));
     // Simulate the trade to know the reference value for the comparison
     let baseAndQuoteValue = await callStaticOpenPosition(
@@ -459,43 +431,44 @@ describe("perpLemma.multiCollateral", async function () {
       baseAmount_1e18,
       // collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
     ); // index0: base/usd, index1: quote/eth
-  
+
     // 2. Open the Position on the underlying Perp
     await expect(
-      perpLemma
-        .connect(usdLemma)
-        .trade(
-          baseAmount_1e18,
-          // collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)), 
-          !isOpen, 
-          !isOpen),
+      perpLemma.connect(usdLemma).trade(
+        baseAmount_1e18,
+        // collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
+        !isOpen,
+        !isOpen,
+      ),
     ).to.emit(clearingHouse, "PositionChanged");
-  
+
     // await expect(
     //   perpLemma
     //     .connect(usdLemma)
     //     .openLongWithExactCollateral(collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals))),
     // ).to.emit(clearingHouse, "PositionChanged");
-  
+
     // 3. Cover the position with collateral
-    if(isOpen) {
+    if (isOpen) {
       await perpLemma.connect(usdLemma).deposit(collateralAmount, usdCollateral.address);
-    }
-    else {
+    } else {
       await perpLemma.connect(usdLemma).withdraw(collateralAmount, usdCollateral.address);
     }
 
-    return baseAndQuoteValue;  
-  }  
-  
+    return baseAndQuoteValue;
+  }
+
   // NOTE: Compute leverage in 1e6 format
-  // NOTE: For longs, we do not actually need to check the leverage == 1 since we are not trying to be delta neutral, we just want to know if we are far enough from margin call to avoid liquidation so 
-  // Should we use `getMarginRequirementForLiquidation()` instead ? 
+  // NOTE: For longs, we do not actually need to check the leverage == 1 since we are not trying to be delta neutral, we just want to know if we are far enough from margin call to avoid liquidation so
+  // Should we use `getMarginRequirementForLiquidation()` instead ?
   // https://github.com/yashnaman/perp-lushan/blob/main/contracts/AccountBalance.sol#L225
   async function calcLeverage() {
-    // Return the position in Quote Token using the TWAP on the Index Price --> maybe better than the vAMM one? 
-    const positionValue = parseUnits((await accountBalance.getTotalPositionValue(perpLemma.address, baseToken.address)).abs().toString(), 0);   // Probably in Base
-    const depositedCollateral = parseUnits((await vault.getBalance(perpLemma.address)).toString(), 0);                                  // Probably in Quote
+    // Return the position in Quote Token using the TWAP on the Index Price --> maybe better than the vAMM one?
+    const positionValue = parseUnits(
+      (await accountBalance.getTotalPositionValue(perpLemma.address, baseToken.address)).abs().toString(),
+      0,
+    ); // Probably in Base
+    const depositedCollateral = parseUnits((await vault.getBalance(perpLemma.address)).toString(), 0); // Probably in Quote
     return positionValue.mul(1e6).div(depositedCollateral);
   }
 
@@ -577,7 +550,6 @@ describe("perpLemma.multiCollateral", async function () {
         -887200,
         887200,
       );
-
     });
 
     it("check fees", async function () {
@@ -604,23 +576,20 @@ describe("perpLemma.multiCollateral", async function () {
         await usdCollateral.connect(longAddress).approve(vault.address, ethers.constants.MaxUint256);
         await vault.connect(longAddress).deposit(usdCollateral.address, collateralAmountForUSD);
 
-
-
-
-        // NOTE: If working with tail assets, deposit a large initial amount of USDC 
-        if(isUsdlCollateralTailAsset) {
-          // NOTE: Setting USDL collateral as tail asset 
+        // NOTE: If working with tail assets, deposit a large initial amount of USDC
+        if (isUsdlCollateralTailAsset) {
+          // NOTE: Setting USDL collateral as tail asset
           await perpLemma.setIsUsdlCollateralTailAsset(true);
 
           // // NOTE: Also Synth Collateral can be anything
           // await perpLemma.setIsSynthCollateralTailAsset(true);
 
-          // NOTE: This is because we assume we have plenty of USDC deposited in Perp when working with tail assets 
+          // NOTE: This is because we assume we have plenty of USDC deposited in Perp when working with tail assets
           const initialDepositedUsdcAmount = parseUnits("10000000", usdCollateralDecimals);
           await usdCollateral.mint(signer1.address, initialDepositedUsdcAmount);
           await usdCollateral.connect(signer1).approve(perpLemma.address, initialDepositedUsdcAmount);
           await perpLemma.connect(signer1).depositSettlementToken(initialDepositedUsdcAmount);
-          
+
           const depositedCollateral = parseUnits((await vault.getBalance(perpLemma.address)).toString(), 0);
           expect(depositedCollateral).to.eq(initialDepositedUsdcAmount);
           console.log(`Tail Asset Case, amount of USDC initially deposited = ${depositedCollateral}`);
@@ -629,11 +598,9 @@ describe("perpLemma.multiCollateral", async function () {
           // usdCollateral.mint(perpLemma.address, initialUsdcAmount);
           // perpLemma.connect(signer1).depositSettlementToken(initialUsdcAmount);
         }
-
       });
 
-
-      // PASSING 
+      // PASSING
       it("should set addresses correctly", async function () {
         await expect(perpLemma.connect(signer1).setUSDLemma(signer1.address)).to.be.revertedWith(
           "Ownable: caller is not the owner",
@@ -658,11 +625,11 @@ describe("perpLemma.multiCollateral", async function () {
         // const positionSize = parseUnits((await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address)).toString(), 0);
         // expect(positionSize).to.eq(parseUnits("9899999990199000", 0));
 
-        // NOTE: Comparing Position Sizes with and without tail assets on the Solidity side 
-        // Tail Asset 
+        // NOTE: Comparing Position Sizes with and without tail assets on the Solidity side
+        // Tail Asset
         // [openLongWithExactCollateral()] positionSize.abs().toUint256() =  9899999990199000
-        // 
-        // Non Tail Asset 
+        //
+        // Non Tail Asset
         // [openLongWithExactCollateral()] positionSize.abs().toUint256() =  9899999990199000
 
         await expect(perpLemma.connect(usdLemma).trade(collateralAmount, false, false)).to.be.revertedWith(
@@ -708,13 +675,12 @@ describe("perpLemma.multiCollateral", async function () {
 
         // 2. Open the Position on the underlying Perp
         await expect(
-          perpLemma
-            .connect(usdLemma)
-            .trade(
-              baseAmount_1e18,
-              // collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)), 
-              false, 
-              false),
+          perpLemma.connect(usdLemma).trade(
+            baseAmount_1e18,
+            // collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals)),
+            false,
+            false,
+          ),
         ).to.emit(clearingHouse, "PositionChanged");
 
         // await expect(
@@ -726,19 +692,18 @@ describe("perpLemma.multiCollateral", async function () {
         // 3. Cover the position with collateral
         await perpLemma.connect(usdLemma).deposit(collateralAmount, usdCollateral.address);
 
-
         console.log("T3");
         // NOTE: Checking that tail asset remains in PerpLemma
         const balanceAfter = (await usdCollateral.balanceOf(perpLemma.address)).toString();
         console.log(`T3 balanceAfter = ${balanceAfter}`);
-        const expectedBalanceAfter = (isUsdlCollateralTailAsset) ? collateralAmount : ZERO;
+        const expectedBalanceAfter = isUsdlCollateralTailAsset ? collateralAmount : ZERO;
         // NOTE: Checking all the collateral has been deposited in Perp
         expect(parseUnits(balanceAfter, 0)).to.eq(expectedBalanceAfter);
         // expect(parseUnits(balanceAfter, 0)).to.eq(collateralAmount);
 
         console.log("T6");
         const vaultBalance = parseUnits((await vault.getBalance(perpLemma.address)).toString(), 0);
-        const expectedVaultBalance = (isUsdlCollateralTailAsset) ? ZERO : expectedBalanceAfter;
+        const expectedVaultBalance = isUsdlCollateralTailAsset ? ZERO : expectedBalanceAfter;
         // NOTE: In the tail asset case, the collateral does not get deposited in the Vault
         expect(vaultBalance.sub(initialVaultBalance)).to.eq(expectedVaultBalance);
         // expect(vaultBalance).to.eq(collateralAmount);
@@ -748,13 +713,12 @@ describe("perpLemma.multiCollateral", async function () {
         expect(baseAndQuoteValue[0]).to.eq(positionSize);
         console.log("T9");
         const lev1 = await calcLeverage();
-        console.log(`T10 Leverage = ${lev1.toNumber() / 1e6 }`);
+        console.log(`T10 Leverage = ${lev1.toNumber() / 1e6}`);
 
         // NOTE: If USDL Collateral is tail asset, the amount of USDC is deposited in advance is big and biases the leverage
-        if(!isUsdlCollateralTailAsset) {
+        if (!isUsdlCollateralTailAsset) {
           expect(lev1).to.eq(1e6);
         }
-
 
         baseAndQuoteValue = await callStaticOpenPosition(
           clearingHouse,
@@ -770,7 +734,6 @@ describe("perpLemma.multiCollateral", async function () {
           clearingHouse,
           "PositionChanged",
         );
-
 
         // await expect(await perpLemma.connect(usdLemma).closeShortWithExactCollateral(baseAndQuoteValue[1])).to.emit(
         //   clearingHouse,
@@ -791,9 +754,9 @@ describe("perpLemma.multiCollateral", async function () {
 
       it("#1 openLongWithExactCollateral and closeLongWithExactCollateral", async function () {
         const collateralAmount = parseUnits("100", usdCollateralDecimals); // 6 decimals
-        const usdcInVaultAmount = parseUnits( (await perpLemma.getSettlementTokenAmountInVault()).toString(), 0 );
+        const usdcInVaultAmount = parseUnits((await perpLemma.getSettlementTokenAmountInVault()).toString(), 0);
 
-        const expectedLeverage = ((collateralAmount.mul(1e6).div(usdcInVaultAmount)).toNumber() / 1e6).toString();
+        const expectedLeverage = (collateralAmount.mul(1e6).div(usdcInVaultAmount).toNumber() / 1e6).toString();
 
         // The USDC Collateral is Quote Token in Synth case
         const quoteAmount_1e18 = collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals));
@@ -805,40 +768,44 @@ describe("perpLemma.multiCollateral", async function () {
         console.log(`T5`);
 
         // NOTE: This is not zero since we start by depositing a bunch of USDC because of the assumption we make in the tail asset case
-        const initialVaultBalance = parseUnits((await vault.getBalance(perpLemma.address)).toString(), 0); 
+        const initialVaultBalance = parseUnits((await vault.getBalance(perpLemma.address)).toString(), 0);
 
         let executionTrace = {
-          'initialDefaultSignerUSDCBalance': (await usdCollateral.balanceOf(defaultSigner.address)).toString(),
-          'initialPerpLemmaUSDCBalance': (await usdCollateral.balanceOf(defaultSigner.address)).toString(),
-          'afterTransferDefaultSignerUSDCBalance': "NA",
-          'afterOpenPerpLemmaUSDCBalance': "NA",
-          'afterClosePerpLemmaUSDCBalance': "NA",
-          'finalDefaultSignerUSDCBalance': "NA",
-          'finalPerpLemmaUSDCBalance': "NA",
-          'collateralAmount': collateralAmount.toString(),
-          'quoteAmount_1e18': quoteAmount_1e18.toString(),
-          'targetBase': targetBase.toString(),
-          'initialVaultBalance': initialVaultBalance.toString(),
-          'afterOpenVaultBalance': "NA",
-          'afterCloseVaultBalance': "NA",
-          'finalVaultBalance': "NA",
-          'perpLemmaAmountBaseBeforeOpen': (await perpLemma.amountBase()).toString(),
-          'perpLemmaAmountBaseAfterOpen': "NA",
-          'perpLemmaAmountBaseAfterClose': "NA",
-          'positionSizeInitial': (await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address)).toString(),
-          'positionSizeAfterOpen': "NA",
-          'positionSizeAfterClose': "NA",
-          'positionValueInitial': (await accountBalance.getTotalPositionValue(perpLemma.address, baseToken.address)).toString(),
-          'positionValueAfterOpen': "NA",
-          'positionValueAfterClose': "NA",
-          'expectedLeverage': expectedLeverage,
-          'leverageAfterOpen': "NA",
-          'leverageAfterClose': "NA",
-          'marginAfterOpen': "NA",
-          'marginAfterClose': "NA",
-          'deltaExposureInitial': (await perpLemma.getDeltaExposure()).toString(), 
-          'deltaExposureAfterOpen': "NA",
-          'deltaExposureAfterClose': "NA"
+          initialDefaultSignerUSDCBalance: (await usdCollateral.balanceOf(defaultSigner.address)).toString(),
+          initialPerpLemmaUSDCBalance: (await usdCollateral.balanceOf(defaultSigner.address)).toString(),
+          afterTransferDefaultSignerUSDCBalance: "NA",
+          afterOpenPerpLemmaUSDCBalance: "NA",
+          afterClosePerpLemmaUSDCBalance: "NA",
+          finalDefaultSignerUSDCBalance: "NA",
+          finalPerpLemmaUSDCBalance: "NA",
+          collateralAmount: collateralAmount.toString(),
+          quoteAmount_1e18: quoteAmount_1e18.toString(),
+          targetBase: targetBase.toString(),
+          initialVaultBalance: initialVaultBalance.toString(),
+          afterOpenVaultBalance: "NA",
+          afterCloseVaultBalance: "NA",
+          finalVaultBalance: "NA",
+          perpLemmaAmountBaseBeforeOpen: (await perpLemma.amountBase()).toString(),
+          perpLemmaAmountBaseAfterOpen: "NA",
+          perpLemmaAmountBaseAfterClose: "NA",
+          positionSizeInitial: (
+            await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address)
+          ).toString(),
+          positionSizeAfterOpen: "NA",
+          positionSizeAfterClose: "NA",
+          positionValueInitial: (
+            await accountBalance.getTotalPositionValue(perpLemma.address, baseToken.address)
+          ).toString(),
+          positionValueAfterOpen: "NA",
+          positionValueAfterClose: "NA",
+          expectedLeverage: expectedLeverage,
+          leverageAfterOpen: "NA",
+          leverageAfterClose: "NA",
+          marginAfterOpen: "NA",
+          marginAfterClose: "NA",
+          deltaExposureInitial: (await perpLemma.getDeltaExposure()).toString(),
+          deltaExposureAfterOpen: "NA",
+          deltaExposureAfterClose: "NA",
         };
 
         // await usdCollateral.approve(usdCollateral.address, ethers.constants.MaxUint256);
@@ -852,21 +819,27 @@ describe("perpLemma.multiCollateral", async function () {
         // NOTE: For some reason, getting a cannot estimate gas issue when running this one
         // await usdCollateral.connect(usdLemma).transferFrom(defaultSigner.address, perpLemma.address, collateralAmount);
         await usdCollateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount);
-        executionTrace['afterTransferDefaultSignerUSDCBalance'] = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
+        executionTrace["afterTransferDefaultSignerUSDCBalance"] = (
+          await usdCollateral.balanceOf(defaultSigner.address)
+        ).toString();
         console.log(`T52`);
-        console.log(`PerpLemma AmountBase before open ${executionTrace['perpLemmaAmountBaseBeforeOpen']}`);
+        console.log(`PerpLemma AmountBase before open ${executionTrace["perpLemmaAmountBaseBeforeOpen"]}`);
         await perpLemma.connect(usdLemma).openLongWithExactBase(targetBase, usdCollateral.address, collateralAmount);
         console.log(`T53`);
         {
-          executionTrace['perpLemmaAmountBaseAfterOpen'] = (await perpLemma.amountBase()).toString();
-          executionTrace['afterOpenPerpLemmaUSDCBalance'] = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
-          executionTrace['afterOpenVaultBalance'] = (await vault.getBalance(perpLemma.address)).toString();
-          executionTrace['relativeMarginAfterOpen'] = ((await perpLemma.getRelativeMargin()).toNumber() / 1e18).toString();
-          executionTrace['marginAfterOpen'] = (await perpLemma.getMargin()).toString();
-          executionTrace['deltaExposureAfterOpen'] = ((await perpLemma.getDeltaExposure()).toNumber() / 1e6).toString();
-          console.log(`PerpLemma AmountBase after open ${executionTrace['perpLemmaAmountBaseAfterOpen']}`);
-          const temp = parseUnits(executionTrace['perpLemmaAmountBaseAfterOpen'], 0);
-          expect(temp).to.eq(targetBase);  
+          executionTrace["perpLemmaAmountBaseAfterOpen"] = (await perpLemma.amountBase()).toString();
+          executionTrace["afterOpenPerpLemmaUSDCBalance"] = (
+            await usdCollateral.balanceOf(defaultSigner.address)
+          ).toString();
+          executionTrace["afterOpenVaultBalance"] = (await vault.getBalance(perpLemma.address)).toString();
+          executionTrace["relativeMarginAfterOpen"] = (
+            (await perpLemma.getRelativeMargin()).toNumber() / 1e18
+          ).toString();
+          executionTrace["marginAfterOpen"] = (await perpLemma.getMargin()).toString();
+          executionTrace["deltaExposureAfterOpen"] = ((await perpLemma.getDeltaExposure()).toNumber() / 1e6).toString();
+          console.log(`PerpLemma AmountBase after open ${executionTrace["perpLemmaAmountBaseAfterOpen"]}`);
+          const temp = parseUnits(executionTrace["perpLemmaAmountBaseAfterOpen"], 0);
+          expect(temp).to.eq(targetBase);
         }
         // let baseAndQuoteValue = await openLongWithExactBase(baseAndQuoteValue1[0], usdCollateral, collateralAmount);
         console.log(`T6`);
@@ -877,8 +850,7 @@ describe("perpLemma.multiCollateral", async function () {
         // NOTE: Checking that tail asset remains in PerpLemma
         const balanceAfter = (await usdCollateral.balanceOf(perpLemma.address)).toString();
         console.log(`T3 balanceAfter = ${balanceAfter}`);
-        const expectedBalanceAfter = (isUsdlCollateralTailAsset) ? collateralAmount : ZERO;
-
+        const expectedBalanceAfter = isUsdlCollateralTailAsset ? collateralAmount : ZERO;
 
         // NOTE: Checking all the collateral has been deposited in Perp
         expect(parseUnits(balanceAfter, 0)).to.eq(expectedBalanceAfter);
@@ -887,32 +859,40 @@ describe("perpLemma.multiCollateral", async function () {
 
         console.log("T6");
         const vaultBalance = parseUnits((await vault.getBalance(perpLemma.address)).toString(), 0);
-        const expectedVaultBalance = (isUsdlCollateralTailAsset) ? ZERO : expectedBalanceAfter;
+        const expectedVaultBalance = isUsdlCollateralTailAsset ? ZERO : expectedBalanceAfter;
         // NOTE: In the tail asset case, the collateral does not get deposited in the Vault
         expect(vaultBalance.sub(initialVaultBalance)).to.eq(expectedVaultBalance);
         // expect(vaultBalance).to.eq(collateralAmount);
 
         console.log("T7");
-        executionTrace['positionSizeAfterOpen'] = (await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address)).toString();
-        executionTrace['positionValueAfterOpen'] = (await accountBalance.getTotalPositionValue(perpLemma.address, baseToken.address)).toString();
+        executionTrace["positionSizeAfterOpen"] = (
+          await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address)
+        ).toString();
+        executionTrace["positionValueAfterOpen"] = (
+          await accountBalance.getTotalPositionValue(perpLemma.address, baseToken.address)
+        ).toString();
         // TODO : Fix
         // expect(baseAndQuoteValue[0]).to.eq(positionSize);
         console.log("T9");
         await calcLeverage();
 
-
-
         // Close Long With Exact Collateral
         await perpLemma.connect(usdLemma).closeLongWithExactBase(targetBase, usdCollateral.address, collateralAmount);
-        executionTrace['perpLemmaAmountBaseAfterClose'] = (await perpLemma.amountBase()).toString();
+        executionTrace["perpLemmaAmountBaseAfterClose"] = (await perpLemma.amountBase()).toString();
         {
-          console.log(`PerpLemma AmountBase after close ${executionTrace['perpLemmaAmountBaseAfterClose']}`);
-          const temp = parseUnits(executionTrace['perpLemmaAmountBaseAfterClose'], 0);
-          executionTrace['afterClosePerpLemmaUSDCBalance'] = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
-          executionTrace['afterCloseVaultBalance'] = (await vault.getBalance(perpLemma.address)).toString();
-          executionTrace['relativeMarginAfterClose'] = ((await perpLemma.getRelativeMargin()).toNumber() / 1e18).toString();
-          executionTrace['marginAfterClose'] = (await perpLemma.getMargin()).toString();
-          executionTrace['deltaExposureAfterClose'] = ((await perpLemma.getDeltaExposure()).toNumber() / 1e6).toString();
+          console.log(`PerpLemma AmountBase after close ${executionTrace["perpLemmaAmountBaseAfterClose"]}`);
+          const temp = parseUnits(executionTrace["perpLemmaAmountBaseAfterClose"], 0);
+          executionTrace["afterClosePerpLemmaUSDCBalance"] = (
+            await usdCollateral.balanceOf(defaultSigner.address)
+          ).toString();
+          executionTrace["afterCloseVaultBalance"] = (await vault.getBalance(perpLemma.address)).toString();
+          executionTrace["relativeMarginAfterClose"] = (
+            (await perpLemma.getRelativeMargin()).toNumber() / 1e18
+          ).toString();
+          executionTrace["marginAfterClose"] = (await perpLemma.getMargin()).toString();
+          executionTrace["deltaExposureAfterClose"] = (
+            (await perpLemma.getDeltaExposure()).toNumber() / 1e6
+          ).toString();
           // expect(temp).to.eq(ZERO);
         }
         await usdCollateral.connect(usdLemma).transferFrom(perpLemma.address, defaultSigner.address, collateralAmount);
@@ -925,89 +905,111 @@ describe("perpLemma.multiCollateral", async function () {
         //   "PositionChanged",
         // );
         console.log("T10");
-        executionTrace['positionSizeAfterClose'] = (await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address)).toString();
-        executionTrace['positionValueAfterClose'] = (await accountBalance.getTotalPositionValue(perpLemma.address, baseToken.address)).toString();
-        expect(parseUnits(executionTrace['positionSizeAfterClose'], 0)).to.eq(0);
+        executionTrace["positionSizeAfterClose"] = (
+          await accountBalance.getTotalPositionSize(perpLemma.address, baseToken.address)
+        ).toString();
+        executionTrace["positionValueAfterClose"] = (
+          await accountBalance.getTotalPositionValue(perpLemma.address, baseToken.address)
+        ).toString();
+        expect(parseUnits(executionTrace["positionSizeAfterClose"], 0)).to.eq(0);
         console.log("T11");
 
         // NOTE: Removing because the vault balance is altered by the initial USDC amount we deposit for the tail asset assumption
         // expect(await vault.getBalance(perpLemma.address)).to.closeTo("2", "1"); // consider to be fee
         // console.log("T12");
-        executionTrace['finalDefaultSignerUSDCBalance'] = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
-        executionTrace['finalPerpLemmaUSDCBalance'] = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
-        executionTrace['finalVaultBalance'] = (await vault.getBalance(perpLemma.address)).toString();
+        executionTrace["finalDefaultSignerUSDCBalance"] = (
+          await usdCollateral.balanceOf(defaultSigner.address)
+        ).toString();
+        executionTrace["finalPerpLemmaUSDCBalance"] = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
+        executionTrace["finalVaultBalance"] = (await vault.getBalance(perpLemma.address)).toString();
         console.log("T15");
 
         console.log(`Execution Trace\n${JSON.stringify(executionTrace)}`);
       });
 
-
       async function mintSynthWExactUSD(collateralAmount, isSendUsdc, expectedSynthsAmount) {
-        if(isSendUsdc) {
+        if (isSendUsdc) {
           await usdCollateral.mint(defaultSigner.address, collateralAmount);
           await usdCollateral.connect(defaultSigner).transfer(perpLemma.address, collateralAmount);
-          await perpLemma.connect(usdLemma).deposit(collateralAmount, usdCollateral.address);  
+          await perpLemma.connect(usdLemma).deposit(collateralAmount, usdCollateral.address);
         }
 
-        let executionTrace = {}
+        let executionTrace = {};
         const quoteAmount_1e18 = collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals));
-        executionTrace['quoteAmount_1e18'] = quoteAmount_1e18.toString();
-        executionTrace['perpLemmaAmountBaseBeforeOpen'] = (await perpLemma.amountBase()).toString();
-        executionTrace['perpLemmaAmountQuoteBeforeOpen'] = (await perpLemma.amountQuote()).toString();
+        executionTrace["quoteAmount_1e18"] = quoteAmount_1e18.toString();
+        executionTrace["perpLemmaAmountBaseBeforeOpen"] = (await perpLemma.amountBase()).toString();
+        executionTrace["perpLemmaAmountQuoteBeforeOpen"] = (await perpLemma.amountQuote()).toString();
         // await usdCollateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount);
         const balanceAfter = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
-        executionTrace['balanceAfter'] = balanceAfter.toString();
-        await perpLemma.connect(usdLemma).openLongWithExactQuote(quoteAmount_1e18, usdCollateral.address, collateralAmount); 
-        executionTrace['perpLemmaAmountBaseAfterOpen'] = (await perpLemma.amountBase()).toString();
-        executionTrace['perpLemmaAmountQuoteAfterOpen'] = (await perpLemma.amountQuote()).toString();
-        executionTrace['afterOpenPerpLemmaUSDCBalance'] = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
-        executionTrace['afterOpenVaultBalance'] = (await vault.getBalance(perpLemma.address)).toString();
-        executionTrace['relativeMarginAfterOpen'] = ((await perpLemma.getRelativeMargin()).toNumber() / 1e18).toString();
-        executionTrace['marginAfterOpen'] = (await perpLemma.getMargin()).toString();
-        executionTrace['deltaExposureAfterOpen'] = ((await perpLemma.getDeltaExposure()).toNumber() / 1e6).toString();
-        const deltaBase_1e18 = parseUnits(executionTrace['perpLemmaAmountBaseBeforeOpen'],0).sub(parseUnits(executionTrace['perpLemmaAmountBaseAfterOpen'],0));
-        const deltaQuote_1e18 = parseUnits(executionTrace['perpLemmaAmountQuoteBeforeOpen'],0).sub(parseUnits(executionTrace['perpLemmaAmountQuoteAfterOpen'],0));
+        executionTrace["balanceAfter"] = balanceAfter.toString();
+        await perpLemma
+          .connect(usdLemma)
+          .openLongWithExactQuote(quoteAmount_1e18, usdCollateral.address, collateralAmount);
+        executionTrace["perpLemmaAmountBaseAfterOpen"] = (await perpLemma.amountBase()).toString();
+        executionTrace["perpLemmaAmountQuoteAfterOpen"] = (await perpLemma.amountQuote()).toString();
+        executionTrace["afterOpenPerpLemmaUSDCBalance"] = (
+          await usdCollateral.balanceOf(defaultSigner.address)
+        ).toString();
+        executionTrace["afterOpenVaultBalance"] = (await vault.getBalance(perpLemma.address)).toString();
+        executionTrace["relativeMarginAfterOpen"] = (
+          (await perpLemma.getRelativeMargin()).toNumber() / 1e18
+        ).toString();
+        executionTrace["marginAfterOpen"] = (await perpLemma.getMargin()).toString();
+        executionTrace["deltaExposureAfterOpen"] = ((await perpLemma.getDeltaExposure()).toNumber() / 1e6).toString();
+        const deltaBase_1e18 = parseUnits(executionTrace["perpLemmaAmountBaseBeforeOpen"], 0).sub(
+          parseUnits(executionTrace["perpLemmaAmountBaseAfterOpen"], 0),
+        );
+        const deltaQuote_1e18 = parseUnits(executionTrace["perpLemmaAmountQuoteBeforeOpen"], 0).sub(
+          parseUnits(executionTrace["perpLemmaAmountQuoteAfterOpen"], 0),
+        );
         console.log(`[mintSynthWExactUSD()] deltaQuote_1e18=${deltaQuote_1e18}`);
         expect(deltaQuote_1e18).to.eq(quoteAmount_1e18);
-        if(expectedSynthsAmount.gt(ZERO)) 
-        {
+        if (expectedSynthsAmount.gt(ZERO)) {
           const deltaBase = deltaBase_1e18.mul(parseUnits("1", ethCollateralDecimals)).div(parseEther("1"));
           expect(deltaBase).to.eq(expectedSynthsAmount);
         }
         return executionTrace;
       }
 
-
       async function mintSynthWExactEth(collateralAmount, isSendEth, expectedUSDCUsed) {
-        if(isSendEth) {
+        if (isSendEth) {
           await ethCollateral.mint(defaultSigner.address, collateralAmount);
           await ethCollateral.connect(defaultSigner).transfer(perpLemma.address, collateralAmount);
-          await perpLemma.connect(usdLemma).deposit(collateralAmount, ethCollateral.address);  
+          await perpLemma.connect(usdLemma).deposit(collateralAmount, ethCollateral.address);
         }
 
-        let executionTrace = {}
+        let executionTrace = {};
         const quoteAmount_1e18 = collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals));
-        executionTrace['quoteAmount_1e18'] = quoteAmount_1e18.toString();
-        executionTrace['perpLemmaAmountBaseBeforeOpen'] = (await perpLemma.amountBase()).toString();
-        executionTrace['perpLemmaAmountQuoteBeforeOpen'] = (await perpLemma.amountQuote()).toString();
+        executionTrace["quoteAmount_1e18"] = quoteAmount_1e18.toString();
+        executionTrace["perpLemmaAmountBaseBeforeOpen"] = (await perpLemma.amountBase()).toString();
+        executionTrace["perpLemmaAmountQuoteBeforeOpen"] = (await perpLemma.amountQuote()).toString();
         // await usdCollateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount);
         const balanceAfter = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
-        executionTrace['balanceAfter'] = balanceAfter.toString();
-        await perpLemma.connect(usdLemma).openLongWithExactBase(collateralAmount, usdCollateral.address, collateralAmount); 
-        executionTrace['perpLemmaAmountBaseAfterOpen'] = (await perpLemma.amountBase()).toString();
-        executionTrace['perpLemmaAmountQuoteAfterOpen'] = (await perpLemma.amountQuote()).toString();
-        executionTrace['afterOpenPerpLemmaUSDCBalance'] = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
-        executionTrace['afterOpenVaultBalance'] = (await vault.getBalance(perpLemma.address)).toString();
-        executionTrace['relativeMarginAfterOpen'] = ((await perpLemma.getRelativeMargin()).toNumber() / 1e18).toString();
-        executionTrace['marginAfterOpen'] = (await perpLemma.getMargin()).toString();
-        executionTrace['deltaExposureAfterOpen'] = ((await perpLemma.getDeltaExposure()).toNumber() / 1e6).toString();
-        const deltaBase_1e18 = parseUnits(executionTrace['perpLemmaAmountBaseBeforeOpen'],0).sub(parseUnits(executionTrace['perpLemmaAmountBaseAfterOpen'],0));
-        const deltaQuote_1e18 = parseUnits(executionTrace['perpLemmaAmountQuoteBeforeOpen'],0).sub(parseUnits(executionTrace['perpLemmaAmountQuoteAfterOpen'],0));
+        executionTrace["balanceAfter"] = balanceAfter.toString();
+        await perpLemma
+          .connect(usdLemma)
+          .openLongWithExactBase(collateralAmount, usdCollateral.address, collateralAmount);
+        executionTrace["perpLemmaAmountBaseAfterOpen"] = (await perpLemma.amountBase()).toString();
+        executionTrace["perpLemmaAmountQuoteAfterOpen"] = (await perpLemma.amountQuote()).toString();
+        executionTrace["afterOpenPerpLemmaUSDCBalance"] = (
+          await usdCollateral.balanceOf(defaultSigner.address)
+        ).toString();
+        executionTrace["afterOpenVaultBalance"] = (await vault.getBalance(perpLemma.address)).toString();
+        executionTrace["relativeMarginAfterOpen"] = (
+          (await perpLemma.getRelativeMargin()).toNumber() / 1e18
+        ).toString();
+        executionTrace["marginAfterOpen"] = (await perpLemma.getMargin()).toString();
+        executionTrace["deltaExposureAfterOpen"] = ((await perpLemma.getDeltaExposure()).toNumber() / 1e6).toString();
+        const deltaBase_1e18 = parseUnits(executionTrace["perpLemmaAmountBaseBeforeOpen"], 0).sub(
+          parseUnits(executionTrace["perpLemmaAmountBaseAfterOpen"], 0),
+        );
+        const deltaQuote_1e18 = parseUnits(executionTrace["perpLemmaAmountQuoteBeforeOpen"], 0).sub(
+          parseUnits(executionTrace["perpLemmaAmountQuoteAfterOpen"], 0),
+        );
 
         const deltaBase = deltaBase_1e18.mul(UNIT_ETH).div(UNIT_E18);
         expect(deltaBase.mul(MONE)).to.eq(collateralAmount);
-        if(expectedUSDCUsed.gt(ZERO)) 
-        {
+        if (expectedUSDCUsed.gt(ZERO)) {
           const deltaQuote = deltaQuote_1e18.mul(UNIT_USDC).div(UNIT_E18);
           expect(deltaQuote).to.eq(expectedUSDCUsed);
         }
@@ -1015,31 +1017,39 @@ describe("perpLemma.multiCollateral", async function () {
       }
 
       async function redeemSynthWExactAmount(synthAmount, expectedCollateralBack) {
-        let executionTrace = {}
+        let executionTrace = {};
         // const baseAndQuoteValue = await simulateCloseLongWExactBase(synthAmount);
         // const collateralAmount = baseAndQuoteValue[1];
-        executionTrace['perpLemmaAmountBaseBeforeClose'] = (await perpLemma.amountBase()).toString();
-        executionTrace['perpLemmaAmountQuoteBeforeClose'] = (await perpLemma.amountQuote()).toString();
+        executionTrace["perpLemmaAmountBaseBeforeClose"] = (await perpLemma.amountBase()).toString();
+        executionTrace["perpLemmaAmountQuoteBeforeClose"] = (await perpLemma.amountQuote()).toString();
         await perpLemma.connect(usdLemma).closeLongWithExactBase(synthAmount, AddressZero, 0);
-        executionTrace['perpLemmaAmountBaseAfterClose'] = (await perpLemma.amountBase()).toString();
-        executionTrace['perpLemmaAmountQuoteAfterClose'] = (await perpLemma.amountQuote()).toString();
+        executionTrace["perpLemmaAmountBaseAfterClose"] = (await perpLemma.amountBase()).toString();
+        executionTrace["perpLemmaAmountQuoteAfterClose"] = (await perpLemma.amountQuote()).toString();
         {
-          console.log(`PerpLemma AmountBase after close ${executionTrace['perpLemmaAmountBaseAfterClose']}`);
-          const temp = parseUnits(executionTrace['perpLemmaAmountBaseAfterClose'], 0);
-          executionTrace['afterClosePerpLemmaUSDCBalance'] = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
-          executionTrace['afterCloseVaultBalance'] = (await vault.getBalance(perpLemma.address)).toString();
-          executionTrace['relativeMarginAfterClose'] = ((await perpLemma.getRelativeMargin()).toNumber() / 1e18).toString();
-          executionTrace['marginAfterClose'] = (await perpLemma.getMargin()).toString();
-          executionTrace['deltaExposureAfterClose'] = ((await perpLemma.getDeltaExposure()).toNumber() / 1e6).toString();
-
+          console.log(`PerpLemma AmountBase after close ${executionTrace["perpLemmaAmountBaseAfterClose"]}`);
+          const temp = parseUnits(executionTrace["perpLemmaAmountBaseAfterClose"], 0);
+          executionTrace["afterClosePerpLemmaUSDCBalance"] = (
+            await usdCollateral.balanceOf(defaultSigner.address)
+          ).toString();
+          executionTrace["afterCloseVaultBalance"] = (await vault.getBalance(perpLemma.address)).toString();
+          executionTrace["relativeMarginAfterClose"] = (
+            (await perpLemma.getRelativeMargin()).toNumber() / 1e18
+          ).toString();
+          executionTrace["marginAfterClose"] = (await perpLemma.getMargin()).toString();
+          executionTrace["deltaExposureAfterClose"] = (
+            (await perpLemma.getDeltaExposure()).toNumber() / 1e6
+          ).toString();
         }
-        const deltaBase_1e18 = parseUnits(executionTrace['perpLemmaAmountBaseBeforeClose'],0).sub(parseUnits(executionTrace['perpLemmaAmountBaseAfterClose'],0));
-        const deltaQuote_1e18 = parseUnits(executionTrace['perpLemmaAmountQuoteBeforeClose'],0).sub(parseUnits(executionTrace['perpLemmaAmountQuoteAfterClose'],0));
-        
+        const deltaBase_1e18 = parseUnits(executionTrace["perpLemmaAmountBaseBeforeClose"], 0).sub(
+          parseUnits(executionTrace["perpLemmaAmountBaseAfterClose"], 0),
+        );
+        const deltaQuote_1e18 = parseUnits(executionTrace["perpLemmaAmountQuoteBeforeClose"], 0).sub(
+          parseUnits(executionTrace["perpLemmaAmountQuoteAfterClose"], 0),
+        );
+
         const deltaBase = deltaBase_1e18.mul(parseUnits("1", ethCollateralDecimals)).div(parseEther("1"));
         expect(deltaBase).to.eq(synthAmount);
-        if(expectedCollateralBack.gt(ZERO)) 
-        {
+        if (expectedCollateralBack.gt(ZERO)) {
           const deltaQuote = deltaQuote_1e18.mul(parseUnits("1", usdCollateralDecimals)).div(parseEther("1"));
           expect(deltaQuote.mul(MONE)).to.eq(expectedCollateralBack);
           // await perpLemma.connect(signer1).withdrawSettlementToken(expectedCollateralBack);
@@ -1048,33 +1058,40 @@ describe("perpLemma.multiCollateral", async function () {
         return executionTrace;
       }
 
-
       async function redeemSynthWExactUSDC(usdcAmount, expectedSynthUsed) {
-        let executionTrace = {}
+        let executionTrace = {};
         // const baseAndQuoteValue = await simulateCloseLongWExactBase(synthAmount);
         // const collateralAmount = baseAndQuoteValue[1];
-        executionTrace['perpLemmaAmountBaseBeforeClose'] = (await perpLemma.amountBase()).toString();
-        executionTrace['perpLemmaAmountQuoteBeforeClose'] = (await perpLemma.amountQuote()).toString();
+        executionTrace["perpLemmaAmountBaseBeforeClose"] = (await perpLemma.amountBase()).toString();
+        executionTrace["perpLemmaAmountQuoteBeforeClose"] = (await perpLemma.amountQuote()).toString();
         await perpLemma.connect(usdLemma).closeLongWithExactQuote(usdcAmount, AddressZero, 0);
-        executionTrace['perpLemmaAmountBaseAfterClose'] = (await perpLemma.amountBase()).toString();
-        executionTrace['perpLemmaAmountQuoteAfterClose'] = (await perpLemma.amountQuote()).toString();
+        executionTrace["perpLemmaAmountBaseAfterClose"] = (await perpLemma.amountBase()).toString();
+        executionTrace["perpLemmaAmountQuoteAfterClose"] = (await perpLemma.amountQuote()).toString();
         {
-          console.log(`PerpLemma AmountBase after close ${executionTrace['perpLemmaAmountBaseAfterClose']}`);
-          const temp = parseUnits(executionTrace['perpLemmaAmountBaseAfterClose'], 0);
-          executionTrace['afterClosePerpLemmaUSDCBalance'] = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
-          executionTrace['afterCloseVaultBalance'] = (await vault.getBalance(perpLemma.address)).toString();
-          executionTrace['relativeMarginAfterClose'] = ((await perpLemma.getRelativeMargin()).toNumber() / 1e18).toString();
-          executionTrace['marginAfterClose'] = (await perpLemma.getMargin()).toString();
-          executionTrace['deltaExposureAfterClose'] = ((await perpLemma.getDeltaExposure()).toNumber() / 1e6).toString();
-
+          console.log(`PerpLemma AmountBase after close ${executionTrace["perpLemmaAmountBaseAfterClose"]}`);
+          const temp = parseUnits(executionTrace["perpLemmaAmountBaseAfterClose"], 0);
+          executionTrace["afterClosePerpLemmaUSDCBalance"] = (
+            await usdCollateral.balanceOf(defaultSigner.address)
+          ).toString();
+          executionTrace["afterCloseVaultBalance"] = (await vault.getBalance(perpLemma.address)).toString();
+          executionTrace["relativeMarginAfterClose"] = (
+            (await perpLemma.getRelativeMargin()).toNumber() / 1e18
+          ).toString();
+          executionTrace["marginAfterClose"] = (await perpLemma.getMargin()).toString();
+          executionTrace["deltaExposureAfterClose"] = (
+            (await perpLemma.getDeltaExposure()).toNumber() / 1e6
+          ).toString();
         }
-        const deltaBase_1e18 = parseUnits(executionTrace['perpLemmaAmountBaseBeforeClose'],0).sub(parseUnits(executionTrace['perpLemmaAmountBaseAfterClose'],0));
-        const deltaQuote_1e18 = parseUnits(executionTrace['perpLemmaAmountQuoteBeforeClose'],0).sub(parseUnits(executionTrace['perpLemmaAmountQuoteAfterClose'],0));
-        
+        const deltaBase_1e18 = parseUnits(executionTrace["perpLemmaAmountBaseBeforeClose"], 0).sub(
+          parseUnits(executionTrace["perpLemmaAmountBaseAfterClose"], 0),
+        );
+        const deltaQuote_1e18 = parseUnits(executionTrace["perpLemmaAmountQuoteBeforeClose"], 0).sub(
+          parseUnits(executionTrace["perpLemmaAmountQuoteAfterClose"], 0),
+        );
+
         const deltaQuote = deltaQuote_1e18.mul(UNIT_USDC).div(UNIT_E18);
         expect(deltaQuote).to.eq(usdcAmount);
-        if(expectedSynthUsed.gt(ZERO)) 
-        {
+        if (expectedSynthUsed.gt(ZERO)) {
           const deltaBase = deltaBase_1e18.mul(UNIT_ETH).div(UNIT_E18);
           expect(deltaQuote.mul(MONE)).to.eq(expectedSynthUsed);
           // await usdCollateral.connect(usdLemma).transferFrom(perpLemma.address, defaultSigner.address, expectedSynthUsed);
@@ -1082,77 +1099,92 @@ describe("perpLemma.multiCollateral", async function () {
         return executionTrace;
       }
 
-
-
       async function mintUSDLWExactEth(collateralAmount, isSendEth, expectedUSDCUsed) {
-        if(isSendEth) {
+        if (isSendEth) {
           await ethCollateral.mint(defaultSigner.address, collateralAmount);
           await ethCollateral.connect(defaultSigner).transfer(perpLemma.address, collateralAmount);
-          await perpLemma.connect(usdLemma).deposit(collateralAmount, ethCollateral.address);  
+          await perpLemma.connect(usdLemma).deposit(collateralAmount, ethCollateral.address);
         }
 
-        let executionTrace = {}
+        let executionTrace = {};
         const quoteAmount_1e18 = collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals));
-        executionTrace['quoteAmount_1e18'] = quoteAmount_1e18.toString();
-        executionTrace['perpLemmaAmountBaseBeforeOpen'] = (await perpLemma.amountBase()).toString();
-        executionTrace['perpLemmaAmountQuoteBeforeOpen'] = (await perpLemma.amountQuote()).toString();
-        
+        executionTrace["quoteAmount_1e18"] = quoteAmount_1e18.toString();
+        executionTrace["perpLemmaAmountBaseBeforeOpen"] = (await perpLemma.amountBase()).toString();
+        executionTrace["perpLemmaAmountQuoteBeforeOpen"] = (await perpLemma.amountQuote()).toString();
+
         // await usdCollateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount);
         const balanceAfter = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
-        executionTrace['balanceAfter'] = balanceAfter.toString();
-        await perpLemma.connect(usdLemma).openShortWithExactBase(collateralAmount, usdCollateral.address, collateralAmount); 
-        executionTrace['perpLemmaAmountBaseAfterOpen'] = (await perpLemma.amountBase()).toString();
-        executionTrace['perpLemmaAmountQuoteAfterOpen'] = (await perpLemma.amountQuote()).toString();
-        executionTrace['afterOpenPerpLemmaUSDCBalance'] = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
-        executionTrace['afterOpenVaultBalance'] = (await vault.getBalance(perpLemma.address)).toString();
-        executionTrace['relativeMarginAfterOpen'] = ((await perpLemma.getRelativeMargin()).toNumber() / 1e18).toString();
-        executionTrace['marginAfterOpen'] = (await perpLemma.getMargin()).toString();
-        executionTrace['deltaExposureAfterOpen'] = ((await perpLemma.getDeltaExposure()).toNumber() / 1e6).toString();
-        const deltaBase_1e18 = parseUnits(executionTrace['perpLemmaAmountBaseBeforeOpen'],0).sub(parseUnits(executionTrace['perpLemmaAmountBaseAfterOpen'],0));
-        const deltaQuote_1e18 = parseUnits(executionTrace['perpLemmaAmountQuoteBeforeOpen'],0).sub(parseUnits(executionTrace['perpLemmaAmountQuoteAfterOpen'],0));
+        executionTrace["balanceAfter"] = balanceAfter.toString();
+        await perpLemma
+          .connect(usdLemma)
+          .openShortWithExactBase(collateralAmount, usdCollateral.address, collateralAmount);
+        executionTrace["perpLemmaAmountBaseAfterOpen"] = (await perpLemma.amountBase()).toString();
+        executionTrace["perpLemmaAmountQuoteAfterOpen"] = (await perpLemma.amountQuote()).toString();
+        executionTrace["afterOpenPerpLemmaUSDCBalance"] = (
+          await usdCollateral.balanceOf(defaultSigner.address)
+        ).toString();
+        executionTrace["afterOpenVaultBalance"] = (await vault.getBalance(perpLemma.address)).toString();
+        executionTrace["relativeMarginAfterOpen"] = (
+          (await perpLemma.getRelativeMargin()).toNumber() / 1e18
+        ).toString();
+        executionTrace["marginAfterOpen"] = (await perpLemma.getMargin()).toString();
+        executionTrace["deltaExposureAfterOpen"] = ((await perpLemma.getDeltaExposure()).toNumber() / 1e6).toString();
+        const deltaBase_1e18 = parseUnits(executionTrace["perpLemmaAmountBaseBeforeOpen"], 0).sub(
+          parseUnits(executionTrace["perpLemmaAmountBaseAfterOpen"], 0),
+        );
+        const deltaQuote_1e18 = parseUnits(executionTrace["perpLemmaAmountQuoteBeforeOpen"], 0).sub(
+          parseUnits(executionTrace["perpLemmaAmountQuoteAfterOpen"], 0),
+        );
 
         const deltaBase = deltaBase_1e18.mul(UNIT_ETH).div(UNIT_E18);
         expect(deltaBase).to.eq(collateralAmount);
-        if(expectedUSDCUsed.gt(ZERO)) 
-        {
+        if (expectedUSDCUsed.gt(ZERO)) {
           const deltaQuote = deltaQuote_1e18.mul(UNIT_USDC).div(UNIT_E18);
           expect(deltaQuote).to.eq(expectedUSDCUsed);
         }
         return executionTrace;
       }
 
-
       async function mintUSDLWExactUSDC(collateralAmount, isSendUSDC, expectedEthUsed) {
-        if(isSendUSDC) {
+        if (isSendUSDC) {
           await usdCollateral.mint(defaultSigner.address, collateralAmount);
           await usdCollateral.connect(defaultSigner).transfer(perpLemma.address, collateralAmount);
-          await perpLemma.connect(usdLemma).deposit(collateralAmount, usdCollateral.address);  
+          await perpLemma.connect(usdLemma).deposit(collateralAmount, usdCollateral.address);
         }
 
-        let executionTrace = {}
+        let executionTrace = {};
         const quoteAmount_1e18 = collateralAmount.mul(parseEther("1")).div(parseUnits("1", usdCollateralDecimals));
-        executionTrace['quoteAmount_1e18'] = quoteAmount_1e18.toString();
-        executionTrace['perpLemmaAmountBaseBeforeOpen'] = (await perpLemma.amountBase()).toString();
-        executionTrace['perpLemmaAmountQuoteBeforeOpen'] = (await perpLemma.amountQuote()).toString();
-        
+        executionTrace["quoteAmount_1e18"] = quoteAmount_1e18.toString();
+        executionTrace["perpLemmaAmountBaseBeforeOpen"] = (await perpLemma.amountBase()).toString();
+        executionTrace["perpLemmaAmountQuoteBeforeOpen"] = (await perpLemma.amountQuote()).toString();
+
         // await usdCollateral.connect(usdLemma).transfer(perpLemma.address, collateralAmount);
         const balanceAfter = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
-        executionTrace['balanceAfter'] = balanceAfter.toString();
-        await perpLemma.connect(usdLemma).openShortWithExactQuote(collateralAmount, usdCollateral.address, collateralAmount); 
-        executionTrace['perpLemmaAmountBaseAfterOpen'] = (await perpLemma.amountBase()).toString();
-        executionTrace['perpLemmaAmountQuoteAfterOpen'] = (await perpLemma.amountQuote()).toString();
-        executionTrace['afterOpenPerpLemmaUSDCBalance'] = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
-        executionTrace['afterOpenVaultBalance'] = (await vault.getBalance(perpLemma.address)).toString();
-        executionTrace['relativeMarginAfterOpen'] = ((await perpLemma.getRelativeMargin()).toNumber() / 1e18).toString();
-        executionTrace['marginAfterOpen'] = (await perpLemma.getMargin()).toString();
-        executionTrace['deltaExposureAfterOpen'] = ((await perpLemma.getDeltaExposure()).toNumber() / 1e6).toString();
-        const deltaBase_1e18 = parseUnits(executionTrace['perpLemmaAmountBaseBeforeOpen'],0).sub(parseUnits(executionTrace['perpLemmaAmountBaseAfterOpen'],0));
-        const deltaQuote_1e18 = parseUnits(executionTrace['perpLemmaAmountQuoteBeforeOpen'],0).sub(parseUnits(executionTrace['perpLemmaAmountQuoteAfterOpen'],0));
+        executionTrace["balanceAfter"] = balanceAfter.toString();
+        await perpLemma
+          .connect(usdLemma)
+          .openShortWithExactQuote(collateralAmount, usdCollateral.address, collateralAmount);
+        executionTrace["perpLemmaAmountBaseAfterOpen"] = (await perpLemma.amountBase()).toString();
+        executionTrace["perpLemmaAmountQuoteAfterOpen"] = (await perpLemma.amountQuote()).toString();
+        executionTrace["afterOpenPerpLemmaUSDCBalance"] = (
+          await usdCollateral.balanceOf(defaultSigner.address)
+        ).toString();
+        executionTrace["afterOpenVaultBalance"] = (await vault.getBalance(perpLemma.address)).toString();
+        executionTrace["relativeMarginAfterOpen"] = (
+          (await perpLemma.getRelativeMargin()).toNumber() / 1e18
+        ).toString();
+        executionTrace["marginAfterOpen"] = (await perpLemma.getMargin()).toString();
+        executionTrace["deltaExposureAfterOpen"] = ((await perpLemma.getDeltaExposure()).toNumber() / 1e6).toString();
+        const deltaBase_1e18 = parseUnits(executionTrace["perpLemmaAmountBaseBeforeOpen"], 0).sub(
+          parseUnits(executionTrace["perpLemmaAmountBaseAfterOpen"], 0),
+        );
+        const deltaQuote_1e18 = parseUnits(executionTrace["perpLemmaAmountQuoteBeforeOpen"], 0).sub(
+          parseUnits(executionTrace["perpLemmaAmountQuoteAfterOpen"], 0),
+        );
 
         const deltaQuote = deltaQuote_1e18.mul(usdCollateralDecimals).div(UNIT_E18);
         // expect(deltaQuote).to.eq(collateralAmount.mul(toBN(-1e6)));
-        if(expectedEthUsed.gt(ZERO)) 
-        {
+        if (expectedEthUsed.gt(ZERO)) {
           const deltaQuote = deltaQuote_1e18.mul(UNIT_USDC).div(UNIT_E18);
           expect(deltaQuote).to.eq(expectedEthUsed);
         }
@@ -1160,31 +1192,39 @@ describe("perpLemma.multiCollateral", async function () {
       }
 
       async function redeemUSDLWExactUSDC(usdcAmount, expectedSynthUsed) {
-        let executionTrace = {}
+        let executionTrace = {};
         // const baseAndQuoteValue = await simulateCloseLongWExactBase(synthAmount);
         // const collateralAmount = baseAndQuoteValue[1];
-        executionTrace['perpLemmaAmountBaseBeforeClose'] = (await perpLemma.amountBase()).toString();
-        executionTrace['perpLemmaAmountQuoteBeforeClose'] = (await perpLemma.amountQuote()).toString();
+        executionTrace["perpLemmaAmountBaseBeforeClose"] = (await perpLemma.amountBase()).toString();
+        executionTrace["perpLemmaAmountQuoteBeforeClose"] = (await perpLemma.amountQuote()).toString();
         await perpLemma.connect(usdLemma).closeShortWithExactQuote(usdcAmount, AddressZero, 0);
-        executionTrace['perpLemmaAmountBaseAfterClose'] = (await perpLemma.amountBase()).toString();
-        executionTrace['perpLemmaAmountQuoteAfterClose'] = (await perpLemma.amountQuote()).toString();
+        executionTrace["perpLemmaAmountBaseAfterClose"] = (await perpLemma.amountBase()).toString();
+        executionTrace["perpLemmaAmountQuoteAfterClose"] = (await perpLemma.amountQuote()).toString();
         {
-          console.log(`PerpLemma AmountBase after close ${executionTrace['perpLemmaAmountBaseAfterClose']}`);
-          const temp = parseUnits(executionTrace['perpLemmaAmountBaseAfterClose'], 0);
-          executionTrace['afterClosePerpLemmaUSDCBalance'] = (await usdCollateral.balanceOf(defaultSigner.address)).toString();
-          executionTrace['afterCloseVaultBalance'] = (await vault.getBalance(perpLemma.address)).toString();
-          executionTrace['relativeMarginAfterClose'] = ((await perpLemma.getRelativeMargin()).toNumber() / 1e18).toString();
-          executionTrace['marginAfterClose'] = (await perpLemma.getMargin()).toString();
-          executionTrace['deltaExposureAfterClose'] = ((await perpLemma.getDeltaExposure()).toNumber() / 1e6).toString();
-
+          console.log(`PerpLemma AmountBase after close ${executionTrace["perpLemmaAmountBaseAfterClose"]}`);
+          const temp = parseUnits(executionTrace["perpLemmaAmountBaseAfterClose"], 0);
+          executionTrace["afterClosePerpLemmaUSDCBalance"] = (
+            await usdCollateral.balanceOf(defaultSigner.address)
+          ).toString();
+          executionTrace["afterCloseVaultBalance"] = (await vault.getBalance(perpLemma.address)).toString();
+          executionTrace["relativeMarginAfterClose"] = (
+            (await perpLemma.getRelativeMargin()).toNumber() / 1e18
+          ).toString();
+          executionTrace["marginAfterClose"] = (await perpLemma.getMargin()).toString();
+          executionTrace["deltaExposureAfterClose"] = (
+            (await perpLemma.getDeltaExposure()).toNumber() / 1e6
+          ).toString();
         }
-        const deltaBase_1e18 = parseUnits(executionTrace['perpLemmaAmountBaseBeforeClose'],0).sub(parseUnits(executionTrace['perpLemmaAmountBaseAfterClose'],0));
-        const deltaQuote_1e18 = parseUnits(executionTrace['perpLemmaAmountQuoteBeforeClose'],0).sub(parseUnits(executionTrace['perpLemmaAmountQuoteAfterClose'],0));
-        
+        const deltaBase_1e18 = parseUnits(executionTrace["perpLemmaAmountBaseBeforeClose"], 0).sub(
+          parseUnits(executionTrace["perpLemmaAmountBaseAfterClose"], 0),
+        );
+        const deltaQuote_1e18 = parseUnits(executionTrace["perpLemmaAmountQuoteBeforeClose"], 0).sub(
+          parseUnits(executionTrace["perpLemmaAmountQuoteAfterClose"], 0),
+        );
+
         const deltaQuote = deltaQuote_1e18.mul(UNIT_USDC).div(UNIT_E18);
         expect(deltaQuote).to.eq(usdcAmount);
-        if(expectedSynthUsed.gt(ZERO)) 
-        {
+        if (expectedSynthUsed.gt(ZERO)) {
           const deltaBase = deltaBase_1e18.mul(UNIT_ETH).div(UNIT_E18);
           expect(deltaQuote.mul(MONE)).to.eq(expectedSynthUsed);
           // await usdCollateral.connect(usdLemma).transferFrom(perpLemma.address, defaultSigner.address, expectedSynthUsed);
@@ -1192,18 +1232,10 @@ describe("perpLemma.multiCollateral", async function () {
         return executionTrace;
       }
 
-
-
-
-
-
-
-
       it("#2 mintSynth with exact USD ", async function () {
         const collateralAmount = parseUnits("100", usdCollateralDecimals); // 6 decimals
         const synthMintingTrace = await mintSynthWExactUSD(collateralAmount, false, ZERO);
-      })
-
+      });
 
       it("#3 mintSynth with exact USD and redeem Synth with Exact SynthAmount", async function () {
         console.log(`Start`);
@@ -1211,12 +1243,19 @@ describe("perpLemma.multiCollateral", async function () {
         const synthMintingTrace = await mintSynthWExactUSD(collateralAmount, false, ZERO);
 
         // NOTE: Compute the expected amount removing the fees with a rounding
-        const expectedCollateralBack = (collateralAmount.mul(parseUnits("99",0)).div(parseUnits("100", 0))).mul(parseUnits("99",0)).div(parseUnits("100", 0)).sub(parseUnits("1", 0));
+        const expectedCollateralBack = collateralAmount
+          .mul(parseUnits("99", 0))
+          .div(parseUnits("100", 0))
+          .mul(parseUnits("99", 0))
+          .div(parseUnits("100", 0))
+          .sub(parseUnits("1", 0));
         console.log(`expectedCollateralBack = ${expectedCollateralBack}`);
-        const redeemTrace = await redeemSynthWExactAmount(synthMintingTrace['perpLemmaAmountBaseAfterOpen'], expectedCollateralBack);
+        const redeemTrace = await redeemSynthWExactAmount(
+          synthMintingTrace["perpLemmaAmountBaseAfterOpen"],
+          expectedCollateralBack,
+        );
         console.log(`End`);
-      })
-
+      });
 
       it("#5 mintSynth USDL with exact ETH and mint lemmaETH with exact ETH ", async function () {
         const ethAmount = parseUnits("10", ethCollateralDecimals); // 6 decimals
@@ -1236,8 +1275,7 @@ describe("perpLemma.multiCollateral", async function () {
 
         // NOTE: As a consequence, we are also delta neutral
         expect(toBN(await perpLemma.getDeltaExposure())).to.eq(ZERO);
-      })
-
+      });
 
       it("#6 mintSynth 2 x USDL with exact ETH and mint lemmaETH with exact ETH for the total USDL equivalent amount", async function () {
         const ethAmount1 = parseUnits("5", ethCollateralDecimals); // 6 decimals
@@ -1270,16 +1308,14 @@ describe("perpLemma.multiCollateral", async function () {
 
         // NOTE: As a consequence, we are also delta neutral
         // expect(toBN(await perpLemma.getDeltaExposure())).to.eq(ZERO);
-      })
-
+      });
 
       it("#7 mintSynth 2 x USDL with exact ETH and ETH as collateral and mint lemmaETH with exact ETH for the total USDL equivalent amount with ETH as collateral and compute leverage", async function () {
         const ethAmount1 = parseUnits("5", ethCollateralDecimals); // 6 decimals
-        // NOTE: For some reason, transfer does not work so let's replace it with minting 
+        // NOTE: For some reason, transfer does not work so let's replace it with minting
         await ethCollateral.mint(defaultSigner.address, ethAmount1);
         await ethCollateral.connect(defaultSigner).transfer(perpLemma.address, ethAmount1);
         await perpLemma.connect(usdLemma).deposit(ethAmount1, ethCollateral.address);
-
 
         await mintUSDLWExactEth(ethAmount1, false, ZERO);
         expect(toBN(await perpLemma.amountBase())).to.eq(to1e18(ethAmount1.mul(toBN("-1")), ethCollateralDecimals));
@@ -1292,13 +1328,13 @@ describe("perpLemma.multiCollateral", async function () {
         await perpLemma.connect(usdLemma).deposit(ethAmount2, ethCollateral.address);
         await mintUSDLWExactEth(ethAmount2, false, ZERO);
 
-        // // NOTE: For some reason, transfer does not work so let's replace it with minting 
+        // // NOTE: For some reason, transfer does not work so let's replace it with minting
         // {
         //   ethCollateral.mint(perpLemma.address, ethAmount2);
 
         //   // console.log(`Minting DONE`);
         //   // await ethCollateral.connect(defaultSigner).transfer(perpLemma.address, ethAmount1);
-        //   await perpLemma.connect(usdLemma).deposit(ethAmount2, ethCollateral.address);  
+        //   await perpLemma.connect(usdLemma).deposit(ethAmount2, ethCollateral.address);
         // }
 
         const ethAmountTot = ethAmount1.add(ethAmount2);
@@ -1320,9 +1356,7 @@ describe("perpLemma.multiCollateral", async function () {
 
         // NOTE: As a consequence, we are also delta neutral
         // expect(toBN(await perpLemma.getDeltaExposure())).to.eq(ZERO);
-      })
-
-
+      });
 
       it("#8 mintSynth 2 x USDL with exact ETH and ETH as collateral and mint lemmaETH with exact ETH for the total USDL equivalent amount with USDC as collateral", async function () {
         const ethAmount1 = parseUnits("5", ethCollateralDecimals); // 6 decimals
@@ -1332,7 +1366,7 @@ describe("perpLemma.multiCollateral", async function () {
         console.log(`Test8 - T1`);
         expect(toBN(await perpLemma.getDeltaExposure())).to.eq(ZERO);
         console.log(`Test8 - T3`);
-        const usdcAmount1 = from1e18to1ed(toBN((await perpLemma.amountQuote())), ethCollateralDecimals);
+        const usdcAmount1 = from1e18to1ed(toBN(await perpLemma.amountQuote()), ethCollateralDecimals);
 
         const ethAmount2 = parseUnits("6", ethCollateralDecimals); // 6 decimals
         await mintUSDLWExactEth(ethAmount2, true, ZERO);
@@ -1345,9 +1379,9 @@ describe("perpLemma.multiCollateral", async function () {
         // // NOTE: As a consequence, we are delta = 1 atm
         // expect(toBN(await perpLemma.getDeltaExposure())).to.eq(toBN(-1e6));
 
-        const usdcAmountAfter2USDL2 = from1e18to1ed(toBN((await perpLemma.amountQuote())), ethCollateralDecimals);
+        const usdcAmountAfter2USDL2 = from1e18to1ed(toBN(await perpLemma.amountQuote()), ethCollateralDecimals);
         await mintSynthWExactEth(ethAmount1, false, ZERO);
-        const usdcAmountAfter1Synth = from1e18to1ed(toBN((await perpLemma.amountQuote())), ethCollateralDecimals);
+        const usdcAmountAfter1Synth = from1e18to1ed(toBN(await perpLemma.amountQuote()), ethCollateralDecimals);
         const deltaUSDC1 = usdcAmountAfter1Synth.sub(usdcAmountAfter2USDL2);
         console.log(`Test8 - T7: deltaUSDC1 = ${deltaUSDC1} and usdcAmount1 = ${usdcAmount1}`);
         // await mintSynthWExactUSD(usdcAmount1.div(toBN("1")), false, ZERO);
@@ -1362,49 +1396,54 @@ describe("perpLemma.multiCollateral", async function () {
         console.log(`Test8 - T11`);
         // NOTE: As a consequence, we are also delta neutral
         // expect(toBN(await perpLemma.getDeltaExposure())).to.eq(ZERO);
-      })
-
-
+      });
 
       it("#9 Using USDLemma mintSynth 2 x USDL with exact ETH and ETH as collateral and mint lemmaETH with exact ETH for the total USDL equivalent amount with USDC as collateral", async function () {
         const usdcAmountInitial = parseUnits("70000000000", usdCollateralDecimals);
         await mintUSDLWExactUSDC(usdcAmountInitial, true, ZERO);
-        console.log(`After Minting USDL with Exact USDC Base = ${await perpLemma.amountBase()} Quote = ${await perpLemma.amountQuote()}`);
+        console.log(
+          `After Minting USDL with Exact USDC Base = ${await perpLemma.amountBase()} Quote = ${await perpLemma.amountQuote()}`,
+        );
         expect(toBN(await perpLemma.getDeltaExposure())).to.eq(toBN(-1e6));
         const baseInitial = toBN(await perpLemma.amountBase());
         // console.log(`baseInitial = ${baseInitial}`);
 
         const ethAmount1 = parseUnits("5", ethCollateralDecimals); // 6 decimals
         await mintUSDLWExactEth(ethAmount1, true, ZERO);
-        expect(toBN(await perpLemma.amountBase())).to.eq(to1e18(ethAmount1.mul(toBN("-1")), ethCollateralDecimals).add(baseInitial));
+        expect(toBN(await perpLemma.amountBase())).to.eq(
+          to1e18(ethAmount1.mul(toBN("-1")), ethCollateralDecimals).add(baseInitial),
+        );
         // NOTE: After minting USDL we should be delta neutral
         console.log(`Test - T1`);
         expect(toBN(await perpLemma.getDeltaExposure())).to.lt(ZERO);
         console.log(`Test - T3 Delta = ${await perpLemma.getDeltaExposure()}`);
-        const usdcAmount1 = from1e18to1ed(toBN((await perpLemma.amountQuote())), ethCollateralDecimals);
+        const usdcAmount1 = from1e18to1ed(toBN(await perpLemma.amountQuote()), ethCollateralDecimals);
 
         const ethAmount2 = parseUnits("6", ethCollateralDecimals); // 6 decimals
         await mintUSDLWExactEth(ethAmount2, true, ZERO);
         expect(toBN(await perpLemma.getDeltaExposure())).to.lt(ZERO);
 
-
         const ethAmountTot = ethAmount1.add(ethAmount2);
-        expect(toBN(await perpLemma.amountBase())).to.eq(to1e18(ethAmountTot.mul(toBN("-1")), ethCollateralDecimals).add(baseInitial));
+        expect(toBN(await perpLemma.amountBase())).to.eq(
+          to1e18(ethAmountTot.mul(toBN("-1")), ethCollateralDecimals).add(baseInitial),
+        );
         console.log(`Test - T5`);
         expect(toBN(await perpLemma.getDeltaExposure())).to.lt(ZERO);
         console.log(`Test - T6 Delta = ${await perpLemma.getDeltaExposure()}`);
         // // NOTE: As a consequence, we are delta = 1 atm
         // expect(toBN(await perpLemma.getDeltaExposure())).to.eq(toBN(-1e6));
 
-        const usdcAmountAfter2USDL2 = from1e18to1ed(toBN((await perpLemma.amountQuote())), ethCollateralDecimals);
+        const usdcAmountAfter2USDL2 = from1e18to1ed(toBN(await perpLemma.amountQuote()), ethCollateralDecimals);
         await mintSynthWExactEth(ethAmount1, false, ZERO);
-        const usdcAmountAfter1Synth = from1e18to1ed(toBN((await perpLemma.amountQuote())), ethCollateralDecimals);
+        const usdcAmountAfter1Synth = from1e18to1ed(toBN(await perpLemma.amountQuote()), ethCollateralDecimals);
         const deltaUSDC1 = usdcAmountAfter1Synth.sub(usdcAmountAfter2USDL2);
         console.log(`Test - T7: deltaUSDC1 = ${deltaUSDC1} and usdcAmount1 = ${usdcAmount1}`);
         // await mintSynthWExactUSD(usdcAmount1.div(toBN("1")), false, ZERO);
 
         // NOTE: Minting a Synth for the equivalent amount should be visible on the vAMM Pool as a net zero position on it
-        expect(toBN(await perpLemma.amountBase())).to.eq(to1e18(ethAmount2.mul("-1"), ethCollateralDecimals).add(baseInitial));
+        expect(toBN(await perpLemma.amountBase())).to.eq(
+          to1e18(ethAmount2.mul("-1"), ethCollateralDecimals).add(baseInitial),
+        );
         console.log(`Test - T9`);
         await mintSynthWExactEth(ethAmount2, false, ZERO);
         expect(toBN(await perpLemma.amountBase())).to.eq(to1e18(baseInitial, ethCollateralDecimals));
@@ -1417,19 +1456,7 @@ describe("perpLemma.multiCollateral", async function () {
         console.log(`Test - T12`);
         // NOTE: As a consequence, we are also delta neutral
         // expect(toBN(await perpLemma.getDeltaExposure())).to.eq(ZERO);
-      })
-
-
-
-
-
-
-
-
-
-
-
-
+      });
 
       // // getCollateralAmountGivenUnderlyingAssetAmountForPerp => gCAGUAA
       // it("#2 openLongWithExactCollateral and gCAGUAA => close ", async function () {
@@ -1478,7 +1505,7 @@ describe("perpLemma.multiCollateral", async function () {
       //     clearingHouse,
       //     "PositionChanged",
       //   );
-        
+
       //   // await expect(
       //   //   perpLemma.connect(usdLemma).getCollateralAmountGivenUnderlyingAssetAmountForPerp(baseAndQuoteValue[0], true, false),
       //   // ).to.emit(clearingHouse, "PositionChanged");
@@ -1487,8 +1514,6 @@ describe("perpLemma.multiCollateral", async function () {
       //   leverage = await calcLeverage();
       //   expect(leverage).to.eq(0);
       // });
-
-
 
       // // getCollateralAmountGivenUnderlyingAssetAmountForPerp => gCAGUAA
       // it("#3 gCAGUAA -> open and gCAGUAA -> close ", async function () {

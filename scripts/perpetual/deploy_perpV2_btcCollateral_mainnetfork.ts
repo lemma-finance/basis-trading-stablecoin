@@ -1,4 +1,3 @@
-
 import hre from "hardhat";
 const { ethers, upgrades, waffle } = hre;
 const { constants, BigNumber } = ethers;
@@ -36,7 +35,8 @@ async function main() {
     params: [wbtcWhaleAddress],
   });
 
-  let [defaultSigner, reBalancer, hasWETH, keeperGasReward, signer1, signer2, longAddress, lemmaTreasury]: any = await ethers.getSigners();
+  let [defaultSigner, reBalancer, hasWETH, keeperGasReward, signer1, signer2, longAddress, lemmaTreasury]: any =
+    await ethers.getSigners();
 
   const loadFixture: ReturnType<typeof waffle.createFixtureLoader> = waffle.createFixtureLoader([defaultSigner]);
   let perpAddresses = await loadFixture(createClearingHouseFixture(defaultSigner));
@@ -66,7 +66,7 @@ async function main() {
 
   const maxPosition = ethers.constants.MaxUint256;
   const perpLemmaFactory = await ethers.getContractFactory("PerpLemma");
-  let perpLemma = await upgrades.deployProxy(
+  let perpLemma = (await upgrades.deployProxy(
     perpLemmaFactory,
     [
       AddressZero,
@@ -78,7 +78,7 @@ async function main() {
       maxPosition,
     ],
     { initializer: "initialize" },
-  ) as any;
+  )) as any;
   let btcCollateralDecimals = await perpLemma.collateralDecimals(); // collateral decimal
   await perpLemma.connect(signer1).resetApprovals();
   await perpLemma.connect(defaultSigner).setReBalancer(reBalancer.address);

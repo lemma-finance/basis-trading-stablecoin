@@ -39,12 +39,12 @@ import {
 } from "../../../perp-lushan/typechain";
 import { QuoteToken } from "../../../perp-lushan/typechain/QuoteToken";
 import { TestAccountBalance } from "../../../perp-lushan/typechain/TestAccountBalance";
-import QuoteTokenAbi from "../../../perp-lushan/artifacts/contracts/QuoteToken.sol/QuoteToken.json"
+import QuoteTokenAbi from "../../../perp-lushan/artifacts/contracts/QuoteToken.sol/QuoteToken.json";
 import { token0Fixture, tokensFixture } from "./sharedFixtures";
-import fs from "fs"
-const SAVE_PREFIX = "./deployments/"
+import fs from "fs";
+const SAVE_PREFIX = "./deployments/";
 const SAVE_POSTFIX = "mainnetfork.deployment.perp.js";
-let deployedContracts = {}
+let deployedContracts = {};
 
 export interface ClearingHouseFixture {
   clearingHouse: TestClearingHouse | ClearingHouse;
@@ -82,12 +82,12 @@ export function createClearingHouseFixture(
   return async (): Promise<ClearingHouseFixture> => {
     // deploy test tokens
     const tokenFactory = new ContractFactory(TestERC20__factory.abi, TestERC20__factory.bytecode, admin);
-    const usdc = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48" // USDC on mainnet
-    const USDC = new ethers.Contract(usdc, QuoteTokenAbi.abi, admin) as any
-    const weth = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2" // WETH on mainnet
-    const WETH = new ethers.Contract(weth, QuoteTokenAbi.abi, admin) as any
-    const wbtc = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599" // WBTC on mainnet
-    const WBTC = new ethers.Contract(wbtc, QuoteTokenAbi.abi, admin) as any
+    const usdc = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"; // USDC on mainnet
+    const USDC = new ethers.Contract(usdc, QuoteTokenAbi.abi, admin) as any;
+    const weth = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"; // WETH on mainnet
+    const WETH = new ethers.Contract(weth, QuoteTokenAbi.abi, admin) as any;
+    const wbtc = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599"; // WBTC on mainnet
+    const WBTC = new ethers.Contract(wbtc, QuoteTokenAbi.abi, admin) as any;
 
     const usdcDecimals = await USDC.decimals();
 
@@ -299,126 +299,125 @@ export function createClearingHouseFixture(
     deployedContracts["clearingHouse"] = {
       name: "clearingHouse",
       address: clearingHouse.address,
-    }
+    };
 
     deployedContracts["orderBook"] = {
-        name: "orderBook",
-        address: orderBook.address,
-    }
+      name: "orderBook",
+      address: orderBook.address,
+    };
 
     deployedContracts["clearingHouseConfig"] = {
-        name: "clearingHouseConfig",
-        address: clearingHouseConfig.address,
-    }
+      name: "clearingHouseConfig",
+      address: clearingHouseConfig.address,
+    };
 
     deployedContracts["vault"] = {
-        name: "vault",
-        address: vault.address,
-    }
+      name: "vault",
+      address: vault.address,
+    };
 
     deployedContracts["exchange"] = {
-        name: "exchange",
-        address: exchange.address,
-    }
+      name: "exchange",
+      address: exchange.address,
+    };
 
     deployedContracts["marketRegistry"] = {
-        name: "marketRegistry",
-        address: marketRegistry.address,
-    }
+      name: "marketRegistry",
+      address: marketRegistry.address,
+    };
 
     deployedContracts["usdCollateral"] = {
-        name: "usdCollateral",
-        address: usdc,
-    }
+      name: "usdCollateral",
+      address: usdc,
+    };
 
     deployedContracts["ethCollateral"] = {
-        name: "ethCollateral",
-        address: weth,
-    }
+      name: "ethCollateral",
+      address: weth,
+    };
 
     deployedContracts["btcCollateral"] = {
-        name: "btcCollateral",
-        address: wbtc,
-    }
+      name: "btcCollateral",
+      address: wbtc,
+    };
 
     deployedContracts["baseToken"] = {
-        name: "baseToken",
-        address: baseToken.address,
-    }
+      name: "baseToken",
+      address: baseToken.address,
+    };
 
     deployedContracts["baseToken2"] = {
-        name: "baseToken2",
-        address: baseToken2.address,
-    }
+      name: "baseToken2",
+      address: baseToken2.address,
+    };
 
     deployedContracts["quoteToken"] = {
-        name: "quoteToken",
-        address: quoteToken.address,
-    }
+      name: "quoteToken",
+      address: quoteToken.address,
+    };
 
     deployedContracts["quoteToken2"] = {
-        name: "quoteToken2",
-        address: quoteToken.address,
-    }
+      name: "quoteToken2",
+      address: quoteToken.address,
+    };
 
     deployedContracts["mockedBaseAggregator"] = {
-        name: "mockedBaseAggregator",
-        address: mockedBaseAggregator.address,
-    }
+      name: "mockedBaseAggregator",
+      address: mockedBaseAggregator.address,
+    };
 
     deployedContracts["mockedBaseAggregator2"] = {
-        name: "mockedBaseAggregator2",
-        address: mockedBaseAggregator2.address,
-    }
+      name: "mockedBaseAggregator2",
+      address: mockedBaseAggregator2.address,
+    };
 
     deployedContracts["mockedWbtcPriceFeed"] = {
-        name: "mockedWbtcPriceFeed",
-        address: mockedWbtcPriceFeed.address,
-    }
+      name: "mockedWbtcPriceFeed",
+      address: mockedWbtcPriceFeed.address,
+    };
 
     deployedContracts["mockedWethPriceFeed"] = {
-        name: "mockedWethPriceFeed",
-        address: mockedWethPriceFeed.address,
-    }
+      name: "mockedWethPriceFeed",
+      address: mockedWethPriceFeed.address,
+    };
 
     deployedContracts["collateralManager"] = {
-        name: "collateralManager",
-        address: collateralManager.address,
-    }
+      name: "collateralManager",
+      address: collateralManager.address,
+    };
 
     deployedContracts["pool"] = {
-        name: "pool",
-        address: pool.address,
-    }
+      name: "pool",
+      address: pool.address,
+    };
 
     deployedContracts["pool2"] = {
-        name: "pool2",
-        address: pool2.address,
-    }
+      name: "pool2",
+      address: pool2.address,
+    };
 
     deployedContracts["accountBalance"] = {
-        name: "accountBalance",
-        address: accountBalance.address,
-    }
+      name: "accountBalance",
+      address: accountBalance.address,
+    };
 
     deployedContracts["accountBalance"] = {
-        name: "accountBalance",
-        address: accountBalance.address,
-    }
+      name: "accountBalance",
+      address: accountBalance.address,
+    };
 
     deployedContracts["univ3factory"] = {
-        name: "univ3factory",
-        address: uniV3Factory.address,
-    }
+      name: "univ3factory",
+      address: uniV3Factory.address,
+    };
 
     deployedContracts["quoter"] = {
-        name: "quoter",
-        address: quoter.address,
-    }
+      name: "quoter",
+      address: quoter.address,
+    };
 
-    console.log("deployedContracts: ", deployedContracts)
-    await fs.writeFileSync(SAVE_PREFIX + SAVE_POSTFIX, JSON.stringify(deployedContracts, null, 2))
-
+    console.log("deployedContracts: ", deployedContracts);
+    await fs.writeFileSync(SAVE_PREFIX + SAVE_POSTFIX, JSON.stringify(deployedContracts, null, 2));
 
     return {
       clearingHouse,
