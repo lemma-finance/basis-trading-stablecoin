@@ -452,7 +452,7 @@ contract ContractTest is Test {
 
         assertTrue(d.pl().amountBase() < 0);
         d.mockUniV3Router().setRouter(address(0));
-        d.mockUniV3Router().setNextSwapAmount(1e10);
+        d.mockUniV3Router().setNextSwapAmount(1e5);
 
         int256 baseAmountBefore = d.pl().amountBase();
         // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
@@ -494,7 +494,7 @@ contract ContractTest is Test {
         require(!_checkNetShort(), "Need to be net long");
 
         d.mockUniV3Router().setRouter(address(0));
-        d.mockUniV3Router().setNextSwapAmount(1e10);
+        d.mockUniV3Router().setNextSwapAmount(1e5);
 
         int256 baseAmountBefore = d.pl().amountBase();
         assertTrue(baseAmountBefore >= 0);
@@ -507,6 +507,9 @@ contract ContractTest is Test {
             usdlCollateralAmountToRebalance,
             false
         );
+
+        console.log("[testRebalanceIncLongWhenNetLongIsProfitFalse()] amountUSDCPlus = ", amountUSDCPlus);
+        console.log("[testRebalanceIncLongWhenNetLongIsProfitFalse()] amountUSDCMinus = ", amountUSDCMinus);
 
         vm.expectRevert(bytes("Unprofitable"));
         require(amountUSDCPlus > amountUSDCMinus, "Unprofitable");
@@ -632,7 +635,7 @@ contract ContractTest is Test {
             address(d.mockUniV3Router()),
             0,
             usdlCollateralAmountToRebalance,
-            true
+            false
         );
 
         // console.log("[testRebalanceDecLongIsProfitTrue()] usdlCollateralAmountToRebalance = ", usdlCollateralAmountToRebalance);
@@ -643,6 +646,7 @@ contract ContractTest is Test {
         int256 baseAmountAfter = d.pl().amountBase();
 
         // assertTrue(baseAmountAfter < 0);
+        assertTrue(amountUSDCMinus > amountUSDCPlus);
         assertTrue(baseAmountAfter < baseAmountBefore);
     }
 
@@ -680,7 +684,7 @@ contract ContractTest is Test {
             address(d.mockUniV3Router()),
             0,
             usdlCollateralAmountToRebalance,
-            true
+            false
         );
 
         // console.log("[testRebalanceDecLongIsProfitTrue()] usdlCollateralAmountToRebalance = ", usdlCollateralAmountToRebalance);
@@ -691,6 +695,7 @@ contract ContractTest is Test {
         int256 baseAmountAfter = d.pl().amountBase();
 
         // assertTrue(baseAmountAfter < 0);
+        assertTrue(amountUSDCMinus > amountUSDCPlus);
         assertTrue(baseAmountAfter < baseAmountBefore);
     }
 

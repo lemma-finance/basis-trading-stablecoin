@@ -731,8 +731,9 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
                 console.log("[rebalance()] Net Short --> Decrease Negative Base --> Close Short, free floating collateral (if any) and swap it for USDC");
                 // NOTE: Net Short Position --> USDL Collateral is currently deposited locally if tail asset or in Perp otherwise 
                 // NOTE: In this case, we need to shrink our position before we can withdraw to swap so 
-                (, amountUSDCMinus) = closeShortWithExactBase(_amountBaseToRebalance, address(0), 0);
+                (, uint256 amountUSDCMinus_1e18) = closeShortWithExactBase(_amountBaseToRebalance, address(0), 0);
                 // (usdlCollateralAmount, ) = closeShortWithExactQuote(amount, address(0), 0);
+                amountUSDCMinus = amountUSDCMinus_1e18 * (10 ** usdc.decimals()) / 1e18;
 
                 // NOTE: Only withdraws from Perp if it is a non tail asset 
                 _withdraw(_amountBaseToRebalance, address(usdlCollateral));
@@ -748,7 +749,8 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
                 // NOTE: Net Long Position --> USDL Collateral is not deposited in Perp but floating in the local balance sheet so we do not have to do anything before the trade
                 amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
                 _deposit(amountUSDCPlus, address(usdc));
-                (, amountUSDCMinus) = openLongWithExactBase(_amountBaseToRebalance, address(0), 0);
+                (, uint256 amountUSDCMinus_1e18) = openLongWithExactBase(_amountBaseToRebalance, address(0), 0);
+                amountUSDCMinus = amountUSDCMinus_1e18 * (10 ** usdc.decimals()) / 1e18;
                 // (usdlCollateralAmount, ) = openLongWithExactQuote(usdcAmount, address(0), 0);
                 // if(isCheckProfit) require(amountUSDCPlus >= amountUSDCMinus, "Unprofitable");
             }
@@ -776,12 +778,14 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
                 // NOTE: Buy Exact Amount of UsdlCollateral
                 amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
                 _deposit(_amountBaseToRebalance, address(usdlCollateral));
-                (, amountUSDCPlus) = openShortWithExactBase(_amountBaseToRebalance, address(0), 0); 
+                (, uint256 amountUSDCPlus_1e18) = openShortWithExactBase(_amountBaseToRebalance, address(0), 0); 
+                amountUSDCPlus = amountUSDCPlus_1e18 * (10 ** usdc.decimals()) / 1e18;
                 // if(isCheckProfit) require(usdcAmountPerpGained >= usdcAmountDexSpent, "Unprofitable");
             } else {
                 // NOTE: We are net long
                 console.log("[rebalance()] Net Long --> Decrease Positive Base --> Sell floating collateral for USDC, use it to incrase long");    
-                (, amountUSDCPlus) = closeLongWithExactBase(_amountBaseToRebalance, address(0), 0); 
+                (, uint256 amountUSDCPlus_1e18) = closeLongWithExactBase(_amountBaseToRebalance, address(0), 0); 
+                amountUSDCPlus = amountUSDCPlus_1e18 * (10 ** usdc.decimals()) / 1e18;
                 _withdraw(amountUSDCPlus, address(usdc));
                 amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
                 // if(isCheckProfit) require(usdcAmountPerpGained >= usdcAmountDexSpent, "Unprofitable");
