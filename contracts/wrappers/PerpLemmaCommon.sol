@@ -82,6 +82,11 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     event RebalancerUpdated(address rebalancerAddress);
     event MaxPositionUpdated(uint256 maxPos);
 
+    function print(string memory s, int256 v) internal view {
+        uint256 val = (v < 0) ? uint256(-v) : uint256(v);
+        console.log(s, " = ", (v < 0) ? " - " : " + ", val);
+    }
+
     modifier onlyUSDLemma() {
         // TODO: Re-enable
         // require(msg.sender == usdLemma, "only usdLemma is allowed");
@@ -266,6 +271,15 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
     }
 
+
+    /// @notice It returns the collateral accepted in the Perp Protocol to back positions 
+    /// @dev By default, the first element is the settlement token
+    function getCollateralTokens() override external view returns (address[] memory res) {
+        res = new address[](1);
+    
+        res[0] = perpVault.getSettlementToken();
+    }
+
     function getSettlementTokenAmountInVault() override external view returns(int256) {
         return perpVault.getBalance(address(this));
     }
@@ -311,14 +325,22 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
 
     function getRequiredUSDCToBackMinting(uint256 amount) override external view returns(bool isAcceptable, uint256 extraUSDC) {
         int256 currentTotalPositionValue = getTotalPosition();
+        print("[getRequiredUSDCToBackMinting()] currentTotalPositionValue = ", currentTotalPositionValue);
         uint256 currentPrice = getIndexPrice();
-        int256 deltaPosition = int256(currentPrice) * int256(amount);
+        console.log("[getRequiredUSDCToBackMinting()] currentPrice = ", currentPrice);
+        int256 deltaPosition = int256(currentPrice * amount * (10 **  usdc.decimals()) / 1e18);
+        print("[getRequiredUSDCToBackMinting()] deltaPosition = ", deltaPosition);
         // NOTE: More short --> Increase Negative Base
         int256 futureTotalPositionValue = currentTotalPositionValue - deltaPosition;
+        print("[getRequiredUSDCToBackMinting()] futureTotalPositionValue = ", futureTotalPositionValue);
         int256 currentAccountValue = getAccountValue();
+        print("[getRequiredUSDCToBackMinting()] currentAccountValue = ", currentAccountValue);
         int256 futureAccountValue = futureTotalPositionValue + currentAccountValue;
+        print("[getRequiredUSDCToBackMinting()] futureAccountValue = ", futureAccountValue);
 
-        extraUSDC = (futureAccountValue >= 0) ? 0 : uint256(-futureAccountValue);
+        uint256 extraUSDC_1e18 = (futureAccountValue >= 0) ? 0 : uint256(-futureAccountValue);
+        console.log("[getRequiredUSDCToBackMinting()] extraUSDC_1e18 = ", extraUSDC_1e18);
+        extraUSDC = getAmountInCollateralDecimalsForPerp(extraUSDC_1e18, address(usdc), false); 
         console.log("[_getExtraUSDCToBackMinting()] extraUSDC = ", extraUSDC);
 
         uint256 maxSettlementTokenAcceptableFromPerpVault = getMaxSettlementTokenAcceptableByVault(); 

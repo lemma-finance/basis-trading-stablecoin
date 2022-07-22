@@ -34,6 +34,11 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     mapping(uint256 => mapping(address => address)) public perpetualDEXWrappers;
     mapping(address => bool) private whiteListAddress; // It will used in future deployments
 
+    function print(string memory s, int256 v) internal view {
+        uint256 val = (v < 0) ? uint256(-v) : uint256(v);
+        console.log(s, " = ", (v < 0) ? " - " : " + ", val);
+    }
+
     // events
     event DepositTo(
         uint256 indexed dexIndex,
@@ -121,6 +126,18 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         require(_stakingContractAddress != address(0), "StakingContractAddress should not ZERO address");
         stakingContractAddress = _stakingContractAddress;
         emit StakingContractUpdated(stakingContractAddress);
+    }
+
+    function getAvailableSettlementToken(uint256 perpetualDEXIndex, address collateral) public view returns(uint256 res) {
+        IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
+            perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
+        );
+        require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
+        address[] memory tokens = perpDEXWrapper.getCollateralTokens();
+        require(tokens.length > 0, "Empty Set of Collaterals");
+        address settlementToken = tokens[0];
+        res = IERC20Upgradeable(settlementToken).balanceOf(lemmaTreasury);
+        console.log("[getAvailableSettlementToken()] res = ", res);
     }
 
     /// @notice Set Lemma treasury, can only be called by owner
@@ -257,9 +274,12 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
 
-        (bool isAcceptable, uint256 _extraUSDC) = perpDEXWrapper.getRequiredUSDCToBackMinting(collateralAmount);
+        (bool isAcceptable, uint256 extraUSDC) = perpDEXWrapper.getRequiredUSDCToBackMinting(collateralAmount);
         // (bool isAcceptable, uint256 _extraUSDC) = _getExtraUSDCToBackMinting(perpDEXWrapper, collateralAmount);
         // TODO: Add check and decide where to take it
+        require(isAcceptable, "Can't deposit enough collateral in Perp");
+        uint256 availableCollateral = getAvailableSettlementToken(perpetualDEXIndex, address(collateral));
+        require(availableCollateral >= extraUSDC, "Not enough collateral in Treasury to back the position");
         
         // isShorting = true
         // isExactUsdl = true
