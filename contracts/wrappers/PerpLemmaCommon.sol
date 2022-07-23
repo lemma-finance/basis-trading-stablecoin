@@ -354,6 +354,13 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         totalSynthCollateral -= _amount;
     }
 
+    function withdrawSettlementTokenTo(uint256 _amount, address to) external onlyRole(USDC_TREASURY) {
+        require(_amount > 0, "Amount should greater than zero");
+        require(hasSettled, "Perpetual is not settled yet");
+        SafeERC20Upgradeable.safeTransfer(usdc, to, _amount);
+        totalSynthCollateral -= _amount;
+    }
+
     function deposit(uint256 amount, address collateral, Basis basis) external override onlyRole(PERPLEMMA_ROLE) {
         _deposit(amount, collateral, basis);
     }
@@ -426,8 +433,9 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
                 );
                 // NOTE: Net Short Position --> USDL Collateral is currently deposited locally if tail asset or in Perp otherwise
                 // NOTE: In this case, we need to shrink our position before we can withdraw to swap so
-                (, amountUSDCMinus) = closeShortWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance);
+                (, uint256 amountUSDCMinus_1e18) = closeShortWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance);
                 // (usdlCollateralAmount, ) = closeShortWithExactQuote(amount, address(0), 0);
+                amountUSDCMinus = amountUSDCMinus_1e18 * (10 ** usdc.decimals()) / 1e18;
 
                 // NOTE: Only withdraws from Perp if it is a non tail asset
                 _withdraw(_amountBaseToRebalance, address(usdlCollateral), Basis.IsRebalance);
@@ -445,7 +453,8 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
                 // NOTE: Net Long Position --> USDL Collateral is not deposited in Perp but floating in the local balance sheet so we do not have to do anything before the trade
                 amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
                 _deposit(amountUSDCPlus, address(usdc), Basis.IsRebalance);
-                (, amountUSDCMinus) = openLongWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance);
+                (, uint256 amountUSDCMinus_1e18) = openLongWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance);
+                amountUSDCMinus = amountUSDCMinus_1e18 * (10 ** usdc.decimals()) / 1e18;
                 // (usdlCollateralAmount, ) = openLongWithExactQuote(usdcAmount, address(0), 0);
                 // if(isCheckProfit) require(amountUSDCPlus >= amountUSDCMinus, "Unprofitable");
             }
@@ -475,14 +484,16 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
                 // NOTE: Buy Exact Amount of UsdlCollateral
                 amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
                 _deposit(_amountBaseToRebalance, address(usdlCollateral), Basis.IsRebalance);
-                (, amountUSDCPlus) = openShortWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance);
+                (, uint256 amountUSDCPlus_1e18) = openShortWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance);
+                amountUSDCPlus = amountUSDCPlus_1e18 * (10 ** usdc.decimals()) / 1e18;
                 // if(isCheckProfit) require(usdcAmountPerpGained >= usdcAmountDexSpent, "Unprofitable");
             } else {
                 // NOTE: We are net long
                 console.log(
                     "[rebalance()] Net Long --> Decrease Positive Base --> Sell floating collateral for USDC, use it to incrase long"
                 );
-                (, amountUSDCPlus) = closeLongWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance);
+                (, uint256 amountUSDCPlus_1e18) = closeLongWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance);
+                amountUSDCPlus = amountUSDCPlus_1e18 * (10 ** usdc.decimals()) / 1e18;
                 _withdraw(amountUSDCPlus, address(usdc), Basis.IsRebalance);
                 amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
                 // if(isCheckProfit) require(usdcAmountPerpGained >= usdcAmountDexSpent, "Unprofitable");
@@ -545,7 +556,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function openLongWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         (uint256 base, uint256 quote) = trade(amount, false, false);
-        // console.log('openLongWithExactBase, base, quote: ', base, quote, amount);
+        console.log('openLongWithExactBase, base, quote: ', base, quote, amount);
         calculateMintingAsset(base, basis, false);
         return (base, quote);
     }
@@ -553,7 +564,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function openLongWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         (uint256 base, uint256 quote) = trade(amount, false, true);
-        // console.log('openLongWithExactQuote, base, quote: ', base, quote, amount);
+        console.log('openLongWithExactQuote, base, quote: ', base, quote, amount);
         calculateMintingAsset(base, basis, false);
         return (base, quote);
     }
@@ -561,7 +572,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function closeLongWithExactBase(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
         (uint256 base, uint256 quote) = trade(amount, true, true);
-        // console.log('closeLongWithExactBase, base, quote: ', base, quote, amount);
+        console.log('closeLongWithExactBase, base, quote: ', base, quote, amount);
         calculateMintingAsset(base, basis, true);
         return (base, quote);
     }
@@ -569,15 +580,15 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function closeLongWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
         (uint256 base, uint256 quote) = trade(amount, true, false);
-        // console.log('closeLongWithExactQuote, base, quote: ', base, quote, amount);
-        calculateMintingAsset(base, basis, true);
+        console.log('closeLongWithExactQuote, base, quote: ', base, quote, amount);
+        calculateMintingAsset(getRoudDown(base), basis, true);
         return (base, quote);
     }
 
     function openShortWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         (uint256 base, uint256 quote) = trade(amount, true, true);
-        // console.log('openShortWithExactBase, base, quote: ', base, quote);
+        console.log('openShortWithExactBase, base, quote: ', base, quote);
         calculateMintingAsset(quote, basis, true);
         return (base, quote);
     }
@@ -585,7 +596,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function openShortWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         (uint256 base, uint256 quote) = trade(amount, true, false);
-        // console.log('openShortWithExactQuote, base, quote: ', base, quote, amount);
+        console.log('openShortWithExactQuote, base, quote: ', base, quote, amount);
         calculateMintingAsset(quote, basis, true);
         return (base, quote);
     }
@@ -593,7 +604,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function closeShortWithExactBase(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
         (uint256 base, uint256 quote) = trade(amount, false, false);
-        // console.log('closeShortWithExactBase, base, quote, amount: ', base, quote, amount);
+        console.log('closeShortWithExactBase, base, quote, amount: ', base, quote, amount);
         calculateMintingAsset(quote, basis, false);
         return (base, quote);
     }
@@ -601,8 +612,8 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function closeShortWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
         (uint256 base, uint256 quote) = trade(amount, false, true);
-        // console.log('closeShortWithExactQuote, base, quote, amount: ', base, quote, amount);
-        calculateMintingAsset(amount, basis, false);
+        console.log('closeShortWithExactQuote, base, quote, amount: ', base, quote, amount);
+        calculateMintingAsset(getRoudDown(quote), basis, false);
         return (base, quote);
     }
 
@@ -619,6 +630,10 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     ////////////////////////
     /// INTERNAL METHODS ///
     ////////////////////////
+    
+    function getRoudDown(uint256 amount) internal view returns (uint256) {
+        return amount - 1;
+    }
 
     function getAllBalance() internal view returns(uint256, uint256, uint256, uint256) {
         return (
@@ -642,7 +657,6 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             perpVault.deposit(collateral, collateralAmount);
             amountUsdlCollateralDeposited += collateralAmount;
         }
-
         if (Basis.IsRebalance != basis) {
             if (Basis.IsUsdl == basis) { 
                 totalUsdlCollateral += collateralAmount;
@@ -706,6 +720,8 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         // c = totalSynthCollateral ===> Total synthcollateral that is deposited in perpLemma.
         // d = usdc.balanceOf(address(this)) ===> Current Total synthcollateral perpLemma has.
         (uint256 a, uint256 b, uint256 c, uint256 d) = getAllBalance();
+        console.log('\na, b: ', a, b);
+        console.log('c, d: ', c, d);
         if (isUsdl) {
             tailAmount = a > b ? b : a;
             usdcAmount = c >= d ? 0 : d - c;
@@ -713,21 +729,27 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             usdcAmount = c < d ? c : d;
             tailAmount = a >= b ? 0 : b - a;
         }
+        console.log('isUsdl: ', isUsdl);
+        console.log('tailAmount: ', tailAmount);
+        console.log('usdcAmount: ', usdcAmount);
+
         if (tailAmount != 0) {
             uint256 collateralDecimals = IERC20Decimals(address(usdlCollateral)).decimals();
             tailAmount = tailAmount * 1e18 / (10**collateralDecimals);
             amountUsdlCollateral1e_18 = (usdlOrSynthAmount * tailAmount) / positionAtSettlementInQuote;
             uint256 amountUsdlCollateral = getAmountInCollateralDecimalsForPerp(amountUsdlCollateral1e_18, address(usdlCollateral), false);
+            console.log('amountUsdlCollateral', amountUsdlCollateral);
             SafeERC20Upgradeable.safeTransfer(usdlCollateral, to, amountUsdlCollateral);
-            totalUsdlCollateral -= amountUsdlCollateral;
+            if (isUsdl) totalUsdlCollateral -= amountUsdlCollateral;
         }
         if (usdcAmount != 0) {
             uint256 collateralDecimals = IERC20Decimals(address(usdc)).decimals();
             usdcAmount = usdcAmount * 1e18 / (10**collateralDecimals);
             amountUsdcCollateral1e_18 = (usdlOrSynthAmount * usdcAmount) / positionAtSettlementInQuote;
             uint256 amountUsdcCollateral = getAmountInCollateralDecimalsForPerp(amountUsdcCollateral1e_18, address(usdc), false);
+            console.log('amountUsdcCollateral', amountUsdcCollateral);
             SafeERC20Upgradeable.safeTransfer(usdc, to, amountUsdcCollateral);
-            totalSynthCollateral -= amountUsdcCollateral;
+            if (!isUsdl) totalSynthCollateral -= amountUsdcCollateral;
         }
         if (isUsdl) {
             mintedPositionUsdlForThisWrapper -= usdlOrSynthAmount;
@@ -761,6 +783,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         console.log("[_swapOnUniV3] usdc ", address(usdc));
         console.log("[_swapOnUniV3()] tokenIn = ", tokenIn);
         console.log("[_swapOnUniV3()] tokenOut = ", tokenOut);
+        console.log("[_swapOnUniV3()] router = ", router);
 
         IERC20Decimals(tokenIn).approve(router, type(uint256).max);
         if(isExactInput) {
@@ -777,6 +800,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             console.log("[_swapOnUniV3] ExactInput amount = ", amount);
             uint256 balanceBefore = IERC20Decimals(tokenOut).balanceOf(address(this));
             res = ISwapRouter(router).exactInputSingle(temp);
+            console.log("[_swapOnUniV3] ExactInput amount------+++ = ", res);
             uint256 balanceAfter = IERC20Decimals(tokenOut).balanceOf(address(this));
             // require(balanceAfter > balanceBefore);
             res = uint256( int256(balanceAfter) - int256(balanceBefore) );

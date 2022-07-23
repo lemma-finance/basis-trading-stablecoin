@@ -4,6 +4,7 @@ import "contracts/USDLemma.sol";
 import "contracts/LemmaSynth.sol";
 
 import "contracts/wrappers/PerpLemmaCommon.sol";
+import "contracts/mock/TestPerpLemma.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
@@ -91,9 +92,14 @@ contract MockUniV3Router {
             return result;
         } else {
             console.log("[MockUniV3Router - exactInputSingle()] Using mock router");
+            address usdc = 0x7F5c764cBc14f9669B88837ca1490cCa17c31607;
+            uint256 amount = nextAmount;
+            if (params.tokenOut == usdc) {
+                amount = (amount*1e6)/1e18;
+            }
             IERC20Decimals(params.tokenIn).transferFrom(msg.sender, address(this), params.amountIn);
-            bank.giveMoney(params.tokenOut, address(params.recipient), nextAmount);
-            return nextAmount;
+            bank.giveMoney(params.tokenOut, address(params.recipient), amount);
+            return amount;
         }
     }
 
@@ -133,7 +139,7 @@ contract MockUniV3Router {
 contract Deploy {
     USDLemma public usdl;
     LemmaSynth public lSynth;
-    PerpLemmaCommon public pl;
+    TestPerpLemma public pl;
     
     Bank public bank = new Bank();
 
@@ -242,8 +248,8 @@ contract Deploy {
         pl.setReBalancer(rebalancer);
     }
 
-    function _deployPerpLemma(Deploy_PerpLemma memory d_pl, address perp_ch, address perp_mr, address _usdl, address _lemmaSynth) internal returns(PerpLemmaCommon) {
-        PerpLemmaCommon pl = new PerpLemmaCommon();
+    function _deployPerpLemma(Deploy_PerpLemma memory d_pl, address perp_ch, address perp_mr, address _usdl, address _lemmaSynth) internal returns(TestPerpLemma) {
+        TestPerpLemma pl = new TestPerpLemma();
         pl.initialize(
             d_pl.trustedForwarder,
             d_pl.usdlCollateral,
