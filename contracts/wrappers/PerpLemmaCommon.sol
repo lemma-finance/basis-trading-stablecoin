@@ -483,6 +483,13 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         totalSynthCollateral -= _amount;
     }
 
+    function withdrawSettlementTokenTo(uint256 _amount, address to) external onlyRole(USDC_TREASURY) {
+        require(_amount > 0, "Amount should greater than zero");
+        require(hasSettled, "Perpetual is not settled yet");
+        SafeERC20Upgradeable.safeTransfer(usdc, to, _amount);
+        totalSynthCollateral -= _amount;
+    }
+
     function deposit(uint256 amount, address collateral, Basis basis) external override onlyRole(PERPLEMMA_ROLE) {
         _deposit(amount, collateral, basis);
     }
@@ -746,6 +753,10 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     ////////////////////////
     /// INTERNAL METHODS ///
     ////////////////////////
+    
+    function getRoudDown(uint256 amount) internal view returns (uint256) {
+        return amount - 1;
+    }
 
     function getAllBalance() internal view returns(uint256, uint256, uint256, uint256) {
         return (
@@ -833,6 +844,8 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         // c = totalSynthCollateral ===> Total synthcollateral that is deposited in perpLemma.
         // d = usdc.balanceOf(address(this)) ===> Current Total synthcollateral perpLemma has.
         (uint256 a, uint256 b, uint256 c, uint256 d) = getAllBalance();
+        console.log('\na, b: ', a, b);
+        console.log('c, d: ', c, d);
         if (isUsdl) {
             tailAmount = a > b ? b : a;
             usdcAmount = c >= d ? 0 : d - c;
@@ -840,21 +853,27 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             usdcAmount = c < d ? c : d;
             tailAmount = a >= b ? 0 : b - a;
         }
+        console.log('isUsdl: ', isUsdl);
+        console.log('tailAmount: ', tailAmount);
+        console.log('usdcAmount: ', usdcAmount);
+
         if (tailAmount != 0) {
             uint256 collateralDecimals = IERC20Decimals(address(usdlCollateral)).decimals();
             tailAmount = tailAmount * 1e18 / (10**collateralDecimals);
             amountUsdlCollateral1e_18 = (usdlOrSynthAmount * tailAmount) / positionAtSettlementInQuote;
             uint256 amountUsdlCollateral = getAmountInCollateralDecimalsForPerp(amountUsdlCollateral1e_18, address(usdlCollateral), false);
+            console.log('amountUsdlCollateral', amountUsdlCollateral);
             SafeERC20Upgradeable.safeTransfer(usdlCollateral, to, amountUsdlCollateral);
-            totalUsdlCollateral -= amountUsdlCollateral;
+            if (isUsdl) totalUsdlCollateral -= amountUsdlCollateral;
         }
         if (usdcAmount != 0) {
             uint256 collateralDecimals = IERC20Decimals(address(usdc)).decimals();
             usdcAmount = usdcAmount * 1e18 / (10**collateralDecimals);
             amountUsdcCollateral1e_18 = (usdlOrSynthAmount * usdcAmount) / positionAtSettlementInQuote;
             uint256 amountUsdcCollateral = getAmountInCollateralDecimalsForPerp(amountUsdcCollateral1e_18, address(usdc), false);
+            console.log('amountUsdcCollateral', amountUsdcCollateral);
             SafeERC20Upgradeable.safeTransfer(usdc, to, amountUsdcCollateral);
-            totalSynthCollateral -= amountUsdcCollateral;
+            if (!isUsdl) totalSynthCollateral -= amountUsdcCollateral;
         }
         if (isUsdl) {
             mintedPositionUsdlForThisWrapper -= usdlOrSynthAmount;
@@ -888,6 +907,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         console.log("[_swapOnUniV3] usdc ", address(usdc));
         console.log("[_swapOnUniV3()] tokenIn = ", tokenIn);
         console.log("[_swapOnUniV3()] tokenOut = ", tokenOut);
+        console.log("[_swapOnUniV3()] router = ", router);
 
         IERC20Decimals(tokenIn).approve(router, type(uint256).max);
         if(isExactInput) {
@@ -904,6 +924,7 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
             console.log("[_swapOnUniV3] ExactInput amount = ", amount);
             uint256 balanceBefore = IERC20Decimals(tokenOut).balanceOf(address(this));
             res = ISwapRouter(router).exactInputSingle(temp);
+            console.log("[_swapOnUniV3] ExactInput amount------+++ = ", res);
             uint256 balanceAfter = IERC20Decimals(tokenOut).balanceOf(address(this));
             // require(balanceAfter > balanceBefore);
             res = uint256( int256(balanceAfter) - int256(balanceBefore) );
