@@ -46,12 +46,22 @@ contract USDLemmaTest is Test {
 
     function _depositSettlementTokenMax() internal {
         _getMoney(address(d.pl().usdc()), 1e40);
-        uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
+
+        IERC20Decimals settlementToken = IERC20Decimals(d.pl().perpVault().getSettlementToken());
+        uint256 perpVaultSettlementTokenBalanceBefore = settlementToken.balanceOf(address(d.pl().perpVault()));
+        uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.pl().clearingHouse().getClearingHouseConfig()).getSettlementTokenBalanceCap();
+        uint256 usdcToDeposit = uint256(int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore));
+
+        // uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
         // NOTE: Unclear why I need to use 1/10 of the cap
         // NOTE: If I do not limit this amount I get 
         // V_GTSTBC: greater than settlement token balance cap
-        d.pl().usdc().approve(address(d.pl()), settlementTokenBalanceCap/10);
-        d.pl().depositSettlementToken(settlementTokenBalanceCap/10);
+
+        d.pl().usdc().approve(address(d.pl()), usdcToDeposit);
+        d.pl().depositSettlementToken(usdcToDeposit);
+
+        // d.pl().usdc().approve(address(d.pl()), settlementTokenBalanceCap/10);
+        // d.pl().depositSettlementToken(settlementTokenBalanceCap/10);
     }
 
     // USDLemma Functions To test
@@ -136,12 +146,16 @@ contract USDLemmaTest is Test {
         _mintUSDLWExactUSDL(address(this), collateral, usdlAmount);
     }
 
-    // test depositToWExactCollateral
-    function testDepositToWExactCollateral() public {
-        address collateral = d.getTokenAddress("WETH");
-        uint256 collateralAmount = 1e18;
+
+    function _depositWExactCollateral(uint256 collateralAmount) internal {
         _depositSettlementTokenMax();
+        address collateral = d.getTokenAddress("WETH");
         _mintUSDLWExactCollateral(address(this), collateral, collateralAmount);
+    }
+
+    // test depositToWExactCollateral
+    function testDepositToWExactCollateral1() public {
+        _depositWExactCollateral(1e12);
     }
 
     // test depositTo and withdrawTo
@@ -154,18 +168,21 @@ contract USDLemmaTest is Test {
 
     // test depositToWExactCollateral and withdrawTo
     function testDepositToWExactCollateralAndwithdrawTo() public {
-        testDepositToWExactCollateral();
+        uint256 collateralAmount = 1e12;
+        _depositWExactCollateral(collateralAmount);
         address collateral = d.getTokenAddress("WETH");
         uint256 usdlAmount = d.usdl().balanceOf(address(this));
         _redeemUSDLWExactUsdl(address(this), collateral, usdlAmount);
     }
 
+
+
     // test depositToWExactCollateral and withdrawToWExactCollateral
     function testDepositToWExactCollateralAndwithdrawToWExactCollateral() public {
-        testDepositToWExactCollateral();
+        uint256 collateralAmount = 1e12;
+        _depositWExactCollateral(collateralAmount);
         address collateral = d.getTokenAddress("WETH");
-        uint256 collateralAMount = 1e18;
-        uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), collateralAMount, 0);
+        uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), collateralAmount, 0);
         uint256 _maxETHtoRedeem = _deductFees(d.getTokenAddress("WETH"), _collateralAfterMinting, 0);
         _redeemUSDLWExactCollateral(address(this), collateral, _maxETHtoRedeem);
     }
