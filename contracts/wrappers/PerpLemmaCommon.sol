@@ -284,7 +284,8 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         print("[getRequiredUSDCToBackMinting()] currentTotalPositionValue = ", currentTotalPositionValue);
         uint256 currentPrice = getIndexPrice();
         console.log("[getRequiredUSDCToBackMinting()] currentPrice = ", currentPrice);
-        int256 deltaPosition = int256(currentPrice * amount * (10 **  usdc.decimals()) / 1e18);
+        uint256 oracleDecimals = 18;
+        int256 deltaPosition = int256(currentPrice * amount / (10 ** (oracleDecimals + usdlCollateral.decimals() - usdc.decimals())));
         print("[getRequiredUSDCToBackMinting()] deltaPosition = ", deltaPosition);
         // NOTE: More short --> Increase Negative Base
         int256 futureTotalPositionValue = currentTotalPositionValue - deltaPosition;
