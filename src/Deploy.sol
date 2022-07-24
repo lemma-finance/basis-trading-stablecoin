@@ -92,14 +92,9 @@ contract MockUniV3Router {
             return result;
         } else {
             console.log("[MockUniV3Router - exactInputSingle()] Using mock router");
-            address usdc = 0x7F5c764cBc14f9669B88837ca1490cCa17c31607;
-            uint256 amount = nextAmount;
-            if (params.tokenOut == usdc) {
-                amount = (amount*1e6)/1e18;
-            }
             IERC20Decimals(params.tokenIn).transferFrom(msg.sender, address(this), params.amountIn);
-            bank.giveMoney(params.tokenOut, address(params.recipient), amount);
-            return amount;
+            bank.giveMoney(params.tokenOut, address(params.recipient), nextAmount);
+            return nextAmount;
         }
     }
 

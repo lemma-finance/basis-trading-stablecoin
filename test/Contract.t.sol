@@ -102,15 +102,15 @@ contract ContractTest is Test {
 
         // NOTE: Currently getting 
         // V_GTDC: greater than deposit cap
-        // d.usdl().depositToWExactCollateral(
-        //     address(this),
-        //     amount,
-        //     0,
-        //     0,
-        //     IERC20Upgradeable(collateral)
-        // );
+        d.usdl().depositToWExactCollateral(
+            address(this),
+            amount,
+            0,
+            0,
+            IERC20Upgradeable(collateral)
+        );
 
-        // assertTrue(d.usdl().balanceOf(address(this)) > 0);
+        assertTrue(d.usdl().balanceOf(address(this)) > 0);
     }
 
     function _mintUSDLWExactCollateralForTo(address to, address collateral, uint256 amount) internal {
@@ -611,7 +611,7 @@ contract ContractTest is Test {
         _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
 
         d.mockUniV3Router().setRouter(address(0));
-        d.mockUniV3Router().setNextSwapAmount(1e20);
+        d.mockUniV3Router().setNextSwapAmount(1e10);
 
         int256 baseAmountBefore = d.pl().amountBase();
         // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
@@ -637,7 +637,6 @@ contract ContractTest is Test {
         console.log("[testRebalanceIncLongWhenNetLongIsProfitTrue()] Block.timestamp = ", block.timestamp);
         _getMoney(d.getTokenAddress("WETH"), 1e40);
         IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
-
         _depositSettlementTokenMax();
 
         // uint256 amount = 1e12;
@@ -648,7 +647,7 @@ contract ContractTest is Test {
         // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
 
         d.mockUniV3Router().setRouter(address(0));
-        d.mockUniV3Router().setNextSwapAmount(1e20);
+        d.mockUniV3Router().setNextSwapAmount(1e10);
 
         int256 baseAmountBefore = d.pl().amountBase();
         // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount

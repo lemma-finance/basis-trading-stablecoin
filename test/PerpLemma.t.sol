@@ -181,8 +181,6 @@ contract PerpLemmaCommonTest is Test {
         assertEq(afterMintedPositionSynthForThisWrapper-beforeMintedPositionSynthForThisWrapper, base);
         uint256 decimal = IERC20Decimals(collateral).decimals();
         usdcAmount = (usdcAmount*1e18) / 10**decimal;
-        console.log(quote, usdcAmount);
-        // assertGe(quote, usdcAmount);
     }
 
     function openLongWithExactQuote(uint256 synthAmount, uint256 usdcAmount, address collateral, address to) internal {
@@ -218,9 +216,8 @@ contract PerpLemmaCommonTest is Test {
         uint256 afterSynthMinting = _deductFees(d.getTokenAddress("WETH"), synthAmount, 0);
         uint256 _maxSynthToRedeem = _deductFees(d.getTokenAddress("WETH"), afterSynthMinting, 0);
         assertLe(_maxSynthToRedeem, beforeMintedPositionSynthForThisWrapper-afterMintedPositionSynthForThisWrapper);
-        assertEq(beforeMintedPositionSynthForThisWrapper-afterMintedPositionSynthForThisWrapper, getRoudDown(base));
+        assertEq(beforeMintedPositionSynthForThisWrapper-afterMintedPositionSynthForThisWrapper, getRoudDown(base)); // sometimes need to use getRoudDown(base) instead base
         usdcAmountToWithdraw = quote;
-        console.log(base, quote);
     }
 
     function testOpenShortWithExactBase() public {
@@ -358,7 +355,6 @@ contract PerpLemmaCommonTest is Test {
         uint256 usdcAmount = 1098e18; // USDC(actual 1e6)
         uint256 afterSynthMinting = _deductFees(d.getTokenAddress("WETH"), usdcAmount, 0);
         uint256 _maxUSDCToRedeem = _deductFees(d.getTokenAddress("WETH"), afterSynthMinting, 0);
-        console.log('_maxUSDCToRedeem: ', synthAmount, _maxUSDCToRedeem);
         uint256 usdcAmountToWithdraw = closeLongWithExactQuote(synthAmount, _maxUSDCToRedeem, collateral, address(this));
         _withdrawSettlementToken(usdcAmountToWithdraw);
     }
@@ -851,5 +847,4 @@ contract PerpLemmaCommonTest is Test {
         assertEq(perpLemmaAfterWETHBal, 0);
         assertEq(perpLemmaAfterUSDCBal, 0);
     }
-
 }
