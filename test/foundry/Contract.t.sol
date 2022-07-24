@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.6.0 <0.9.0;
-import "src/Deploy.sol";
 
+import { IPerpetualMixDEXWrapper } from "../../contracts/interfaces/IPerpetualMixDEXWrapper.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import "../contracts/interfaces/IERC20Decimals.sol";
-import { IPerpetualMixDEXWrapper } from "../contracts/interfaces/IPerpetualMixDEXWrapper.sol";
-
+import "../../contracts/interfaces/IERC20Decimals.sol";
+import "../../src/Deploy.sol";
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 

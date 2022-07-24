@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.6.0 <0.9.0;
+
+import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "contracts/USDLemma.sol";
 import "contracts/LemmaSynth.sol";
-
 import "contracts/wrappers/PerpLemmaCommon.sol";
 import "contracts/mock/TestPerpLemma.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-
 import "../contracts/interfaces/IERC20Decimals.sol";
 import "../contracts/interfaces/Perpetual/IClearingHouse.sol";
 import "../contracts/interfaces/Perpetual/IClearingHouseConfig.sol";
@@ -18,8 +18,6 @@ import "../contracts/interfaces/Perpetual/IExchange.sol";
 import "../contracts/interfaces/Perpetual/IPerpVault.sol";
 import "../contracts/interfaces/Perpetual/IUSDLemma.sol";
 import "../contracts/interfaces/Perpetual/IBaseToken.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-
 import "forge-std/Test.sol";
 
 struct Generic_Contracts {
