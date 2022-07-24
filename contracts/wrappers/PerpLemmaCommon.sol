@@ -6,9 +6,9 @@ import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/m
 import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import { IPerpetualMixDEXWrapper } from "../interfaces/IPerpetualMixDEXWrapper.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import { Utils } from "../libraries/Utils.sol";
 import { SafeMathExt } from "../libraries/SafeMathExt.sol";
+import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "../libraries/TransferHelper.sol";
 import "../interfaces/IERC20Decimals.sol";
@@ -85,18 +85,6 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
     function print(string memory s, int256 v) internal view {
         uint256 val = (v < 0) ? uint256(-v) : uint256(v);
         console.log(s, " = ", (v < 0) ? " - " : " + ", val);
-    }
-
-    modifier onlyUSDLemma() {
-        // TODO: Re-enable
-        // require(msg.sender == usdLemma, "only usdLemma is allowed");
-        _;
-    }
-
-    modifier onlyRebalancer() {
-        // TODO: Re-enable
-        // require(_msgSender() == rebalancer, "! Rebalancer");
-        _;
     }
 
     ////////////////////////
@@ -179,17 +167,6 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         return uint256( int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore) );
     }
 
-    function setRebalancer(address _rebalancer) external onlyOwner {
-        // NOTE: Setting it to address(0) is allowed, it just disables rebalancing temporarily
-        rebalancer = _rebalancer;
-        if (lemmaSynth != address(0)) {
-            SafeERC20Upgradeable.safeApprove(usdc, lemmaSynth, 0);
-            SafeERC20Upgradeable.safeApprove(usdc, lemmaSynth, MAX_UINT256);
-            SafeERC20Upgradeable.safeApprove(usdlCollateral, lemmaSynth, 0);
-            SafeERC20Upgradeable.safeApprove(usdlCollateral, lemmaSynth, MAX_UINT256);
-        }
-    }
-
     function changeAdmin(address newAdmin) public onlyRole(ADMIN_ROLE) {
         require(newAdmin != msg.sender, "Admin Addresses should not be same");
         _setupRole(ADMIN_ROLE, newAdmin);
@@ -242,24 +219,11 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         return accountBalance.getTotalPositionValue(address(this), usdlBaseTokenAddress);
     }
 
-    // /// @notice reset approvals
-    // function resetApprovals() external {
-    //     SafeERC20Upgradeable.safeApprove(usdlCollateral, address(perpVault), 0);
-    //     SafeERC20Upgradeable.safeApprove(usdlCollateral, address(perpVault), MAX_UINT256);
-
-    //     // SafeERC20Upgradeable.safeApprove(synthCollateral, address(perpVault), 0);
-    //     // SafeERC20Upgradeable.safeApprove(synthCollateral, address(perpVault), MAX_UINT256);
-
-    //     SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), 0);
-    //     SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
-    // }
-
 
     /// @notice It returns the collateral accepted in the Perp Protocol to back positions 
     /// @dev By default, the first element is the settlement token
     function getCollateralTokens() override external view returns (address[] memory res) {
         res = new address[](1);
-    
         res[0] = perpVault.getSettlementToken();
     }
 

@@ -3,6 +3,7 @@ pragma solidity =0.8.3;
 import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import { ERC20PermitUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/draft-ERC20PermitUpgradeable.sol";
 import { OwnableUpgradeable, ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
@@ -10,20 +11,26 @@ import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/
 import { Utils } from "./libraries/Utils.sol";
 import { SafeMathExt } from "./libraries/SafeMathExt.sol";
 import { IPerpetualMixDEXWrapper } from "./interfaces/IPerpetualMixDEXWrapper.sol";
-
-// NOTE: There is an incompatibility between Foundry and Hardhat `console.log()`
 import "forge-std/Test.sol";
 
-// import "hardhat/console.sol";
-
 /// @author Lemma Finance
-contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
+contract USDLemma is 
+    ReentrancyGuardUpgradeable, 
+    ERC20PermitUpgradeable, 
+    OwnableUpgradeable, 
+    ERC2771ContextUpgradeable, 
+    AccessControlUpgradeable {
     using SafeCastUpgradeable for int256;
     using SafeMathExt for int256;
     using SafeMathExt for uint256;
 
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    bytes32 public constant LEMMA_SWAP = keccak256("LEMMA_SWAP");
+    bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
+
     address public lemmaTreasury;
     uint256 public fees;
+    bytes32 public interactionBlock;
     mapping(uint256 => mapping(address => address)) public perpetualDEXWrappers;
 
     function print(string memory s, int256 v) internal view {
@@ -51,6 +58,15 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
     event FeesUpdated(uint256 newFees);
     event PerpetualDexWrapperAdded(uint256 indexed dexIndex, address indexed collateral, address dexWrapper);
 
+    modifier onlyOneFunInSameTx() {
+        if (!hasRole(LEMMA_SWAP, msg.sender)) {
+            bytes32 _interactionBlock = keccak256(abi.encodePacked(tx.origin, block.number));
+            require(_interactionBlock != interactionBlock, "only lemmaswap is allowed");
+            interactionBlock = _interactionBlock;
+        }
+        _;
+    }
+
     function initialize(
         address trustedForwarder,
         address collateralAddress,
@@ -61,6 +77,12 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         __ERC20_init("USDLemma", "USDL");
         __ERC20Permit_init("USDLemma");
         __ERC2771Context_init(trustedForwarder);
+
+        __AccessControl_init();
+        _setRoleAdmin(LEMMA_SWAP, ADMIN_ROLE);
+        _setRoleAdmin(USDC_TREASURY, ADMIN_ROLE);
+        _setupRole(ADMIN_ROLE, msg.sender);
+        
         addPerpetualDEXWrapper(0, collateralAddress, perpetualDEXWrapperAddress);
     }
 
@@ -90,24 +112,6 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         require(address(perpDEXWrapper) != address(0), "DEX Wrapper should not ZERO address");
         return perpDEXWrapper.getTotalPosition();
     }
-
-    // /// @notice Set whitelist address, can only be called by owner, It will helps whitelist address to call multiple function of USDL at a time
-    // /// NOTE:  whiteListAddress is not used anywhere in contract but it will use in future updates.
-    // /// @param _account Address of whitelist EOA or contract address
-    // /// @param _isWhiteList add or remove of whitelist tag for any address
-    // function setWhiteListAddress(address _account, bool _isWhiteList) external onlyOwner {
-    //     require(_account != address(0), "Account should not ZERO address");
-    //     whiteListAddress[_account] = _isWhiteList;
-    //     emit SetWhiteListAddress(_account, _isWhiteList);
-    // }
-
-    // /// @notice Set staking contract address, can only be called by owner
-    // /// @param _stakingContractAddress Address of staking contract
-    // function setStakingContractAddress(address _stakingContractAddress) external onlyOwner {
-    //     require(_stakingContractAddress != address(0), "StakingContractAddress should not ZERO address");
-    //     stakingContractAddress = _stakingContractAddress;
-    //     emit StakingContractUpdated(stakingContractAddress);
-    // }
 
     /// @notice Set Lemma treasury, can only be called by owner
     /// @param _lemmaTreasury Address of Lemma Treasury
@@ -180,7 +184,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 perpetualDEXIndex,
         uint256 maxCollateralAmountRequired,
         IERC20Upgradeable collateral
-    ) public nonReentrant {
+    ) public nonReentrant onlyOneFunInSameTx {
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]);
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         (uint256 _collateralRequired_1e18, ) = perpDEXWrapper.openShortWithExactQuote(
@@ -212,7 +216,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 perpetualDEXIndex,
         uint256 minUSDLToMint,
         IERC20Upgradeable collateral
-    ) external nonReentrant {
+    ) external nonReentrant onlyOneFunInSameTx {
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]);
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
@@ -247,7 +251,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 perpetualDEXIndex,
         uint256 minCollateralAmountToGetBack,
         IERC20Upgradeable collateral
-    ) public nonReentrant {
+    ) public nonReentrant onlyOneFunInSameTx {
         _burn(_msgSender(), amount);
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
@@ -283,7 +287,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 perpetualDEXIndex,
         uint256 maxUSDLToBurn,
         IERC20Upgradeable collateral
-    ) external nonReentrant {
+    ) external nonReentrant onlyOneFunInSameTx {
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
@@ -313,7 +317,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 perpetualDEXIndex,
         uint256 maxCollateralAmountRequired,
         IERC20Upgradeable collateral
-    ) external {
+    ) external onlyOneFunInSameTx {
         depositTo(_msgSender(), amount, perpetualDEXIndex, maxCollateralAmountRequired, collateral);
     }
 
@@ -327,7 +331,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, Ownable
         uint256 perpetualDEXIndex,
         uint256 minCollateralAmountToGetBack,
         IERC20Upgradeable collateral
-    ) external {
+    ) external onlyOneFunInSameTx {
         withdrawTo(_msgSender(), amount, perpetualDEXIndex, minCollateralAmountToGetBack, collateral);
     }
 

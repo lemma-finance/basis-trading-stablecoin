@@ -10,9 +10,12 @@ import "forge-std/console.sol";
 
 contract ContractTest is Test {
     Deploy public d;
+    address alice = vm.addr(1);
+    address bob = vm.addr(2);
     bytes32 public constant PERPLEMMA_ROLE = keccak256("PERPLEMMA_ROLE");
     bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
     bytes32 public constant REBALANCER_ROLE = keccak256("REBALANCER_ROLE");
+    bytes32 public constant LEMMA_SWAP = keccak256("LEMMA_SWAP");
 
     function setUp() public {
         d = new Deploy(10);
@@ -22,6 +25,12 @@ contract ContractTest is Test {
         d.pl().grantRole(USDC_TREASURY, address(this));
         d.pl().grantRole(PERPLEMMA_ROLE, address(this));
         d.pl().grantRole(REBALANCER_ROLE, address(this));
+        d.usdl().grantRole(LEMMA_SWAP, address(this));
+        d.usdl().grantRole(LEMMA_SWAP, alice);
+        d.usdl().grantRole(LEMMA_SWAP, bob);
+        d.lSynth().grantRole(LEMMA_SWAP, address(this));
+        d.lSynth().grantRole(LEMMA_SWAP, alice);
+        d.lSynth().grantRole(LEMMA_SWAP, bob);
         vm.stopPrank();
     }
 
@@ -879,9 +888,6 @@ contract ContractTest is Test {
     }
 
     function testSettleForMultipleUserUSDL() public {
-        address alice = vm.addr(1);
-        address bob = vm.addr(2);
-
         _depositSettlementTokenMax();
         uint256 amount = 1e18;
 

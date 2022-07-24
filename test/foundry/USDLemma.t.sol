@@ -12,22 +12,18 @@ contract USDLemmaTest is Test {
     Deploy public d;
 
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    bytes32 public constant ONLY_OWNER = keccak256("ONLY_OWNER");
+    bytes32 public constant LEMMA_SWAP = keccak256("LEMMA_SWAP");
     bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
-    bytes32 public constant PERPLEMMA_ROLE = keccak256("PERPLEMMA_ROLE");
-    bytes32 public constant REBALANCER_ROLE = keccak256("REBALANCER_ROLE");
 
     function setUp() public {
         d = new Deploy(10);
         vm.startPrank(address(d));
-        d.pl().setUSDLemma(address(d.usdl()));
-        d.pl().transferOwnership(address(this));
         d.pl().grantRole(USDC_TREASURY, address(this));
+        d.usdl().grantRole(LEMMA_SWAP, address(this));
         vm.stopPrank();
     }
 
-    // Internal
-
+    // Internal Functions
     function _deductFees(address collateral, uint256 collateralAmount, uint256 dexIndex) internal view returns(uint256 total) {
         uint256 _fees = collateralAmount * d.usdl().getFees(dexIndex, collateral) / 1e6;
         total = uint256(int256(collateralAmount) - int256(_fees)); 
@@ -162,7 +158,7 @@ contract USDLemmaTest is Test {
     }
 
     // test depositTo and withdrawTo
-    function testDepositToAndWithdrawTo() public {
+    function testDepositToAndWithdrawTo111() public {
         testDepositTo();
         address collateral = d.getTokenAddress("WETH");
         uint256 usdlAmount = d.usdl().balanceOf(address(this));
@@ -196,6 +192,36 @@ contract USDLemmaTest is Test {
         _mintUSDLWExactUSDL(address(this), collateral, usdlAmount);
         uint256 collateralAMount = 1e18; // ~0.9998 eth
         uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), collateralAMount, 0);
+        uint256 _maxETHtoRedeem = _deductFees(d.getTokenAddress("WETH"), _collateralAfterMinting, 0);
+        _redeemUSDLWExactCollateral(address(this), collateral, _maxETHtoRedeem);
+    }
+
+    // Should Fail tests
+    // REVERT REASON: only lemmaswap is allowed
+    function testFailDepositToAndWithdrawToWExactCollateral() public {
+        vm.startPrank(address(d));
+        d.usdl().revokeRole(LEMMA_SWAP, address(this));
+        vm.stopPrank();
+
+        address collateral = d.getTokenAddress("WETH");
+        uint256 usdlAmount = 1096143206913675032725; // 1eth ~= 1096.143 USDL at this block 12137998
+        _depositSettlementTokenMax();
+        _mintUSDLWExactUSDL(address(this), collateral, usdlAmount);
+        uint256 collateralAMount = 1e18; // ~0.9998 eth
+        uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), collateralAMount, 0);
+        uint256 _maxETHtoRedeem = _deductFees(d.getTokenAddress("WETH"), _collateralAfterMinting, 0);
+        _redeemUSDLWExactCollateral(address(this), collateral, _maxETHtoRedeem);
+    }
+
+    function testFailDepositToWExactCollateralAndwithdrawToWExactCollateral() public {
+        vm.startPrank(address(d));
+        d.usdl().revokeRole(LEMMA_SWAP, address(this));
+        vm.stopPrank();
+
+        uint256 collateralAmount = 1e12;
+        _depositWExactCollateral(collateralAmount);
+        address collateral = d.getTokenAddress("WETH");
+        uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), collateralAmount, 0);
         uint256 _maxETHtoRedeem = _deductFees(d.getTokenAddress("WETH"), _collateralAfterMinting, 0);
         _redeemUSDLWExactCollateral(address(this), collateral, _maxETHtoRedeem);
     }

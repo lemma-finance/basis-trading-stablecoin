@@ -12,10 +12,8 @@ contract LemmaSynthTest is Test {
     Deploy public d;
 
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    bytes32 public constant ONLY_OWNER = keccak256("ONLY_OWNER");
+    bytes32 public constant LEMMA_SWAP = keccak256("LEMMA_SWAP");
     bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
-    bytes32 public constant PERPLEMMA_ROLE = keccak256("PERPLEMMA_ROLE");
-    bytes32 public constant REBALANCER_ROLE = keccak256("REBALANCER_ROLE");
 
     function setUp() public {
         d = new Deploy(10);
@@ -23,6 +21,7 @@ contract LemmaSynthTest is Test {
         d.pl().setUSDLemma(address(d.usdl()));
         d.pl().transferOwnership(address(this));
         d.pl().grantRole(USDC_TREASURY, address(this));
+        d.lSynth().grantRole(LEMMA_SWAP, address(this));
         vm.stopPrank();
     }
 
@@ -193,6 +192,38 @@ contract LemmaSynthTest is Test {
         uint256 collateralAMount = 988635431772441083946; // ~0.9998 eth
         uint256 _collateralAfterMinting = _deductFees(collateral, collateralAMount, 0);
         uint256 _maxUSDCtoRedeem = _deductFees(collateral, _collateralAfterMinting, 0);
+        _redeemSynthWExactCollateral(address(this), collateral, _maxUSDCtoRedeem);
+    }
+
+    // Should Fail tests
+    // REVERT REASON: only lemmaswap is allowed
+    function testFailWithExpectRevertDepositToAndWithdrawToWExactCollateralForSynth() public {
+        vm.startPrank(address(d));
+        d.lSynth().revokeRole(LEMMA_SWAP, address(this));
+        vm.stopPrank();
+
+        address collateral = d.getTokenAddress("USDC");
+        uint256 synthAmount = 9e17; // USDL amount
+        uint256 usdcAmount = 1100e6; // USDL amount
+        _depositSettlementTokenMax();
+        _mintSynthWExactSynth(address(this), collateral, synthAmount, usdcAmount);
+
+        uint256 collateralAMount = 988635431772441083946; // ~0.9998 eth
+        uint256 _collateralAfterMinting = _deductFees(collateral, collateralAMount, 0);
+        uint256 _maxUSDCtoRedeem = _deductFees(collateral, _collateralAfterMinting, 0);
+        // vm.expectRevert(bytes("only lemmaswap is allowed"));
+        d.lSynth().withdrawToWExactCollateral(address(this), _maxUSDCtoRedeem, 0, type(uint256).max, IERC20Upgradeable(collateral));
+    }
+
+    function testFailDepositToWExactCollateralAndwithdrawToWExactCollateralForSynth() public {
+        vm.startPrank(address(d));
+        d.lSynth().revokeRole(LEMMA_SWAP, address(this));
+        vm.stopPrank();
+        testDepositToWExactCollateralForSynth();
+        address collateral = d.getTokenAddress("USDC");
+        uint256 collateralAmount = 1100e18; // USDC 
+        uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("USDC"), collateralAmount, 0);
+        uint256 _maxUSDCtoRedeem = _deductFees(d.getTokenAddress("USDC"), _collateralAfterMinting, 0);
         _redeemSynthWExactCollateral(address(this), collateral, _maxUSDCtoRedeem);
     }
 }
