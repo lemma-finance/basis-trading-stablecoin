@@ -104,11 +104,13 @@ contract LemmaSynth is
     /// @notice Set Fees, can only be called by owner
     /// @param _fees Fees taken by the protocol
     function setFees(uint256 _fees) external onlyRole(ONLY_OWNER) {
+        // TODO: Add a max fee in the code to guarantee users they will never be above a certain limit
         fees = _fees;
         emit FeesUpdated(fees);
     }
 
     /// @notice Add address for perpetual dex wrapper for perpetual index and collateral - can only be called by owner
+    /// @param _perpLemma The new PerpLemma Address
     function updatePerpetualDEXWrapper(
         address _perpLemma
     ) public onlyRole(ONLY_OWNER) {
@@ -153,12 +155,14 @@ contract LemmaSynth is
         emit DepositTo(perpetualDEXIndex, address(collateral), to, amount, _collateralRequired);
     }
 
-    /// @notice Deposit collateral like USDC. to mint Synth specifying the exact amount of collateral
+    /// @notice Deposit collateral like USDC to mint Synth specifying the exact amount of collateral
     /// @param to Receipent of minted Synth
     /// @param collateralAmount Amount of collateral to deposit in the collateral decimal format
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
     /// @param minSynthToMint Minimum Synth to mint
     /// @param collateral Collateral to be used to mint Synth
+    /// @dev The minted amount depends on the Real Perp Mark Price 
+    /// @dev In the specific case of PerpV2, since it is implemented as an UniV3 Pool and opening a position means running a swap on it, slippage has also to be taken into account
     function depositToWExactCollateral(
         address to,
         uint256 collateralAmount,
