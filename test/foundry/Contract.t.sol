@@ -21,7 +21,6 @@ contract ContractTest is Test {
         d = new Deploy(10);
         vm.startPrank(address(d));
         d.pl().setUSDLemma(address(d.usdl()));
-        d.pl().transferOwnership(address(this));
         d.pl().grantRole(USDC_TREASURY, address(this));
         d.pl().grantRole(PERPLEMMA_ROLE, address(this));
         d.pl().grantRole(REBALANCER_ROLE, address(this));

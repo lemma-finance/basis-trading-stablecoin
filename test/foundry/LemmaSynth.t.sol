@@ -19,15 +19,14 @@ contract LemmaSynthTest is Test {
         d = new Deploy(10);
         vm.startPrank(address(d));
         d.pl().setUSDLemma(address(d.usdl()));
-        d.pl().transferOwnership(address(this));
         d.pl().grantRole(USDC_TREASURY, address(this));
         d.lSynth().grantRole(LEMMA_SWAP, address(this));
         d.lSynth().grantRole(LEMMA_SWAP, address(d));
         vm.stopPrank();
     }
 
-    // Internal
-
+    // Internal Functions
+    
     function _deductFees(address collateral, uint256 collateralAmount, uint256 dexIndex) internal view returns(uint256 total) {
         // TODO: Need to fix 100 extra fees, remove 100 extra fees and used callstatic instead like in js we used
         uint256 fees = collateralAmount * (d.lSynth().getFees()+100) / 1e6;

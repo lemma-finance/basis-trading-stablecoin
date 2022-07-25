@@ -27,7 +27,7 @@ import "forge-std/Test.sol";
 
 // import "hardhat/console.sol";
 
-contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, AccessControlUpgradeable {
+contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, AccessControlUpgradeable {
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
     using Utils for int256;
@@ -101,7 +101,6 @@ contract PerpLemmaCommon is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerp
         address _lemmaSynth,
         uint256 _maxPosition
     ) external initializer {
-        __Ownable_init();
         __ERC2771Context_init(_trustedForwarder);
         
         __AccessControl_init();

@@ -20,7 +20,6 @@ contract PerpLemmaCommonTest is Test {
         d = new Deploy(10);
         vm.startPrank(address(d));
         d.pl().setUSDLemma(address(d.usdl()));
-        d.pl().transferOwnership(address(this));
         d.pl().grantRole(USDC_TREASURY, address(this));
         d.pl().grantRole(PERPLEMMA_ROLE, address(this));
         d.pl().grantRole(REBALANCER_ROLE, address(this));
@@ -226,6 +225,12 @@ contract PerpLemmaCommonTest is Test {
         _depositSettlementToken(usdcAmount);
         _depositUsdlCollateral(collateralAmount, collateral, address(this));
         openShortWithExactBase(collateralAmount, collateral, address(this));
+        int256 getTotalPosition = d.pl().getTotalPosition();
+        if (getTotalPosition < 0) {
+            console.log('getTotalPosition negative -', uint256(getTotalPosition*(-1)));
+        } else {
+            console.log('getTotalPosition positive +: ', uint256(getTotalPosition));
+        }
     }
 
     function testOpenShortWithExactQuote() public {
@@ -272,6 +277,7 @@ contract PerpLemmaCommonTest is Test {
         uint256 _exactUSDLAmountAfterMinting = _deductFees(d.getTokenAddress("WETH"), exactUSDLAmount, 0);
         uint256 _maxUSDLtoRedeem = _deductFees(d.getTokenAddress("WETH"), _exactUSDLAmountAfterMinting, 0);
         uint256 collateralToGetBack =  closeShortWithExactQuote(collateralAmount, exactUSDLAmount, collateral, address(this));
+        int256 getTotalPosition = d.pl().getTotalPosition();
         _withdrawUsdlCollateral(collateralToGetBack, collateral, address(this));
     }
 
@@ -845,5 +851,10 @@ contract PerpLemmaCommonTest is Test {
 
         assertEq(perpLemmaAfterWETHBal, 0);
         assertEq(perpLemmaAfterUSDCBal, 0);
+    }
+
+    // Test Extra Function
+    function testGetTotalPosition() public {
+        
     }
 }

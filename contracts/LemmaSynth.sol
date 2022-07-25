@@ -2,7 +2,7 @@ pragma solidity =0.8.3;
 
 import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import { ERC20PermitUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/draft-ERC20PermitUpgradeable.sol";
-import { OwnableUpgradeable, ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
@@ -17,7 +17,6 @@ import "forge-std/Test.sol";
 contract LemmaSynth is 
     ReentrancyGuardUpgradeable, 
     ERC20PermitUpgradeable, 
-    OwnableUpgradeable, 
     ERC2771ContextUpgradeable,
     AccessControlUpgradeable {
     using SafeCastUpgradeable for int256;
@@ -27,6 +26,7 @@ contract LemmaSynth is
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant LEMMA_SWAP = keccak256("LEMMA_SWAP");
     bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
+    bytes32 public constant ONLY_OWNER = keccak256("ONLY_OWNER");
 
     address public perpLemma;
     uint256 public fees;
@@ -66,15 +66,16 @@ contract LemmaSynth is
         string memory _symbol
     ) external initializer {
         __ReentrancyGuard_init();
-        __Ownable_init();
         __ERC20_init(_name, _symbol);
         __ERC20Permit_init(_name);
         __ERC2771Context_init(trustedForwarder);
 
         __AccessControl_init();
         _setRoleAdmin(LEMMA_SWAP, ADMIN_ROLE);
+        _setRoleAdmin(ONLY_OWNER, ADMIN_ROLE);
         _setRoleAdmin(USDC_TREASURY, ADMIN_ROLE);
         _setupRole(ADMIN_ROLE, msg.sender);
+        grantRole(ONLY_OWNER, msg.sender);
 
         updatePerpetualDEXWrapper(_perpLemma);
     }
@@ -102,7 +103,7 @@ contract LemmaSynth is
     
     /// @notice Set Fees, can only be called by owner
     /// @param _fees Fees taken by the protocol
-    function setFees(uint256 _fees) external onlyOwner {
+    function setFees(uint256 _fees) external onlyRole(ONLY_OWNER) {
         fees = _fees;
         emit FeesUpdated(fees);
     }
@@ -110,7 +111,7 @@ contract LemmaSynth is
     /// @notice Add address for perpetual dex wrapper for perpetual index and collateral - can only be called by owner
     function updatePerpetualDEXWrapper(
         address _perpLemma
-    ) public onlyOwner {
+    ) public onlyRole(ONLY_OWNER) {
         perpLemma = _perpLemma;
         emit PerpetualDexWrapperUpdated(_perpLemma);
     }

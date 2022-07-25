@@ -2,7 +2,7 @@ pragma solidity =0.8.3;
 
 import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import { ERC20PermitUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/draft-ERC20PermitUpgradeable.sol";
-import { OwnableUpgradeable, ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
@@ -17,7 +17,6 @@ import "forge-std/Test.sol";
 contract USDLemma is 
     ReentrancyGuardUpgradeable, 
     ERC20PermitUpgradeable, 
-    OwnableUpgradeable, 
     ERC2771ContextUpgradeable, 
     AccessControlUpgradeable {
     using SafeCastUpgradeable for int256;
@@ -26,6 +25,7 @@ contract USDLemma is
 
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant LEMMA_SWAP = keccak256("LEMMA_SWAP");
+    bytes32 public constant ONLY_OWNER = keccak256("ONLY_OWNER");
     bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
 
     address public lemmaTreasury;
@@ -73,15 +73,16 @@ contract USDLemma is
         address perpetualDEXWrapperAddress
     ) external initializer {
         __ReentrancyGuard_init();
-        __Ownable_init();
         __ERC20_init("USDLemma", "USDL");
         __ERC20Permit_init("USDLemma");
         __ERC2771Context_init(trustedForwarder);
 
         __AccessControl_init();
         _setRoleAdmin(LEMMA_SWAP, ADMIN_ROLE);
+        _setRoleAdmin(ONLY_OWNER, ADMIN_ROLE);
         _setRoleAdmin(USDC_TREASURY, ADMIN_ROLE);
         _setupRole(ADMIN_ROLE, msg.sender);
+        grantRole(ONLY_OWNER, msg.sender);
         
         addPerpetualDEXWrapper(0, collateralAddress, perpetualDEXWrapperAddress);
     }
@@ -115,7 +116,7 @@ contract USDLemma is
 
     /// @notice Set Lemma treasury, can only be called by owner
     /// @param _lemmaTreasury Address of Lemma Treasury
-    function setLemmaTreasury(address _lemmaTreasury) external onlyOwner {
+    function setLemmaTreasury(address _lemmaTreasury) external onlyRole(ONLY_OWNER) {
         require(_lemmaTreasury != address(0), "LemmaTreasury should not ZERO address");
         lemmaTreasury = _lemmaTreasury;
         emit LemmaTreasuryUpdated(lemmaTreasury);
@@ -123,7 +124,7 @@ contract USDLemma is
 
     /// @notice Set Fees, can only be called by owner
     /// @param _fees Fees taken by the protocol
-    function setFees(uint256 _fees) external onlyOwner {
+    function setFees(uint256 _fees) external onlyRole(ONLY_OWNER) {
         fees = _fees;
         emit FeesUpdated(fees);
     }
@@ -136,7 +137,7 @@ contract USDLemma is
         uint256 perpetualDEXIndex,
         address collateralAddress,
         address perpetualDEXWrapperAddress
-    ) public onlyOwner {
+    ) public onlyRole(ONLY_OWNER) {
         perpetualDEXWrappers[perpetualDEXIndex][collateralAddress] = perpetualDEXWrapperAddress;
         emit PerpetualDexWrapperAdded(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
     }
