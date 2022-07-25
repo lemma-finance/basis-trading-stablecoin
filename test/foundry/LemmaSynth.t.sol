@@ -149,7 +149,6 @@ contract LemmaSynthTest is Test {
     // test depositToWExactCollateral
     function testDepositToWExactCollateralForSynth() public {
         address collateral = d.getTokenAddress("USDC");
-        uint256 synthAmount = 1e18; // USDL amount
         uint256 usdcAmount = 1100e6; // USDL amount
         _depositSettlementTokenMax();
         _mintSynthWExactCollateral(address(this), collateral, usdcAmount);

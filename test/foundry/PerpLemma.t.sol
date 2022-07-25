@@ -47,7 +47,7 @@ contract PerpLemmaCommonTest is Test {
         assertTrue(IERC20Decimals(token).balanceOf(to) >= amount);
     }
 
-    function getRoudDown(uint256 amount) internal view returns (uint256) {
+    function getRoundDown(uint256 amount) internal pure returns (uint256) {
         return amount - 1;
     }
 
@@ -165,7 +165,7 @@ contract PerpLemmaCommonTest is Test {
         uint256 beforeMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         (uint256 base, uint256 quote) = d.pl().closeShortWithExactQuote(exactUSDLAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl);
         uint256 afterMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
-        assertEq(beforeMintedPositionUsdlForThisWrapper-afterMintedPositionUsdlForThisWrapper, getRoudDown(quote));
+        assertEq(beforeMintedPositionUsdlForThisWrapper-afterMintedPositionUsdlForThisWrapper, getRoundDown(quote));
         uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), collateralAmount, 0);
         uint256 _minETHtoRedeem = _deductFees(d.getTokenAddress("WETH"), _collateralAfterMinting, 0);
         assertLt(_minETHtoRedeem, base);
@@ -214,7 +214,7 @@ contract PerpLemmaCommonTest is Test {
         uint256 afterSynthMinting = _deductFees(d.getTokenAddress("WETH"), synthAmount, 0);
         uint256 _maxSynthToRedeem = _deductFees(d.getTokenAddress("WETH"), afterSynthMinting, 0);
         assertLe(_maxSynthToRedeem, beforeMintedPositionSynthForThisWrapper-afterMintedPositionSynthForThisWrapper);
-        assertEq(beforeMintedPositionSynthForThisWrapper-afterMintedPositionSynthForThisWrapper, getRoudDown(base)); // sometimes need to use getRoudDown(base) instead base
+        assertEq(beforeMintedPositionSynthForThisWrapper-afterMintedPositionSynthForThisWrapper, getRoundDown(base)); // sometimes need to use getRoundDown(base) instead base
         usdcAmountToWithdraw = quote;
     }
 
@@ -806,7 +806,6 @@ contract PerpLemmaCommonTest is Test {
     function testSettlement9() public {
         uint256 depositedAmount = _depositSettlementTokenMax();
         uint256 ethCollateral = 1e18;
-        uint256 usdcAmount = 2197e6; // USDL amount
 
         // USDl And Synth Mint
         (uint256 aliceUsdlToRedeem, uint256 bobUsdlToRedeem) = usdlMintForTwoUsers();

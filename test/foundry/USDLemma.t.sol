@@ -39,7 +39,7 @@ contract USDLemmaTest is Test {
         assertTrue(IERC20Decimals(token).balanceOf(to) >= amount);
     }
 
-    function getRoudDown(uint256 amount) internal view returns (uint256) {
+    function getRoudDown(uint256 amount) internal pure returns (uint256) {
         return amount - 1;
     }
 
@@ -228,28 +228,28 @@ contract USDLemmaTest is Test {
 
     // Should Fail tests
     // reason: DEX Wrapper should not ZERO address
-    function testFailGetFees1() public {
-        uint256 fees = d.usdl().getFees(0, address(0));
+    function testFailGetFees1() public view {
+        d.usdl().getFees(0, address(0));
     }
 
     // reason: DEX Wrapper should not ZERO address
-    function testFailGetFees2() public {
-        uint256 fees = d.usdl().getFees(100, d.getTokenAddress("WETH"));
+    function testFailGetFees2() public view {
+        d.usdl().getFees(100, d.getTokenAddress("WETH"));
     }
 
-    function testFailGetIndexPrice1() public {
+    function testFailGetIndexPrice1() public view {
         d.usdl().getIndexPrice(100, d.getTokenAddress("WETH"));
     }
 
-    function testFailGetIndexPrice2() public {
+    function testFailGetIndexPrice2() public view {
         d.usdl().getIndexPrice(0, address(0));
     }
 
-    function testFailGetTotalPosition1() public {
+    function testFailGetTotalPosition1() public view {
         d.usdl().getTotalPosition(0, address(0));
     }
 
-    function testFailGetTotalPosition2() public {
+    function testFailGetTotalPosition2() public view {
         d.usdl().getTotalPosition(100, d.getTokenAddress("WETH"));
     }
 
