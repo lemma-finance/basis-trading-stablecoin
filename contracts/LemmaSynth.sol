@@ -112,6 +112,7 @@ contract LemmaSynth is
     function updatePerpetualDEXWrapper(
         address _perpLemma
     ) public onlyRole(ONLY_OWNER) {
+        require(_perpLemma != address(0), "Address can not be zero");
         perpLemma = _perpLemma;
         emit PerpetualDexWrapperUpdated(_perpLemma);
     }
@@ -226,7 +227,6 @@ contract LemmaSynth is
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpLemma);
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         bool hasSettled = perpDEXWrapper.hasSettled();
-        uint256 _lemmaSynthToBurn;
         if (hasSettled) {
             perpDEXWrapper.getCollateralBackAfterSettlement(collateralAmount, to, false);
             return;
