@@ -158,7 +158,7 @@ contract USDLemmaTest is Test {
     }
 
     // test depositTo and withdrawTo
-    function testDepositToAndWithdrawTo111() public {
+    function testDepositToAndWithdrawTo() public {
         testDepositTo();
         address collateral = d.getTokenAddress("WETH");
         uint256 usdlAmount = d.usdl().balanceOf(address(this));

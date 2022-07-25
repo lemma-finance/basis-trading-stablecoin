@@ -47,7 +47,7 @@ contract LemmaSynth is
         uint256 amount,
         uint256 collateralGotBack
     );
-    event FeesUpdated(uint256 newFees);
+    event FeesUpdated(uint256 indexed newFees);
     event PerpetualDexWrapperUpdated(address indexed perpLemma);
 
     modifier onlyOneFunInSameTx() {

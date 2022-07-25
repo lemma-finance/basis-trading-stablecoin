@@ -6,6 +6,7 @@ import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "contracts/USDLemma.sol";
 import "contracts/LemmaSynth.sol";
+import "contracts/SettlementTokenManager.sol";
 import "contracts/wrappers/PerpLemmaCommon.sol";
 import "contracts/mock/TestPerpLemma.sol";
 import "../contracts/interfaces/IERC20Decimals.sol";
@@ -132,6 +133,7 @@ contract MockUniV3Router {
 contract Deploy {
     USDLemma public usdl;
     LemmaSynth public lSynth;
+    SettlementTokenManager public settlementTokenManager;
     TestPerpLemma public pl;
     
     Bank public bank = new Bank();
@@ -195,6 +197,7 @@ contract Deploy {
 
         usdl = new USDLemma();
         lSynth = new LemmaSynth();
+        settlementTokenManager = new SettlementTokenManager();
 
         pl = _deployPerpLemma(
                 Deploy_PerpLemma({
@@ -210,14 +213,23 @@ contract Deploy {
             );
         
         // NOTE: Required to avoid a weird error when depositing and withdrawing ETH in Perp
-        // pl.transferOwnership(address(this));
         pl.setIsUsdlCollateralTailAsset(true);
-        // console.log("PL = ", address(pl));
+        pl.setSettlementTokenManager(address(settlementTokenManager));
+
+        console.log('address(settlementTokenManager): ', address(settlementTokenManager));
+
+        settlementTokenManager.initialize(
+            address(usdl),
+            msg.sender,
+            generic_chain_addresses["USDC"][chain_id]
+        );
 
         usdl.initialize(
             address(0),
             generic_chain_addresses["WETH"][chain_id],
-            address(pl)
+            address(pl),
+            address(settlementTokenManager),
+            generic_chain_addresses["USDC"][chain_id]
         );
 
         lSynth.initialize(

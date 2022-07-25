@@ -21,8 +21,6 @@ import "../interfaces/Perpetual/IExchange.sol";
 import "../interfaces/Perpetual/IPerpVault.sol";
 import "../interfaces/Perpetual/IUSDLemma.sol";
 import "../interfaces/Perpetual/IBaseToken.sol";
-
-// NOTE: There is an incompatibility between Foundry and Hardhat `console.log()`
 import "forge-std/Test.sol";
 
 // import "hardhat/console.sol";
@@ -43,6 +41,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     address public lemmaSynth;
     address public reBalancer;
     address public usdlBaseTokenAddress;
+    address public settlementTokenManager;
     bytes32 public referrerCode;
 
     IClearingHouse public clearingHouse;
@@ -81,6 +80,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     event ReferrerUpdated(bytes32 referrerCode);
     event RebalancerUpdated(address rebalancerAddress);
     event MaxPositionUpdated(uint256 maxPos);
+    event SetSettlementTokenManager(address indexed _settlementTokenManager);
 
     function print(string memory s, int256 v) internal view {
         uint256 val = (v < 0) ? uint256(-v) : uint256(v);
@@ -156,6 +156,12 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
     }
 
+    function setSettlementTokenManager(address _settlementTokenManager) external onlyRole(ADMIN_ROLE) {
+        revokeRole(USDC_TREASURY, settlementTokenManager);
+        settlementTokenManager = _settlementTokenManager;
+        grantRole(USDC_TREASURY, settlementTokenManager);
+        emit SetSettlementTokenManager(settlementTokenManager);
+    }
 
     /// @notice Returning the max amount of USDC Tokens that is possible to put in Vault to collateralize positions
     /// @dev The underlying Perp Protocol (so far we only have PerpV2) can have a limit on the total amount of Settlement Token the Vault can accept 
@@ -168,6 +174,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
     function changeAdmin(address newAdmin) public onlyRole(ADMIN_ROLE) {
+        require(newAdmin != address(0), "NewAdmin should not ZERO address");
         require(newAdmin != msg.sender, "Admin Addresses should not be same");
         _setupRole(ADMIN_ROLE, newAdmin);
         renounceRole(ADMIN_ROLE, msg.sender);

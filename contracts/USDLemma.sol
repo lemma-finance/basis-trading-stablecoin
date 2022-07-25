@@ -11,6 +11,7 @@ import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/
 import { Utils } from "./libraries/Utils.sol";
 import { SafeMathExt } from "./libraries/SafeMathExt.sol";
 import { IPerpetualMixDEXWrapper } from "./interfaces/IPerpetualMixDEXWrapper.sol";
+import { ISettlementTokenManager } from "./interfaces/ISettlementTokenManager.sol";
 import "forge-std/Test.sol";
 
 /// @author Lemma Finance
@@ -29,6 +30,8 @@ contract USDLemma is
     bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
 
     address public lemmaTreasury;
+    address public settlementTokenManager;
+    address public perpSettlementToken;
     uint256 public fees;
     bytes32 public interactionBlock;
     mapping(uint256 => mapping(address => address)) public perpetualDEXWrappers;
@@ -55,8 +58,9 @@ contract USDLemma is
     );
 
     event LemmaTreasuryUpdated(address indexed current);
-    event FeesUpdated(uint256 newFees);
+    event FeesUpdated(uint256 indexed newFees);
     event PerpetualDexWrapperAdded(uint256 indexed dexIndex, address indexed collateral, address dexWrapper);
+    event SetSettlementTokenManager(address indexed _settlementTokenManager);
 
     modifier onlyOneFunInSameTx() {
         if (!hasRole(LEMMA_SWAP, msg.sender)) {
@@ -70,7 +74,9 @@ contract USDLemma is
     function initialize(
         address trustedForwarder,
         address collateralAddress,
-        address perpetualDEXWrapperAddress
+        address perpetualDEXWrapperAddress,
+        address _settlementTokenManager,
+        address _perpSettlementToken
     ) external initializer {
         __ReentrancyGuard_init();
         __ERC20_init("USDLemma", "USDL");
@@ -83,8 +89,17 @@ contract USDLemma is
         _setRoleAdmin(USDC_TREASURY, ADMIN_ROLE);
         _setupRole(ADMIN_ROLE, msg.sender);
         grantRole(ONLY_OWNER, msg.sender);
-        
+
+        if (_settlementTokenManager != address(0)) {
+            settlementTokenManager = _settlementTokenManager;
+        }
+        perpSettlementToken = _perpSettlementToken;
         addPerpetualDEXWrapper(0, collateralAddress, perpetualDEXWrapperAddress);
+    }
+
+    function setSettlementTokenmanager(address _settlementTokenManager) external onlyRole(ONLY_OWNER) {
+        settlementTokenManager = _settlementTokenManager;
+        emit SetSettlementTokenManager(settlementTokenManager);
     }
 
     /// @notice Returns the fees of the underlying Perp DEX Wrapper
@@ -188,18 +203,18 @@ contract USDLemma is
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]);
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         (uint256 _collateralRequired_1e18, ) = perpDEXWrapper.openShortWithExactQuote(
-            amount,
-            address(0),
-            0,
-            IPerpetualMixDEXWrapper.Basis.IsUsdl
+            amount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl
         );
-        uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
-            _collateralRequired_1e18,
-            address(collateral),
-            false
-        );
-        require(_collateralRequired_1e18 <= maxCollateralAmountRequired, "collateral required execeeds maximum");
-        _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
+
+        uint256 _collateralRequired = (address(collateral) == perpSettlementToken) ? amount : _collateralRequired_1e18;
+        _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(_collateralRequired, address(collateral), false);
+        if (address(collateral) == perpSettlementToken) {
+            SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), _msgSender(), settlementTokenManager, _collateralRequired);
+            ISettlementTokenManager(settlementTokenManager).settlementTokenRecieve(_collateralRequired, address(perpDEXWrapper));
+        } else {
+            require(_collateralRequired_1e18 <= maxCollateralAmountRequired, "collateral required execeeds maximum");
+            _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
+        }
         _mint(to, amount);
         emit DepositTo(perpetualDEXIndex, address(collateral), to, amount, _collateralRequired);
     }
@@ -264,13 +279,15 @@ contract USDLemma is
             return;
         } else {
             (_collateralAmountToWithdraw1e_18,) = perpDEXWrapper.closeShortWithExactQuote(amount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl); 
-            uint256 _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
-                _collateralAmountToWithdraw1e_18,
-                address(collateral),
-                false
-            );
-            require(_collateralAmountToWithdraw1e_18 >= minCollateralAmountToGetBack, "Collateral to get back too low");
-            _perpWithdraw(to, perpDEXWrapper, address(collateral), _collateralAmountToWithdraw);
+            uint256 _collateralAmountToWithdraw = (address(collateral) == perpSettlementToken) ? amount : _collateralAmountToWithdraw1e_18;
+            _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(_collateralAmountToWithdraw, address(collateral), false);
+            if (address(collateral) == perpSettlementToken) {
+                ISettlementTokenManager(settlementTokenManager).settlementTokenRequested(_collateralAmountToWithdraw, address(perpDEXWrapper));
+                SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(collateral), to, _collateralAmountToWithdraw);
+            } else {
+                require(_collateralAmountToWithdraw1e_18 >= minCollateralAmountToGetBack, "Collateral to get back too low");
+                _perpWithdraw(to, perpDEXWrapper, address(collateral), _collateralAmountToWithdraw);
+            }
             emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, _collateralAmountToWithdraw);
         }
     }
