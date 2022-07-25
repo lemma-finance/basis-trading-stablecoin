@@ -235,6 +235,7 @@ contract Deploy {
         lSynth.initialize(
             address(0),
             address(pl),
+            generic_chain_addresses["WETH"][chain_id],
             "LemmaSynth",
             "LSynth"
         );

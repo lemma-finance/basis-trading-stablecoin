@@ -382,4 +382,49 @@ contract LemmaSynthTest is Test {
         d.pl().setMintedPositionSynthForThisWrapper(0);
         d.lSynth().withdrawToWExactCollateral(address(this), 100e18, 0, 0, IERC20Decimals(collateral));
     }
+
+    // Tests for mint and burn lemmaSynth with TailCollateral/EthCollateral instead USDC_TREASURY
+    function testDepositToUsingTailAssetForSynth() public {
+        address collateral = d.getTokenAddress("WETH");
+        uint256 synthAmount = 9e17; // USDL amount
+        uint256 usdcAmount = 1100e6; // USDL amount
+        _depositSettlementTokenMax();
+
+        address to = address(this);
+        address lemmaSynth = d.pl().lemmaSynth();
+        _getMoneyForTo(to, collateral, synthAmount);
+        uint256 beforeBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
+        uint256 beforeBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
+        IERC20Decimals(collateral).approve(lemmaSynth, type(uint256).max);
+        uint256 beforeTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
+        // 4th param is maxCollateralAmountRequired which is need to be set using callStatic, currently set uint256 max
+        // calsstatic is not possible in solidity so
+        d.lSynth().depositTo(to, synthAmount, 0, type(uint256).max, IERC20Upgradeable(collateral));
+        uint256 afterTotalSynth = d.pl().mintedPositionSynthForThisWrapper();        
+        uint256 afterBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
+        uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
+        assertEq(afterTotalSynth-beforeTotalSynth, afterBalanceSynth);
+        assertTrue(afterBalanceSynth > beforeBalanceSynth);
+        assertTrue(afterBalanceCollateral < beforeBalanceCollateral);
+    }
+
+    function testDepositToAndWithdrawToUsingTailAssetForSynth() public {
+        testDepositToUsingTailAssetForSynth();
+        address collateral = d.getTokenAddress("WETH");
+        uint256 synthAmount = d.lSynth().balanceOf(address(this));
+
+        address to = address(this);
+        address lemmaSynth = d.pl().lemmaSynth();
+        uint256 beforeBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
+        uint256 beforeBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
+        assertTrue(beforeBalanceSynth > 0, "!Synth");
+        uint256 beforeTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
+        d.lSynth().withdrawTo(to, synthAmount, 0, 0, IERC20Upgradeable(collateral));
+        uint256 afterTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
+        uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
+        uint256 afterBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
+        assertEq(beforeTotalSynth-synthAmount, afterTotalSynth);
+        assertTrue(afterBalanceCollateral > beforeBalanceCollateral);
+        assertTrue(afterBalanceSynth < beforeBalanceSynth);
+    }
 }

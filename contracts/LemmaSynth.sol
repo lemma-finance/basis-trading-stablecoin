@@ -29,6 +29,7 @@ contract LemmaSynth is
     bytes32 public constant ONLY_OWNER = keccak256("ONLY_OWNER");
 
     address public perpLemma;
+    address public tailCollateral;
     uint256 public fees;
     bytes32 public interactionBlock;
 
@@ -49,6 +50,7 @@ contract LemmaSynth is
     );
     event FeesUpdated(uint256 indexed newFees);
     event PerpetualDexWrapperUpdated(address indexed perpLemma);
+    event SetTailCollateral(address indexed tailCollateral);
 
     modifier onlyOneFunInSameTx() {
         if (!hasRole(LEMMA_SWAP, msg.sender)) {
@@ -62,6 +64,7 @@ contract LemmaSynth is
     function initialize(
         address trustedForwarder,
         address _perpLemma,
+        address _tailCollateral,
         string memory _name,
         string memory _symbol
     ) external initializer {
@@ -77,7 +80,13 @@ contract LemmaSynth is
         _setupRole(ADMIN_ROLE, msg.sender);
         grantRole(ONLY_OWNER, msg.sender);
 
+        tailCollateral = _tailCollateral;
         updatePerpetualDEXWrapper(_perpLemma);
+    }
+
+    function setTailCollateral(address _tailCollateral) external onlyRole(ONLY_OWNER) {
+        tailCollateral = _tailCollateral;
+        emit SetTailCollateral(_tailCollateral);
     }
 
     /// @notice Returns the fees of the underlying Perp DEX Wrapper
@@ -121,11 +130,21 @@ contract LemmaSynth is
 
     function _perpDeposit(IPerpetualMixDEXWrapper perpDEXWrapper, address collateral, uint256 amount) internal {
         SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), _msgSender(), address(perpDEXWrapper), amount);
-        perpDEXWrapper.deposit(amount, collateral, IPerpetualMixDEXWrapper.Basis.IsSynth);
+        perpDEXWrapper.deposit(
+            amount, 
+            collateral, 
+            // ternary operator use below line
+            collateral == tailCollateral ? IPerpetualMixDEXWrapper.Basis.IsUsdl : IPerpetualMixDEXWrapper.Basis.IsSynth
+        );
     }
 
     function _perpWithdraw(address to, IPerpetualMixDEXWrapper perpDEXWrapper, address collateral, uint256 amount) internal {
-        perpDEXWrapper.withdraw(amount, collateral, IPerpetualMixDEXWrapper.Basis.IsSynth);
+        perpDEXWrapper.withdraw(
+            amount, 
+            collateral, 
+            // ternary operator use below line
+            collateral == tailCollateral ? IPerpetualMixDEXWrapper.Basis.IsUsdl : IPerpetualMixDEXWrapper.Basis.IsSynth
+        );
         SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), address(perpDEXWrapper), to, amount);
     }
 
@@ -148,8 +167,12 @@ contract LemmaSynth is
         (, uint256 _collateralRequired_1e18) = perpDEXWrapper.openLongWithExactBase(
             amount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsSynth
         ); 
-        uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(_collateralRequired_1e18, address(collateral), false);
-        require(_collateralRequired_1e18 <= maxCollateralAmountRequired, "collateral required execeeds maximum");
+
+        uint256 _collateralRequired = (address(collateral) == tailCollateral) ? amount : _collateralRequired_1e18;
+        _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(_collateralRequired, address(collateral), false);
+        if (address(collateral) != tailCollateral) {
+            require(_collateralRequired_1e18 <= maxCollateralAmountRequired, "collateral required execeeds maximum");
+        }
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
         _mint(to, amount);
         emit DepositTo(perpetualDEXIndex, address(collateral), to, amount, _collateralRequired);
@@ -202,12 +225,15 @@ contract LemmaSynth is
         require(!hasSettled, "hasSettled Error");
 
         (, uint256 _collateralAmountToWithdraw1e_18) = perpDEXWrapper.closeLongWithExactBase(amount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsSynth); 
-        uint256 _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
-            _collateralAmountToWithdraw1e_18,
+        uint256 _collateralAmountToWithdraw = (address(collateral) == tailCollateral) ? amount : _collateralAmountToWithdraw1e_18;
+        _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
+            _collateralAmountToWithdraw,
             address(collateral),
             false
         );
-        require(_collateralAmountToWithdraw1e_18 >= minCollateralAmountToGetBack, "Collateral to get back too low");
+        if (address(collateral) != tailCollateral) {
+            require(_collateralAmountToWithdraw1e_18 >= minCollateralAmountToGetBack, "Collateral to get back too low");
+        }
         _perpWithdraw(to, perpDEXWrapper, address(collateral), _collateralAmountToWithdraw);
         emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, _collateralAmountToWithdraw);
     }
