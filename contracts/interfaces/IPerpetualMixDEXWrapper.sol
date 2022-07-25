@@ -16,7 +16,7 @@ interface IPerpetualMixDEXWrapper {
 
 
     function getCollateralTokens() external view returns (address[] memory res);
-    function getRequiredUSDCToBackMinting(uint256 amount) external view returns(bool, uint256);
+    function getRequiredUSDCToBackMinting(uint256 amount, bool isShort) external view returns(bool, uint256);
     function getAccountValue() external view returns(int256);
     function getUsdlCollateralDecimals() external view returns(uint256);
     function getIndexPrice() external view returns(uint256);

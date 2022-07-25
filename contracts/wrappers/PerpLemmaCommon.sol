@@ -226,30 +226,10 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         res[0] = perpVault.getSettlementToken();
     }
 
-
-    // function tradeCovered(
-    //     uint256 amountPos,
-    //     bool isShorting, 
-    //     bool isExactInput,
-    //     address collateralIn,
-    //     uint256 amountIn,
-    //     address collateralOut,
-    //     uint256 amountOut
-    // ) external override onlyUSDLemma returns(uint256, uint256) {
-    //     if( (amountIn > 0) && (collateralIn != address(0)) ) {
-    //         SafeERC20Upgradeable.safeTransferFrom(IERC20Decimals(collateralIn), msg.sender, address(this), amountIn);
-    //         _deposit(amountIn, collateralIn);
-    //     }
-
-    //     if( (amountOut > 0) && (collateralOut != address(0)) ) {
-    //         _withdraw(amountOut, collateralOut);
-    //         SafeERC20Upgradeable.safeTransfer(IERC20Decimals(collateralOut), msg.sender, amountOut);
-    //     }
-
-    //     return trade(amountPos, isShorting, isExactInput);
-    // }
-
-    function getRequiredUSDCToBackMinting(uint256 amount) override external view returns(bool isAcceptable, uint256 extraUSDC) {
+    /// @notice It returns the amount of USDC that are possibly needed to properly collateralize the new position on Perp 
+    /// @dev When the position is reduced in absolute terms, then there is no need for additional collateral while when it increases in absolute terms then we need to add more 
+    /// @param amount The 
+    function getRequiredUSDCToBackMinting(uint256 amount, bool isShort) override external view returns(bool isAcceptable, uint256 extraUSDC) {
         int256 currentTotalPositionValue = getTotalPosition();
         print("[getRequiredUSDCToBackMinting()] currentTotalPositionValue = ", currentTotalPositionValue);
         uint256 currentPrice = getIndexPrice();
@@ -258,7 +238,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         int256 deltaPosition = int256(currentPrice * amount / (10 ** (oracleDecimals + usdlCollateral.decimals() - usdc.decimals())));
         print("[getRequiredUSDCToBackMinting()] deltaPosition = ", deltaPosition);
         // NOTE: More short --> Increase Negative Base
-        int256 futureTotalPositionValue = currentTotalPositionValue - deltaPosition;
+        int256 futureTotalPositionValue = currentTotalPositionValue * ((isShort) ? int256(-1) : int256(1)) * deltaPosition;
         print("[getRequiredUSDCToBackMinting()] futureTotalPositionValue = ", futureTotalPositionValue);
         int256 currentAccountValue = getAccountValue();
         print("[getRequiredUSDCToBackMinting()] currentAccountValue = ", currentAccountValue);

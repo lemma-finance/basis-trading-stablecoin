@@ -97,9 +97,9 @@ contract USDLemma is
         return perpDEXWrapper.getFees();
     }
 
+    /// @notice Returns the Index Price 
     function getIndexPrice(uint256 dexIndex, address collateral) external view returns (uint256) {
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
-
         require(address(perpDEXWrapper) != address(0), "DEX Wrapper should not ZERO address");
         return perpDEXWrapper.getIndexPrice();
     }
@@ -222,7 +222,7 @@ contract USDLemma is
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
 
-        (bool isAcceptable, uint256 extraUSDC) = perpDEXWrapper.getRequiredUSDCToBackMinting(_collateralRequired);
+        (bool isAcceptable, uint256 extraUSDC) = perpDEXWrapper.getRequiredUSDCToBackMinting(_collateralRequired, true);
         // TODO: Add check and decide where to take it
         require(isAcceptable, "Can't deposit enough collateral in Perp");
         uint256 availableCollateral = getAvailableSettlementToken(perpetualDEXIndex, address(collateral));
