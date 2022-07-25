@@ -7,26 +7,19 @@ import "../interfaces/IERC20Decimals.sol";
 import "forge-std/Test.sol";
 
 contract TestPerpLemma is PerpLemmaCommon {
-    // function setUsdlCollateralDecimals(uint256 _collateralDecimals) public {
-    //     usdlCollateralDecimals = _collateralDecimals;
-    // }
-    // function setSynthCollateralDecimals(uint256 _collateralDecimals) public {
-    //     synthCollateralDecimals = _collateralDecimals;
-    // }
-    // function setPositionAtSettlementInQuoteForUSDL(uint256 _positionAtSettlementInQuoteForUSDL) public {
-    //     positionAtSettlementInQuoteForUSDL = _positionAtSettlementInQuoteForUSDL;
-    // }
-    // function setPositionAtSettlementInQuoteForSynth(uint256 _positionAtSettlementInQuoteForSynth) public {
-    //     positionAtSettlementInQuoteForSynth = _positionAtSettlementInQuoteForSynth;
-    // }
-    // function setHasSettled(bool _hasSettled) public {
-    //     hasSettled = _hasSettled;
-    // }
     function depositAnyAsset(uint256 amount, address collateral) public {
         SafeERC20Upgradeable.safeTransferFrom(IERC20Decimals(collateral), msg.sender, address(this), amount);
     }
 
     function withdrawAnyAsset(uint256 amount, address collateral, address to) public {
         SafeERC20Upgradeable.safeTransfer(IERC20Decimals(collateral), to, amount);
+    }
+
+    function setMintedPositionUsdlForThisWrapper(uint256 _mintedPositionUsdlForThisWrapper) public {
+        mintedPositionUsdlForThisWrapper = _mintedPositionUsdlForThisWrapper;
+    }
+
+    function setMintedPositionSynthForThisWrapper(uint256 _mintedPositionSynthForThisWrapper) public {
+        mintedPositionSynthForThisWrapper = _mintedPositionSynthForThisWrapper;
     }
 }

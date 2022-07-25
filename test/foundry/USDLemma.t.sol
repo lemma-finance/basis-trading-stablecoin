@@ -225,4 +225,165 @@ contract USDLemmaTest is Test {
         uint256 _maxETHtoRedeem = _deductFees(d.getTokenAddress("WETH"), _collateralAfterMinting, 0);
         _redeemUSDLWExactCollateral(address(this), collateral, _maxETHtoRedeem);
     }
+
+    // Should Fail tests
+    // reason: DEX Wrapper should not ZERO address
+    function testFailGetFees1() public {
+        uint256 fees = d.usdl().getFees(0, address(0));
+    }
+
+    // reason: DEX Wrapper should not ZERO address
+    function testFailGetFees2() public {
+        uint256 fees = d.usdl().getFees(100, d.getTokenAddress("WETH"));
+    }
+
+    function testFailGetIndexPrice1() public {
+        d.usdl().getIndexPrice(100, d.getTokenAddress("WETH"));
+    }
+
+    function testFailGetIndexPrice2() public {
+        d.usdl().getIndexPrice(0, address(0));
+    }
+
+    function testFailGetTotalPosition1() public {
+        d.usdl().getTotalPosition(0, address(0));
+    }
+
+    function testFailGetTotalPosition2() public {
+        d.usdl().getTotalPosition(100, d.getTokenAddress("WETH"));
+    }
+
+    function testFailSetLemmaTreasury() public {
+        d.usdl().setLemmaTreasury(address(0));
+    }
+
+    function testSetLemmaTreasury() public {
+        vm.startPrank(address(d));
+        d.usdl().setLemmaTreasury(vm.addr(1));
+        address lemmaTreasury = d.usdl().lemmaTreasury();
+        assertEq(lemmaTreasury, vm.addr(1));
+        vm.stopPrank();
+    }
+
+    function testSetFees() public {
+        vm.startPrank(address(d));
+        d.usdl().setFees(1000);
+        uint256 fees = d.usdl().fees();
+        assertEq(fees, 1000);
+        vm.stopPrank();
+    }
+
+    function testAddWrapper() public {
+        vm.startPrank(address(d));
+        d.usdl().addPerpetualDEXWrapper(1, d.getTokenAddress("USDC"), vm.addr(1));
+        address wrapper = d.usdl().perpetualDEXWrappers(1, d.getTokenAddress("USDC"));
+        assertEq(wrapper, vm.addr(1));
+        vm.stopPrank();
+    }
+
+    // reason: invalid DEX/collateral
+    function testFailDepositTo1() public {
+        d.usdl().depositTo(address(this), 1000, 0, 1, IERC20Decimals(address(0)));
+    }
+
+    // reason: collateral required execeeds maximum
+    function testFailDepositTo2() public {
+        _depositSettlementTokenMax();
+        address collateral = d.getTokenAddress("WETH");
+        _getMoneyForTo(address(this), collateral, 1000);
+        IERC20Decimals(collateral).approve(address(d.usdl()), type(uint256).max);
+        d.usdl().depositTo(address(this), 1000, 0, 0, IERC20Decimals(collateral));
+    }
+
+    // reason: invalid DEX/collateral
+    function testFailDepositToWExactCollateral1() public {
+        d.usdl().depositToWExactCollateral(address(this), 1000, 0, type(uint256).max, IERC20Decimals(address(0)));
+    }
+
+    // reason: USDL minted too low
+    function testFailDepositToWExactCollateral2() public {
+        _depositSettlementTokenMax();
+        address collateral = d.getTokenAddress("WETH");
+        _getMoneyForTo(address(this), collateral, 1000);
+        IERC20Decimals(collateral).approve(address(d.usdl()), type(uint256).max);
+        d.usdl().depositToWExactCollateral(address(this), 1000, 0, type(uint256).max, IERC20Decimals(collateral));
+    }
+
+    // reason: invalid DEX/collateral
+    function testFailWithdrawTo1() public {
+        d.usdl().withdrawTo(address(this), 1000, 0, 1, IERC20Decimals(address(0)));
+    }
+
+    // reason: ERC20: burn amount exceeds balance
+    function testFailWithdrawTo2() public {
+        address collateral = d.getTokenAddress("WETH");
+        d.usdl().withdrawTo(address(this), 100e18, 0, type(uint256).max, IERC20Decimals(collateral));
+    }
+
+    // reason: Collateral to get back too low
+    function testFailWithdrawTo3() public {
+        testDepositTo();
+        address collateral = d.getTokenAddress("WETH");
+        d.usdl().withdrawTo(address(this), 100e18, 0, type(uint256).max, IERC20Decimals(collateral));
+    }
+
+    // reason: Settled vUSD position amount should not ZERO
+    function testFailWithdrawToWithSettle1() public {
+        address collateral = d.getTokenAddress("WETH");
+        testDepositTo();
+        address owner = d.getPerps().ib.owner();
+        vm.startPrank(owner);
+        d.getPerps().ib.pause(); // pause market
+        vm.warp(block.timestamp + 6 days); // need to spend 5 days after pause as per perpv2 
+        d.getPerps().ib.close(); // Close market after 5 days
+        vm.stopPrank();
+
+        d.pl().settle(); // PerpLemma settle call
+        d.pl().setMintedPositionUsdlForThisWrapper(0);
+        d.usdl().withdrawTo(address(this), 100e18, 0, 0, IERC20Decimals(collateral));
+    }
+
+    function testWithdrawToWithSettle2() public {
+        address collateral = d.getTokenAddress("WETH");
+        testDepositTo();
+        address owner = d.getPerps().ib.owner();
+        vm.startPrank(owner);
+        d.getPerps().ib.pause(); // pause market
+        vm.warp(block.timestamp + 6 days); // need to spend 5 days after pause as per perpv2 
+        d.getPerps().ib.close(); // Close market after 5 days
+        vm.stopPrank();
+
+        d.pl().settle(); // PerpLemma settle call
+        uint256 beforeBalance = IERC20Decimals(collateral).balanceOf(address(this));
+        d.usdl().withdrawTo(address(this), 100e18, 0, 0, IERC20Decimals(collateral));
+        uint256 afterBalance = IERC20Decimals(collateral).balanceOf(address(this));
+        assertGe(afterBalance-beforeBalance, 0);
+    }
+
+    // reason: invalid DEX/collateral
+    function testFailWithdrawToWExactCollateral1() public {
+        d.usdl().withdrawToWExactCollateral(address(this), 1000, 0, 0, IERC20Decimals(address(0)));
+    }
+
+    // reason: Too much USDL to burn
+    function testFailWithdrawToWExactCollateral2() public {
+        testDepositTo();
+        address collateral = d.getTokenAddress("WETH");
+        d.usdl().withdrawToWExactCollateral(address(this), 1e17, 0, 0, IERC20Decimals(collateral));
+    }
+
+    // reason: hasSettled Error
+    function testFailWithdrawToWExactCollateral3() public {
+        address collateral = d.getTokenAddress("WETH");
+        testDepositTo();
+        address owner = d.getPerps().ib.owner();
+        vm.startPrank(owner);
+        d.getPerps().ib.pause(); // pause market
+        vm.warp(block.timestamp + 6 days); // need to spend 5 days after pause as per perpv2 
+        d.getPerps().ib.close(); // Close market after 5 days
+        vm.stopPrank();
+
+        d.pl().settle(); // PerpLemma settle call
+        d.usdl().withdrawToWExactCollateral(address(this), 1e17, 0, 0, IERC20Decimals(collateral));
+    }
 }

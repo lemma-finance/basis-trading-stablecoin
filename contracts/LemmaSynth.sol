@@ -94,12 +94,7 @@ contract LemmaSynth is
     }
 
     /// @notice Returns the total position in quote Token on a given DEX
-    /// @param dexIndex The DEX Index to operate on
-    /// @param collateral Collateral for the minting / redeeming operation
-    function getTotalPosition(
-        uint256 dexIndex,
-        address collateral
-    ) external view returns (int256) {
+    function getTotalPosition() external view returns (int256) {
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpLemma);
         require(address(perpDEXWrapper) != address(0), "DEX Wrapper should not ZERO address");
         return perpDEXWrapper.getTotalPosition();
@@ -172,8 +167,11 @@ contract LemmaSynth is
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpLemma);
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
+        console.log('collateralAmount: ', address(perpDEXWrapper), collateralAmount, _collateralRequired);
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
+        console.log('_collateralRequired: ', _collateralRequired);
         (uint256 _lemmaSynthToMint, ) = perpDEXWrapper.openLongWithExactQuote(collateralAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsSynth);
+        console.log('_lemmaSynthToMint: ', _lemmaSynthToMint);
         require(_lemmaSynthToMint >= minSynthToMint, "Synth minted too low");
         _mint(to, _lemmaSynthToMint);
         emit DepositTo(perpetualDEXIndex, address(collateral), to, _lemmaSynthToMint, _collateralRequired);        

@@ -22,6 +22,7 @@ contract LemmaSynthTest is Test {
         d.pl().transferOwnership(address(this));
         d.pl().grantRole(USDC_TREASURY, address(this));
         d.lSynth().grantRole(LEMMA_SWAP, address(this));
+        d.lSynth().grantRole(LEMMA_SWAP, address(d));
         vm.stopPrank();
     }
 
@@ -225,5 +226,163 @@ contract LemmaSynthTest is Test {
         uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("USDC"), collateralAmount, 0);
         uint256 _maxUSDCtoRedeem = _deductFees(d.getTokenAddress("USDC"), _collateralAfterMinting, 0);
         _redeemSynthWExactCollateral(address(this), collateral, _maxUSDCtoRedeem);
+    }
+
+    // Should Fail tests
+    // reason: DEX Wrapper should not ZERO address
+    function testFailGetFeesSynth1() public {
+        vm.startPrank(address(d));
+        d.lSynth().updatePerpetualDEXWrapper(address(0));
+        uint256 fees = d.lSynth().getFees();
+        vm.stopPrank();
+    }
+
+    function testFailGetIndexPriceSynth1() public {
+        vm.startPrank(address(d));
+        d.lSynth().updatePerpetualDEXWrapper(address(0));
+        d.lSynth().getIndexPrice();
+        vm.stopPrank();
+    }
+
+    function testFailGetTotalPositionSynth1() public {
+        vm.startPrank(address(d));
+        d.lSynth().updatePerpetualDEXWrapper(address(0));
+        d.lSynth().getTotalPosition();
+        vm.stopPrank();
+    }
+
+    function testSetFeesSynth() public {
+        vm.startPrank(address(d));
+        d.lSynth().updatePerpetualDEXWrapper(address(0));
+        d.lSynth().setFees(1000);
+        uint256 fees = d.lSynth().fees();
+        assertEq(fees, 1000);
+        vm.stopPrank();
+    }
+
+    function testUpdatePerpetualDEXWrapper() public {
+        vm.startPrank(address(d));
+        d.lSynth().updatePerpetualDEXWrapper(vm.addr(1));
+        address wrapper = d.lSynth().perpLemma();
+        assertEq(wrapper, vm.addr(1));
+        vm.stopPrank();
+    }
+
+    // reason: invalid DEX/collateral
+    function testFailDepositTo1() public {
+        vm.startPrank(address(d));
+        d.lSynth().updatePerpetualDEXWrapper(address(0));
+        d.lSynth().depositTo(address(this), 1000, 0, 1, IERC20Decimals(address(0)));
+        vm.stopPrank();
+    }
+
+    // reason: collateral required execeeds maximum
+    function testFailDepositTo2() public {
+        _depositSettlementTokenMax();
+        address collateral = d.getTokenAddress("USDC");
+        _getMoneyForTo(address(this), collateral, 1000);
+        IERC20Decimals(collateral).approve(address(d.lSynth()), type(uint256).max);
+        d.lSynth().depositTo(address(this), 1000, 0, 0, IERC20Decimals(collateral));
+    }
+
+    // reason: invalid DEX/collateral
+    function testFailDepositToWExactCollateral1() public {
+        vm.startPrank(address(d));
+        d.lSynth().updatePerpetualDEXWrapper(address(0));
+        d.lSynth().depositToWExactCollateral(address(this), 1000, 0, type(uint256).max, IERC20Decimals(address(0)));
+        vm.stopPrank();
+    }
+
+    // reason: Synth minted too low
+    function testFailDepositToWExactCollateral2() public {
+        address collateral = d.getTokenAddress("USDC");
+        _getMoneyForTo(address(this), collateral, 1000e6);
+        IERC20Decimals(collateral).approve(address(d.lSynth()), type(uint256).max);
+        d.lSynth().depositToWExactCollateral(address(this), 100e18, 0, type(uint256).max, IERC20Decimals(collateral));
+    }
+
+    // reason: invalid DEX/collateral
+    function testFailWithdrawTo1() public {
+        testDepositToForSynth();
+        vm.startPrank(address(d));
+        d.lSynth().updatePerpetualDEXWrapper(address(0));
+        vm.stopPrank();
+        d.lSynth().withdrawTo(address(this), 1000, 0, 1, IERC20Decimals(address(0)));
+    }
+
+    // reason: ERC20: burn amount exceeds balance
+    function testFailWithdrawTo2() public {
+        address collateral = d.getTokenAddress("USDC");
+        d.lSynth().withdrawTo(address(this), 1e17, 0, type(uint256).max, IERC20Decimals(collateral));
+    }
+
+    // reason: Collateral to get back too low
+    function testFailWithdrawTo3() public {
+        testDepositToForSynth();
+        address collateral = d.getTokenAddress("USDC");
+        d.lSynth().withdrawTo(address(this), 1e17, 0, type(uint256).max, IERC20Decimals(collateral));
+    }
+
+    // reason: hasSettled Error
+    function testFailWithdrawToWithSettle1() public {
+        address collateral = d.getTokenAddress("WETH");
+        testDepositToForSynth();
+        address owner = d.getPerps().ib.owner();
+        vm.startPrank(owner);
+        d.getPerps().ib.pause(); // pause market
+        vm.warp(block.timestamp + 6 days); // need to spend 5 days after pause as per perpv2 
+        d.getPerps().ib.close(); // Close market after 5 days
+        vm.stopPrank();
+
+        d.pl().settle(); // PerpLemma settle call
+        d.lSynth().withdrawTo(address(this), 1e17, 0, 0, IERC20Decimals(collateral));
+    }
+
+    // reason: invalid DEX/collateral
+    function testFailWithdrawToWExactCollateral1() public {
+        vm.startPrank(address(d));
+        d.lSynth().updatePerpetualDEXWrapper(address(0));
+        d.lSynth().withdrawToWExactCollateral(address(this), 1000, 0, 0, IERC20Decimals(address(0)));
+        vm.stopPrank();
+    }
+
+    // reason: Too much Synth to burn
+    function testFailWithdrawToWExactCollateral2() public {
+        testDepositToForSynth();
+        address collateral = d.getTokenAddress("USDC");
+        d.lSynth().withdrawToWExactCollateral(address(this), 100e6, 0, 0, IERC20Decimals(collateral));
+    }
+
+    function testWithdrawToWExactCollateralWithSettle() public {
+        address collateral = d.getTokenAddress("USDC");
+        testDepositToForSynth();
+        address owner = d.getPerps().ib.owner();
+        vm.startPrank(owner);
+        d.getPerps().ib.pause(); // pause market
+        vm.warp(block.timestamp + 6 days); // need to spend 5 days after pause as per perpv2 
+        d.getPerps().ib.close(); // Close market after 5 days
+        vm.stopPrank();
+
+        d.pl().settle(); // PerpLemma settle call
+        uint256 beforeBalance = IERC20Decimals(collateral).balanceOf(address(this));
+        d.lSynth().withdrawToWExactCollateral(address(this), 100e6, 0, type(uint256).max, IERC20Decimals(collateral));
+        uint256 afterBalance = IERC20Decimals(collateral).balanceOf(address(this));
+        assertGe(afterBalance-beforeBalance, 0);
+    }
+
+    // reason: Settled vUSD position amount should not ZERO
+    function testFailWithdrawToWExactCollateralWithSettle() public {
+        address collateral = d.getTokenAddress("USDC");
+        testDepositToForSynth();
+        address owner = d.getPerps().ib.owner();
+        vm.startPrank(owner);
+        d.getPerps().ib.pause(); // pause market
+        vm.warp(block.timestamp + 6 days); // need to spend 5 days after pause as per perpv2 
+        d.getPerps().ib.close(); // Close market after 5 days
+        vm.stopPrank();
+
+        d.pl().settle(); // PerpLemma settle call
+        d.pl().setMintedPositionSynthForThisWrapper(0);
+        d.lSynth().withdrawToWExactCollateral(address(this), 100e18, 0, 0, IERC20Decimals(collateral));
     }
 }
