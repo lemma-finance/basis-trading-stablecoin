@@ -157,7 +157,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
 
-    // NOTE: The underlying Perp Protocol (so far we only have PerpV2) can have a limit on the total amount of Settlement Token the Vault can accept 
+    /// @notice Returning the max amount of USDC Tokens that is possible to put in Vault to collateralize positions
+    /// @dev The underlying Perp Protocol (so far we only have PerpV2) can have a limit on the total amount of Settlement Token the Vault can accept 
     function getMaxSettlementTokenAcceptableByVault() override public view returns(uint256) {
         IERC20Decimals settlementToken = IERC20Decimals(perpVault.getSettlementToken());
         uint256 perpVaultSettlementTokenBalanceBefore = settlementToken.balanceOf(address(perpVault));
@@ -188,6 +189,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
     }
 
+    /// @dev This one probably not needed as we can call usdlCollateral.decimals() when we need it
     function getUsdlCollateralDecimals() external view override returns(uint256) {
         return usdlCollateralDecimals;
     }
@@ -228,7 +230,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
     /// @notice It returns the amount of USDC that are possibly needed to properly collateralize the new position on Perp 
     /// @dev When the position is reduced in absolute terms, then there is no need for additional collateral while when it increases in absolute terms then we need to add more 
-    /// @param amount The 
+    /// @param amount The amount of the new position 
+    /// @param isShort If we are minting USDL or a Synth by changing our Position on Perp  
     function getRequiredUSDCToBackMinting(uint256 amount, bool isShort) override external view returns(bool isAcceptable, uint256 extraUSDC) {
         int256 currentTotalPositionValue = getTotalPosition();
         print("[getRequiredUSDCToBackMinting()] currentTotalPositionValue = ", currentTotalPositionValue);
@@ -265,8 +268,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
 
 
-    // Returns the current amount of collateral value (in USDC) after the PnL in 1e18 format
-    // TODO: Take into account tail assets
+    /// @notice Returns the current amount of collateral value (in USDC) after the PnL in 1e18 format
+    /// TODO: Take into account tail assets
     function getAccountValue() override public view returns(int256 value_1e18) {
         value_1e18 = clearingHouse.getAccountValue(address(this)); 
     }
@@ -283,8 +286,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return perpVault.getBalance(address(this));
     }
 
-    // Returns the leverage in 1e18 format
-    // TODO: Take into account tail assets
+    /// @notice Returns the relative margin in 1e18 format
+    /// TODO: Take into account tail assets
     function getRelativeMargin() external view override returns(uint256) {
         // NOTE: Returns totalCollateralValue + unrealizedPnL
         // https://github.com/yashnaman/perp-lushan/blob/main/contracts/interface/IClearingHouse.sol#L254
@@ -333,8 +336,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         //         _totalPosValue * 1e6 / _vaultBalance.abs().toUint256());
     }
 
-    // NOTE: Computes the delta exposure
-    // NOTE: It does not take into account if the deposited collateral gets silently converted in USDC so that we lose positive delta exposure
+
+    /// @notice Computes the delta exposure
+    /// @dev It does not take into account if the deposited collateral gets silently converted in USDC so that we lose positive delta exposure
     function getDeltaExposure() external view override returns(int256) {
         (uint256 _usdlCollateralAmount, uint256 _usdlCollateralDepositedAmount, int256 _longOrShort,,) = getExposureDetails();
         uint256 _longOnly = (_usdlCollateralAmount + _usdlCollateralDepositedAmount) * 10**(18 - usdlCollateralDecimals);         // Both usdlCollateralDecimals format
@@ -363,6 +367,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return _delta;
     }
 
+    /// @notice Returns all the exposure related details
     function getExposureDetails() public view override returns(uint256, uint256, int256, int256, uint256) {
         return (
             usdlCollateral.balanceOf(address(this)),
@@ -373,12 +378,16 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         );
     }
 
+    /// @notice Returns the margin
     function getMargin() external view override returns(int256) {
         int256 _margin = accountBalance.getMarginRequirementForLiquidation(address(this));
         console.log("[getMargin()] Margin = %s %d", (_margin < 0) ? "-" : "+", _margin.abs().toUint256());
         return _margin;
     }
 
+
+
+    /// @notice Defines the USDL Collateral as a tail asset
     function setIsUsdlCollateralTailAsset(bool _x) external onlyRole(ONLY_OWNER) {
         isUsdlCollateralTailAsset = _x;
     }
@@ -448,7 +457,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         _withdraw(amount, collateral, basis);
     }
 
-    //// @notice when perpetual is in CLEARED state, withdraw the collateral
+    /// @notice when perpetual is in CLEARED state, withdraw the collateral
+    /// @dev Anybody can call it so that it happens as quickly as possible
     function settle() external override {
         clearingHouse.quitMarket(address(this), usdlBaseTokenAddress);
 
@@ -533,21 +543,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                 // (usdlCollateralAmount, ) = openLongWithExactQuote(usdcAmount, address(0), 0);
                 // if(isCheckProfit) require(amountUSDCPlus >= amountUSDCMinus, "Unprofitable");
             }
-
-            // TODO: Implement
-            // 1.1 Take `amount` of ETH in this contract or Perp Vault and swap it on Uniswap for USDC
-
-            // NOTE: We have to assume this usdlCollateral is not deposited in Perp, even though it is not a tail asset, as in that
-            // if(!isUsdlCollateralTailAsset) {
-            //     // TODO: Implement usdlCollateral withdrawing beforehand
-            //     perpVault.withdraw(address(usdlCollateral), amount);
-            // }
-
-            // usdcAmount = _swapOnDEXSpot(router, routerType, true, amount);
-            // // 1.2 Increase Long = Reduce Short using openLongWithExactQuote() using the above amount of USDC as quote amount
-            // // perpVault.deposit(address(usdc), usdcAmount);
-
-            // (usdlCollateralAmount, ) = openLongWithExactQuote(usdcAmount, address(0), 0);
         } else {
             console.log("[rebalance()] isIncreaseBase: False --> Base should decrease. USDC --> Collateral --> vQuote");
             // TODO: Fix the following --> the commented part should be the right one
@@ -571,18 +566,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                 amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
                 // if(isCheckProfit) require(usdcAmountPerpGained >= usdcAmountDexSpent, "Unprofitable");
             }
-            // // 1.1 Reduce Long = Increase Short using closeLongWithExactBase() for `amount` and get the corresponding quote amount
-            // (, usdcAmount) = closeLongWithExactBase(amount, address(0), 0);
-
-            // // TODO: Reactivate
-            // perpVault.withdraw(address(usdc), usdcAmount);
-
-            // // 1.2 Take quote amount of USDC and swap it on Uniswap for ETH and deposit ETH as collateral
-            // usdlCollateralAmount = _swapOnDEXSpot(router, routerType, false, usdcAmount);
         }
-        // Compute Profit and return it
-        // if(isCheckProfit) require(usdlCollateralAmount >= amount, "Unprofitable");
-
         if (isCheckProfit) require(amountUSDCPlus >= amountUSDCMinus, "Unprofitable");
         return (amountUSDCPlus, amountUSDCMinus);
     }
@@ -718,7 +702,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
     /// @notice to deposit collateral in vault for short or open position
-    /// @notice If collateral is tail asset no need to deposit it in Perp, it has to stay in this contract balance sheet
+    /// @dev If collateral is tail asset no need to deposit it in Perp, it has to stay in this contract balance sheet
     function _deposit(
         uint256 collateralAmount,
         address collateral,
@@ -741,7 +725,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
     /// @notice to withdraw collateral from vault after long or close position
-    /// @notice If collateral is tail asset no need to withdraw it from Perp, it is already in this contract balance sheet
+    /// @dev If collateral is tail asset no need to withdraw it from Perp, it is already in this contract balance sheet
     function _withdraw(
         uint256 amountToWithdraw,
         address collateral,
@@ -849,6 +833,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn);
     }
 
+    /// @dev Helper function to swap on UniV3 
     function _swapOnUniV3(address router, bool isUSDLCollateralToUSDC, bool isExactInput, uint256 amount) internal returns(uint256) {
         uint256 res;
         address tokenIn = (isUSDLCollateralToUSDC) ? address(usdlCollateral) : address(usdc);
