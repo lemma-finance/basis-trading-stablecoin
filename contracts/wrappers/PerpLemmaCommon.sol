@@ -197,8 +197,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     function getIndexPrice() override public view returns(uint256) {
         uint256 _twapInterval = IClearingHouseConfig(clearingHouseConfig).getTwapInterval();
         uint256 _price = IIndexPrice(usdlBaseTokenAddress).getIndexPrice(_twapInterval);
-        console.log("[getIndexPrice()] _twapInterval = ", _twapInterval);
-        console.log("[getIndexPrice()] _price = ", _price);
         return _price;
     }
 
@@ -234,35 +232,23 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param isShort If we are minting USDL or a Synth by changing our Position on Perp  
     function getRequiredUSDCToBackMinting(uint256 amount, bool isShort) override external view returns(bool isAcceptable, uint256 extraUSDC) {
         int256 currentTotalPositionValue = getTotalPosition();
-        print("[getRequiredUSDCToBackMinting()] currentTotalPositionValue = ", currentTotalPositionValue);
         uint256 currentPrice = getIndexPrice();
-        console.log("[getRequiredUSDCToBackMinting()] currentPrice = ", currentPrice);
         uint256 oracleDecimals = 18;
         int256 deltaPosition = int256(currentPrice * amount / (10 ** (oracleDecimals + usdlCollateral.decimals() - usdc.decimals())));
-        print("[getRequiredUSDCToBackMinting()] deltaPosition = ", deltaPosition);
-        // NOTE: More short --> Increase Negative Base
         int256 futureTotalPositionValue = currentTotalPositionValue * ((isShort) ? int256(-1) : int256(1)) * deltaPosition;
-        print("[getRequiredUSDCToBackMinting()] futureTotalPositionValue = ", futureTotalPositionValue);
         int256 currentAccountValue = getAccountValue();
-        print("[getRequiredUSDCToBackMinting()] currentAccountValue = ", currentAccountValue);
         int256 futureAccountValue = futureTotalPositionValue + currentAccountValue;
-        print("[getRequiredUSDCToBackMinting()] futureAccountValue = ", futureAccountValue);
 
         uint256 extraUSDC_1e18 = (futureAccountValue >= 0) ? 0 : uint256(-futureAccountValue);
-        console.log("[getRequiredUSDCToBackMinting()] extraUSDC_1e18 = ", extraUSDC_1e18);
         extraUSDC = getAmountInCollateralDecimalsForPerp(extraUSDC_1e18, address(usdc), false); 
-        console.log("[_getExtraUSDCToBackMinting()] extraUSDC = ", extraUSDC);
 
         uint256 maxSettlementTokenAcceptableFromPerpVault = getMaxSettlementTokenAcceptableByVault(); 
-        console.log("[_getExtraUSDCToBackMinting()] maxSettlementTokenAcceptableFromPerpVault = ", maxSettlementTokenAcceptableFromPerpVault);
 
         if(extraUSDC > maxSettlementTokenAcceptableFromPerpVault) {
             isAcceptable = false;
-            console.log("[_getExtraUSDCToBackMinting()] extraUSDC > maxSettlementTokenAcceptableFromPerpVault so can't deposit the required amount to fully collateralize the new short");            
         }
         else {
             isAcceptable = true;
-            console.log("[_getExtraUSDCToBackMinting()] extraUSDC <= maxSettlementTokenAcceptableFromPerpVault so can deposit the required amount");
         }
     }
 
@@ -302,40 +288,12 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         // NOTE: This is what can be compared with the Account Value according to Perp Doc
         // https://github.com/yashnaman/perp-lushan/blob/main/contracts/interface/IAccountBalance.sol#L158
         int256 _margin = accountBalance.getMarginRequirementForLiquidation(address(this));
-
-        console.log(
-            "[getRelativeMargin()] _accountValue_1e18 = %s %d",
-            (_accountValue < 0) ? "-" : "+",
-            _accountValue_1e18.abs().toUint256()
-        );
-        console.log("[getRelativeMargin()] _accountValue = ", _accountValue);
-        console.log("[getRelativeMargin()] _margin = %s %d", (_margin < 0) ? "-" : "+", _margin.abs().toUint256());
-
         return (
             (_accountValue_1e18 <= int256(0) || (_margin < 0))
                 ? type(uint256).max // No Collateral Deposited --> Max Leverage Possible
                 : (_margin.abs().toUint256() * 1e18) / _accountValue
         );
-
-        // Returns the position balance in Settlmenet Token --> USDC
-        // https://github.com/yashnaman/perp-lushan/blob/main/contracts/Vault.sol#L242
-        // int256 _accountValue = perpVault.getBalance(address(this));
-        // int256 _totalPosValue_1e18 = accountBalance.getTotalPositionValue(address(this), usdlBaseTokenAddress);
-        // uint256 _totalPosValue = getAmountInCollateralDecimalsForPerp(
-        //     _totalPosValue_1e18.abs().toUint256(),
-        //     address(usdlCollateral),
-        //     false
-        // );
-
-        // console.log("[getLeverage()] _totalPosValue_1e18 = %s %d", (_totalPosValue_1e18 < 0) ? "-":"+", _totalPosValue_1e18.abs().toUint256());
-        // console.log("[getLeverage()] _totalPosValue = ", _totalPosValue);
-        // console.log("[getLeverage()] _vaultBalance = %s %d", (_vaultBalance < 0) ? "-":"+", _vaultBalance.abs().toUint256());
-        // return ((_vaultBalance == int256(0)) ?
-        //         type(uint256).max           // No Collateral Deposited --> Max Leverage Possible
-        //         :
-        //         _totalPosValue * 1e6 / _vaultBalance.abs().toUint256());
     }
-
 
     /// @notice Computes the delta exposure
     /// @dev It does not take into account if the deposited collateral gets silently converted in USDC so that we lose positive delta exposure
@@ -343,27 +301,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         (uint256 _usdlCollateralAmount, uint256 _usdlCollateralDepositedAmount, int256 _longOrShort,,) = getExposureDetails();
         uint256 _longOnly = (_usdlCollateralAmount + _usdlCollateralDepositedAmount) * 10**(18 - usdlCollateralDecimals);         // Both usdlCollateralDecimals format
 
-        console.log("[getDeltaExposure()] _longOnly = ", _longOnly);
-        console.log(
-            "[getDeltaExposure()] _longOrShort = %s %d",
-            (_longOrShort < 0) ? "-" : "+",
-            _longOrShort.abs().toUint256()
-        );
-
         int256 _deltaLongShort = int256(_longOnly) + _longOrShort;
-        console.log(
-            "[getDeltaExposure()] _deltaLongShort = %s %d",
-            (_deltaLongShort < 0) ? "-" : "+",
-            _deltaLongShort.abs().toUint256()
-        );
         uint256 _absTot = _longOnly + _longOrShort.abs().toUint256();
-        console.log("[getDeltaExposure()] _absTot = ", _absTot);
         int256 _delta = (_absTot == 0) ? int256(0) : (_deltaLongShort * 1e6) / int256(_absTot);
-        console.log(
-            "[getDeltaExposure()] getDeltaExposure = %s %d",
-            (_delta < 0) ? "-" : "+",
-            _delta.abs().toUint256()
-        );
         return _delta;
     }
 
@@ -381,7 +321,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @notice Returns the margin
     function getMargin() external view override returns(int256) {
         int256 _margin = accountBalance.getMarginRequirementForLiquidation(address(this));
-        console.log("[getMargin()] Margin = %s %d", (_margin < 0) ? "-" : "+", _margin.abs().toUint256());
         return _margin;
     }
 
@@ -496,7 +435,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param isCheckProfit Check the profit to possibly revert the TX in case 
     /// @return Amount of USDC resulting from the operation. It can also be negative as we can use this mechanism for purposes other than Arb See https://www.notion.so/lemmafinance/Rebalance-Details-f72ad11a5d8248c195762a6ac6ce037e#ffad7b09a81a4b049348e3cd38e57466 here 
     function rebalance(address router, uint256 routerType, int256 amountBaseToRebalance, bool isCheckProfit) external override onlyRole(REBALANCER_ROLE) returns(uint256, uint256) {
-        console.log("[rebalance()] Start");
         // uint256 usdlCollateralAmountPerp;
         // uint256 usdlCollateralAmountDex;
         uint256 amountUSDCPlus;
@@ -509,62 +447,30 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             ? uint256(amountBaseToRebalance)
             : uint256(-amountBaseToRebalance);
 
-        // NOTE: Changing the position on Perp requires checking we are properly collateralized all the time otherwise doing the trade risks to revert the TX
-        // NOTE: Call to perps that can revert the TX: withdraw(), openPosition()
-        // NOTE: Actually, probably also deposit() is not safe as some max threshold can be crossed but this is something different from the above
         if(isIncreaseBase) {
-            console.log("[rebalance()] isIncreaseBase: True --> Sell Collateral on Spot and Buy on Mark. Colleteral --> USDC --> vCollateral");
             if(amountBase < 0) {
-                console.log("[rebalance()] Net Short --> Decrease Negative Base --> Close Short, free floating collateral (if any) and swap it for USDC");
-                // NOTE: Net Short Position --> USDL Collateral is currently deposited locally if tail asset or in Perp otherwise 
-                // NOTE: In this case, we need to shrink our position before we can withdraw to swap so 
                 (, uint256 amountUSDCMinus_1e18) = closeShortWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance);
-                // (usdlCollateralAmount, ) = closeShortWithExactQuote(amount, address(0), 0);
                 amountUSDCMinus = amountUSDCMinus_1e18 * (10 ** usdc.decimals()) / 1e18;
-
-                // NOTE: Only withdraws from Perp if it is a non tail asset
                 _withdraw(_amountBaseToRebalance, address(usdlCollateral), Basis.IsRebalance);
-
-                console.log("_amountBaseToRebalance = ", _amountBaseToRebalance);
-                console.log("usdlCollateral.balanceOf(address(this)) = ", usdlCollateral.balanceOf(address(this)));
-
                 require(usdlCollateral.balanceOf(address(this)) > _amountBaseToRebalance, "T1");
                 amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
-                // if(isCheckProfit) require(amountUSDCPlus >= amountUSDCMinus, "Unprofitable");
             } else {
-                console.log(
-                    "[rebalance()] Net Long amount is Base --> Increase Positive Base --> Sell floating collateral for USDC, use it to incrase long"
-                );
-                // NOTE: Net Long Position --> USDL Collateral is not deposited in Perp but floating in the local balance sheet so we do not have to do anything before the trade
                 amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
                 _deposit(amountUSDCPlus, address(usdc), Basis.IsRebalance);
                 (, uint256 amountUSDCMinus_1e18) = openLongWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance);
                 amountUSDCMinus = amountUSDCMinus_1e18 * (10 ** usdc.decimals()) / 1e18;
-                // (usdlCollateralAmount, ) = openLongWithExactQuote(usdcAmount, address(0), 0);
-                // if(isCheckProfit) require(amountUSDCPlus >= amountUSDCMinus, "Unprofitable");
             }
         } else {
-            console.log("[rebalance()] isIncreaseBase: False --> Base should decrease. USDC --> Collateral --> vQuote");
-            // TODO: Fix the following --> the commented part should be the right one
             if (amountBase <= 0) {
-                // NOTE: We are net short
-                console.log(
-                    "[rebalance()] Net Short --> Increase Negative Base --> Sell USDC for floating collateral, use floating collateral to open a short on Perp"
-                );
-                // NOTE: Buy Exact Amount of UsdlCollateral
                 amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
                 _deposit(_amountBaseToRebalance, address(usdlCollateral), Basis.IsRebalance);
                 (, uint256 amountUSDCPlus_1e18) = openShortWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance); 
                 amountUSDCPlus = amountUSDCPlus_1e18 * (10 ** usdc.decimals()) / 1e18;
-                // if(isCheckProfit) require(usdcAmountPerpGained >= usdcAmountDexSpent, "Unprofitable");
             } else {
-                // NOTE: We are net long
-                console.log("[rebalance()] Net Long --> Decrease Positive Base --> Sell floating collateral for USDC, use it to incrase long");    
                 (, uint256 amountUSDCPlus_1e18) = closeLongWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance);
                 amountUSDCPlus = amountUSDCPlus_1e18 * (10 ** usdc.decimals()) / 1e18;
                 _withdraw(amountUSDCPlus, address(usdc), Basis.IsRebalance);
                 amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
-                // if(isCheckProfit) require(usdcAmountPerpGained >= usdcAmountDexSpent, "Unprofitable");
             }
         }
         if (isCheckProfit) require(amountUSDCPlus >= amountUSDCMinus, "Unprofitable");
@@ -613,7 +519,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     function openLongWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         (uint256 base, uint256 quote) = trade(amount, false, false);
-        console.log('openLongWithExactBase, base, quote: ', base, quote, amount);
         calculateMintingAsset(base, basis, false);
         return (base, quote);
     }
@@ -621,7 +526,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     function openLongWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         (uint256 base, uint256 quote) = trade(amount, false, true);
-        console.log('openLongWithExactQuote, base, quote: ', base, quote, amount);
         calculateMintingAsset(base, basis, false);
         return (base, quote);
     }
@@ -629,7 +533,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     function closeLongWithExactBase(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
         (uint256 base, uint256 quote) = trade(amount, true, true);
-        console.log('closeLongWithExactBase, base, quote: ', base, quote, amount);
         calculateMintingAsset(base, basis, true);
         return (base, quote);
     }
@@ -637,7 +540,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     function closeLongWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
         (uint256 base, uint256 quote) = trade(amount, true, false);
-        console.log('closeLongWithExactQuote, base, quote: ', base, quote, amount);
         calculateMintingAsset(getRoudDown(base), basis, true);
         return (base, quote);
     }
@@ -645,7 +547,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     function openShortWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         (uint256 base, uint256 quote) = trade(amount, true, true);
-        console.log('openShortWithExactBase, base, quote: ', base, quote);
         calculateMintingAsset(quote, basis, true);
         return (base, quote);
     }
@@ -653,7 +554,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     function openShortWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         (uint256 base, uint256 quote) = trade(amount, true, false);
-        console.log('openShortWithExactQuote, base, quote: ', base, quote, amount);
         calculateMintingAsset(quote, basis, true);
         return (base, quote);
     }
@@ -661,7 +561,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     function closeShortWithExactBase(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
         (uint256 base, uint256 quote) = trade(amount, false, false);
-        console.log('closeShortWithExactBase, base, quote, amount: ', base, quote, amount);
         calculateMintingAsset(quote, basis, false);
         return (base, quote);
     }
@@ -669,7 +568,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     function closeShortWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
         (uint256 base, uint256 quote) = trade(amount, false, true);
-        console.log('closeShortWithExactQuote, base, quote, amount: ', base, quote, amount);
         calculateMintingAsset(getRoudDown(quote), basis, false);
         return (base, quote);
     }
@@ -778,8 +676,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         // c = totalSynthCollateral ===> Total synthcollateral that is deposited in perpLemma.
         // d = usdc.balanceOf(address(this)) ===> Current Total synthcollateral perpLemma has.
         (uint256 a, uint256 b, uint256 c, uint256 d) = getAllBalance();
-        console.log('\na, b: ', a, b);
-        console.log('c, d: ', c, d);
         if (isUsdl) {
             tailAmount = a > b ? b : a;
             usdcAmount = c >= d ? 0 : d - c;
@@ -787,16 +683,12 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             usdcAmount = c < d ? c : d;
             tailAmount = a >= b ? 0 : b - a;
         }
-        console.log('isUsdl: ', isUsdl);
-        console.log('tailAmount: ', tailAmount);
-        console.log('usdcAmount: ', usdcAmount);
 
         if (tailAmount != 0) {
             uint256 collateralDecimals = IERC20Decimals(address(usdlCollateral)).decimals();
             tailAmount = tailAmount * 1e18 / (10**collateralDecimals);
             amountUsdlCollateral1e_18 = (usdlOrSynthAmount * tailAmount) / positionAtSettlementInQuote;
             uint256 amountUsdlCollateral = getAmountInCollateralDecimalsForPerp(amountUsdlCollateral1e_18, address(usdlCollateral), false);
-            console.log('amountUsdlCollateral', amountUsdlCollateral);
             SafeERC20Upgradeable.safeTransfer(usdlCollateral, to, amountUsdlCollateral);
             if (isUsdl) totalUsdlCollateral -= amountUsdlCollateral;
         }
@@ -805,7 +697,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             usdcAmount = usdcAmount * 1e18 / (10**collateralDecimals);
             amountUsdcCollateral1e_18 = (usdlOrSynthAmount * usdcAmount) / positionAtSettlementInQuote;
             uint256 amountUsdcCollateral = getAmountInCollateralDecimalsForPerp(amountUsdcCollateral1e_18, address(usdc), false);
-            console.log('amountUsdcCollateral', amountUsdcCollateral);
             SafeERC20Upgradeable.safeTransfer(usdc, to, amountUsdcCollateral);
             if (!isUsdl) totalSynthCollateral -= amountUsdcCollateral;
         }
@@ -838,11 +729,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         uint256 res;
         address tokenIn = (isUSDLCollateralToUSDC) ? address(usdlCollateral) : address(usdc);
         address tokenOut = (isUSDLCollateralToUSDC) ? address(usdc) : address(usdlCollateral);
-        console.log("[_swapOnUniV3] usdlCollateral ", address(usdlCollateral));
-        console.log("[_swapOnUniV3] usdc ", address(usdc));
-        console.log("[_swapOnUniV3()] tokenIn = ", tokenIn);
-        console.log("[_swapOnUniV3()] tokenOut = ", tokenOut);
-        console.log("[_swapOnUniV3()] router = ", router);
 
         IERC20Decimals(tokenIn).approve(router, type(uint256).max);
         if(isExactInput) {
@@ -856,12 +742,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                 amountOutMinimum: 0,
                 sqrtPriceLimitX96: 0
             });
-            console.log("[_swapOnUniV3] ExactInput amount = ", amount);
             uint256 balanceBefore = IERC20Decimals(tokenOut).balanceOf(address(this));
             res = ISwapRouter(router).exactInputSingle(temp);
-            console.log("[_swapOnUniV3] ExactInput amount------+++ = ", res);
             uint256 balanceAfter = IERC20Decimals(tokenOut).balanceOf(address(this));
-            // require(balanceAfter > balanceBefore);
             res = uint256( int256(balanceAfter) - int256(balanceBefore) );
         }
         else {
@@ -875,11 +758,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                 amountInMaximum: type(uint256).max,
                 sqrtPriceLimitX96: 0
             });
-            console.log("[_swapOnUniV3()] ExactOutput = ", amount);
             res = ISwapRouter(router).exactOutputSingle(temp);
         }
         IERC20Decimals(tokenIn).approve(router, 0);
-        console.log("[_swapOnUniV3()] res = ", res);
         return res;
     }
 

@@ -170,7 +170,6 @@ contract USDLemma is
         require(tokens.length > 0, "Empty Set of Collaterals");
         address settlementToken = tokens[0];
         res = IERC20Upgradeable(settlementToken).balanceOf(lemmaTreasury);
-        console.log("[getAvailableSettlementToken()] res = ", res);
     }
 
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of USDL

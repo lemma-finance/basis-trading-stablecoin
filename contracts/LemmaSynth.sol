@@ -173,11 +173,8 @@ contract LemmaSynth is
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpLemma);
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
-        console.log('collateralAmount: ', address(perpDEXWrapper), collateralAmount, _collateralRequired);
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
-        console.log('_collateralRequired: ', _collateralRequired);
         (uint256 _lemmaSynthToMint, ) = perpDEXWrapper.openLongWithExactQuote(collateralAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsSynth);
-        console.log('_lemmaSynthToMint: ', _lemmaSynthToMint);
         require(_lemmaSynthToMint >= minSynthToMint, "Synth minted too low");
         _mint(to, _lemmaSynthToMint);
         emit DepositTo(perpetualDEXIndex, address(collateral), to, _lemmaSynthToMint, _collateralRequired);        
