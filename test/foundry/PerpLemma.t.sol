@@ -47,7 +47,7 @@ contract PerpLemmaCommonTest is Test {
         assertTrue(IERC20Decimals(token).balanceOf(to) >= amount);
     }
 
-    function getRoudDown(uint256 amount) internal view returns (uint256) {
+    function getRoundDown(uint256 amount) internal pure returns (uint256) {
         return amount - 1;
     }
 
@@ -137,7 +137,7 @@ contract PerpLemmaCommonTest is Test {
         assertEq(afterWethBalance-beforeWethBalance, amount);
     }
 
-    function openShortWithExactBase(uint256 collateralAmount, address collateral, address to) internal {
+    function openShortWithExactBase(uint256 collateralAmount) internal {
         uint256 beforeMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         (uint256 base, uint256 quote) = d.pl().openShortWithExactBase(collateralAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl);
         uint256 afterMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
@@ -145,7 +145,7 @@ contract PerpLemmaCommonTest is Test {
         assertEq(collateralAmount, base);
     }
 
-    function openShortWithExactQuote(uint256 collateralAmount, uint256 exactUSDLAmount, address collateral, address to) internal {
+    function openShortWithExactQuote(uint256 collateralAmount, uint256 exactUSDLAmount) internal {
         uint256 beforeMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         (uint256 base, uint256 quote) = d.pl().openShortWithExactQuote(exactUSDLAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl);
         uint256 afterMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
@@ -153,7 +153,7 @@ contract PerpLemmaCommonTest is Test {
         assertEq(collateralAmount, base);
     }
 
-    function closeShortWithExactBase(uint256 collateralAmount, address collateral, address to) internal {
+    function closeShortWithExactBase(uint256 collateralAmount) internal {
         uint256 beforeMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         (uint256 base, uint256 quote) = d.pl().closeShortWithExactBase(collateralAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl);
         uint256 afterMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
@@ -161,27 +161,27 @@ contract PerpLemmaCommonTest is Test {
         assertEq(collateralAmount, base);
     }
 
-    function closeShortWithExactQuote(uint256 collateralAmount, uint256 exactUSDLAmount, address collateral, address to) internal returns(uint256 collateralToGetBack){
+    function closeShortWithExactQuote(uint256 collateralAmount, uint256 exactUSDLAmount) internal returns(uint256 collateralToGetBack){
         uint256 beforeMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         (uint256 base, uint256 quote) = d.pl().closeShortWithExactQuote(exactUSDLAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl);
         uint256 afterMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
-        assertEq(beforeMintedPositionUsdlForThisWrapper-afterMintedPositionUsdlForThisWrapper, getRoudDown(quote));
+        assertEq(beforeMintedPositionUsdlForThisWrapper-afterMintedPositionUsdlForThisWrapper, getRoundDown(quote));
         uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), collateralAmount, 0);
         uint256 _minETHtoRedeem = _deductFees(d.getTokenAddress("WETH"), _collateralAfterMinting, 0);
         assertLt(_minETHtoRedeem, base);
         collateralToGetBack = base;
     }
 
-    function openLongWithExactBase(uint256 synthAmount, uint256 usdcAmount, address collateral, address to) internal {
+    function openLongWithExactBase(uint256 synthAmount, uint256 usdcAmount, address collateral) internal {
         uint256 beforeMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
-        (uint256 base, uint256 quote) = d.pl().openLongWithExactBase(synthAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsSynth);
+        (uint256 base,) = d.pl().openLongWithExactBase(synthAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsSynth);
         uint256 afterMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
         assertEq(afterMintedPositionSynthForThisWrapper-beforeMintedPositionSynthForThisWrapper, base);
         uint256 decimal = IERC20Decimals(collateral).decimals();
         usdcAmount = (usdcAmount*1e18) / 10**decimal;
     }
 
-    function openLongWithExactQuote(uint256 synthAmount, uint256 usdcAmount, address collateral, address to) internal {
+    function openLongWithExactQuote(uint256 usdcAmount, address collateral) internal {
         uint256 decimal = IERC20Decimals(collateral).decimals();
         usdcAmount = (usdcAmount*1e18) / 10**decimal;
         uint256 beforeMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
@@ -191,7 +191,7 @@ contract PerpLemmaCommonTest is Test {
         assertGe(quote, usdcAmount);
     }
 
-    function closeLongWithExactBase(uint256 synthAmount, uint256 usdcAmount, address collateral, address to) internal returns(uint256 usdcAmountToWithdraw) {
+    function closeLongWithExactBase(uint256 synthAmount, uint256 usdcAmount, address collateral) internal returns(uint256 usdcAmountToWithdraw) {
         uint256 beforeMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
         (uint256 base, uint256 quote) = d.pl().closeLongWithExactBase(synthAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsSynth);
         console.log('base, quote: ', base, quote);
@@ -207,14 +207,14 @@ contract PerpLemmaCommonTest is Test {
         usdcAmountToWithdraw = quote;
     }
 
-    function closeLongWithExactQuote(uint256 synthAmount, uint256 usdcAmount, address collateral, address to) internal returns(uint256 usdcAmountToWithdraw) {
+    function closeLongWithExactQuote(uint256 synthAmount, uint256 usdcAmount) internal returns(uint256 usdcAmountToWithdraw) {
         uint256 beforeMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
         (uint256 base, uint256 quote) = d.pl().closeLongWithExactQuote(usdcAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsSynth);
         uint256 afterMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
         uint256 afterSynthMinting = _deductFees(d.getTokenAddress("WETH"), synthAmount, 0);
         uint256 _maxSynthToRedeem = _deductFees(d.getTokenAddress("WETH"), afterSynthMinting, 0);
         assertLe(_maxSynthToRedeem, beforeMintedPositionSynthForThisWrapper-afterMintedPositionSynthForThisWrapper);
-        assertEq(beforeMintedPositionSynthForThisWrapper-afterMintedPositionSynthForThisWrapper, getRoudDown(base)); // sometimes need to use getRoudDown(base) instead base
+        assertEq(beforeMintedPositionSynthForThisWrapper-afterMintedPositionSynthForThisWrapper, getRoundDown(base)); // sometimes need to use getRoundDown(base) instead base
         usdcAmountToWithdraw = quote;
     }
 
@@ -224,7 +224,7 @@ contract PerpLemmaCommonTest is Test {
         uint256 usdcAmount = 1098e6; // USDL amount
         _depositSettlementToken(usdcAmount);
         _depositUsdlCollateral(collateralAmount, collateral, address(this));
-        openShortWithExactBase(collateralAmount, collateral, address(this));
+        openShortWithExactBase(collateralAmount);
         int256 getTotalPosition = d.pl().getTotalPosition();
         if (getTotalPosition < 0) {
             console.log('getTotalPosition negative -', uint256(getTotalPosition*(-1)));
@@ -239,30 +239,26 @@ contract PerpLemmaCommonTest is Test {
         uint256 exactUSDLAmount = 1096143206913675032725;
         _depositSettlementToken((exactUSDLAmount*1e6)/1e18);
         _depositUsdlCollateral(collateralAmount, collateral, address(this));
-        openShortWithExactQuote(collateralAmount, exactUSDLAmount, collateral, address(this));
+        openShortWithExactQuote(collateralAmount, exactUSDLAmount);
     }
 
     function testCloseShortWithExactBase1() public {
-        uint256 beforeMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         testOpenShortWithExactBase();
-        uint256 afterMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         address collateral = d.getTokenAddress("WETH");
         uint256 collateralAmount = 1e18;
         uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), collateralAmount, 0);
         uint256 _maxETHtoRedeem = _deductFees(d.getTokenAddress("WETH"), _collateralAfterMinting, 0);
-        closeShortWithExactBase(_maxETHtoRedeem, collateral, address(this));
+        closeShortWithExactBase(_maxETHtoRedeem);
         _withdrawUsdlCollateral(_maxETHtoRedeem, collateral, address(this));
     }
 
     function testCloseShortWithExactBase2() public {
-        uint256 beforeMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         testOpenShortWithExactQuote();
-        uint256 afterMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         address collateral = d.getTokenAddress("WETH");
         uint256 collateralAmount = 1e18;
         uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), collateralAmount, 0);
         uint256 _maxETHtoRedeem = _deductFees(d.getTokenAddress("WETH"), _collateralAfterMinting, 0);
-        closeShortWithExactBase(_maxETHtoRedeem, collateral, address(this));
+        closeShortWithExactBase(_maxETHtoRedeem);
         _withdrawUsdlCollateral(_maxETHtoRedeem, collateral, address(this));
     }
 
@@ -274,10 +270,7 @@ contract PerpLemmaCommonTest is Test {
         address collateral = d.getTokenAddress("WETH");
         uint256 collateralAmount = 1e18;
         uint256 exactUSDLAmount = afterMintedPositionUsdlForThisWrapper-beforeMintedPositionUsdlForThisWrapper;
-        uint256 _exactUSDLAmountAfterMinting = _deductFees(d.getTokenAddress("WETH"), exactUSDLAmount, 0);
-        uint256 _maxUSDLtoRedeem = _deductFees(d.getTokenAddress("WETH"), _exactUSDLAmountAfterMinting, 0);
-        uint256 collateralToGetBack =  closeShortWithExactQuote(collateralAmount, exactUSDLAmount, collateral, address(this));
-        int256 getTotalPosition = d.pl().getTotalPosition();
+        uint256 collateralToGetBack =  closeShortWithExactQuote(collateralAmount, exactUSDLAmount);
         _withdrawUsdlCollateral(collateralToGetBack, collateral, address(this));
     }
 
@@ -289,9 +282,8 @@ contract PerpLemmaCommonTest is Test {
         address collateral = d.getTokenAddress("WETH");
         uint256 collateralAmount = 1e18;
         uint256 exactUSDLAmount = afterMintedPositionUsdlForThisWrapper-beforeMintedPositionUsdlForThisWrapper;
-        uint256 _exactUSDLAmountAfterMinting = _deductFees(d.getTokenAddress("WETH"), exactUSDLAmount, 0);
-        uint256 _maxUSDLtoRedeem = _deductFees(d.getTokenAddress("WETH"), _exactUSDLAmountAfterMinting, 0);
-        uint256 collateralToGetBack =  closeShortWithExactQuote(collateralAmount, exactUSDLAmount, collateral, address(this));
+        // uint256 _exactUSDLAmountAfterMinting = _deductFees(d.getTokenAddress("WETH"), exactUSDLAmount, 0);
+        uint256 collateralToGetBack =  closeShortWithExactQuote(collateralAmount, exactUSDLAmount);
         _withdrawUsdlCollateral(collateralToGetBack, collateral, address(this));
     }
 
@@ -300,67 +292,56 @@ contract PerpLemmaCommonTest is Test {
         uint256 synthAmount = 1e18; // USDL amount
         uint256 usdcAmount = 1098e6; // USDL amount
         _depositSettlementTokenMax();
-        openLongWithExactBase(synthAmount, usdcAmount, collateral, address(this));
+        openLongWithExactBase(synthAmount, usdcAmount, collateral);
     }
 
     function testOpenLongWithExactQuote() public {
-        address collateral = d.getTokenAddress("USDC");
-        uint256 synthAmount = 1e18; // USDL amount
+        address collateral = d.getTokenAddress("USDC"); 
         uint256 usdcAmount = 1098e6; // USDL amount
         _depositSettlementToken(usdcAmount);
-        openLongWithExactQuote(synthAmount, usdcAmount, collateral, address(this));
+        openLongWithExactQuote(usdcAmount, collateral);
     }
 
     function testCloseLongWithExactBase1() public {
-        uint256 beforeMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
-        testOpenLongWithExactBase(); // 1000000000000000000, 1098491447137910143682
-        uint256 aftermMntedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
+        testOpenLongWithExactBase(); // 1000000000000000000, 1098491447137910143682 
         address collateral = d.getTokenAddress("USDC");
         uint256 synthAmount = 1e18;
         uint256 usdcAmount = 1098e6;
-        uint256 usdcAmountToWithdraw = closeLongWithExactBase(synthAmount, usdcAmount, collateral, address(this));
+        uint256 usdcAmountToWithdraw = closeLongWithExactBase(synthAmount, usdcAmount, collateral);
         _withdrawSettlementToken(usdcAmountToWithdraw);
     }
 
     function testCloseLongWithExactBase2() public {
         _depositSettlementToken(1100e6);
-        uint256 beforeMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
         testOpenLongWithExactQuote(); // 999552647402874360, 1098000000000000000000
-        uint256 aftermMntedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
         address collateral = d.getTokenAddress("USDC");
         uint256 synthAmount = 1e18;
         uint256 usdcAmount = 1098e6;
 
         uint256 afterSynthMinting = _deductFees(d.getTokenAddress("WETH"), synthAmount, 0);
         uint256 _synthAmountAfterFees = _deductFees(d.getTokenAddress("WETH"), afterSynthMinting, 0);
-        uint256 usdcAmountToWithdraw = closeLongWithExactBase(_synthAmountAfterFees, usdcAmount, collateral, address(this));
+        uint256 usdcAmountToWithdraw = closeLongWithExactBase(_synthAmountAfterFees, usdcAmount, collateral);
         _withdrawSettlementToken(usdcAmountToWithdraw);
     }
 
     function testCloseLongWithExactQuote1() public {
-        uint256 beforeMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
         testOpenLongWithExactBase();
-        uint256 aftermMntedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
-        address collateral = d.getTokenAddress("USDC");
         uint256 synthAmount = 1e18;
         uint256 usdcAmount = 1098e18; // USDC(actual 1e6)
         uint256 afterSynthMinting = _deductFees(d.getTokenAddress("WETH"), usdcAmount, 0);
         uint256 _maxUSDCToRedeem = _deductFees(d.getTokenAddress("WETH"), afterSynthMinting, 0);
-        uint256 usdcAmountToWithdraw = closeLongWithExactQuote(synthAmount, _maxUSDCToRedeem, collateral, address(this));
+        uint256 usdcAmountToWithdraw = closeLongWithExactQuote(synthAmount, _maxUSDCToRedeem);
         _withdrawSettlementToken(usdcAmountToWithdraw);
     }
 
     // need to verify
-    function testCloseLongWithExactQuote2() public {
-        uint256 beforeMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
+    function testCloseLongWithExactQuote2() public {    
         testOpenLongWithExactQuote();
-        uint256 aftermMntedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
-        address collateral = d.getTokenAddress("USDC");
         uint256 synthAmount = 1e18;
         uint256 usdcAmount = 1098e18; // USDC(actual 1e6)
         uint256 afterSynthMinting = _deductFees(d.getTokenAddress("WETH"), usdcAmount, 0);
         uint256 _maxUSDCToRedeem = _deductFees(d.getTokenAddress("WETH"), afterSynthMinting, 0);
-        uint256 usdcAmountToWithdraw = closeLongWithExactQuote(synthAmount, _maxUSDCToRedeem, collateral, address(this));
+        uint256 usdcAmountToWithdraw = closeLongWithExactQuote(synthAmount, _maxUSDCToRedeem);
         _withdrawSettlementToken(usdcAmountToWithdraw);
     }
 
@@ -373,14 +354,14 @@ contract PerpLemmaCommonTest is Test {
         vm.startPrank(alice);
         uint256 beforeAliceUSDL = d.pl().mintedPositionUsdlForThisWrapper();
         _depositUsdlCollateral(ethCollateral, d.getTokenAddress("WETH"), alice);
-        openShortWithExactBase(ethCollateral, d.getTokenAddress("WETH"), alice);
+        openShortWithExactBase(ethCollateral);
         uint256 afterAliceUSDL = d.pl().mintedPositionUsdlForThisWrapper();
         aliceUsdlToRedeem = afterAliceUSDL - beforeAliceUSDL;
         vm.stopPrank();
 
         vm.startPrank(bob);
         _depositUsdlCollateral(ethCollateral, d.getTokenAddress("WETH"), bob);
-        openShortWithExactBase(ethCollateral, d.getTokenAddress("WETH"), bob);
+        openShortWithExactBase(ethCollateral);
         uint256 afterBobUSDL = d.pl().mintedPositionUsdlForThisWrapper();
         bobUsdlToRedeem = afterBobUSDL - afterAliceUSDL;
         vm.stopPrank();
@@ -393,14 +374,14 @@ contract PerpLemmaCommonTest is Test {
         _depositSettlementToken(usdcAmount);
         vm.startPrank(alice);
         uint256 beforeAliceSynth = d.pl().mintedPositionSynthForThisWrapper();
-        openLongWithExactBase(ethCollateral*2, usdcAmount, d.getTokenAddress("USDC"), alice);
+        openLongWithExactBase(ethCollateral*2, usdcAmount, d.getTokenAddress("USDC"));
         uint256 afterAliceSynth = d.pl().mintedPositionSynthForThisWrapper();
         aliceSynthToRedeem = afterAliceSynth - beforeAliceSynth;
         vm.stopPrank();
 
         _depositSettlementToken(usdcAmount);
         vm.startPrank(bob);
-        openLongWithExactBase(ethCollateral*2, usdcAmount, d.getTokenAddress("USDC"), bob);
+        openLongWithExactBase(ethCollateral*2, usdcAmount, d.getTokenAddress("USDC"));
         uint256 afterBobSynth = d.pl().mintedPositionSynthForThisWrapper();
         bobSynthToRedeem = afterBobSynth - afterAliceSynth;
         vm.stopPrank();
@@ -482,19 +463,18 @@ contract PerpLemmaCommonTest is Test {
         _depositSettlementTokenMax();
         address collateral = d.getTokenAddress("WETH");
         uint256 collateralAmount = 1e18;
-        uint256 usdcAmount = 1098e6; // USDL amount
         
         vm.startPrank(alice);
         uint256 beforeAliceUSDL = d.pl().mintedPositionUsdlForThisWrapper();
         _depositUsdlCollateral(collateralAmount, collateral, alice);
-        openShortWithExactBase(collateralAmount, collateral, alice);
+        openShortWithExactBase(collateralAmount);
         uint256 afterAliceUSDL = d.pl().mintedPositionUsdlForThisWrapper();
         uint256 aliceUsdlToRedeem = afterAliceUSDL - beforeAliceUSDL;
         vm.stopPrank();
 
         vm.startPrank(bob);
         _depositUsdlCollateral(collateralAmount, collateral, bob);
-        openShortWithExactBase(collateralAmount, collateral, bob);
+        openShortWithExactBase(collateralAmount);
         uint256 afterBobUSDL = d.pl().mintedPositionUsdlForThisWrapper();
         uint256 bobUsdlToRedeem = afterBobUSDL - afterAliceUSDL;
         vm.stopPrank();
@@ -510,7 +490,6 @@ contract PerpLemmaCommonTest is Test {
         uint256 perpLemmaBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
         uint256 aliceBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(alice);
         uint256 bobBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(bob);
-        uint256 totalMintedUSDL = d.pl().mintedPositionUsdlForThisWrapper();
 
         vm.startPrank(alice);
         d.pl().getCollateralBackAfterSettlement(aliceUsdlToRedeem, alice, true); // get back user collateral after settlement
@@ -531,13 +510,11 @@ contract PerpLemmaCommonTest is Test {
 
     // Settlment for Single Synth user
     function testSettlement3() public {
-        uint256 amount = 1e18;
-
         address collateral = d.getTokenAddress("USDC");
         uint256 synthAmount = 1e18; // USDL amount
         uint256 usdcAmount = 1098e6; // USDL amount
         _depositSettlementToken(usdcAmount);
-        openLongWithExactBase(synthAmount, usdcAmount, collateral, address(this));
+        openLongWithExactBase(synthAmount, usdcAmount, collateral);
         
         address owner = d.getPerps().ib.owner();
         vm.startPrank(owner);
@@ -577,14 +554,14 @@ contract PerpLemmaCommonTest is Test {
         _depositSettlementToken(usdcAmount);
         vm.startPrank(alice);
         uint256 beforeAliceSynth = d.pl().mintedPositionSynthForThisWrapper();
-        openLongWithExactBase(synthAmount, usdcAmount, collateral, alice);
+        openLongWithExactBase(synthAmount, usdcAmount, collateral);
         uint256 afterAliceSynth = d.pl().mintedPositionSynthForThisWrapper();
         uint256 aliceSynthToRedeem = afterAliceSynth - beforeAliceSynth;
         vm.stopPrank();
 
         _depositSettlementToken(usdcAmount);
         vm.startPrank(bob);
-        openLongWithExactBase(synthAmount, usdcAmount, collateral, bob);
+        openLongWithExactBase(synthAmount, usdcAmount, collateral);
         uint256 afterBobSynth = d.pl().mintedPositionSynthForThisWrapper();
         uint256 bobSynthToRedeem = afterBobSynth - afterAliceSynth;
         vm.stopPrank();
@@ -600,7 +577,6 @@ contract PerpLemmaCommonTest is Test {
         uint256 perpLemmaBeforeBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(d.pl()));
         uint256 aliceBeforeBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(alice);
         uint256 bobBeforeBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(bob);
-        uint256 totalMintedUSDL = d.pl().mintedPositionSynthForThisWrapper();
 
         vm.startPrank(alice);
         d.pl().getCollateralBackAfterSettlement(aliceSynthToRedeem, alice, false); // get back user collateral after settlement
@@ -622,8 +598,6 @@ contract PerpLemmaCommonTest is Test {
     // Settlement for Multiple mix users of USDL and Synths
     function testSettlement5() public {
         uint256 depositedAmount = _depositSettlementTokenMax();
-        uint256 ethCollateral = 1e18;
-        uint256 usdcAmount = 2197e6; // USDL amount
 
         // USDl And Synth Mint
         (uint256 aliceUsdlToRedeem, uint256 bobUsdlToRedeem) = usdlMintForTwoUsers();
@@ -639,8 +613,8 @@ contract PerpLemmaCommonTest is Test {
         d.pl().settle(); // PerpLemma settle call
 
         _withdrawSettlementTokenTo((depositedAmount*1e18)/1e6, address(this));
-        uint256 perpLemmaBeforeWETHBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
-        uint256 perpLemmaBeforeUSDCBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(d.pl()));
+        // uint256 perpLemmaBeforeWETHBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
+        // uint256 perpLemmaBeforeUSDCBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(d.pl()));
 
         // USDL And Synth Settlement
         usdlSettlementFortwoUser(aliceUsdlToRedeem, bobUsdlToRedeem);
@@ -655,8 +629,6 @@ contract PerpLemmaCommonTest is Test {
 
     function testSettlement6() public {
         uint256 depositedAmount = _depositSettlementTokenMax();
-        uint256 ethCollateral = 1e18;
-        uint256 usdcAmount = 2197e6; // USDL amount
 
         // USDl And Synth Mint
         (uint256 aliceUsdlToRedeem, uint256 bobUsdlToRedeem) = usdlMintForTwoUsers();
@@ -705,8 +677,6 @@ contract PerpLemmaCommonTest is Test {
 
     function testSettlement7() public {
         uint256 depositedAmount = _depositSettlementTokenMax();
-        uint256 ethCollateral = 1e18;
-        uint256 usdcAmount = 2197e6; // USDL amount
 
         // USDl And Synth Mint
         (uint256 aliceUsdlToRedeem, uint256 bobUsdlToRedeem) = usdlMintForTwoUsers();
@@ -755,8 +725,6 @@ contract PerpLemmaCommonTest is Test {
 
     function testSettlement8() public {
         uint256 depositedAmount = _depositSettlementTokenMax();
-        uint256 ethCollateral = 1e18;
-        uint256 usdcAmount = 2197e6; // USDL amount
 
         // USDl And Synth Mint
         (uint256 aliceUsdlToRedeem, uint256 bobUsdlToRedeem) = usdlMintForTwoUsers();
@@ -805,8 +773,6 @@ contract PerpLemmaCommonTest is Test {
 
     function testSettlement9() public {
         uint256 depositedAmount = _depositSettlementTokenMax();
-        uint256 ethCollateral = 1e18;
-        uint256 usdcAmount = 2197e6; // USDL amount
 
         // USDl And Synth Mint
         (uint256 aliceUsdlToRedeem, uint256 bobUsdlToRedeem) = usdlMintForTwoUsers();

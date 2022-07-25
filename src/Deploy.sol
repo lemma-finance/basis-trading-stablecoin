@@ -143,7 +143,7 @@ contract Deploy {
 
     uint256 public chain_id;
 
-    Deploy_PerpLemma public d_pl;
+    // Deploy_PerpLemma public d_pl;
 
     ISwapRouter public routerUniV3;
     MockUniV3Router public mockUniV3Router;
@@ -254,8 +254,8 @@ contract Deploy {
     }
 
     function _deployPerpLemma(Deploy_PerpLemma memory d_pl, address perp_ch, address perp_mr, address _usdl, address _lemmaSynth) internal returns(TestPerpLemma) {
-        TestPerpLemma pl = new TestPerpLemma();
-        pl.initialize(
+        TestPerpLemma _pl = new TestPerpLemma();
+        _pl.initialize(
             d_pl.trustedForwarder,
             d_pl.usdlCollateral,
             d_pl.baseToken,          // NOTE: At some point, we will need to remove these ones as they regard Synth but it is the same as USDL Collateral
@@ -266,7 +266,7 @@ contract Deploy {
             d_pl.maxPosition
         );
 
-        return pl;
+        return _pl;
     }
 
 }

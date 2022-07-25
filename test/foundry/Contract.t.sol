@@ -249,7 +249,7 @@ contract ContractTest is Test {
         assertTrue(_usdlAfter < _usdlBefore);
     }
 
-    function _checkNetShort() internal returns(bool res) {
+    function _checkNetShort() internal view returns(bool res) {
         res = d.pl().amountBase() < 0;
         console.log("Checking Net Short Res = ", res);
     }
@@ -908,7 +908,7 @@ contract ContractTest is Test {
 
         uint256 aliceBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(alice);
         uint256 bobBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(bob);
-        uint256 perpLemmaBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
+        // uint256 perpLemmaBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
 
         uint256 aliceUsdlToRedeem = d.usdl().balanceOf(alice);
         uint256 bobUsdlToRedeem = d.usdl().balanceOf(bob);
