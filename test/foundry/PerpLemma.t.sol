@@ -639,8 +639,8 @@ contract PerpLemmaCommonTest is Test {
         d.pl().settle(); // PerpLemma settle call
 
         _withdrawSettlementTokenTo((depositedAmount*1e18)/1e6, address(this));
-        uint256 perpLemmaBeforeWETHBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
-        uint256 perpLemmaBeforeUSDCBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(d.pl()));
+        // uint256 perpLemmaBeforeWETHBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
+        // uint256 perpLemmaBeforeUSDCBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(d.pl()));
 
         // USDL And Synth Settlement
         usdlSettlementFortwoUser(aliceUsdlToRedeem, bobUsdlToRedeem);
@@ -655,8 +655,6 @@ contract PerpLemmaCommonTest is Test {
 
     function testSettlement6() public {
         uint256 depositedAmount = _depositSettlementTokenMax();
-        uint256 ethCollateral = 1e18;
-        uint256 usdcAmount = 2197e6; // USDL amount
 
         // USDl And Synth Mint
         (uint256 aliceUsdlToRedeem, uint256 bobUsdlToRedeem) = usdlMintForTwoUsers();
@@ -705,8 +703,6 @@ contract PerpLemmaCommonTest is Test {
 
     function testSettlement7() public {
         uint256 depositedAmount = _depositSettlementTokenMax();
-        uint256 ethCollateral = 1e18;
-        uint256 usdcAmount = 2197e6; // USDL amount
 
         // USDl And Synth Mint
         (uint256 aliceUsdlToRedeem, uint256 bobUsdlToRedeem) = usdlMintForTwoUsers();
@@ -755,8 +751,6 @@ contract PerpLemmaCommonTest is Test {
 
     function testSettlement8() public {
         uint256 depositedAmount = _depositSettlementTokenMax();
-        uint256 ethCollateral = 1e18;
-        uint256 usdcAmount = 2197e6; // USDL amount
 
         // USDl And Synth Mint
         (uint256 aliceUsdlToRedeem, uint256 bobUsdlToRedeem) = usdlMintForTwoUsers();
@@ -805,7 +799,6 @@ contract PerpLemmaCommonTest is Test {
 
     function testSettlement9() public {
         uint256 depositedAmount = _depositSettlementTokenMax();
-        uint256 ethCollateral = 1e18;
 
         // USDl And Synth Mint
         (uint256 aliceUsdlToRedeem, uint256 bobUsdlToRedeem) = usdlMintForTwoUsers();

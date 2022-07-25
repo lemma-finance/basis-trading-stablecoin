@@ -112,9 +112,9 @@ contract USDLemmaTest is Test {
         uint256 beforeBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 beforeBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
         assertTrue(beforeBalanceUSDL > 0, "!USDL");
-        uint256 beforeTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
+        // uint256 beforeTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
         d.usdl().withdrawTo(to, amount, 0, 0, IERC20Upgradeable(collateral));
-        uint256 afterTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
+        // uint256 afterTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 afterBalanceUSDL = d.usdl().balanceOf(to);
         // assertEq(beforeTotalUsdl-amount, getRoudDown(afterTotalUsdl));

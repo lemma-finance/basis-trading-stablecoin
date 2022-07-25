@@ -249,7 +249,7 @@ contract ContractTest is Test {
         assertTrue(_usdlAfter < _usdlBefore);
     }
 
-    function _checkNetShort() internal returns(bool res) {
+    function _checkNetShort() internal view returns(bool res) {
         res = d.pl().amountBase() < 0;
         console.log("Checking Net Short Res = ", res);
     }

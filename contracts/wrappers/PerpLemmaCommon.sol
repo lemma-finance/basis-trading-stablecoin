@@ -724,7 +724,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// INTERNAL METHODS ///
     ////////////////////////
     
-    function getRoudDown(uint256 amount) internal view returns (uint256) {
+    function getRoudDown(uint256 amount) internal pure returns (uint256) {
         return amount - 1;
     }
 
