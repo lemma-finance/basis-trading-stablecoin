@@ -6,16 +6,19 @@ import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "../../contracts/interfaces/IERC20Decimals.sol";
 import "../../src/Deploy.sol";
 import "forge-std/Test.sol";
-import "forge-std/console.sol";
+// import "forge-std/console.sol";
 
 contract PerpLemmaCommonTest is Test {
     Deploy public d;
     address alice = vm.addr(1);
     address bob = vm.addr(2);
 
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant PERPLEMMA_ROLE = keccak256("PERPLEMMA_ROLE");
     bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
     bytes32 public constant REBALANCER_ROLE = keccak256("REBALANCER_ROLE");
+    bytes32 public constant ONLY_OWNER = keccak256("ONLY_OWNER");
+    
     function setUp() public {
         d = new Deploy(10);
         vm.startPrank(address(d));
@@ -225,12 +228,6 @@ contract PerpLemmaCommonTest is Test {
         _depositSettlementToken(usdcAmount);
         _depositUsdlCollateral(collateralAmount, collateral, address(this));
         openShortWithExactBase(collateralAmount);
-        int256 getTotalPosition = d.pl().getTotalPosition();
-        if (getTotalPosition < 0) {
-            console.log('getTotalPosition negative -', uint256(getTotalPosition*(-1)));
-        } else {
-            console.log('getTotalPosition positive +: ', uint256(getTotalPosition));
-        }
     }
 
     function testOpenShortWithExactQuote() public {
@@ -820,7 +817,178 @@ contract PerpLemmaCommonTest is Test {
     }
 
     // Test Extra Function
-    function testGetTotalPosition() public {
-        
+    function testChangeAdmin() public {
+        vm.startPrank(address(d));
+        d.pl().changeAdmin(vm.addr(1));
+        vm.stopPrank();
+        assertEq(d.pl().hasRole(ADMIN_ROLE, vm.addr(1)), true);
+        assertEq(d.pl().hasRole(ADMIN_ROLE, address(d)), false);
+    }
+
+    // Admin Addresses should not be same
+    function testFailChangeAdmin1() public {
+        vm.startPrank(address(d));
+        d.pl().changeAdmin(address(0));
+        vm.stopPrank();
+    }
+
+    // Admin Addresses should not be same
+    function testFailChangeAdmin2() public {
+        vm.startPrank(address(d));
+        d.pl().changeAdmin(address(d));
+        vm.stopPrank();
+    }
+
+    function testSetRebalancer() public {
+        vm.startPrank(address(d));
+        d.pl().setReBalancer(vm.addr(1));
+        vm.stopPrank();
+        assertEq(d.pl().reBalancer(), vm.addr(1));
+    }
+
+    function testFailSetRebalancer() public {
+        vm.startPrank(address(d));
+        d.pl().setReBalancer(address(0));
+        vm.stopPrank();
+    }
+
+    function testResetApprovals() public {
+        d.pl().resetApprovals();
+        assertEq(
+            IERC20Decimals(d.getTokenAddress("WETH")).allowance(address(d.pl()), address(d.getPerps().pv)), 
+            type(uint256).max
+        );
+        assertEq(
+            IERC20Decimals(d.getTokenAddress("USDC")).allowance(address(d.pl()), address(d.getPerps().pv)), 
+            type(uint256).max
+        );
+    }
+
+    function testGetUsdlCollateralDecimals() public {
+        uint256 decimal = d.pl().getUsdlCollateralDecimals();
+        assertEq(decimal, 18);
+    }
+
+    function testGetIndexPrice() public {
+        uint256 price = d.pl().getIndexPrice();
+        assertGe(price, 0);
+    }
+
+    function testGetFees() public {
+        uint256 fees = d.pl().getFees();
+        assertEq(fees, 1000);
+    }
+
+    function testOpenShortWithExactBaseWithPosition() public {
+        address collateral = d.getTokenAddress("WETH");
+        uint256 collateralAmount = 1e18;
+        uint256 usdcAmount = 1098e6; // USDL amount
+        _depositSettlementToken(usdcAmount);
+        _depositUsdlCollateral(collateralAmount, collateral, address(this));
+        (uint256 base, uint256 quote) = d.pl().openShortWithExactBase(collateralAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl);
+        int256 getTotalPosition = d.pl().getTotalPosition();
+        assertGe(quote, uint256(getTotalPosition*(-1)));
+    }
+
+    function testGetCollateralTokens() public {
+        address[] memory res = d.pl().getCollateralTokens();
+        assertEq(res[0], d.getTokenAddress("USDC"));
+    }
+
+    function testSetIsUsdlCollateralTailAsset() public {
+        vm.startPrank(address(d));
+        d.pl().grantRole(ONLY_OWNER, vm.addr(1));
+        vm.stopPrank();
+        vm.startPrank(vm.addr(1));
+        d.pl().setIsUsdlCollateralTailAsset(true);
+        assertEq(d.pl().isUsdlCollateralTailAsset(), true);
+        d.pl().setIsUsdlCollateralTailAsset(false);
+        assertEq(d.pl().isUsdlCollateralTailAsset(), false);
+        vm.stopPrank();
+    }
+
+    function testSetUSDLemma() public {
+        vm.startPrank(address(d));
+        d.pl().grantRole(ONLY_OWNER, vm.addr(1));
+        vm.stopPrank();
+
+        vm.startPrank(vm.addr(1));
+        d.pl().setUSDLemma(vm.addr(1));
+        vm.stopPrank();
+
+        assertEq(d.pl().usdLemma(), vm.addr(1));
+
+        assertEq(
+            IERC20Decimals(d.getTokenAddress("WETH")).allowance(address(d.pl()), vm.addr(1)), 
+            type(uint256).max
+        );
+        assertEq(
+            IERC20Decimals(d.getTokenAddress("USDC")).allowance(address(d.pl()), vm.addr(1)), 
+            type(uint256).max
+        );
+    }
+
+    // REASON: UsdLemma should not ZERO address
+    function testFailSetUSDLemma() public {
+        vm.startPrank(address(d));
+        d.pl().grantRole(ONLY_OWNER, vm.addr(1));
+        vm.stopPrank();
+
+        vm.startPrank(vm.addr(1));
+        d.pl().setUSDLemma(address(0));
+        vm.stopPrank();
+    }
+
+    function testSetReferrerCode() public {
+        vm.startPrank(address(d));
+        d.pl().grantRole(ONLY_OWNER, vm.addr(1));
+        vm.stopPrank();
+
+        bytes32 referrerCode = keccak256("Test");
+        vm.startPrank(vm.addr(1));
+        d.pl().setReferrerCode(referrerCode);
+        vm.stopPrank();
+
+        assertEq(d.pl().referrerCode(), referrerCode);
+    }
+
+    function testSetMaxPosition() public {
+        vm.startPrank(address(d));
+        d.pl().grantRole(ONLY_OWNER, vm.addr(1));
+        vm.stopPrank();
+
+        uint256 _maxPosition = 1000000e18;
+        vm.startPrank(vm.addr(1));
+        d.pl().setMaxPosition(_maxPosition);
+        assertEq(d.pl().maxPosition(), _maxPosition);
+        vm.stopPrank();
+    }
+
+    // FAIL. Reason: max position reached
+    function testFailMaxPosition() public {
+        vm.startPrank(address(d));
+        d.pl().grantRole(ONLY_OWNER, vm.addr(1));
+        vm.stopPrank();
+
+        uint256 _maxPosition = 1e17;
+        vm.startPrank(vm.addr(1));
+        d.pl().setMaxPosition(_maxPosition);
+        assertEq(d.pl().maxPosition(), _maxPosition);
+        vm.stopPrank();
+
+        address collateral = d.getTokenAddress("WETH");
+        uint256 collateralAmount = 1e18;
+        uint256 usdcAmount = 1098e6; // USDL amount
+        _depositSettlementToken(usdcAmount);
+        _depositUsdlCollateral(collateralAmount, collateral, address(this));
+        (uint256 base, uint256 quote) = d.pl().openShortWithExactBase(collateralAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl);
+    }
+
+    // ! No Rebalance with Zero Amount
+    function testFailRebalance() public {
+        vm.startPrank(address(d));
+        d.pl().grantRole(REBALANCER_ROLE, address(d));
+        d.pl().rebalance(address(0), 0, 0, true);
+        vm.stopPrank();
     }
 }

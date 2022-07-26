@@ -23,8 +23,6 @@ import "../interfaces/Perpetual/IUSDLemma.sol";
 import "../interfaces/Perpetual/IBaseToken.sol";
 import "forge-std/Test.sol";
 
-// import "hardhat/console.sol";
-
 contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, AccessControlUpgradeable {
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
@@ -185,6 +183,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     function setReBalancer(address _reBalancer) external onlyRole(ADMIN_ROLE) {
         require(_reBalancer != address(0), "ReBalancer should not ZERO address");
         grantRole(REBALANCER_ROLE, _reBalancer);
+        reBalancer = _reBalancer;
         emit RebalancerUpdated(_reBalancer);
     }
 
@@ -245,21 +244,15 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         int256 futureTotalPositionValue = currentTotalPositionValue * ((isShort) ? int256(-1) : int256(1)) * deltaPosition;
         int256 currentAccountValue = getAccountValue();
         int256 futureAccountValue = futureTotalPositionValue + currentAccountValue;
-
         uint256 extraUSDC_1e18 = (futureAccountValue >= 0) ? 0 : uint256(-futureAccountValue);
         extraUSDC = getAmountInCollateralDecimalsForPerp(extraUSDC_1e18, address(usdc), false); 
-
         uint256 maxSettlementTokenAcceptableFromPerpVault = getMaxSettlementTokenAcceptableByVault(); 
-
-        if(extraUSDC > maxSettlementTokenAcceptableFromPerpVault) {
+        if (extraUSDC > maxSettlementTokenAcceptableFromPerpVault) {
             isAcceptable = false;
-        }
-        else {
+        } else {
             isAcceptable = true;
         }
     }
-
-
 
     /// @notice Returns the current amount of collateral value (in USDC) after the PnL in 1e18 format
     /// TODO: Take into account tail assets
@@ -331,8 +324,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return _margin;
     }
 
-
-
     /// @notice Defines the USDL Collateral as a tail asset
     function setIsUsdlCollateralTailAsset(bool _x) external onlyRole(ONLY_OWNER) {
         isUsdlCollateralTailAsset = _x;
@@ -342,13 +333,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     ///@param _usdLemma USDLemma address to set
     function setUSDLemma(address _usdLemma) external onlyRole(ONLY_OWNER) {
         require(_usdLemma != address(0), "UsdLemma should not ZERO address");
-
-        if(usdLemma != address(0)) {
-            SafeERC20Upgradeable.safeApprove(usdc, usdLemma, 0);
-            SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
-        }
         usdLemma = _usdLemma;
-
         SafeERC20Upgradeable.safeApprove(usdc, usdLemma, 0);
         SafeERC20Upgradeable.safeApprove(usdc, usdLemma, MAX_UINT256);
         SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
@@ -646,10 +631,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
         if (Basis.IsUsdl == basis) { 
             totalUsdlCollateral -= amountToWithdraw;
-            // totalUsdlCollateral =  (totalUsdlCollateral < amountToWithdraw) ? 0 : (totalUsdlCollateral - amountToWithdraw);
         } else if (Basis.IsSynth == basis) {
             totalSynthCollateral -= amountToWithdraw;
-            // totalSynthCollateral =  (totalSynthCollateral < amountToWithdraw) ? 0 : (totalSynthCollateral - amountToWithdraw);
         }
     }
 

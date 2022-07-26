@@ -216,8 +216,6 @@ contract Deploy {
         pl.setIsUsdlCollateralTailAsset(true);
         pl.setSettlementTokenManager(address(settlementTokenManager));
 
-        console.log('address(settlementTokenManager): ', address(settlementTokenManager));
-
         settlementTokenManager.initialize(
             address(usdl),
             msg.sender,
