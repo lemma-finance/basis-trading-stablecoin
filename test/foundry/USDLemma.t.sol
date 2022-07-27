@@ -51,6 +51,8 @@ contract USDLemmaTest is Test {
         uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.pl().clearingHouse().getClearingHouseConfig()).getSettlementTokenBalanceCap();
         uint256 usdcToDeposit = uint256(int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore));
 
+        console.log("[_depositSettlementTokenMax()] usdcToDeposit = ", usdcToDeposit);
+
         // uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
         // NOTE: Unclear why I need to use 1/10 of the cap
         // NOTE: If I do not limit this amount I get 
@@ -90,15 +92,19 @@ contract USDLemmaTest is Test {
     }
 
     function _mintUSDLWExactCollateral(address to, address collateral, uint256 amount) internal {
+        console.log("[_mintUSDLWExactCollateral()] Start");
         address usdl = d.pl().usdLemma();
         _getMoneyForTo(to, collateral, amount);
+        console.log("[_mintUSDLWExactCollateral()] T1");
         uint256 beforeBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
         uint256 beforeBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         IERC20Decimals(collateral).approve(usdl, type(uint256).max);
         uint256 beforeTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
         // 4th param is minUSDLToMint which is need to be set using callStatic, currently set 0 for not breaking revert
         // calsstatic is not possible in solidity so
+        console.log("[_mintUSDLWExactCollateral()] T2");
         d.usdl().depositToWExactCollateral(to, amount, 0, 0, IERC20Upgradeable(collateral)); 
+        console.log("[_mintUSDLWExactCollateral()] T3");
         uint256 afterTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
         uint256 afterBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
@@ -150,6 +156,7 @@ contract USDLemmaTest is Test {
     function _depositWExactCollateral(uint256 collateralAmount) internal {
         _depositSettlementTokenMax();
         address collateral = d.getTokenAddress("WETH");
+        console.log("[_depositWExactCollateral()] collateralAmount = ", collateralAmount);
         _mintUSDLWExactCollateral(address(this), collateral, collateralAmount);
     }
 
@@ -157,7 +164,9 @@ contract USDLemmaTest is Test {
         // NOTE: Currently failing with `EX_OPLAS` here 
         // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/Exchange.sol#L203
         // It should fail for USDC issue, investigating it 
-        _depositSettlementTokenMax();
+        console.log("[testDepositToFailExceedUSDC()] Start");
+        // _depositSettlementTokenMax();
+        console.log("[testDepositToFailExceedUSDC()] T1");
         _depositWExactCollateral(100e30);
     }
 

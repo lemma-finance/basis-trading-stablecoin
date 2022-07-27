@@ -234,9 +234,12 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param isShort If we are minting USDL or a Synth by changing our Position on Perp  
     function getRequiredUSDCToBackMinting(uint256 amount, bool isShort) override external view returns(bool isAcceptable, uint256 extraUSDC) {
         int256 currentTotalPositionValue = getTotalPosition();
+        print("[getRequiredUSDCToBackMinting()] currentTotalPositionValue = ", currentTotalPositionValue);    
+        int256 currentAccountValue = getAccountValue();
+        print("[getRequiredUSDCToBackMinting()] currentAccountValue = ", currentAccountValue);
+        
         console.log("[getRequiredUSDCToBackMinting()] amount = ", amount);
         console.log("[getRequiredUSDCToBackMinting()] isShort = ", (isShort) ? "true" : "false");
-        print("[getRequiredUSDCToBackMinting()] currentTotalPositionValue = ", currentTotalPositionValue);
         uint256 currentPrice = getIndexPrice();
         console.log("[getRequiredUSDCToBackMinting()] currentPrice = ", currentPrice);
         uint256 oracleDecimals = 18;
@@ -247,8 +250,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         // NOTE: More short --> Increase Negative Base
         int256 futureTotalPositionValue = currentTotalPositionValue + ((isShort) ? int256(-1) : int256(1)) * deltaPosition;
         print("[getRequiredUSDCToBackMinting()] futureTotalPositionValue = ", futureTotalPositionValue);
-        int256 currentAccountValue = getAccountValue();
-        print("[getRequiredUSDCToBackMinting()] currentAccountValue = ", currentAccountValue);
         int256 futureAccountValue = futureTotalPositionValue + currentAccountValue;
         print("[getRequiredUSDCToBackMinting()] futureAccountValue = ", futureAccountValue);
 
@@ -431,7 +432,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @notice depositSettlementToken is used to deposit settlement token USDC into perp vault - only owner can deposit
     /// @param _amount USDC amount need to deposit into perp vault
     function depositSettlementToken(uint256 _amount) external override onlyRole(USDC_TREASURY) {
-        require(_amount > 0, "Amount should greater than zero");
+        require(_amount > 0, "Amount should be greater than zero");
         SafeERC20Upgradeable.safeTransferFrom(usdc, msg.sender, address(this), _amount);
         perpVault.deposit(address(usdc), _amount);
         totalSynthCollateral += _amount;
@@ -440,14 +441,14 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @notice withdrawSettlementToken is used to withdraw settlement token USDC from perp vault - only owner can withdraw
     /// @param _amount USDC amount need to withdraw from perp vault
     function withdrawSettlementToken(uint256 _amount) external override onlyRole(USDC_TREASURY) {
-        require(_amount > 0, "Amount should greater than zero");
+        require(_amount > 0, "Amount should be greater than zero");
         perpVault.withdraw(address(usdc), _amount);
         SafeERC20Upgradeable.safeTransfer(usdc, msg.sender, _amount);
         totalSynthCollateral -= _amount;
     }
 
     function withdrawSettlementTokenTo(uint256 _amount, address to) external onlyRole(USDC_TREASURY) {
-        require(_amount > 0, "Amount should greater than zero");
+        require(_amount > 0, "Amount should be greater than zero");
         require(hasSettled, "Perpetual is not settled yet");
         SafeERC20Upgradeable.safeTransfer(usdc, to, _amount);
         totalSynthCollateral -= _amount;

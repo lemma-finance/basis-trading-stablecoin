@@ -218,11 +218,14 @@ contract USDLemma is
         uint256 minUSDLToMint,
         IERC20Upgradeable collateral
     ) external nonReentrant onlyOneFunInSameTx {
+        console.log("[depositToWExactCollateral()] Start");
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]);
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
+        console.log("[depositToWExactCollateral()] T1");
 
         (bool isAcceptable, uint256 extraUSDC) = perpDEXWrapper.getRequiredUSDCToBackMinting(_collateralRequired, true);
+        console.log("[depositToWExactCollateral()] T2");
         // TODO: Add check and decide where to take it
         require(isAcceptable, "Can't deposit enough collateral in Perp");
         uint256 availableCollateral = getAvailableSettlementToken(perpetualDEXIndex, address(collateral));
