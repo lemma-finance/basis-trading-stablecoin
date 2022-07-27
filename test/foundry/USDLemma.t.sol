@@ -146,6 +146,16 @@ contract USDLemmaTest is Test {
     }
 
 
+
+    function testDepositToFailExceedUSDC() public {
+        address collateral = d.getTokenAddress("WETH");
+        uint256 usdlAmount = 1000e30; // USDL amount
+        _depositSettlementTokenMax();
+        _mintUSDLWExactUSDL(address(this), collateral, usdlAmount);
+    }
+
+
+
     function _depositWExactCollateral(uint256 collateralAmount) internal {
         _depositSettlementTokenMax();
         address collateral = d.getTokenAddress("WETH");
@@ -155,6 +165,10 @@ contract USDLemmaTest is Test {
     // test depositToWExactCollateral
     function testDepositToWExactCollateral1() public {
         _depositWExactCollateral(1e18);
+    }
+
+    function testDepositToWExactCollateral2() public {
+        _depositWExactCollateral(1e30);
     }
 
     // test depositTo and withdrawTo
