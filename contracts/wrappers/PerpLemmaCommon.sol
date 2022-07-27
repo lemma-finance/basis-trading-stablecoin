@@ -234,14 +234,18 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param isShort If we are minting USDL or a Synth by changing our Position on Perp  
     function getRequiredUSDCToBackMinting(uint256 amount, bool isShort) override external view returns(bool isAcceptable, uint256 extraUSDC) {
         int256 currentTotalPositionValue = getTotalPosition();
+        console.log("[getRequiredUSDCToBackMinting()] amount = ", amount);
+        console.log("[getRequiredUSDCToBackMinting()] isShort = ", (isShort) ? "true" : "false");
         print("[getRequiredUSDCToBackMinting()] currentTotalPositionValue = ", currentTotalPositionValue);
         uint256 currentPrice = getIndexPrice();
         console.log("[getRequiredUSDCToBackMinting()] currentPrice = ", currentPrice);
         uint256 oracleDecimals = 18;
-        int256 deltaPosition = int256(currentPrice * amount / (10 ** (oracleDecimals + usdlCollateral.decimals() - usdc.decimals())));
+        // NOTE: Need an amount in 1e18 to be compared with account value which I think is in 1e18
+        int256 deltaPosition = int256(currentPrice * amount / (10 ** (usdlCollateral.decimals())));
+        // int256 deltaPosition = int256(currentPrice * amount / (10 ** (oracleDecimals + usdlCollateral.decimals() - usdc.decimals())));
         print("[getRequiredUSDCToBackMinting()] deltaPosition = ", deltaPosition);
         // NOTE: More short --> Increase Negative Base
-        int256 futureTotalPositionValue = currentTotalPositionValue * ((isShort) ? int256(-1) : int256(1)) * deltaPosition;
+        int256 futureTotalPositionValue = currentTotalPositionValue + ((isShort) ? int256(-1) : int256(1)) * deltaPosition;
         print("[getRequiredUSDCToBackMinting()] futureTotalPositionValue = ", futureTotalPositionValue);
         int256 currentAccountValue = getAccountValue();
         print("[getRequiredUSDCToBackMinting()] currentAccountValue = ", currentAccountValue);
