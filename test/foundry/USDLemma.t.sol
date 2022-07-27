@@ -145,21 +145,17 @@ contract USDLemmaTest is Test {
         _mintUSDLWExactUSDL(address(this), collateral, usdlAmount);
     }
 
-
-
-    function testDepositToFailExceedUSDC() public {
-        address collateral = d.getTokenAddress("WETH");
-        uint256 usdlAmount = 1000e30; // USDL amount
-        _depositSettlementTokenMax();
-        _mintUSDLWExactUSDL(address(this), collateral, usdlAmount);
-    }
-
-
-
     function _depositWExactCollateral(uint256 collateralAmount) internal {
         _depositSettlementTokenMax();
         address collateral = d.getTokenAddress("WETH");
         _mintUSDLWExactCollateral(address(this), collateral, collateralAmount);
+    }
+
+    function testDepositToFailExceedUSDC() public {
+        // NOTE: Currently failing with `EX_OPLAS` here 
+        // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/Exchange.sol#L203
+        // It should fail for USDC issue, investigating it 
+        _depositWExactCollateral(100e30);
     }
 
     // test depositToWExactCollateral
