@@ -178,7 +178,7 @@ contract USDLemmaTest is Test {
     }
 
     function testDepositToWExactCollateral2() public {
-        _depositWExactCollateral(1e30);
+        _depositWExactCollateral(1e18);
     }
 
     // test depositTo and withdrawTo
