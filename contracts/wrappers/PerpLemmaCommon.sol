@@ -248,12 +248,14 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         // int256 deltaPosition = int256(currentPrice * amount / (10 ** (oracleDecimals + usdlCollateral.decimals() - usdc.decimals())));
         print("[getRequiredUSDCToBackMinting()] deltaPosition = ", deltaPosition);
         // NOTE: More short --> Increase Negative Base
-        int256 futureTotalPositionValue = currentTotalPositionValue + ((isShort) ? int256(-1) : int256(1)) * deltaPosition;
+        int256 futureTotalPositionValue = currentAccountValue + ((isShort) ? int256(-1) : int256(1)) * deltaPosition;
+        // int256 futureTotalPositionValue = currentTotalPositionValue + ((isShort) ? int256(-1) : int256(1)) * deltaPosition;
         print("[getRequiredUSDCToBackMinting()] futureTotalPositionValue = ", futureTotalPositionValue);
-        int256 futureAccountValue = futureTotalPositionValue + currentAccountValue;
-        print("[getRequiredUSDCToBackMinting()] futureAccountValue = ", futureAccountValue);
+        // int256 futureAccountValue = futureTotalPositionValue + currentAccountValue;
+        // print("[getRequiredUSDCToBackMinting()] futureAccountValue = ", futureAccountValue);
 
-        uint256 extraUSDC_1e18 = (futureAccountValue >= 0) ? 0 : uint256(-futureAccountValue);
+        uint256 extraUSDC_1e18 = (futureTotalPositionValue >= 0) ? 0 : uint256(-futureTotalPositionValue);
+        // uint256 extraUSDC_1e18 = (futureAccountValue >= 0) ? 0 : uint256(-futureAccountValue);
         console.log("[getRequiredUSDCToBackMinting()] extraUSDC_1e18 = ", extraUSDC_1e18);
         extraUSDC = getAmountInCollateralDecimalsForPerp(extraUSDC_1e18, address(usdc), false); 
         console.log("[_getExtraUSDCToBackMinting()] extraUSDC = ", extraUSDC);

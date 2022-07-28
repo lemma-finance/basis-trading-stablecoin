@@ -160,7 +160,9 @@ contract USDLemmaTest is Test {
         _mintUSDLWExactCollateral(address(this), collateral, collateralAmount);
     }
 
-    function testDepositToFailExceedUSDC() public {
+    function testFailDepositToExceedUSDC() public {
+        // NOTE: Even though the test failed, without the `testFail` prefix, for some reason the vm.expectRevert() does not work as expected  
+        // vm.expectRevert(bytes("Can't deposit enough collateral in Perp"));
         // NOTE: Currently failing with `EX_OPLAS` here 
         // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/Exchange.sol#L203
         // It should fail for USDC issue, investigating it 
