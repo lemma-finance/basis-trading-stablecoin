@@ -169,15 +169,31 @@ contract Deploy {
         perp_chain_addresses["MarketRegistry"][10] = address(0xd5820eE0F55205f6cdE8BB0647072143b3060067);
         perp_chain_addresses["vETH"][10] = address(0x8C835DFaA34e2AE61775e80EE29E2c724c6AE2BB);
 
-        // perp_chain_addresses["Vault"][69] = address(0xAD7b4C162707E0B2b5f6fdDbD3f8538A5fbA0d60);
-        // perp_chain_addresses["AccountBalance"][69] = address(0xA7f3FC32043757039d5e13d790EE43edBcBa8b7c);
-        // perp_chain_addresses["ClearingHouseConfig"][69] = address(0xA4c817a425D3443BAf610CA614c8B11688a288Fb);
+
+
+
+        generic_chain_addresses["WETH"][69] = address(0x4200000000000000000000000000000000000006);
+        generic_chain_addresses["WBTC"][69] = address(0x68f180fcCe6836688e9084f035309E29Bf0A2095);
+        generic_chain_addresses["USDC"][69] = address(0x7F5c764cBc14f9669B88837ca1490cCa17c31607);
+        generic_chain_addresses["UniV3Router"][69] = address(0xE592427A0AEce92De3Edee1F18E0157C05861564);
+        generic_chain_addresses["UniV3Router02"][69] = address(0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45);
+
+        perp_min_block[69] = 513473;
+        perp_chain_addresses["ClearingHouse"][69] = address(0xf10288Fd8d778F2880793C1CacCBF02206649802);
+        perp_chain_addresses["ClearingHouseConfig"][69] = address(0x22DdF6f4B1cd825324C6f96897c4040de9A1e1F4);
+        perp_chain_addresses["MarketRegistry"][69] = address(0x51705d391e0d01fA684366407704De0856E4dBaB);
+        perp_chain_addresses["vETH"][69] = address(0x5802918dC503c465F969DA0847b71E3Fbe9B141c);
+        perp_chain_addresses["Vault"][69] = address(0xB0ff090d04c268ABb26450ba749f0497EFA9Bb7C);
+        perp_chain_addresses["AccountBalance"][69] = address(0x594ADf28b465612DB033C1aEF4bd19972343934D);
+
 
         chain_id = _chain_id;
 
 
         routerUniV3 = ISwapRouter(generic_chain_addresses["UniV3Router"][chain_id]);
         mockUniV3Router = new MockUniV3Router(bank, address(routerUniV3));
+
+        // console.log("[Deploy] mockUniV3Router = ", mockUniV3Router);
 
 
         gc.usdc = IERC20Decimals(generic_chain_addresses["USDC"][chain_id]);
