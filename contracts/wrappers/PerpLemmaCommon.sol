@@ -23,25 +23,37 @@ import "../interfaces/Perpetual/IUSDLemma.sol";
 import "../interfaces/Perpetual/IBaseToken.sol";
 import "forge-std/Test.sol";
 
+/// @author Lemma Finance
+/// @notice PerpLemmaCommon contract will use to open short and long position with no-leverage
+/// USDLemma and LemmaSynth will consime the methods to open short or long on derivative dex
+/// Every UsdlCollateral has different PerpLemma deployed, and after deployed it will be add in USDLemma contract perpDexWrapper Mapping
 contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, AccessControlUpgradeable {
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
     using Utils for int256;
     using SafeMathExt for int256;
 
+    // Different Roles to perform restricted tx 
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant ONLY_OWNER = keccak256("ONLY_OWNER");
     bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
     bytes32 public constant PERPLEMMA_ROLE = keccak256("PERPLEMMA_ROLE");
     bytes32 public constant REBALANCER_ROLE = keccak256("REBALANCER_ROLE");
 
+    /// USDLemma contract address
     address public usdLemma;
+    /// LemmaSynth contract address
     address public lemmaSynth;
+    /// Rebalancer Address to rebalance position between short or long
     address public reBalancer;
+    /// BaseToken address from perpV2
     address public usdlBaseTokenAddress;
+    /// Settlement token manager contract address
     address public settlementTokenManager;
+    /// Referrer Code use while openPosition
     bytes32 public referrerCode;
 
+    /// PerpV2 contract addresses
     IClearingHouse public clearingHouse;
     IClearingHouseConfig public clearingHouseConfig;
     IPerpVault public perpVault;
@@ -49,46 +61,54 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     IMarketRegistry public marketRegistry;
     IExchange public exchange;
 
+    /// Is USDL collateral is tail then it will not deposit into perpV2, It will stay in PerpLemma BalanceSheet
     bool public isUsdlCollateralTailAsset;
+    /// USDL collateral address which is use to mint usdl
     IERC20Decimals public usdlCollateral;
+    /// USDC ERC20 contract
     IERC20Decimals public usdc;
 
+    /// MAX Uint256
     uint256 public constant MAX_UINT256 = type(uint256).max;
+    /// MaxPosition till perpLemma can openPosition
     uint256 public maxPosition;
+    /// USDL's collateral decimal (for e.g. if  eth then 18 decimals)
     uint256 public usdlCollateralDecimals;
 
     int256 public amountBase;
     int256 public amountQuote;
+    /// Amount of usdl's collateral that is deposited in perpLemma nd then deposited into perpV2
     uint256 public amountUsdlCollateralDeposited;
 
+    /// Amount of USDL collateral deposited in Perplemma
     uint256 public totalUsdlCollateral; // Tail Asset
+    /// Amount of LemmaSynth collateral deposited in Perplemma
     uint256 public totalSynthCollateral; // USDC
 
     // Gets set only when Settlement has already happened
     // NOTE: This should be equal to the amount of USDL minted depositing on that dexIndex
+    /// Amount of USDL minted through this perpLemma, it is tracking because usdl can be mint by multiple perpLemma
     uint256 public mintedPositionUsdlForThisWrapper;
+    /// Amount of LemmaSynth minted
     uint256 public mintedPositionSynthForThisWrapper;
 
-    // Has the Market Settled
+    // Has the Market Settled, If settled we can't mint new USDL or Synth
     bool public override hasSettled;
-    address public rebalancer;
 
-    // events
-    event USDLemmaUpdated(address usdlAddress);
-    event ReferrerUpdated(bytes32 referrerCode);
-    event RebalancerUpdated(address rebalancerAddress);
-    event MaxPositionUpdated(uint256 maxPos);
+    // Events
+    event USDLemmaUpdated(address indexed usdlAddress);
+    event ReferrerUpdated(bytes32 indexed referrerCode);
+    event RebalancerUpdated(address indexed rebalancerAddress);
+    event MaxPositionUpdated(uint256 indexed maxPos);
     event SetSettlementTokenManager(address indexed _settlementTokenManager);
-
-    function print(string memory s, int256 v) internal view {
-        uint256 val = (v < 0) ? uint256(-v) : uint256(v);
-        console.log(s, " = ", (v < 0) ? " - " : " + ", val);
-    }
 
     ////////////////////////
     /// EXTERNAL METHODS ///
     ////////////////////////
 
+    /// @notice Intialize method only called once while deploying contract
+    /// It will setup different roles and give role access to specific addreeses
+    /// Also set up the perpV2 contract instances and give allownace task
     function initialize(
         address _trustedForwarder,
         address _usdlCollateral,
@@ -154,6 +174,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
     }
 
+    /// @notice setSettlementTokenmanager is to set the address of settlementTokenManager by admin role only
+    /// @param _settlementTokenManager address
     function setSettlementTokenManager(address _settlementTokenManager) external onlyRole(ADMIN_ROLE) {
         revokeRole(USDC_TREASURY, settlementTokenManager);
         settlementTokenManager = _settlementTokenManager;
@@ -164,13 +186,15 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @notice Returning the max amount of USDC Tokens that is possible to put in Vault to collateralize positions
     /// @dev The underlying Perp Protocol (so far we only have PerpV2) can have a limit on the total amount of Settlement Token the Vault can accept 
     function getMaxSettlementTokenAcceptableByVault() override public view returns(uint256) {
-        IERC20Decimals settlementToken = IERC20Decimals(perpVault.getSettlementToken());
-        uint256 perpVaultSettlementTokenBalanceBefore = settlementToken.balanceOf(address(perpVault));
+        uint256 perpVaultSettlementTokenBalanceBefore = usdc.balanceOf(address(perpVault));
         uint256 settlementTokenBalanceCap = IClearingHouseConfig(clearingHouse.getClearingHouseConfig()).getSettlementTokenBalanceCap();
         require(settlementTokenBalanceCap >= perpVaultSettlementTokenBalanceBefore, "[getVaultSettlementTokenLimit] Unexpected");
         return uint256( int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore) );
     }
 
+    /// @notice changeAdmin is to change address of admin role
+    /// Only current admin can change admin and after new admin current admin address will be no more admin
+    /// @param newAdmin new admin address
     function changeAdmin(address newAdmin) public onlyRole(ADMIN_ROLE) {
         require(newAdmin != address(0), "NewAdmin should not ZERO address");
         require(newAdmin != msg.sender, "Admin Addresses should not be same");
@@ -324,13 +348,13 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return _margin;
     }
 
-    /// @notice Defines the USDL Collateral as a tail asset
+    /// @notice Defines the USDL Collateral as a tail asset by only owner role
     function setIsUsdlCollateralTailAsset(bool _x) external onlyRole(ONLY_OWNER) {
         isUsdlCollateralTailAsset = _x;
     }
 
-    ///@notice sets USDLemma address - only owner can set
-    ///@param _usdLemma USDLemma address to set
+    /// @notice sets USDLemma address - only owner can set
+    /// @param _usdLemma USDLemma address to set
     function setUSDLemma(address _usdLemma) external onlyRole(ONLY_OWNER) {
         require(_usdLemma != address(0), "UsdLemma should not ZERO address");
         usdLemma = _usdLemma;
@@ -341,15 +365,15 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         emit USDLemmaUpdated(usdLemma);
     }
 
-    ///@notice sets refferer code - only owner can set
-    ///@param _referrerCode referrerCode of address to set
+    /// @notice sets refferer code - only owner can set
+    /// @param _referrerCode referrerCode of address to set
     function setReferrerCode(bytes32 _referrerCode) external onlyRole(ONLY_OWNER) {
         referrerCode = _referrerCode;
         emit ReferrerUpdated(referrerCode);
     }
 
-    ///@notice sets maximum position the wrapper can take (in terms of base) - only owner can set
-    ///@param _maxPosition reBalancer address to set
+    /// @notice sets maximum position the wrapper can take (in terms of base) - only owner can set
+    /// @param _maxPosition reBalancer address to set
     function setMaxPosition(uint256 _maxPosition) external onlyRole(ONLY_OWNER)  {
         maxPosition = _maxPosition;
         emit MaxPositionUpdated(maxPosition);
@@ -373,17 +397,28 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         totalSynthCollateral -= _amount;
     }
 
-    function withdrawSettlementTokenTo(uint256 _amount, address to) external onlyRole(USDC_TREASURY) {
+    /// @notice withdrawSettlementTokenTo is used to withdraw settlement token USDC from perp vault - only owner can withdraw
+    /// @param _amount USDC amount need to withdraw from perp vault
+    /// @param _to address where to transfer fund
+    function withdrawSettlementTokenTo(uint256 _amount, address to) external onlyRole(ONLY_OWNER) {
         require(_amount > 0, "Amount should greater than zero");
         require(hasSettled, "Perpetual is not settled yet");
         SafeERC20Upgradeable.safeTransfer(usdc, to, _amount);
         totalSynthCollateral -= _amount;
     }
 
+    /// @notice deposit method is to call from USDLemma or LemmaSynth while mint USDL or Synth
+    /// @param amount of assets to deposit
+    /// @param collateral needs to deposit
+    /// @param basis is enum that defines the deposit call from Usdl or lemmaSynth contract
     function deposit(uint256 amount, address collateral, Basis basis) external override onlyRole(PERPLEMMA_ROLE) {
         _deposit(amount, collateral, basis);
     }
 
+    /// @notice withdraw method is to call from USDLemma or LemmaSynth while redeem USDL or Synth
+    /// @param amount of assets to withdraw
+    /// @param collateral needs to withdraw
+    /// @param basis is enum that defines the withdraw call from Usdl or lemmaSynth contract
     function withdraw(uint256 amount, address collateral, Basis basis) external override onlyRole(PERPLEMMA_ROLE) {
         _withdraw(amount, collateral, basis);
     }
@@ -409,6 +444,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         hasSettled = true;
     }
 
+    /// @param getCollateralBackAfterSettlement is called when market is settled so USDL and Synth withdraw method call this method instead close position
     function getCollateralBackAfterSettlement(
         uint256 amount, address to, bool isUsdl
     ) external override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
@@ -473,6 +509,13 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// PUBLIC METHODS ///
     //////////////////////
 
+    /// @param trade method is to open short or long position
+    /// if isShorting true then base -> quote otherwise quote -> base
+    /// if isShorting == true then input will be base
+    /// if isShorting == false then input will be quote
+    /// @param amount of position short/long, amount is base or quote and input or notInput is decide by below params
+    /// @param isShorting is short or long
+    /// @param isExactInput is ExactInput or not
     function trade(
         uint256 amount,
         bool isShorting,
@@ -507,7 +550,12 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     // openLongWithExactQuote & closeShortWithExactQuote: Quote --> Base, ExactInput: True
     // closeLongWithExactBase & openShortWithExactBase: Base --> Quote, ExactInput: True
     // closeLongWithExactQuote & openShortWithExactQuote: Base --> Quote, ExactInput: False
-
+    
+    /// LemmaSynth will use below four methods
+    /// 1). openLongWithExactBase => depositTo
+    /// 2). openLongWithExactQuote => depositToWExactCollateral
+    /// 3). closeLongWithExactBase => withdrawTo
+    /// 4). closeLongWithExactQuote => withdrawToWExactCollateral
     function openLongWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         (uint256 base, uint256 quote) = trade(amount, false, false);
@@ -532,10 +580,16 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     function closeLongWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
         (uint256 base, uint256 quote) = trade(amount, true, false);
-        calculateMintingAsset(getRoudDown(base), basis, true);
+        base = getRoudDown(base, address(usdlCollateral)); // RoundDown
+        calculateMintingAsset(base, basis, true);
         return (base, quote);
     }
 
+    /// USDLemma will use below four methods
+    /// 1). openShortWithExactBase => depositToWExactCollateral
+    /// 2). openShortWithExactQuote => depositTo
+    /// 3). closeShortWithExactBase => withdrawToWExactCollateral
+    /// 4). closeShortWithExactQuote => withdrawTo
     function openShortWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         (uint256 base, uint256 quote) = trade(amount, true, true);
@@ -560,10 +614,12 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     function closeShortWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
         (uint256 base, uint256 quote) = trade(amount, false, true);
-        calculateMintingAsset(getRoudDown(quote), basis, false);
+        quote = getRoudDown(quote, address(usdc)); // RoundDown
+        calculateMintingAsset(quote, basis, false);
         return (base, quote);
     }
 
+    /// @notice getAmountInCollateralDecimalsForPerp is use to convert amount in collateral decimals
     function getAmountInCollateralDecimalsForPerp(
         uint256 amount, address collateral, bool roundUp
     ) public view override returns (uint256) {
@@ -578,10 +634,19 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// INTERNAL METHODS ///
     ////////////////////////
     
-    function getRoudDown(uint256 amount) internal pure returns (uint256) {
-        return amount - 1;
+    /// @notice getRoudDown is use to roundDown by amount = amount-1
+    /// because perpV2 gives 1 wei increase in vaule for base and quote so we have to roundDown that 1 wei
+    /// Otherwise it can give arithmetic error in calculateMintingAsset() function
+    /// if the amount is less than collateral decimals value(like 1e18, 1e6) then it will compulsary roundDown 1 wei
+    /// closeShortWithExactQuote, closeLongWithExactQuote are using getRoudDown method 
+    /// @param amount needs to roundDown
+    /// @param collateral address, if the amount is base then it will be usdlCollateral otherwise synthCollateral
+    function getRoudDown(uint256 amount, address collateral) internal view returns (uint256 roundDownAmount) {
+        uint256 collateralDecimals = IERC20Decimals(collateral).decimals();
+        roundDownAmount = (amount % (uint256(10**(collateralDecimals))) != 0) ? amount - 1 : amount;
     }
 
+    /// @notice getAllBalance is simple view method to give deposited balance and currentBalance of USDL and Synth  
     function getAllBalance() internal view returns(uint256, uint256, uint256, uint256) {
         return (
             totalUsdlCollateral,
@@ -636,16 +701,18 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
     }
 
+    /// @notice calculateMintingAsset is method to track the minted usdl and synth by this perpLemma
+    /// @param amount needs to add or sub
+    /// @param isOpenShort that position is short or long
+    /// @param basis is enum that defines the calculateMintingAsset call from Usdl or lemmaSynth contract
     function calculateMintingAsset(uint256 amount, Basis basis, bool isOpenShort) internal {
-        if (isOpenShort) {
-            // is openShort or closeLong
+        if (isOpenShort) { // if openShort or closeLong
             if (Basis.IsUsdl == basis) {
                 mintedPositionUsdlForThisWrapper += amount; // quote
             } else if (Basis.IsSynth == basis) {
                 mintedPositionSynthForThisWrapper -= amount; // base
             }
-        } else {
-            // is openLong or closeShort
+        } else { // if openLong or closeShort
             if (Basis.IsUsdl == basis) {
                 mintedPositionUsdlForThisWrapper -= amount; // quote
             } else if (Basis.IsSynth == basis) {
@@ -654,6 +721,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
     }
 
+    /// @notice settleCollateral is called when market is settled and it will pro-rata distribute the funds
+    /// Before market settled, rebalance function called and collateral is not same in perpLemma when it is deposited
+    /// So we will use track variables totalUsdlCollateral, totalSynthCollateral and current balances of usdl and synth to distribute the pro-rata base collateral
     function settleCollateral(uint256 usdlOrSynthAmount, address to, bool isUsdl) internal returns(uint256 amountUsdlCollateral1e_18, uint256 amountUsdcCollateral1e_18) {
         uint256 positionAtSettlementInQuote = isUsdl ? mintedPositionUsdlForThisWrapper : mintedPositionSynthForThisWrapper;
         require(positionAtSettlementInQuote > 0, "Settled vUSD position amount should not ZERO");
@@ -697,10 +767,12 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
     }
 
+    /// @param swap USDC -> USDLCollateral
     function _USDCToCollateral(address router, uint256 routerType, bool isExactInput, uint256 amountUSDC) internal returns(uint256) {
         return _swapOnDEXSpot(router, routerType, false, isExactInput, amountUSDC);
     }
 
+    /// @param swap USDLCollateral -> USDC
     function _CollateralToUSDC(address router, uint256 routerType, bool isExactInput, uint256 amountCollateral) internal returns(uint256) {
         return _swapOnDEXSpot(router, routerType, true, isExactInput, amountCollateral);
     }
@@ -760,7 +832,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         virtual
         override(ContextUpgradeable, ERC2771ContextUpgradeable)
     returns (address sender) {
-        return super._msgSender();
+        return msg.sender;
     }
 
     function _msgData()
@@ -769,6 +841,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         virtual
         override(ContextUpgradeable, ERC2771ContextUpgradeable)
     returns (bytes calldata) {
-        return super._msgData();
+        return msg.data;
     }
 }

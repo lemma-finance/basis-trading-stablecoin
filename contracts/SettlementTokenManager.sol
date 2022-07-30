@@ -9,6 +9,7 @@ import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/O
 import "./interfaces/IERC20Decimals.sol";
 import "forge-std/Test.sol";
 
+/// @author Lemma Finance
 /// @notice SettlementTokenManager contract will manage the SettlementToken(USDC in perpV2) of perpV2 
 /// When user deposit or withdraw in PerpLemma using SettlementToken from USDLemma contract it will handle by this contract
 /// So it will intermediary between USDLemma and PerpLemma contracts
