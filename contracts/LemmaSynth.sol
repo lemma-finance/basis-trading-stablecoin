@@ -14,37 +14,41 @@ import { IPerpetualMixDEXWrapper } from "./interfaces/IPerpetualMixDEXWrapper.so
 import "forge-std/Test.sol";
 
 /// @author Lemma Finance
-contract LemmaSynth is 
-    ReentrancyGuardUpgradeable, 
-    ERC20PermitUpgradeable, 
-    ERC2771ContextUpgradeable,
-    AccessControlUpgradeable {
+/// @notice LemmaSynth contract is use to mint or burn LemmaSynth Coin
+/// When user deposits collateral to mint LemmaSynth. 
+/// It will transfer to Derivative dex to open a long position with no-leverage and mint stablecoin called LemmaSynth.
+contract LemmaSynth is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, ERC2771ContextUpgradeable, AccessControlUpgradeable {
     using SafeCastUpgradeable for int256;
     using SafeMathExt for int256;
     using SafeMathExt for uint256;
 
+    /// Different Roles to perform restricted tx 
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant LEMMA_SWAP = keccak256("LEMMA_SWAP");
-    bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
     bytes32 public constant ONLY_OWNER = keccak256("ONLY_OWNER");
 
+    /// PerpLemma contract associated with this LemmaSynth
     address public perpLemma;
+    /// Tail Collateral use to mint LemmaSynth
+    /// Tail Collateral will not deposit into perp, It will stay in perpLemma BalanceSheet
     address public tailCollateral;
+    /// Fees taken by the protocol
     uint256 public fees;
+    /// interactionBlock will restict multiple txs in same block
     bytes32 public interactionBlock;
 
-    // events
+    // Events
     event DepositTo(
-        uint256 indexed dexIndex,
+        address indexed perpLemma,
         address indexed collateral,
-        address to,
+        address indexed to,
         uint256 amount,
         uint256 collateralRequired
     );
     event WithdrawTo(
-        uint256 indexed dexIndex,
+        address indexed perpLemma,
         address indexed collateral,
-        address to,
+        address indexed to,
         uint256 amount,
         uint256 collateralGotBack
     );
@@ -52,6 +56,8 @@ contract LemmaSynth is
     event PerpetualDexWrapperUpdated(address indexed perpLemma);
     event SetTailCollateral(address indexed tailCollateral);
 
+    /// @notice onlyOneFunInSameTx will restrict to call multiple functions of LemmaSynth contract in same tx
+    /// Only role with LEMMA_SWAP can call the multiple functions in same tx
     modifier onlyOneFunInSameTx() {
         if (!hasRole(LEMMA_SWAP, msg.sender)) {
             bytes32 _interactionBlock = keccak256(abi.encodePacked(tx.origin, block.number));
@@ -60,7 +66,13 @@ contract LemmaSynth is
         }
         _;
     }
-
+    /// @notice Intialize method only called once while deploying contract
+    /// It will setup different roles and give role access to specific addreeses
+    /// @param _trustedForwarder address
+    /// @param _tailCollateral which collateral address is use to mint LemmaSynth
+    /// @param _perpLemma PerpLemma contract associated with this LemmaSynth
+    /// @param _name LemmaSynth Token name
+    /// @param _symbol erc20 LemmaSynth Token symbol
     function initialize(
         address trustedForwarder,
         address _perpLemma,
@@ -76,7 +88,6 @@ contract LemmaSynth is
         __AccessControl_init();
         _setRoleAdmin(LEMMA_SWAP, ADMIN_ROLE);
         _setRoleAdmin(ONLY_OWNER, ADMIN_ROLE);
-        _setRoleAdmin(USDC_TREASURY, ADMIN_ROLE);
         _setupRole(ADMIN_ROLE, msg.sender);
         grantRole(ONLY_OWNER, msg.sender);
 
@@ -84,6 +95,16 @@ contract LemmaSynth is
         updatePerpetualDEXWrapper(_perpLemma);
     }
 
+    /// @notice Add address for perpetual dex wrapper for perpetual index and collateral - can only be called by owner
+    /// @param _perpLemma The new PerpLemma Address
+    function updatePerpetualDEXWrapper(address _perpLemma) public onlyRole(ONLY_OWNER) {
+        require(_perpLemma != address(0), "Address can not be zero");
+        perpLemma = _perpLemma;
+        emit PerpetualDexWrapperUpdated(_perpLemma);
+    }
+
+    /// @notice setTailCollateral set tail collateral, By only owner Role
+    /// @param _tailCollateral which collateral address is use to mint LemmaSynth
     function setTailCollateral(address _tailCollateral) external onlyRole(ONLY_OWNER) {
         tailCollateral = _tailCollateral;
         emit SetTailCollateral(_tailCollateral);
@@ -97,6 +118,7 @@ contract LemmaSynth is
         return perpDEXWrapper.getFees();
     }
 
+    /// @notice Returns the Index Price 
     function getIndexPrice() external view returns (uint256) {
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpLemma);
         require(address(perpDEXWrapper) != address(0), "DEX Wrapper should not ZERO address");
@@ -118,46 +140,14 @@ contract LemmaSynth is
         emit FeesUpdated(fees);
     }
 
-    /// @notice Add address for perpetual dex wrapper for perpetual index and collateral - can only be called by owner
-    /// @param _perpLemma The new PerpLemma Address
-    function updatePerpetualDEXWrapper(
-        address _perpLemma
-    ) public onlyRole(ONLY_OWNER) {
-        require(_perpLemma != address(0), "Address can not be zero");
-        perpLemma = _perpLemma;
-        emit PerpetualDexWrapperUpdated(_perpLemma);
-    }
-
-    function _perpDeposit(IPerpetualMixDEXWrapper perpDEXWrapper, address collateral, uint256 amount) internal {
-        SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), _msgSender(), address(perpDEXWrapper), amount);
-        perpDEXWrapper.deposit(
-            amount, 
-            collateral, 
-            // ternary operator use below line
-            collateral == tailCollateral ? IPerpetualMixDEXWrapper.Basis.IsUsdl : IPerpetualMixDEXWrapper.Basis.IsSynth
-        );
-    }
-
-    function _perpWithdraw(address to, IPerpetualMixDEXWrapper perpDEXWrapper, address collateral, uint256 amount) internal {
-        perpDEXWrapper.withdraw(
-            amount, 
-            collateral, 
-            // ternary operator use below line
-            collateral == tailCollateral ? IPerpetualMixDEXWrapper.Basis.IsUsdl : IPerpetualMixDEXWrapper.Basis.IsSynth
-        );
-        SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), address(perpDEXWrapper), to, amount);
-    }
-
     /// @notice Deposit collateral like USDC. to mint Synth specifying the exact amount of Synth
     /// @param to Receipent of minted Synth
     /// @param amount Amount of Synth to mint
-    /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
     /// @param maxCollateralAmountRequired Maximum amount of collateral to be used to mint given Synth
     /// @param collateral Collateral to be used to mint Synth
     function depositTo(
         address to,
         uint256 amount,
-        uint256 perpetualDEXIndex,
         uint256 maxCollateralAmountRequired,
         IERC20Upgradeable collateral
     ) public nonReentrant onlyOneFunInSameTx {
@@ -175,13 +165,12 @@ contract LemmaSynth is
         }
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
         _mint(to, amount);
-        emit DepositTo(perpetualDEXIndex, address(collateral), to, amount, _collateralRequired);
+        emit DepositTo(address(perpDEXWrapper), address(collateral), to, amount, _collateralRequired);
     }
 
     /// @notice Deposit collateral like USDC to mint Synth specifying the exact amount of collateral
     /// @param to Receipent of minted Synth
     /// @param collateralAmount Amount of collateral to deposit in the collateral decimal format
-    /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
     /// @param minSynthToMint Minimum Synth to mint
     /// @param collateral Collateral to be used to mint Synth
     /// @dev The minted amount depends on the Real Perp Mark Price 
@@ -189,7 +178,6 @@ contract LemmaSynth is
     function depositToWExactCollateral(
         address to,
         uint256 collateralAmount,
-        uint256 perpetualDEXIndex,
         uint256 minSynthToMint,
         IERC20Upgradeable collateral
     ) external nonReentrant onlyOneFunInSameTx {
@@ -200,19 +188,17 @@ contract LemmaSynth is
         (uint256 _lemmaSynthToMint, ) = perpDEXWrapper.openLongWithExactQuote(collateralAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsSynth);
         require(_lemmaSynthToMint >= minSynthToMint, "Synth minted too low");
         _mint(to, _lemmaSynthToMint);
-        emit DepositTo(perpetualDEXIndex, address(collateral), to, _lemmaSynthToMint, _collateralRequired);        
+        emit DepositTo(address(perpDEXWrapper), address(collateral), to, _lemmaSynthToMint, _collateralRequired);        
     }
 
     /// @notice Redeem Synth and withdraw collateral USDC specifying the exact amount of Synth
     /// @param to Receipent of withdrawn collateral
     /// @param amount Amount of Synth to redeem
-    /// @param perpetualDEXIndex Index of perpetual dex, where position will be closed
     /// @param minCollateralAmountToGetBack Minimum amount of collateral to get back on redeeming given Synth
     /// @param collateral Collateral to be used to redeem Synth
     function withdrawTo(
         address to,
         uint256 amount,
-        uint256 perpetualDEXIndex,
         uint256 minCollateralAmountToGetBack,
         IERC20Upgradeable collateral
     ) public nonReentrant onlyOneFunInSameTx {
@@ -235,19 +221,17 @@ contract LemmaSynth is
             require(_collateralAmountToWithdraw1e_18 >= minCollateralAmountToGetBack, "Collateral to get back too low");
         }
         _perpWithdraw(to, perpDEXWrapper, address(collateral), _collateralAmountToWithdraw);
-        emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, _collateralAmountToWithdraw);
+        emit WithdrawTo(address(perpDEXWrapper), address(collateral), to, amount, _collateralAmountToWithdraw);
     }
 
     /// @notice Redeem Synth and withdraw collateral like USDC specifying the exact amount of usdccollateral 
     /// @param to Receipent of withdrawn collateral
     /// @param collateralAmount Amount of collateral to withdraw
-    /// @param perpetualDEXIndex Index of perpetual dex, where position will be closed
     /// @param maxSynthToBurn Max Synth to burn in the process
     /// @param collateral Collateral to be used to redeem Synth
     function withdrawToWExactCollateral(
         address to,
         uint256 collateralAmount,
-        uint256 perpetualDEXIndex,
         uint256 maxSynthToBurn,
         IERC20Upgradeable collateral
     ) external nonReentrant onlyOneFunInSameTx {
@@ -263,8 +247,32 @@ contract LemmaSynth is
             uint256 _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
             _perpWithdraw(to, perpDEXWrapper, address(collateral), _collateralAmountToWithdraw);
             _burn(_msgSender(), _lemmaSynthToBurn);
-            emit WithdrawTo(perpetualDEXIndex, address(collateral), to, _lemmaSynthToBurn, _collateralAmountToWithdraw);
+            emit WithdrawTo(address(perpDEXWrapper), address(collateral), to, _lemmaSynthToBurn, _collateralAmountToWithdraw);
         }
+    }
+
+    /// @notice Internal Methods 
+
+    /// @notice _perpDeposit to deposit collateral into perp Vault
+    function _perpDeposit(IPerpetualMixDEXWrapper perpDEXWrapper, address collateral, uint256 amount) internal {
+        SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), _msgSender(), address(perpDEXWrapper), amount);
+        perpDEXWrapper.deposit(
+            amount, 
+            collateral, 
+            // ternary operator use below line
+            collateral == tailCollateral ? IPerpetualMixDEXWrapper.Basis.IsUsdl : IPerpetualMixDEXWrapper.Basis.IsSynth
+        );
+    }
+
+    /// @notice _perpWithdraw to withdraw collateral from perp Vault
+    function _perpWithdraw(address to, IPerpetualMixDEXWrapper perpDEXWrapper, address collateral, uint256 amount) internal {
+        perpDEXWrapper.withdraw(
+            amount, 
+            collateral, 
+            // ternary operator use below line
+            collateral == tailCollateral ? IPerpetualMixDEXWrapper.Basis.IsUsdl : IPerpetualMixDEXWrapper.Basis.IsSynth
+        );
+        SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), address(perpDEXWrapper), to, amount);
     }
 
     function _msgSender()
@@ -272,10 +280,8 @@ contract LemmaSynth is
         view
         virtual
         override(ContextUpgradeable, ERC2771ContextUpgradeable)
-        returns (address sender)
-    {
-        //ERC2771ContextUpgradeable._msgSender();
-        return super._msgSender();
+        returns (address sender) {
+        return msg.sender;
     }
 
     function _msgData()
@@ -283,9 +289,7 @@ contract LemmaSynth is
         view
         virtual
         override(ContextUpgradeable, ERC2771ContextUpgradeable)
-        returns (bytes calldata)
-    {
-        //ERC2771ContextUpgradeable._msgData();
-        return super._msgData();
+        returns (bytes calldata) {
+        return msg.data;
     }
 }

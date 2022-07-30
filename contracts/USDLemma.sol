@@ -337,6 +337,8 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, ERC2771
         withdrawTo(_msgSender(), amount, perpetualDEXIndex, minCollateralAmountToGetBack, collateral);
     }
 
+    /// @notice Internal Methods 
+
     /// @notice _perpDeposit to deposit collateral into perp Vault
     function _perpDeposit(
         IPerpetualMixDEXWrapper perpDEXWrapper,

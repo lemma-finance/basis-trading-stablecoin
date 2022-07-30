@@ -70,7 +70,7 @@ contract LemmaSynthTest is Test {
         uint256 beforeTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
         // 4th param is maxCollateralAmountRequired which is need to be set using callStatic, currently set uint256 max
         // calsstatic is not possible in solidity so
-        d.lSynth().depositTo(to, synthAmount, 0, type(uint256).max, IERC20Upgradeable(collateral));
+        d.lSynth().depositTo(to, synthAmount, type(uint256).max, IERC20Upgradeable(collateral));
         uint256 afterTotalSynth = d.pl().mintedPositionSynthForThisWrapper();        
         uint256 afterBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
@@ -119,20 +119,20 @@ contract LemmaSynthTest is Test {
         uint256 beforeBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 beforeBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
         assertTrue(beforeBalanceSynth > 0, "!Synth");
-        // uint256 beforeTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
+        uint256 beforeTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
         d.lSynth().withdrawToWExactCollateral(to, usdcAmount, 0, type(uint256).max, IERC20Upgradeable(collateral));
-        // uint256 afterTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
+        uint256 afterTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 afterBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
-        // console.log('beforeBalanceSynth: ', beforeBalanceSynth);
-        // console.log('afterBalanceSynth: ', afterBalanceSynth);
-        // console.log('beforeTotalSynth: ', beforeTotalSynth);
-        // console.log('afterTotalSynth: ', afterTotalSynth);
-        // console.log('beforeBalanceCollateral: ', beforeBalanceCollateral);
-        // console.log('afterBalanceCollateral: ', afterBalanceCollateral);
-        // console.log('beforeTotalSynth-afterTotalSynth: ', beforeTotalSynth-afterTotalSynth);
-        // console.log('beforeBalanceSynth-afterBalanceSynth: ', beforeBalanceSynth-afterBalanceSynth);
-        // assertEq(beforeTotalSynth-afterTotalSynth, beforeBalanceSynth-afterBalanceSynth);
+        console.log('beforeBalanceSynth: ', beforeBalanceSynth);
+        console.log('afterBalanceSynth: ', afterBalanceSynth);
+        console.log('beforeTotalSynth: ', beforeTotalSynth);
+        console.log('afterTotalSynth: ', afterTotalSynth);
+        console.log('beforeBalanceCollateral: ', beforeBalanceCollateral);
+        console.log('afterBalanceCollateral: ', afterBalanceCollateral);
+        console.log('beforeTotalSynth-afterTotalSynth: ', beforeTotalSynth-afterTotalSynth);
+        console.log('beforeBalanceSynth-afterBalanceSynth: ', beforeBalanceSynth-afterBalanceSynth);
+        assertEq(beforeTotalSynth-afterTotalSynth, beforeBalanceSynth-afterBalanceSynth);
         assertTrue(afterBalanceCollateral > beforeBalanceCollateral);
         assertTrue(afterBalanceSynth < beforeBalanceSynth);
     }
@@ -269,7 +269,7 @@ contract LemmaSynthTest is Test {
     function testFailDepositTo1() public {
         vm.startPrank(address(d));
         d.lSynth().updatePerpetualDEXWrapper(address(0));
-        d.lSynth().depositTo(address(this), 1000, 0, 1, IERC20Decimals(address(0)));
+        d.lSynth().depositTo(address(this), 1000, 1, IERC20Decimals(address(0)));
         vm.stopPrank();
     }
 
@@ -279,7 +279,7 @@ contract LemmaSynthTest is Test {
         address collateral = d.getTokenAddress("USDC");
         _getMoneyForTo(address(this), collateral, 1000);
         IERC20Decimals(collateral).approve(address(d.lSynth()), type(uint256).max);
-        d.lSynth().depositTo(address(this), 1000, 0, 0, IERC20Decimals(collateral));
+        d.lSynth().depositTo(address(this), 1000, 0, IERC20Decimals(collateral));
     }
 
     // reason: invalid DEX/collateral
@@ -399,7 +399,7 @@ contract LemmaSynthTest is Test {
         uint256 beforeTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
         // 4th param is maxCollateralAmountRequired which is need to be set using callStatic, currently set uint256 max
         // calsstatic is not possible in solidity so
-        d.lSynth().depositTo(to, synthAmount, 0, type(uint256).max, IERC20Upgradeable(collateral));
+        d.lSynth().depositTo(to, synthAmount, type(uint256).max, IERC20Upgradeable(collateral));
         uint256 afterTotalSynth = d.pl().mintedPositionSynthForThisWrapper();        
         uint256 afterBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
