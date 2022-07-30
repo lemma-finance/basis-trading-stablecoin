@@ -15,53 +15,55 @@ import { ISettlementTokenManager } from "./interfaces/ISettlementTokenManager.so
 import "forge-std/Test.sol";
 
 /// @author Lemma Finance
-contract USDLemma is 
-    ReentrancyGuardUpgradeable, 
-    ERC20PermitUpgradeable, 
-    ERC2771ContextUpgradeable, 
-    AccessControlUpgradeable {
+/// @notice USDLemma contract is use to mint or burn USDL Stablecoin
+/// When user deposits collateral to mint USDL. 
+/// It will transfer to Derivative dex to open a short position with no-leverage and mint stablecoin called USDL.
+contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, ERC2771ContextUpgradeable, AccessControlUpgradeable {
+
     using SafeCastUpgradeable for int256;
     using SafeMathExt for int256;
     using SafeMathExt for uint256;
 
+    // Different Roles to perform restricted tx 
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant LEMMA_SWAP = keccak256("LEMMA_SWAP");
     bytes32 public constant ONLY_OWNER = keccak256("ONLY_OWNER");
-    bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
 
+    /// Lemma Treasury address
     address public lemmaTreasury;
+    /// Settlement Manager contract address
     address public settlementTokenManager;
+    /// PerpV2 Settlement Token
     address public perpSettlementToken;
+    /// fees charged by perpV2
     uint256 public fees;
+    /// interactionBlock will restict multiple txs in same block
     bytes32 public interactionBlock;
+    // Mapping for Index to perpetualDexs/PerpLemma
     mapping(uint256 => mapping(address => address)) public perpetualDEXWrappers;
 
-    function print(string memory s, int256 v) internal view {
-        uint256 val = (v < 0) ? uint256(-v) : uint256(v);
-        console.log(s, " = ", (v < 0) ? " - " : " + ", val);
-    }
-
-    // events
+    // Events
     event DepositTo(
         uint256 indexed dexIndex,
         address indexed collateral,
-        address to,
+        address indexed to,
         uint256 amount,
         uint256 collateralRequired
     );
     event WithdrawTo(
         uint256 indexed dexIndex,
         address indexed collateral,
-        address to,
+        address indexed to,
         uint256 amount,
         uint256 collateralGotBack
     );
-
     event LemmaTreasuryUpdated(address indexed current);
     event FeesUpdated(uint256 indexed newFees);
-    event PerpetualDexWrapperAdded(uint256 indexed dexIndex, address indexed collateral, address dexWrapper);
+    event PerpetualDexWrapperAdded(uint256 indexed dexIndex, address indexed collateral, address indexed dexWrapper);
     event SetSettlementTokenManager(address indexed _settlementTokenManager);
 
+    /// @notice onlyOneFunInSameTx will restrict to call multiple functions of USDLemma contract in same tx
+    /// Only role with LEMMA_SWAP can call the multiple functions in same tx
     modifier onlyOneFunInSameTx() {
         if (!hasRole(LEMMA_SWAP, msg.sender)) {
             bytes32 _interactionBlock = keccak256(abi.encodePacked(tx.origin, block.number));
@@ -71,22 +73,28 @@ contract USDLemma is
         _;
     }
 
+    /// @notice Intialize method only called once while deploying contract
+    /// It will setup different roles and give role access to specific addreeses
+    /// @param _trustedForwarder address
+    /// @param _collateralAddress which collateral address is use to mint USDL
+    /// @param _perpetualDEXWrapperAddress initial first perpLemma dex, which will use _collateralAddress for collateral
+    /// @param _settlementTokenManager contract address, which will use when user mint USDL using SettlementToken
+    /// @param _perpSettlementToken erc20 address of USDC(which is settlement token of USDC)
     function initialize(
-        address trustedForwarder,
-        address collateralAddress,
-        address perpetualDEXWrapperAddress,
+        address _trustedForwarder,
+        address _collateralAddress,
+        address _perpetualDEXWrapperAddress,
         address _settlementTokenManager,
         address _perpSettlementToken
     ) external initializer {
         __ReentrancyGuard_init();
         __ERC20_init("USDLemma", "USDL");
         __ERC20Permit_init("USDLemma");
-        __ERC2771Context_init(trustedForwarder);
+        __ERC2771Context_init(_trustedForwarder);
 
         __AccessControl_init();
         _setRoleAdmin(LEMMA_SWAP, ADMIN_ROLE);
         _setRoleAdmin(ONLY_OWNER, ADMIN_ROLE);
-        _setRoleAdmin(USDC_TREASURY, ADMIN_ROLE);
         _setupRole(ADMIN_ROLE, msg.sender);
         grantRole(ONLY_OWNER, msg.sender);
 
@@ -94,9 +102,24 @@ contract USDLemma is
             settlementTokenManager = _settlementTokenManager;
         }
         perpSettlementToken = _perpSettlementToken;
-        addPerpetualDEXWrapper(0, collateralAddress, perpetualDEXWrapperAddress);
+        addPerpetualDEXWrapper(0, _collateralAddress, _perpetualDEXWrapperAddress);
     }
 
+    /// @notice Add address for perpetual dex wrapper for perpetual index and collateral - can only be called by owner
+    /// @param perpetualDEXIndex, index of perpetual dex
+    /// @param collateralAddress, address of collateral to be used in the dex
+    /// @param perpetualDEXWrapperAddress, address of perpetual dex wrapper
+    function addPerpetualDEXWrapper(
+        uint256 perpetualDEXIndex,
+        address collateralAddress,
+        address perpetualDEXWrapperAddress
+    ) public onlyRole(ONLY_OWNER) {
+        perpetualDEXWrappers[perpetualDEXIndex][collateralAddress] = perpetualDEXWrapperAddress;
+        emit PerpetualDexWrapperAdded(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
+    }
+
+    /// @notice setSettlementTokenmanager is to set the address of settlementTokenManager
+    /// @param _settlementTokenManager address
     function setSettlementTokenmanager(address _settlementTokenManager) external onlyRole(ONLY_OWNER) {
         settlementTokenManager = _settlementTokenManager;
         emit SetSettlementTokenManager(settlementTokenManager);
@@ -106,7 +129,6 @@ contract USDLemma is
     /// @param dexIndex The DEX Index to operate on
     /// @param collateral Collateral for the minting / redeeming operation
     function getFees(uint256 dexIndex, address collateral) external view returns (uint256) {
-        // NOTE: Removed prev arg address baseTokenAddress
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
         require(address(perpDEXWrapper) != address(0), "DEX Wrapper should not ZERO address");
         return perpDEXWrapper.getFees();
@@ -124,7 +146,6 @@ contract USDLemma is
     /// @param collateral Collateral for the minting / redeeming operation
     function getTotalPosition(uint256 dexIndex, address collateral) external view returns (int256) {
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpetualDEXWrappers[dexIndex][collateral]);
-
         require(address(perpDEXWrapper) != address(0), "DEX Wrapper should not ZERO address");
         return perpDEXWrapper.getTotalPosition();
     }
@@ -144,39 +165,8 @@ contract USDLemma is
         emit FeesUpdated(fees);
     }
 
-    /// @notice Add address for perpetual dex wrapper for perpetual index and collateral - can only be called by owner
-    /// @param perpetualDEXIndex, index of perpetual dex
-    /// @param collateralAddress, address of collateral to be used in the dex
-    /// @param perpetualDEXWrapperAddress, address of perpetual dex wrapper
-    function addPerpetualDEXWrapper(
-        uint256 perpetualDEXIndex,
-        address collateralAddress,
-        address perpetualDEXWrapperAddress
-    ) public onlyRole(ONLY_OWNER) {
-        perpetualDEXWrappers[perpetualDEXIndex][collateralAddress] = perpetualDEXWrapperAddress;
-        emit PerpetualDexWrapperAdded(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
-    }
-
-    function _perpDeposit(
-        IPerpetualMixDEXWrapper perpDEXWrapper,
-        address collateral,
-        uint256 amount
-    ) internal {
-        SafeERC20Upgradeable.safeTransferFrom(
-            IERC20Upgradeable(collateral),
-            _msgSender(),
-            address(perpDEXWrapper),
-            amount
-        );
-        perpDEXWrapper.deposit(amount, collateral, IPerpetualMixDEXWrapper.Basis.IsUsdl);
-    }
-
-    function _perpWithdraw(address to, IPerpetualMixDEXWrapper perpDEXWrapper, address collateral, uint256 amount) internal {
-        perpDEXWrapper.withdraw(amount, collateral, IPerpetualMixDEXWrapper.Basis.IsUsdl);
-        SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), address(perpDEXWrapper), to, amount);
-    }
-
-    function getAvailableSettlementToken(uint256 perpetualDEXIndex, address collateral) public view returns(uint256 res) {
+    /// @notice getAvailableSettlementToken will use to check the available settlement token in treasury
+    function getAvailableSettlementToken(uint256 perpetualDEXIndex, address collateral) external view returns(uint256 res) {
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
@@ -236,12 +226,6 @@ contract USDLemma is
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
 
-        (bool isAcceptable, uint256 extraUSDC) = perpDEXWrapper.getRequiredUSDCToBackMinting(_collateralRequired, true);
-        // TODO: Add check and decide where to take it
-        require(isAcceptable, "Can't deposit enough collateral in Perp");
-        uint256 availableCollateral = getAvailableSettlementToken(perpetualDEXIndex, address(collateral));
-        require(availableCollateral >= extraUSDC, "Not enough collateral in Treasury to back the position");
-
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
         (, uint256 _usdlToMint) = perpDEXWrapper.openShortWithExactBase(
             collateralAmount,
@@ -249,6 +233,7 @@ contract USDLemma is
             0,
             IPerpetualMixDEXWrapper.Basis.IsUsdl
         );
+        
         require(_usdlToMint >= minUSDLToMint, "USDL minted too low");
         _mint(to, _usdlToMint);
         emit DepositTo(perpetualDEXIndex, address(collateral), to, _usdlToMint, _collateralRequired);
@@ -352,15 +337,34 @@ contract USDLemma is
         withdrawTo(_msgSender(), amount, perpetualDEXIndex, minCollateralAmountToGetBack, collateral);
     }
 
+    /// @notice _perpDeposit to deposit collateral into perp Vault
+    function _perpDeposit(
+        IPerpetualMixDEXWrapper perpDEXWrapper,
+        address collateral,
+        uint256 amount
+    ) internal {
+        SafeERC20Upgradeable.safeTransferFrom(
+            IERC20Upgradeable(collateral),
+            _msgSender(),
+            address(perpDEXWrapper),
+            amount
+        );
+        perpDEXWrapper.deposit(amount, collateral, IPerpetualMixDEXWrapper.Basis.IsUsdl);
+    }
+
+    /// @notice _perpWithdraw to withdraw collateral from perp Vault
+    function _perpWithdraw(address to, IPerpetualMixDEXWrapper perpDEXWrapper, address collateral, uint256 amount) internal {
+        perpDEXWrapper.withdraw(amount, collateral, IPerpetualMixDEXWrapper.Basis.IsUsdl);
+        SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), address(perpDEXWrapper), to, amount);
+    }
+
     function _msgSender()
         internal
         view
         virtual
         override(ContextUpgradeable, ERC2771ContextUpgradeable)
-        returns (address sender)
-    {
-        //ERC2771ContextUpgradeable._msgSender();
-        return super._msgSender();
+        returns (address sender) {
+        return msg.sender;
     }
 
     function _msgData()
@@ -368,9 +372,7 @@ contract USDLemma is
         view
         virtual
         override(ContextUpgradeable, ERC2771ContextUpgradeable)
-        returns (bytes calldata)
-    {
-        //ERC2771ContextUpgradeable._msgData();
-        return super._msgData();
+        returns (bytes calldata) {
+        return msg.data;
     }
 }
