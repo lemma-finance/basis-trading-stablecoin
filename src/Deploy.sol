@@ -129,7 +129,7 @@ contract MockUniV3Router {
 
 }
 
-contract Deploy {
+contract Deploy is Test {
     USDLemma public usdl;
     LemmaSynth public lSynth;
     TestPerpLemma public pl;
@@ -187,7 +187,8 @@ contract Deploy {
         perp_chain_addresses["AccountBalance"][69] = address(0x594ADf28b465612DB033C1aEF4bd19972343934D);
 
 
-        chain_id = _chain_id;
+        chain_id = _getChainID();
+        // chain_id = _chain_id;
 
 
         routerUniV3 = ISwapRouter(generic_chain_addresses["UniV3Router"][chain_id]);
@@ -243,6 +244,15 @@ contract Deploy {
             "LSynth"
         );
 
+    }
+
+    function _getChainID() internal returns(uint256 chainId) {
+        string[] memory inputs = new string[](2);
+        inputs[0] = "node";
+        inputs[1] = "read_config.js";
+        bytes memory res = vm.ffi(inputs);
+        chainId = abi.decode(res, (uint256));
+        console.log("[_getChainID()] chainId = ", chainId);
     }
 
     function getPerps() external view returns(Perp_Contracts memory) {
