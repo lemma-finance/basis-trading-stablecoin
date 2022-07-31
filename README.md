@@ -20,8 +20,52 @@ Open perp-lushan submodule repo
 3). npm run build
 4). cd .. 
 
+### Run Using Foundry
 
-# Run
+1. Install Foundry following the instructions here 
+
+-   https://github.com/foundry-rs/foundry
+
+
+2. Make the repo a Foundry Repo with 
+
+    ```foundryup```
+
+
+3. Install forge dependency
+-   ```forge install  ```
+
+4. Compile contract code
+-   ```forge build ``` 
+
+5. Run testcases  
+-   ```forge test --fork-url https://opt-mainnet.g.alchemy.com/v2/j9pgL8KP33EnVCItge8fRMZPnikQaMBI --fork-block-number 12137998 ``` 
+
+6. Run deployement scripts
+- ```source .env```
+-   ```forge script script/LemmaTestnetScripts.sol:LemmaTestnetScripts --rpc-url $OPTIMISM_KOVAN_RPC_URL  --private-key $PRIVATE_KEY --broadcast --verify --etherscan-api-key $ETHERSCAN_KEY -vvvv```
+
+
+NOTE: In theory everything should be already set properly for the above to run but in case there are issues try to inizialize the repo as Foundry Repo 
+
+```
+forge init --force --no-commit
+```
+
+It should add all the necessary files like 
+
+- the `foundry.toml`
+
+- installing `lib` the `forge-std` Standard Library that is required for tests 
+
+It could also be possible the `lib` dir is not added in the `foundry.toml` to the `libs` array that is used for the import lookups, as when Foundry detects Hardhat it could just add the `node_modules` dir so in that case remember to add it so that 
+
+```
+libs = ['lib', 'node_modules']
+```
+
+
+## Old Running methods using JS (DEPRECATED)
 
 1). Go to root repo
     
@@ -47,59 +91,6 @@ Open perp-lushan submodule repo
 6). slither check
 
     slither .
-
-
-# Foundry 
-
-1. Install Foundry following the instructions here 
-
-https://github.com/foundry-rs/foundry
-
-
-
-2. Make the repo a Foundry Repo with 
-
-```
-foundryup
-```
-
-3. Compile with 
-
-```
-forge build
-```
-
-
-
-5. Tests 
-
-Foundry does not run Hardhat Tests as it requires its own tests written in Solidity in the `/test` dir with 
-
-
-
-```
-forge test
-```
-
-
-
-NOTE: In theory everything should be already set properly for the above to run but in case there are issues try to inizialize the repo as Foundry Repo 
-
-```
-forge init --force --no-commit
-```
-
-It should add all the necessary files like 
-
-- the `foundry.toml`
-
-- installing `lib` the `forge-std` Standard Library that is required for tests 
-
-It could also be possible the `lib` dir is not added in the `foundry.toml` to the `libs` array that is used for the import lookups, as when Foundry detects Hardhat it could just add the `node_modules` dir so in that case remember to add it so that 
-
-```
-libs = ['lib', 'node_modules']
-```
 
 
 
