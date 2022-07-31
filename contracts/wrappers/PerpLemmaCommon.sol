@@ -101,9 +101,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     event MaxPositionUpdated(uint256 indexed maxPos);
     event SetSettlementTokenManager(address indexed _settlementTokenManager);
 
-    ////////////////////////
-    /// EXTERNAL METHODS ///
-    ////////////////////////
+    //////////////////////////////////
+    /// Initialize External METHOD ///
+    //////////////////////////////////
 
     /// @notice Intialize method only called once while deploying contract
     /// It will setup different roles and give role access to specific addreeses
@@ -173,64 +173,13 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
     }
 
-    /// @notice setSettlementTokenmanager is to set the address of settlementTokenManager by admin role only
-    /// @param _settlementTokenManager address
-    function setSettlementTokenManager(address _settlementTokenManager) external onlyRole(ADMIN_ROLE) {
-        revokeRole(USDC_TREASURY, settlementTokenManager);
-        settlementTokenManager = _settlementTokenManager;
-        grantRole(USDC_TREASURY, settlementTokenManager);
-        emit SetSettlementTokenManager(settlementTokenManager);
-    }
-
-    /// @notice Returning the max amount of USDC Tokens that is possible to put in Vault to collateralize positions
-    /// @dev The underlying Perp Protocol (so far we only have PerpV2) can have a limit on the total amount of Settlement Token the Vault can accept
-    function getMaxSettlementTokenAcceptableByVault() public view override returns (uint256) {
-        uint256 perpVaultSettlementTokenBalanceBefore = usdc.balanceOf(address(perpVault));
-        uint256 settlementTokenBalanceCap = IClearingHouseConfig(clearingHouse.getClearingHouseConfig())
-            .getSettlementTokenBalanceCap();
-        require(
-            settlementTokenBalanceCap >= perpVaultSettlementTokenBalanceBefore,
-            "[getVaultSettlementTokenLimit] Unexpected"
-        );
-        return uint256(int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore));
-    }
-
-    /// @notice changeAdmin is to change address of admin role
-    /// Only current admin can change admin and after new admin current admin address will be no more admin
-    /// @param newAdmin new admin address
-    function changeAdmin(address newAdmin) public onlyRole(ADMIN_ROLE) {
-        require(newAdmin != address(0), "NewAdmin should not ZERO address");
-        require(newAdmin != msg.sender, "Admin Addresses should not be same");
-        _setupRole(ADMIN_ROLE, newAdmin);
-        renounceRole(ADMIN_ROLE, msg.sender);
-    }
-
-    ///@notice sets reBalncer address - only owner can set
-    ///@param _reBalancer reBalancer address to set
-    function setReBalancer(address _reBalancer) external onlyRole(ADMIN_ROLE) {
-        require(_reBalancer != address(0), "ReBalancer should not ZERO address");
-        grantRole(REBALANCER_ROLE, _reBalancer);
-        reBalancer = _reBalancer;
-        emit RebalancerUpdated(_reBalancer);
-    }
-
-    /// @notice reset approvals
-    function resetApprovals() external {
-        SafeERC20Upgradeable.safeApprove(usdlCollateral, address(perpVault), 0);
-        SafeERC20Upgradeable.safeApprove(usdlCollateral, address(perpVault), MAX_UINT256);
-        SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), 0);
-        SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
-    }
+    /////////////////////////////
+    /// EXTERNAL VIEW METHODS ///
+    /////////////////////////////
 
     /// @dev This one probably not needed as we can call usdlCollateral.decimals() when we need it
     function getUsdlCollateralDecimals() external view override returns (uint256) {
         return usdlCollateralDecimals;
-    }
-
-    function getIndexPrice() public view override returns (uint256) {
-        uint256 _twapInterval = IClearingHouseConfig(clearingHouseConfig).getTwapInterval();
-        uint256 _price = IIndexPrice(usdlBaseTokenAddress).getIndexPrice(_twapInterval);
-        return _price;
     }
 
     /// @notice getFees fees charge by perpV2 protocol for each trade
@@ -238,17 +187,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         // NOTE: Removed prev arg address baseTokenAddress
         IMarketRegistry.MarketInfo memory marketInfo = marketRegistry.getMarketInfo(usdlBaseTokenAddress);
         return marketInfo.exchangeFeeRatio;
-    }
-
-    /// @notice getTotalPosition in terms of quoteToken(in our case vUSD)
-    ///
-    /// https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/AccountBalance.sol#L339
-    /// https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/interface/IAccountBalance.sol#L218
-    ///
-    /// https://github.com/yashnaman/perp-lushan/blob/main/contracts/interface/IAccountBalance.sol#L224
-    /// https://github.com/yashnaman/perp-lushan/blob/main/contracts/AccountBalance.sol#L320
-    function getTotalPosition() public view override returns (int256) {
-        return accountBalance.getTotalPositionValue(address(this), usdlBaseTokenAddress);
     }
 
     /// @notice It returns the collateral accepted in the Perp Protocol to back positions
@@ -277,7 +215,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         int256 futureTotalPositionValue = currentTotalPositionValue *
             ((isShort) ? int256(-1) : int256(1)) *
             deltaPosition;
-        int256 currentAccountValue = getAccountValue();
+        int256 currentAccountValue = clearingHouse.getAccountValue(address(this));
         int256 futureAccountValue = futureTotalPositionValue + currentAccountValue;
         uint256 extraUSDC_1e18 = (futureAccountValue >= 0) ? 0 : uint256(-futureAccountValue);
         extraUSDC = getAmountInCollateralDecimalsForPerp(extraUSDC_1e18, address(usdc), false);
@@ -289,19 +227,12 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
     }
 
-    /// @notice Returns the current amount of collateral value (in USDC) after the PnL in 1e18 format
-    /// TODO: Take into account tail assets
-    function getAccountValue() public view override returns (int256 value_1e18) {
-        value_1e18 = clearingHouse.getAccountValue(address(this));
-    }
-
     // Returns the margin
     // NOTE: Returns totalCollateralValue + unrealizedPnL
     /// Functions
     /// clearingHouse.getAccountValue()
     /// https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/ClearingHouse.sol#L684
     /// https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/ClearingHouse.sol#L684
-    ///
     /// https://github.com/yashnaman/perp-lushan/blob/main/contracts/interface/IClearingHouse.sol#L254
     function getSettlementTokenAmountInVault() external view override returns (int256) {
         return perpVault.getBalance(address(this));
@@ -349,33 +280,15 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return _delta;
     }
 
-    /// @notice Returns all the exposure related details
-    function getExposureDetails()
-        public
-        view
-        override
-        returns (
-            uint256,
-            uint256,
-            int256,
-            int256,
-            uint256
-        )
-    {
-        return (
-            usdlCollateral.balanceOf(address(this)),
-            amountUsdlCollateralDeposited,
-            amountBase, // All the other terms are in 1e6
-            perpVault.getBalance(address(this)), // This number could change when PnL gets realized so it is better to read it from the Vault directly
-            usdc.balanceOf(address(this))
-        );
-    }
-
     /// @notice Returns the margin
     function getMargin() external view override returns (int256) {
         int256 _margin = accountBalance.getMarginRequirementForLiquidation(address(this));
         return _margin;
     }
+
+    ////////////////////////
+    /// EXTERNAL METHODS ///
+    ////////////////////////
 
     /// @notice Defines the USDL Collateral as a tail asset by only owner role
     function setIsUsdlCollateralTailAsset(bool _x) external onlyRole(ONLY_OWNER) {
@@ -406,6 +319,42 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     function setMaxPosition(uint256 _maxPosition) external onlyRole(ONLY_OWNER) {
         maxPosition = _maxPosition;
         emit MaxPositionUpdated(maxPosition);
+    }
+
+    /// @notice setSettlementTokenmanager is to set the address of settlementTokenManager by admin role only
+    /// @param _settlementTokenManager address
+    function setSettlementTokenManager(address _settlementTokenManager) external onlyRole(ADMIN_ROLE) {
+        revokeRole(USDC_TREASURY, settlementTokenManager);
+        settlementTokenManager = _settlementTokenManager;
+        grantRole(USDC_TREASURY, settlementTokenManager);
+        emit SetSettlementTokenManager(settlementTokenManager);
+    }
+
+    /// @notice changeAdmin is to change address of admin role
+    /// Only current admin can change admin and after new admin current admin address will be no more admin
+    /// @param newAdmin new admin address
+    function changeAdmin(address newAdmin) external onlyRole(ADMIN_ROLE) {
+        require(newAdmin != address(0), "NewAdmin should not ZERO address");
+        require(newAdmin != msg.sender, "Admin Addresses should not be same");
+        _setupRole(ADMIN_ROLE, newAdmin);
+        renounceRole(ADMIN_ROLE, msg.sender);
+    }
+
+    ///@notice sets reBalncer address - only owner can set
+    ///@param _reBalancer reBalancer address to set
+    function setReBalancer(address _reBalancer) external onlyRole(ADMIN_ROLE) {
+        require(_reBalancer != address(0), "ReBalancer should not ZERO address");
+        grantRole(REBALANCER_ROLE, _reBalancer);
+        reBalancer = _reBalancer;
+        emit RebalancerUpdated(_reBalancer);
+    }
+
+    /// @notice reset approvals
+    function resetApprovals() external {
+        SafeERC20Upgradeable.safeApprove(usdlCollateral, address(perpVault), 0);
+        SafeERC20Upgradeable.safeApprove(usdlCollateral, address(perpVault), MAX_UINT256);
+        SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), 0);
+        SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
     }
 
     /// @notice depositSettlementToken is used to deposit settlement token USDC into perp vault - only owner can deposit
@@ -696,6 +645,10 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return (base, quote);
     }
 
+    ///////////////////////////
+    /// PUBLIC VIEW METHODS ///
+    ///////////////////////////
+
     /// @notice getAmountInCollateralDecimalsForPerp is use to convert amount in collateral decimals
     function getAmountInCollateralDecimalsForPerp(
         uint256 amount,
@@ -707,6 +660,56 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             return amount / uint256(10**(18 - collateralDecimals)) + 1; // need to verify
         }
         return amount / uint256(10**(18 - collateralDecimals));
+    }
+
+    /// @notice Returning the max amount of USDC Tokens that is possible to put in Vault to collateralize positions
+    /// @dev The underlying Perp Protocol (so far we only have PerpV2) can have a limit on the total amount of Settlement Token the Vault can accept
+    function getMaxSettlementTokenAcceptableByVault() public view override returns (uint256) {
+        uint256 perpVaultSettlementTokenBalanceBefore = usdc.balanceOf(address(perpVault));
+        uint256 settlementTokenBalanceCap = IClearingHouseConfig(clearingHouse.getClearingHouseConfig())
+            .getSettlementTokenBalanceCap();
+        require(
+            settlementTokenBalanceCap >= perpVaultSettlementTokenBalanceBefore,
+            "[getVaultSettlementTokenLimit] Unexpected"
+        );
+        return uint256(int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore));
+    }
+
+    function getIndexPrice() public view override returns (uint256) {
+        uint256 _twapInterval = IClearingHouseConfig(clearingHouseConfig).getTwapInterval();
+        uint256 _price = IIndexPrice(usdlBaseTokenAddress).getIndexPrice(_twapInterval);
+        return _price;
+    }
+
+    /// @notice getTotalPosition in terms of quoteToken(in our case vUSD)
+    /// https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/AccountBalance.sol#L339
+    /// https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/interface/IAccountBalance.sol#L218
+    /// https://github.com/yashnaman/perp-lushan/blob/main/contracts/interface/IAccountBalance.sol#L224
+    /// https://github.com/yashnaman/perp-lushan/blob/main/contracts/AccountBalance.sol#L320
+    function getTotalPosition() public view override returns (int256) {
+        return accountBalance.getTotalPositionValue(address(this), usdlBaseTokenAddress);
+    }
+
+    /// @notice Returns all the exposure related details
+    function getExposureDetails()
+        public
+        view
+        override
+        returns (
+            uint256,
+            uint256,
+            int256,
+            int256,
+            uint256
+        )
+    {
+        return (
+            usdlCollateral.balanceOf(address(this)),
+            amountUsdlCollateralDeposited,
+            amountBase, // All the other terms are in 1e6
+            perpVault.getBalance(address(this)), // This number could change when PnL gets realized so it is better to read it from the Vault directly
+            usdc.balanceOf(address(this))
+        );
     }
 
     ////////////////////////
