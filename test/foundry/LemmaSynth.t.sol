@@ -386,7 +386,7 @@ contract LemmaSynthTest is Test {
     function testDepositToUsingTailAssetForSynth() public {
         address collateral = d.getTokenAddress("WETH");
         uint256 synthAmount = 9e17; // USDL amount
-        uint256 usdcAmount = 1100e6; // USDL amount
+        // uint256 usdcAmount = 1100e6; // USDL amount
         _depositSettlementTokenMax();
 
         address to = address(this);

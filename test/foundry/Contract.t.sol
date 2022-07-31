@@ -376,7 +376,7 @@ contract ContractTest is Test {
         // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
         _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
         int256 baseAmountBefore = d.pl().amountBase();
-        (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = d.pl().rebalance(
+        d.pl().rebalance(
             address(d.mockUniV3Router()),
             0,
             1e8,
@@ -402,7 +402,7 @@ contract ContractTest is Test {
         // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
         _mintSynthWExactCollateral(d.getTokenAddress("WETH"), 1e12);
         int256 baseAmountBefore = d.pl().amountBase();
-        (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = d.pl().rebalance(
+        d.pl().rebalance(
             address(d.mockUniV3Router()),
             0,
             1e8,
@@ -426,7 +426,7 @@ contract ContractTest is Test {
         _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e6);
         require(_checkNetShort(), "Need to be net short");
         int256 baseAmountBefore = d.pl().amountBase();
-        (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = d.pl().rebalance(
+        d.pl().rebalance(
             address(d.mockUniV3Router()),
             0,
             1e8,
@@ -454,7 +454,7 @@ contract ContractTest is Test {
         // NOTE: Checking net long position due to Synth minting
         assertTrue(d.pl().amountBase() >= 0);
         int256 baseAmountBefore = d.pl().amountBase();
-        (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = d.pl().rebalance(
+        d.pl().rebalance(
             address(d.mockUniV3Router()),
             0,
             1e8,
@@ -560,7 +560,7 @@ contract ContractTest is Test {
         int256 baseAmountBefore = d.pl().amountBase();
         // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
         int256 usdlCollateralAmountToRebalance = 1e12;
-        (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = d.pl().rebalance(
+        d.pl().rebalance(
             address(d.mockUniV3Router()),
             0,
             usdlCollateralAmountToRebalance,
@@ -590,7 +590,7 @@ contract ContractTest is Test {
         int256 baseAmountBefore = d.pl().amountBase();
         // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
         int256 usdlCollateralAmountToRebalance = 1e12;
-        (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = d.pl().rebalance(
+        d.pl().rebalance(
             address(d.mockUniV3Router()),
             0,
             usdlCollateralAmountToRebalance,

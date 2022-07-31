@@ -270,7 +270,7 @@ contract PerpLemmaCommonTest is Test {
         address collateral = d.getTokenAddress("WETH");
         uint256 collateralAmount = 1e18;
         uint256 exactUSDLAmount2 = afterMintedPositionUsdlForThisWrapper-beforeMintedPositionUsdlForThisWrapper;
-        uint256 _exactUSDLAmountAfterMinting = _deductFees(d.getTokenAddress("WETH"), exactUSDLAmount2, 0);
+        // uint256 _exactUSDLAmountAfterMinting = _deductFees(d.getTokenAddress("WETH"), exactUSDLAmount2, 0);
         uint256 collateralToGetBack =  closeShortWithExactQuote(collateralAmount, exactUSDLAmount2);
         _withdrawUsdlCollateral(collateralToGetBack, collateral, address(this));
     }
@@ -828,7 +828,7 @@ contract PerpLemmaCommonTest is Test {
         uint256 usdcAmount = 1098e6; // USDL amount
         _depositSettlementToken(usdcAmount);
         _depositUsdlCollateral(collateralAmount, collateral, address(this));
-        (uint256 base, uint256 quote) = d.pl().openShortWithExactBase(collateralAmount, IPerpetualMixDEXWrapper.Basis.IsUsdl);
+        (, uint256 quote) = d.pl().openShortWithExactBase(collateralAmount, IPerpetualMixDEXWrapper.Basis.IsUsdl);
         int256 getTotalPosition = d.pl().getTotalPosition();
         assertGe(quote, uint256(getTotalPosition*(-1)));
     }
@@ -924,7 +924,7 @@ contract PerpLemmaCommonTest is Test {
         uint256 usdcAmount = 1098e6; // USDL amount
         _depositSettlementToken(usdcAmount);
         _depositUsdlCollateral(collateralAmount, collateral, address(this));
-        (uint256 base, uint256 quote) = d.pl().openShortWithExactBase(collateralAmount, IPerpetualMixDEXWrapper.Basis.IsUsdl);
+        d.pl().openShortWithExactBase(collateralAmount, IPerpetualMixDEXWrapper.Basis.IsUsdl);
     }
 
     // ! No Rebalance with Zero Amount

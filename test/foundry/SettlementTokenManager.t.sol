@@ -40,7 +40,7 @@ contract SettlementTokenManagerTest is Test {
         assertTrue(IERC20Decimals(token).balanceOf(to) >= amount);
     }
 
-    function getRoudDown(uint256 amount) internal view returns (uint256) {
+    function getRoudDown(uint256 amount) internal pure returns (uint256) {
         return amount - 1;
     }
 
@@ -79,9 +79,9 @@ contract SettlementTokenManagerTest is Test {
         uint256 beforeBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 beforeBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
         assertTrue(beforeBalanceUSDL > 0, "!USDL");
-        uint256 beforeTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
+        // uint256 beforeTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
         d.usdl().withdrawTo(to, amount, 1, 0, IERC20Upgradeable(collateral));
-        uint256 afterTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
+        // uint256 afterTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 afterBalanceUSDL = d.usdl().balanceOf(to);
         assertTrue(afterBalanceCollateral > beforeBalanceCollateral);
@@ -93,7 +93,6 @@ contract SettlementTokenManagerTest is Test {
         address collateral = d.getTokenAddress("USDC");
         uint256 usdlAmount = 1000e18; // USDL amount
         _depositSettlementTokenMax();
-        uint256 balanceBer = IERC20Decimals(collateral).balanceOf(address(this));
         _mintUSDLWExactUSDL(address(this), collateral, usdlAmount);
     }
 
