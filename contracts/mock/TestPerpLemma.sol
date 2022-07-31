@@ -10,7 +10,11 @@ contract TestPerpLemma is PerpLemmaCommon {
         SafeERC20Upgradeable.safeTransferFrom(IERC20Decimals(collateral), msg.sender, address(this), amount);
     }
 
-    function withdrawAnyAsset(uint256 amount, address collateral, address to) public {
+    function withdrawAnyAsset(
+        uint256 amount,
+        address collateral,
+        address to
+    ) public {
         SafeERC20Upgradeable.safeTransfer(IERC20Decimals(collateral), to, amount);
     }
 

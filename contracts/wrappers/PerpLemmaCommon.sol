@@ -32,7 +32,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     using Utils for int256;
     using SafeMathExt for int256;
 
-    // Different Roles to perform restricted tx 
+    // Different Roles to perform restricted tx
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant ONLY_OWNER = keccak256("ONLY_OWNER");
     bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
@@ -119,7 +119,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         uint256 _maxPosition
     ) external initializer {
         __ERC2771Context_init(_trustedForwarder);
-        
+
         __AccessControl_init();
         _setRoleAdmin(PERPLEMMA_ROLE, ADMIN_ROLE);
         _setRoleAdmin(ONLY_OWNER, ADMIN_ROLE);
@@ -183,12 +183,16 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
     /// @notice Returning the max amount of USDC Tokens that is possible to put in Vault to collateralize positions
-    /// @dev The underlying Perp Protocol (so far we only have PerpV2) can have a limit on the total amount of Settlement Token the Vault can accept 
-    function getMaxSettlementTokenAcceptableByVault() override public view returns(uint256) {
+    /// @dev The underlying Perp Protocol (so far we only have PerpV2) can have a limit on the total amount of Settlement Token the Vault can accept
+    function getMaxSettlementTokenAcceptableByVault() public view override returns (uint256) {
         uint256 perpVaultSettlementTokenBalanceBefore = usdc.balanceOf(address(perpVault));
-        uint256 settlementTokenBalanceCap = IClearingHouseConfig(clearingHouse.getClearingHouseConfig()).getSettlementTokenBalanceCap();
-        require(settlementTokenBalanceCap >= perpVaultSettlementTokenBalanceBefore, "[getVaultSettlementTokenLimit] Unexpected");
-        return uint256( int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore) );
+        uint256 settlementTokenBalanceCap = IClearingHouseConfig(clearingHouse.getClearingHouseConfig())
+            .getSettlementTokenBalanceCap();
+        require(
+            settlementTokenBalanceCap >= perpVaultSettlementTokenBalanceBefore,
+            "[getVaultSettlementTokenLimit] Unexpected"
+        );
+        return uint256(int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore));
     }
 
     /// @notice changeAdmin is to change address of admin role
@@ -219,11 +223,11 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
     /// @dev This one probably not needed as we can call usdlCollateral.decimals() when we need it
-    function getUsdlCollateralDecimals() external view override returns(uint256) {
+    function getUsdlCollateralDecimals() external view override returns (uint256) {
         return usdlCollateralDecimals;
     }
 
-    function getIndexPrice() override public view returns(uint256) {
+    function getIndexPrice() public view override returns (uint256) {
         uint256 _twapInterval = IClearingHouseConfig(clearingHouseConfig).getTwapInterval();
         uint256 _price = IIndexPrice(usdlBaseTokenAddress).getIndexPrice(_twapInterval);
         return _price;
@@ -237,39 +241,47 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
     /// @notice getTotalPosition in terms of quoteToken(in our case vUSD)
-    /// 
+    ///
     /// https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/AccountBalance.sol#L339
     /// https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/interface/IAccountBalance.sol#L218
-    /// 
+    ///
     /// https://github.com/yashnaman/perp-lushan/blob/main/contracts/interface/IAccountBalance.sol#L224
     /// https://github.com/yashnaman/perp-lushan/blob/main/contracts/AccountBalance.sol#L320
-    function getTotalPosition() override public view returns (int256) {
+    function getTotalPosition() public view override returns (int256) {
         return accountBalance.getTotalPositionValue(address(this), usdlBaseTokenAddress);
     }
 
-
-    /// @notice It returns the collateral accepted in the Perp Protocol to back positions 
+    /// @notice It returns the collateral accepted in the Perp Protocol to back positions
     /// @dev By default, the first element is the settlement token
-    function getCollateralTokens() override external view returns (address[] memory res) {
+    function getCollateralTokens() external view override returns (address[] memory res) {
         res = new address[](1);
         res[0] = perpVault.getSettlementToken();
     }
 
-    /// @notice It returns the amount of USDC that are possibly needed to properly collateralize the new position on Perp 
-    /// @dev When the position is reduced in absolute terms, then there is no need for additional collateral while when it increases in absolute terms then we need to add more 
-    /// @param amount The amount of the new position 
-    /// @param isShort If we are minting USDL or a Synth by changing our Position on Perp  
-    function getRequiredUSDCToBackMinting(uint256 amount, bool isShort) override external view returns(bool isAcceptable, uint256 extraUSDC) {
+    /// @notice It returns the amount of USDC that are possibly needed to properly collateralize the new position on Perp
+    /// @dev When the position is reduced in absolute terms, then there is no need for additional collateral while when it increases in absolute terms then we need to add more
+    /// @param amount The amount of the new position
+    /// @param isShort If we are minting USDL or a Synth by changing our Position on Perp
+    function getRequiredUSDCToBackMinting(uint256 amount, bool isShort)
+        external
+        view
+        override
+        returns (bool isAcceptable, uint256 extraUSDC)
+    {
         int256 currentTotalPositionValue = getTotalPosition();
         uint256 currentPrice = getIndexPrice();
         uint256 oracleDecimals = 18;
-        int256 deltaPosition = int256(currentPrice * amount / (10 ** (oracleDecimals + usdlCollateral.decimals() - usdc.decimals())));
-        int256 futureTotalPositionValue = currentTotalPositionValue * ((isShort) ? int256(-1) : int256(1)) * deltaPosition;
+        int256 deltaPosition = int256(
+            (currentPrice * amount) / (10**(oracleDecimals + usdlCollateral.decimals() - usdc.decimals()))
+        );
+        int256 futureTotalPositionValue = currentTotalPositionValue *
+            ((isShort) ? int256(-1) : int256(1)) *
+            deltaPosition;
         int256 currentAccountValue = getAccountValue();
         int256 futureAccountValue = futureTotalPositionValue + currentAccountValue;
         uint256 extraUSDC_1e18 = (futureAccountValue >= 0) ? 0 : uint256(-futureAccountValue);
-        extraUSDC = getAmountInCollateralDecimalsForPerp(extraUSDC_1e18, address(usdc), false); 
-        uint256 maxSettlementTokenAcceptableFromPerpVault = getMaxSettlementTokenAcceptableByVault(); 
+        extraUSDC = getAmountInCollateralDecimalsForPerp(extraUSDC_1e18, address(usdc), false);
+        uint256 maxSettlementTokenAcceptableFromPerpVault = getMaxSettlementTokenAcceptableByVault();
         if (extraUSDC > maxSettlementTokenAcceptableFromPerpVault) {
             isAcceptable = false;
         } else {
@@ -279,25 +291,25 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
     /// @notice Returns the current amount of collateral value (in USDC) after the PnL in 1e18 format
     /// TODO: Take into account tail assets
-    function getAccountValue() override public view returns(int256 value_1e18) {
-        value_1e18 = clearingHouse.getAccountValue(address(this)); 
+    function getAccountValue() public view override returns (int256 value_1e18) {
+        value_1e18 = clearingHouse.getAccountValue(address(this));
     }
 
     // Returns the margin
     // NOTE: Returns totalCollateralValue + unrealizedPnL
-    /// Functions 
+    /// Functions
     /// clearingHouse.getAccountValue()
     /// https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/ClearingHouse.sol#L684
     /// https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/ClearingHouse.sol#L684
-    /// 
+    ///
     /// https://github.com/yashnaman/perp-lushan/blob/main/contracts/interface/IClearingHouse.sol#L254
-    function getSettlementTokenAmountInVault() external view override returns(int256) {
+    function getSettlementTokenAmountInVault() external view override returns (int256) {
         return perpVault.getBalance(address(this));
     }
 
     /// @notice Returns the relative margin in 1e18 format
     /// TODO: Take into account tail assets
-    function getRelativeMargin() external view override returns(uint256) {
+    function getRelativeMargin() external view override returns (uint256) {
         // NOTE: Returns totalCollateralValue + unrealizedPnL
         // https://github.com/yashnaman/perp-lushan/blob/main/contracts/interface/IClearingHouse.sol#L254
         int256 _accountValue_1e18 = clearingHouse.getAccountValue(address(this));
@@ -320,9 +332,16 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
     /// @notice Computes the delta exposure
     /// @dev It does not take into account if the deposited collateral gets silently converted in USDC so that we lose positive delta exposure
-    function getDeltaExposure() external view override returns(int256) {
-        (uint256 _usdlCollateralAmount, uint256 _usdlCollateralDepositedAmount, int256 _longOrShort,,) = getExposureDetails();
-        uint256 _longOnly = (_usdlCollateralAmount + _usdlCollateralDepositedAmount) * 10**(18 - usdlCollateralDecimals);         // Both usdlCollateralDecimals format
+    function getDeltaExposure() external view override returns (int256) {
+        (
+            uint256 _usdlCollateralAmount,
+            uint256 _usdlCollateralDepositedAmount,
+            int256 _longOrShort,
+            ,
+
+        ) = getExposureDetails();
+        uint256 _longOnly = (_usdlCollateralAmount + _usdlCollateralDepositedAmount) *
+            10**(18 - usdlCollateralDecimals); // Both usdlCollateralDecimals format
 
         int256 _deltaLongShort = int256(_longOnly) + _longOrShort;
         uint256 _absTot = _longOnly + _longOrShort.abs().toUint256();
@@ -331,7 +350,18 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
     /// @notice Returns all the exposure related details
-    function getExposureDetails() public view override returns(uint256, uint256, int256, int256, uint256) {
+    function getExposureDetails()
+        public
+        view
+        override
+        returns (
+            uint256,
+            uint256,
+            int256,
+            int256,
+            uint256
+        )
+    {
         return (
             usdlCollateral.balanceOf(address(this)),
             amountUsdlCollateralDeposited,
@@ -342,7 +372,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
     /// @notice Returns the margin
-    function getMargin() external view override returns(int256) {
+    function getMargin() external view override returns (int256) {
         int256 _margin = accountBalance.getMarginRequirementForLiquidation(address(this));
         return _margin;
     }
@@ -373,7 +403,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
     /// @notice sets maximum position the wrapper can take (in terms of base) - only owner can set
     /// @param _maxPosition reBalancer address to set
-    function setMaxPosition(uint256 _maxPosition) external onlyRole(ONLY_OWNER)  {
+    function setMaxPosition(uint256 _maxPosition) external onlyRole(ONLY_OWNER) {
         maxPosition = _maxPosition;
         emit MaxPositionUpdated(maxPosition);
     }
@@ -410,7 +440,11 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param amount of assets to deposit
     /// @param collateral needs to deposit
     /// @param basis is enum that defines the deposit call from Usdl or lemmaSynth contract
-    function deposit(uint256 amount, address collateral, Basis basis) external override onlyRole(PERPLEMMA_ROLE) {
+    function deposit(
+        uint256 amount,
+        address collateral,
+        Basis basis
+    ) external override onlyRole(PERPLEMMA_ROLE) {
         _deposit(amount, collateral, basis);
     }
 
@@ -418,7 +452,11 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param amount of assets to withdraw
     /// @param collateral needs to withdraw
     /// @param basis is enum that defines the withdraw call from Usdl or lemmaSynth contract
-    function withdraw(uint256 amount, address collateral, Basis basis) external override onlyRole(PERPLEMMA_ROLE) {
+    function withdraw(
+        uint256 amount,
+        address collateral,
+        Basis basis
+    ) external override onlyRole(PERPLEMMA_ROLE) {
         _withdraw(amount, collateral, basis);
     }
 
@@ -445,8 +483,10 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
     /// @notice getCollateralBackAfterSettlement is called when market is settled so USDL and Synth withdraw method call this method instead close position
     function getCollateralBackAfterSettlement(
-        uint256 amount, address to, bool isUsdl
-    ) external override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
+        uint256 amount,
+        address to,
+        bool isUsdl
+    ) external override onlyRole(PERPLEMMA_ROLE) returns (uint256, uint256) {
         return settleCollateral(amount, to, isUsdl);
     }
 
@@ -457,11 +497,16 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @dev Details at https://www.notion.so/lemmafinance/Rebalance-Details-f72ad11a5d8248c195762a6ac6ce037e
     ///
     /// @param router The Router to execute the swap on
-    /// @param routerType The Router Type: 0 --> UniV3, ... 
-    /// @param amountBaseToRebalance The Amount of Base Token to buy or sell on Perp and consequently the amount of corresponding colletarl to sell or buy on Spot 
-    /// @param isCheckProfit Check the profit to possibly revert the TX in case 
-    /// @return Amount of USDC resulting from the operation. It can also be negative as we can use this mechanism for purposes other than Arb See https://www.notion.so/lemmafinance/Rebalance-Details-f72ad11a5d8248c195762a6ac6ce037e#ffad7b09a81a4b049348e3cd38e57466 here 
-    function rebalance(address router, uint256 routerType, int256 amountBaseToRebalance, bool isCheckProfit) external override onlyRole(REBALANCER_ROLE) returns(uint256, uint256) {
+    /// @param routerType The Router Type: 0 --> UniV3, ...
+    /// @param amountBaseToRebalance The Amount of Base Token to buy or sell on Perp and consequently the amount of corresponding colletarl to sell or buy on Spot
+    /// @param isCheckProfit Check the profit to possibly revert the TX in case
+    /// @return Amount of USDC resulting from the operation. It can also be negative as we can use this mechanism for purposes other than Arb See https://www.notion.so/lemmafinance/Rebalance-Details-f72ad11a5d8248c195762a6ac6ce037e#ffad7b09a81a4b049348e3cd38e57466 here
+    function rebalance(
+        address router,
+        uint256 routerType,
+        int256 amountBaseToRebalance,
+        bool isCheckProfit
+    ) external override onlyRole(REBALANCER_ROLE) returns (uint256, uint256) {
         // uint256 usdlCollateralAmountPerp;
         // uint256 usdlCollateralAmountDex;
         uint256 amountUSDCPlus;
@@ -474,10 +519,10 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             ? uint256(amountBaseToRebalance)
             : uint256(-amountBaseToRebalance);
 
-        if(isIncreaseBase) {
-            if(amountBase < 0) {
+        if (isIncreaseBase) {
+            if (amountBase < 0) {
                 (, uint256 amountUSDCMinus_1e18) = closeShortWithExactBase(_amountBaseToRebalance, Basis.IsRebalance);
-                amountUSDCMinus = amountUSDCMinus_1e18 * (10 ** usdc.decimals()) / 1e18;
+                amountUSDCMinus = (amountUSDCMinus_1e18 * (10**usdc.decimals())) / 1e18;
                 _withdraw(_amountBaseToRebalance, address(usdlCollateral), Basis.IsRebalance);
                 require(usdlCollateral.balanceOf(address(this)) > _amountBaseToRebalance, "T1");
                 amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
@@ -485,17 +530,17 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                 amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
                 _deposit(amountUSDCPlus, address(usdc), Basis.IsRebalance);
                 (, uint256 amountUSDCMinus_1e18) = openLongWithExactBase(_amountBaseToRebalance, Basis.IsRebalance);
-                amountUSDCMinus = amountUSDCMinus_1e18 * (10 ** usdc.decimals()) / 1e18;
+                amountUSDCMinus = (amountUSDCMinus_1e18 * (10**usdc.decimals())) / 1e18;
             }
         } else {
             if (amountBase <= 0) {
                 amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
                 _deposit(_amountBaseToRebalance, address(usdlCollateral), Basis.IsRebalance);
-                (, uint256 amountUSDCPlus_1e18) = openShortWithExactBase(_amountBaseToRebalance, Basis.IsRebalance); 
-                amountUSDCPlus = amountUSDCPlus_1e18 * (10 ** usdc.decimals()) / 1e18;
+                (, uint256 amountUSDCPlus_1e18) = openShortWithExactBase(_amountBaseToRebalance, Basis.IsRebalance);
+                amountUSDCPlus = (amountUSDCPlus_1e18 * (10**usdc.decimals())) / 1e18;
             } else {
                 (, uint256 amountUSDCPlus_1e18) = closeLongWithExactBase(_amountBaseToRebalance, Basis.IsRebalance);
-                amountUSDCPlus = amountUSDCPlus_1e18 * (10 ** usdc.decimals()) / 1e18;
+                amountUSDCPlus = (amountUSDCPlus_1e18 * (10**usdc.decimals())) / 1e18;
                 _withdraw(amountUSDCPlus, address(usdc), Basis.IsRebalance);
                 amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
             }
@@ -544,37 +589,57 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return (_amountBase, _amountQuote);
     }
 
-    ////////////// TRADING - CONVENIENCE FUNCTIONS ////////////// 
+    ////////////// TRADING - CONVENIENCE FUNCTIONS //////////////
     // openLongWithExactBase & closeShortWithExactBase: Quote --> Base, ExactInput: False
     // openLongWithExactQuote & closeShortWithExactQuote: Quote --> Base, ExactInput: True
     // closeLongWithExactBase & openShortWithExactBase: Base --> Quote, ExactInput: True
     // closeLongWithExactQuote & openShortWithExactQuote: Base --> Quote, ExactInput: False
-    
+
     /// LemmaSynth will use below four methods
     /// 1). openLongWithExactBase => depositTo
     /// 2). openLongWithExactQuote => depositToWExactCollateral
     /// 3). closeLongWithExactBase => withdrawTo
     /// 4). closeLongWithExactQuote => withdrawToWExactCollateral
-    function openLongWithExactBase(uint256 amount, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
+    function openLongWithExactBase(uint256 amount, Basis basis)
+        public
+        override
+        onlyRole(PERPLEMMA_ROLE)
+        returns (uint256, uint256)
+    {
         // if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         (uint256 base, uint256 quote) = trade(amount, false, false);
         calculateMintingAsset(base, basis, false);
         return (base, quote);
     }
 
-    function openLongWithExactQuote(uint256 amount, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
+    function openLongWithExactQuote(uint256 amount, Basis basis)
+        public
+        override
+        onlyRole(PERPLEMMA_ROLE)
+        returns (uint256, uint256)
+    {
         (uint256 base, uint256 quote) = trade(amount, false, true);
         calculateMintingAsset(base, basis, false);
         return (base, quote);
     }
 
-    function closeLongWithExactBase(uint256 amount, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
+    function closeLongWithExactBase(uint256 amount, Basis basis)
+        public
+        override
+        onlyRole(PERPLEMMA_ROLE)
+        returns (uint256, uint256)
+    {
         (uint256 base, uint256 quote) = trade(amount, true, true);
         calculateMintingAsset(base, basis, true);
         return (base, quote);
     }
 
-    function closeLongWithExactQuote(uint256 amount, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
+    function closeLongWithExactQuote(uint256 amount, Basis basis)
+        public
+        override
+        onlyRole(PERPLEMMA_ROLE)
+        returns (uint256, uint256)
+    {
         (uint256 base, uint256 quote) = trade(amount, true, false);
         base = getRoudDown(base, address(usdlCollateral)); // RoundDown
         calculateMintingAsset(base, basis, true);
@@ -586,25 +651,45 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// 2). openShortWithExactQuote => depositTo
     /// 3). closeShortWithExactBase => withdrawToWExactCollateral
     /// 4). closeShortWithExactQuote => withdrawTo
-    function openShortWithExactBase(uint256 amount, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
+    function openShortWithExactBase(uint256 amount, Basis basis)
+        public
+        override
+        onlyRole(PERPLEMMA_ROLE)
+        returns (uint256, uint256)
+    {
         (uint256 base, uint256 quote) = trade(amount, true, true);
         calculateMintingAsset(quote, basis, true);
         return (base, quote);
     }
 
-    function openShortWithExactQuote(uint256 amount, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
+    function openShortWithExactQuote(uint256 amount, Basis basis)
+        public
+        override
+        onlyRole(PERPLEMMA_ROLE)
+        returns (uint256, uint256)
+    {
         (uint256 base, uint256 quote) = trade(amount, true, false);
         calculateMintingAsset(quote, basis, true);
         return (base, quote);
     }
 
-    function closeShortWithExactBase(uint256 amount, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
+    function closeShortWithExactBase(uint256 amount, Basis basis)
+        public
+        override
+        onlyRole(PERPLEMMA_ROLE)
+        returns (uint256, uint256)
+    {
         (uint256 base, uint256 quote) = trade(amount, false, false);
         calculateMintingAsset(quote, basis, false);
         return (base, quote);
     }
 
-    function closeShortWithExactQuote(uint256 amount, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
+    function closeShortWithExactQuote(uint256 amount, Basis basis)
+        public
+        override
+        onlyRole(PERPLEMMA_ROLE)
+        returns (uint256, uint256)
+    {
         (uint256 base, uint256 quote) = trade(amount, false, true);
         quote = getRoudDown(quote, address(usdc)); // RoundDown
         calculateMintingAsset(quote, basis, false);
@@ -613,7 +698,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
     /// @notice getAmountInCollateralDecimalsForPerp is use to convert amount in collateral decimals
     function getAmountInCollateralDecimalsForPerp(
-        uint256 amount, address collateral, bool roundUp
+        uint256 amount,
+        address collateral,
+        bool roundUp
     ) public view override returns (uint256) {
         uint256 collateralDecimals = IERC20Decimals(collateral).decimals();
         if (roundUp && (amount % (uint256(10**(18 - collateralDecimals))) != 0)) {
@@ -625,12 +712,12 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     ////////////////////////
     /// INTERNAL METHODS ///
     ////////////////////////
-    
+
     /// @notice getRoudDown is use to roundDown by amount = amount-1
     /// because perpV2 gives 1 wei increase in vaule for base and quote so we have to roundDown that 1 wei
     /// Otherwise it can give arithmetic error in calculateMintingAsset() function
     /// if the amount is less than collateral decimals value(like 1e18, 1e6) then it will compulsary roundDown 1 wei
-    /// closeShortWithExactQuote, closeLongWithExactQuote are using getRoudDown method 
+    /// closeShortWithExactQuote, closeLongWithExactQuote are using getRoudDown method
     /// @param amount needs to roundDown
     /// @param collateral address, if the amount is base then it will be usdlCollateral otherwise synthCollateral
     function getRoudDown(uint256 amount, address collateral) internal view returns (uint256 roundDownAmount) {
@@ -638,14 +725,23 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         roundDownAmount = (amount % (uint256(10**(collateralDecimals))) != 0) ? amount - 1 : amount;
     }
 
-    /// @notice getAllBalance is simple view method to give deposited balance and currentBalance of USDL and Synth  
-    function getAllBalance() internal view returns(uint256, uint256, uint256, uint256) {
+    /// @notice getAllBalance is simple view method to give deposited balance and currentBalance of USDL and Synth
+    function getAllBalance()
+        internal
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256,
+            uint256
+        )
+    {
         return (
             totalUsdlCollateral,
             usdlCollateral.balanceOf(address(this)),
             totalSynthCollateral,
             usdc.balanceOf(address(this))
-        ); 
+        );
     }
 
     /// @notice to deposit collateral in vault for short or open position
@@ -663,7 +759,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
 
         if (Basis.IsRebalance != basis) {
-            if (Basis.IsUsdl == basis) { 
+            if (Basis.IsUsdl == basis) {
                 totalUsdlCollateral += collateralAmount;
             } else {
                 totalSynthCollateral += collateralAmount;
@@ -686,7 +782,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             amountUsdlCollateralDeposited -= amountToWithdraw;
         }
 
-        if (Basis.IsUsdl == basis) { 
+        if (Basis.IsUsdl == basis) {
             totalUsdlCollateral -= amountToWithdraw;
         } else if (Basis.IsSynth == basis) {
             totalSynthCollateral -= amountToWithdraw;
@@ -697,14 +793,20 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param amount needs to add or sub
     /// @param isOpenShort that position is short or long
     /// @param basis is enum that defines the calculateMintingAsset call from Usdl or lemmaSynth contract
-    function calculateMintingAsset(uint256 amount, Basis basis, bool isOpenShort) internal {
-        if (isOpenShort) { // if openShort or closeLong
+    function calculateMintingAsset(
+        uint256 amount,
+        Basis basis,
+        bool isOpenShort
+    ) internal {
+        if (isOpenShort) {
+            // if openShort or closeLong
             if (Basis.IsUsdl == basis) {
                 mintedPositionUsdlForThisWrapper += amount; // quote
             } else if (Basis.IsSynth == basis) {
                 mintedPositionSynthForThisWrapper -= amount; // base
             }
-        } else { // if openLong or closeShort
+        } else {
+            // if openLong or closeShort
             if (Basis.IsUsdl == basis) {
                 mintedPositionUsdlForThisWrapper -= amount; // quote
             } else if (Basis.IsSynth == basis) {
@@ -716,10 +818,16 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @notice settleCollateral is called when market is settled and it will pro-rata distribute the funds
     /// Before market settled, rebalance function called and collateral is not same in perpLemma when it is deposited
     /// So we will use track variables totalUsdlCollateral, totalSynthCollateral and current balances of usdl and synth to distribute the pro-rata base collateral
-    function settleCollateral(uint256 usdlOrSynthAmount, address to, bool isUsdl) internal returns(uint256 amountUsdlCollateral1e_18, uint256 amountUsdcCollateral1e_18) {
-        uint256 positionAtSettlementInQuote = isUsdl ? mintedPositionUsdlForThisWrapper : mintedPositionSynthForThisWrapper;
+    function settleCollateral(
+        uint256 usdlOrSynthAmount,
+        address to,
+        bool isUsdl
+    ) internal returns (uint256 amountUsdlCollateral1e_18, uint256 amountUsdcCollateral1e_18) {
+        uint256 positionAtSettlementInQuote = isUsdl
+            ? mintedPositionUsdlForThisWrapper
+            : mintedPositionSynthForThisWrapper;
         require(positionAtSettlementInQuote > 0, "Settled vUSD position amount should not ZERO");
-        
+
         uint256 tailAmount;
         uint256 usdcAmount;
 
@@ -738,17 +846,25 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
         if (tailAmount != 0) {
             uint256 collateralDecimals = IERC20Decimals(address(usdlCollateral)).decimals();
-            tailAmount = tailAmount * 1e18 / (10**collateralDecimals);
+            tailAmount = (tailAmount * 1e18) / (10**collateralDecimals);
             amountUsdlCollateral1e_18 = (usdlOrSynthAmount * tailAmount) / positionAtSettlementInQuote;
-            uint256 amountUsdlCollateral = getAmountInCollateralDecimalsForPerp(amountUsdlCollateral1e_18, address(usdlCollateral), false);
+            uint256 amountUsdlCollateral = getAmountInCollateralDecimalsForPerp(
+                amountUsdlCollateral1e_18,
+                address(usdlCollateral),
+                false
+            );
             SafeERC20Upgradeable.safeTransfer(usdlCollateral, to, amountUsdlCollateral);
             if (isUsdl) totalUsdlCollateral -= amountUsdlCollateral;
         }
         if (usdcAmount != 0) {
             uint256 collateralDecimals = IERC20Decimals(address(usdc)).decimals();
-            usdcAmount = usdcAmount * 1e18 / (10**collateralDecimals);
+            usdcAmount = (usdcAmount * 1e18) / (10**collateralDecimals);
             amountUsdcCollateral1e_18 = (usdlOrSynthAmount * usdcAmount) / positionAtSettlementInQuote;
-            uint256 amountUsdcCollateral = getAmountInCollateralDecimalsForPerp(amountUsdcCollateral1e_18, address(usdc), false);
+            uint256 amountUsdcCollateral = getAmountInCollateralDecimalsForPerp(
+                amountUsdcCollateral1e_18,
+                address(usdc),
+                false
+            );
             SafeERC20Upgradeable.safeTransfer(usdc, to, amountUsdcCollateral);
             if (!isUsdl) totalSynthCollateral -= amountUsdcCollateral;
         }
@@ -760,32 +876,53 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
     /// @notice swap USDC -> USDLCollateral
-    function _USDCToCollateral(address router, uint256 routerType, bool isExactInput, uint256 amountUSDC) internal returns(uint256) {
+    function _USDCToCollateral(
+        address router,
+        uint256 routerType,
+        bool isExactInput,
+        uint256 amountUSDC
+    ) internal returns (uint256) {
         return _swapOnDEXSpot(router, routerType, false, isExactInput, amountUSDC);
     }
 
     /// @notice swap USDLCollateral -> USDC
-    function _CollateralToUSDC(address router, uint256 routerType, bool isExactInput, uint256 amountCollateral) internal returns(uint256) {
+    function _CollateralToUSDC(
+        address router,
+        uint256 routerType,
+        bool isExactInput,
+        uint256 amountCollateral
+    ) internal returns (uint256) {
         return _swapOnDEXSpot(router, routerType, true, isExactInput, amountCollateral);
     }
 
-    function _swapOnDEXSpot(address router, uint256 routerType, bool isBuyUSDLCollateral, bool isExactInput, uint256 amountIn) internal returns(uint256) {
-        if(routerType == 0) {
-            // NOTE: UniV3 
+    function _swapOnDEXSpot(
+        address router,
+        uint256 routerType,
+        bool isBuyUSDLCollateral,
+        bool isExactInput,
+        uint256 amountIn
+    ) internal returns (uint256) {
+        if (routerType == 0) {
+            // NOTE: UniV3
             return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn);
         }
         // NOTE: Unsupported Router --> Using UniV3 as default
         return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn);
     }
 
-    /// @dev Helper function to swap on UniV3 
-    function _swapOnUniV3(address router, bool isUSDLCollateralToUSDC, bool isExactInput, uint256 amount) internal returns(uint256) {
+    /// @dev Helper function to swap on UniV3
+    function _swapOnUniV3(
+        address router,
+        bool isUSDLCollateralToUSDC,
+        bool isExactInput,
+        uint256 amount
+    ) internal returns (uint256) {
         uint256 res;
         address tokenIn = (isUSDLCollateralToUSDC) ? address(usdlCollateral) : address(usdc);
         address tokenOut = (isUSDLCollateralToUSDC) ? address(usdc) : address(usdlCollateral);
 
         IERC20Decimals(tokenIn).approve(router, type(uint256).max);
-        if(isExactInput) {
+        if (isExactInput) {
             ISwapRouter.ExactInputSingleParams memory temp = ISwapRouter.ExactInputSingleParams({
                 tokenIn: tokenIn,
                 tokenOut: tokenOut,
@@ -799,9 +936,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             uint256 balanceBefore = IERC20Decimals(tokenOut).balanceOf(address(this));
             res = ISwapRouter(router).exactInputSingle(temp);
             uint256 balanceAfter = IERC20Decimals(tokenOut).balanceOf(address(this));
-            res = uint256( int256(balanceAfter) - int256(balanceBefore) );
-        }
-        else {
+            res = uint256(int256(balanceAfter) - int256(balanceBefore));
+        } else {
             ISwapRouter.ExactOutputSingleParams memory temp = ISwapRouter.ExactOutputSingleParams({
                 tokenIn: tokenIn,
                 tokenOut: tokenOut,
@@ -823,7 +959,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         view
         virtual
         override(ContextUpgradeable, ERC2771ContextUpgradeable)
-    returns (address sender) {
+        returns (address sender)
+    {
         return msg.sender;
     }
 
@@ -832,7 +969,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         view
         virtual
         override(ContextUpgradeable, ERC2771ContextUpgradeable)
-    returns (bytes calldata) {
+        returns (bytes calldata)
+    {
         return msg.data;
     }
 }
