@@ -90,7 +90,7 @@ contract LemmaSynthTest is Test {
         usdcAmount = (usdcAmount*1e18) / 10**decimal;
         // 4th param is minSynthToMint which is need to be set using callStatic, currently set 0 for not breaking revert
         // calsstatic is not possible in solidity so
-        d.lSynth().depositToWExactCollateral(to, usdcAmount, 0, 0, IERC20Upgradeable(collateral)); 
+        d.lSynth().depositToWExactCollateral(to, usdcAmount, 0, IERC20Upgradeable(collateral)); 
         uint256 afterTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
         uint256 afterBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
@@ -105,7 +105,7 @@ contract LemmaSynthTest is Test {
         uint256 beforeBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
         assertTrue(beforeBalanceSynth > 0, "!Synth");
         uint256 beforeTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
-        d.lSynth().withdrawTo(to, synthAmount, 0, 0, IERC20Upgradeable(collateral));
+        d.lSynth().withdrawTo(to, synthAmount, 0, IERC20Upgradeable(collateral));
         uint256 afterTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 afterBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
@@ -120,7 +120,7 @@ contract LemmaSynthTest is Test {
         uint256 beforeBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
         assertTrue(beforeBalanceSynth > 0, "!Synth");
         uint256 beforeTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
-        d.lSynth().withdrawToWExactCollateral(to, usdcAmount, 0, type(uint256).max, IERC20Upgradeable(collateral));
+        d.lSynth().withdrawToWExactCollateral(to, usdcAmount, type(uint256).max, IERC20Upgradeable(collateral));
         uint256 afterTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 afterBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
@@ -211,7 +211,7 @@ contract LemmaSynthTest is Test {
         uint256 _collateralAfterMinting = _deductFees(collateralAMount);
         uint256 _maxUSDCtoRedeem = _deductFees(_collateralAfterMinting);
         // vm.expectRevert(bytes("only lemmaswap is allowed"));
-        d.lSynth().withdrawToWExactCollateral(address(this), _maxUSDCtoRedeem, 0, type(uint256).max, IERC20Upgradeable(collateral));
+        d.lSynth().withdrawToWExactCollateral(address(this), _maxUSDCtoRedeem, type(uint256).max, IERC20Upgradeable(collateral));
     }
 
     function testFailDepositToWExactCollateralAndwithdrawToWExactCollateralForSynth() public {
@@ -286,7 +286,7 @@ contract LemmaSynthTest is Test {
     function testFailDepositToWExactCollateral1() public {
         vm.startPrank(address(d));
         d.lSynth().updatePerpetualDEXWrapper(address(0));
-        d.lSynth().depositToWExactCollateral(address(this), 1000, 0, type(uint256).max, IERC20Decimals(address(0)));
+        d.lSynth().depositToWExactCollateral(address(this), 1000, type(uint256).max, IERC20Decimals(address(0)));
         vm.stopPrank();
     }
 
@@ -295,7 +295,7 @@ contract LemmaSynthTest is Test {
         address collateral = d.getTokenAddress("USDC");
         _getMoneyForTo(address(this), collateral, 1000e6);
         IERC20Decimals(collateral).approve(address(d.lSynth()), type(uint256).max);
-        d.lSynth().depositToWExactCollateral(address(this), 100e18, 0, type(uint256).max, IERC20Decimals(collateral));
+        d.lSynth().depositToWExactCollateral(address(this), 100e18, type(uint256).max, IERC20Decimals(collateral));
     }
 
     // reason: invalid DEX/collateral
@@ -304,20 +304,20 @@ contract LemmaSynthTest is Test {
         vm.startPrank(address(d));
         d.lSynth().updatePerpetualDEXWrapper(address(0));
         vm.stopPrank();
-        d.lSynth().withdrawTo(address(this), 1000, 0, 1, IERC20Decimals(address(0)));
+        d.lSynth().withdrawTo(address(this), 1000, 1, IERC20Decimals(address(0)));
     }
 
     // reason: ERC20: burn amount exceeds balance
     function testFailWithdrawTo2() public {
         address collateral = d.getTokenAddress("USDC");
-        d.lSynth().withdrawTo(address(this), 1e17, 0, type(uint256).max, IERC20Decimals(collateral));
+        d.lSynth().withdrawTo(address(this), 1e17, type(uint256).max, IERC20Decimals(collateral));
     }
 
     // reason: Collateral to get back too low
     function testFailWithdrawTo3() public {
         testDepositToForSynth();
         address collateral = d.getTokenAddress("USDC");
-        d.lSynth().withdrawTo(address(this), 1e17, 0, type(uint256).max, IERC20Decimals(collateral));
+        d.lSynth().withdrawTo(address(this), 1e17, type(uint256).max, IERC20Decimals(collateral));
     }
 
     // reason: hasSettled Error
@@ -332,14 +332,14 @@ contract LemmaSynthTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
-        d.lSynth().withdrawTo(address(this), 1e17, 0, 0, IERC20Decimals(collateral));
+        d.lSynth().withdrawTo(address(this), 1e17, 0, IERC20Decimals(collateral));
     }
 
     // reason: invalid DEX/collateral
     function testFailWithdrawToWExactCollateral1() public {
         vm.startPrank(address(d));
         d.lSynth().updatePerpetualDEXWrapper(address(0));
-        d.lSynth().withdrawToWExactCollateral(address(this), 1000, 0, 0, IERC20Decimals(address(0)));
+        d.lSynth().withdrawToWExactCollateral(address(this), 1000, 0, IERC20Decimals(address(0)));
         vm.stopPrank();
     }
 
@@ -347,7 +347,7 @@ contract LemmaSynthTest is Test {
     function testFailWithdrawToWExactCollateral2() public {
         testDepositToForSynth();
         address collateral = d.getTokenAddress("USDC");
-        d.lSynth().withdrawToWExactCollateral(address(this), 100e6, 0, 0, IERC20Decimals(collateral));
+        d.lSynth().withdrawToWExactCollateral(address(this), 100e6, 0, IERC20Decimals(collateral));
     }
 
     function testWithdrawToWExactCollateralWithSettle() public {
@@ -362,7 +362,7 @@ contract LemmaSynthTest is Test {
 
         d.pl().settle(); // PerpLemma settle call
         uint256 beforeBalance = IERC20Decimals(collateral).balanceOf(address(this));
-        d.lSynth().withdrawToWExactCollateral(address(this), 100e6, 0, type(uint256).max, IERC20Decimals(collateral));
+        d.lSynth().withdrawToWExactCollateral(address(this), 100e6, type(uint256).max, IERC20Decimals(collateral));
         uint256 afterBalance = IERC20Decimals(collateral).balanceOf(address(this));
         assertGe(afterBalance-beforeBalance, 0);
     }
@@ -380,7 +380,7 @@ contract LemmaSynthTest is Test {
 
         d.pl().settle(); // PerpLemma settle call
         d.pl().setMintedPositionSynthForThisWrapper(0);
-        d.lSynth().withdrawToWExactCollateral(address(this), 100e18, 0, 0, IERC20Decimals(collateral));
+        d.lSynth().withdrawToWExactCollateral(address(this), 100e18, 0, IERC20Decimals(collateral));
     }
 
     // Tests for mint and burn lemmaSynth with TailCollateral/EthCollateral instead USDC_TREASURY
@@ -419,7 +419,7 @@ contract LemmaSynthTest is Test {
         uint256 beforeBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
         assertTrue(beforeBalanceSynth > 0, "!Synth");
         uint256 beforeTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
-        d.lSynth().withdrawTo(to, synthAmount, 0, 0, IERC20Upgradeable(collateral));
+        d.lSynth().withdrawTo(to, synthAmount, 0, IERC20Upgradeable(collateral));
         uint256 afterTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 afterBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);

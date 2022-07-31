@@ -400,10 +400,10 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @notice withdrawSettlementTokenTo is used to withdraw settlement token USDC from perp vault - only owner can withdraw
     /// @param _amount USDC amount need to withdraw from perp vault
     /// @param _to address where to transfer fund
-    function withdrawSettlementTokenTo(uint256 _amount, address to) external onlyRole(ONLY_OWNER) {
+    function withdrawSettlementTokenTo(uint256 _amount, address _to) external onlyRole(ONLY_OWNER) {
         require(_amount > 0, "Amount should greater than zero");
         require(hasSettled, "Perpetual is not settled yet");
-        SafeERC20Upgradeable.safeTransfer(usdc, to, _amount);
+        SafeERC20Upgradeable.safeTransfer(usdc, _to, _amount);
         totalSynthCollateral -= _amount;
     }
 
@@ -444,7 +444,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         hasSettled = true;
     }
 
-    /// @param getCollateralBackAfterSettlement is called when market is settled so USDL and Synth withdraw method call this method instead close position
+    /// @notice getCollateralBackAfterSettlement is called when market is settled so USDL and Synth withdraw method call this method instead close position
     function getCollateralBackAfterSettlement(
         uint256 amount, address to, bool isUsdl
     ) external override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
@@ -509,7 +509,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// PUBLIC METHODS ///
     //////////////////////
 
-    /// @param trade method is to open short or long position
+    /// @notice trade method is to open short or long position
     /// if isShorting true then base -> quote otherwise quote -> base
     /// if isShorting == true then input will be base
     /// if isShorting == false then input will be quote
@@ -767,12 +767,12 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
     }
 
-    /// @param swap USDC -> USDLCollateral
+    /// @notice swap USDC -> USDLCollateral
     function _USDCToCollateral(address router, uint256 routerType, bool isExactInput, uint256 amountUSDC) internal returns(uint256) {
         return _swapOnDEXSpot(router, routerType, false, isExactInput, amountUSDC);
     }
 
-    /// @param swap USDLCollateral -> USDC
+    /// @notice swap USDLCollateral -> USDC
     function _CollateralToUSDC(address router, uint256 routerType, bool isExactInput, uint256 amountCollateral) internal returns(uint256) {
         return _swapOnDEXSpot(router, routerType, true, isExactInput, amountCollateral);
     }

@@ -39,28 +39,18 @@ contract USDLemmaTest is Test {
         assertTrue(IERC20Decimals(token).balanceOf(to) >= amount);
     }
 
-    function getRoudDown(uint256 amount) internal pure returns (uint256) {
-        return amount - 1;
-    }
-
     function _depositSettlementTokenMax() internal {
         _getMoney(address(d.pl().usdc()), 1e40);
-
         IERC20Decimals settlementToken = IERC20Decimals(d.pl().perpVault().getSettlementToken());
         uint256 perpVaultSettlementTokenBalanceBefore = settlementToken.balanceOf(address(d.pl().perpVault()));
         uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.pl().clearingHouse().getClearingHouseConfig()).getSettlementTokenBalanceCap();
         uint256 usdcToDeposit = uint256(int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore));
-
         // uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
         // NOTE: Unclear why I need to use 1/10 of the cap
         // NOTE: If I do not limit this amount I get 
         // V_GTSTBC: greater than settlement token balance cap
-
         d.pl().usdc().approve(address(d.pl()), usdcToDeposit);
         d.pl().depositSettlementToken(usdcToDeposit);
-
-        // d.pl().usdc().approve(address(d.pl()), settlementTokenBalanceCap/10);
-        // d.pl().depositSettlementToken(settlementTokenBalanceCap/10);
     }
 
     // USDLemma Functions To test
@@ -112,12 +102,13 @@ contract USDLemmaTest is Test {
         uint256 beforeBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 beforeBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
         assertTrue(beforeBalanceUSDL > 0, "!USDL");
-        // uint256 beforeTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
+        uint256 beforeTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
         d.usdl().withdrawTo(to, amount, 0, 0, IERC20Upgradeable(collateral));
-        // uint256 afterTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
+        uint256 afterTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 afterBalanceUSDL = d.usdl().balanceOf(to);
-        // assertEq(beforeTotalUsdl-amount, getRoudDown(afterTotalUsdl));
+        console.log(beforeTotalUsdl-afterTotalUsdl, amount);
+        assertEq(beforeTotalUsdl-afterTotalUsdl, amount);
         assertTrue(afterBalanceCollateral > beforeBalanceCollateral);
         assertTrue(afterBalanceUSDL < beforeBalanceUSDL);
     }
@@ -145,7 +136,6 @@ contract USDLemmaTest is Test {
         _mintUSDLWExactUSDL(address(this), collateral, usdlAmount);
     }
 
-
     function _depositWExactCollateral(uint256 collateralAmount) internal {
         _depositSettlementTokenMax();
         address collateral = d.getTokenAddress("WETH");
@@ -157,8 +147,13 @@ contract USDLemmaTest is Test {
         _depositWExactCollateral(1e18);
     }
 
+    function testDepositToWExactCollateral1_demo() public {
+        // _depositWExactCollateral(18*1e18);
+        // _depositWExactCollateral(100*1e18);
+    }
+
     // test depositTo and withdrawTo
-    function testDepositToAndWithdrawTo() public {
+    function testDepositToAndWithdrawTo11() public {
         testDepositTo();
         address collateral = d.getTokenAddress("WETH");
         uint256 usdlAmount = d.usdl().balanceOf(address(this));

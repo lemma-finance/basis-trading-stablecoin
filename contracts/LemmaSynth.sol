@@ -74,7 +74,7 @@ contract LemmaSynth is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, ERC27
     /// @param _name LemmaSynth Token name
     /// @param _symbol erc20 LemmaSynth Token symbol
     function initialize(
-        address trustedForwarder,
+        address _trustedForwarder,
         address _perpLemma,
         address _tailCollateral,
         string memory _name,
@@ -83,7 +83,7 @@ contract LemmaSynth is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, ERC27
         __ReentrancyGuard_init();
         __ERC20_init(_name, _symbol);
         __ERC20Permit_init(_name);
-        __ERC2771Context_init(trustedForwarder);
+        __ERC2771Context_init(_trustedForwarder);
 
         __AccessControl_init();
         _setRoleAdmin(LEMMA_SWAP, ADMIN_ROLE);

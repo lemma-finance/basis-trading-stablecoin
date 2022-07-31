@@ -26,6 +26,7 @@ contract PerpLemmaCommonTest is Test {
         d.pl().grantRole(USDC_TREASURY, address(this));
         d.pl().grantRole(PERPLEMMA_ROLE, address(this));
         d.pl().grantRole(REBALANCER_ROLE, address(this));
+        d.pl().grantRole(ONLY_OWNER, address(this));
         d.pl().grantRole(PERPLEMMA_ROLE, alice);
         d.pl().grantRole(PERPLEMMA_ROLE, bob);
         d.pl().grantRole(USDC_TREASURY, alice);
@@ -48,10 +49,6 @@ contract PerpLemmaCommonTest is Test {
     function _getMoneyForTo(address to, address token, uint256 amount) internal {
         d.bank().giveMoney(token, to, amount);
         assertTrue(IERC20Decimals(token).balanceOf(to) >= amount);
-    }
-
-    function getRoundDown(uint256 amount) internal pure returns (uint256) {
-        return amount - 1;
     }
 
     function checkBalance(address to, address collateral) internal view returns(uint256) {
@@ -98,6 +95,10 @@ contract PerpLemmaCommonTest is Test {
         d.pl().withdrawSettlementToken(amount);
         uint256 afterTotalSynthCollateral = d.pl().totalSynthCollateral();
         uint256 afterUserBalance = checkBalance(address(this), d.getTokenAddress("USDC"));
+        console.log(beforeUserBalance, beforeTotalSynthCollateral);
+        console.log(afterUserBalance, afterTotalSynthCollateral);
+        console.log(beforeTotalSynthCollateral-afterTotalSynthCollateral);
+        console.log(afterUserBalance-beforeUserBalance, amount);
         assertEq(beforeTotalSynthCollateral-afterTotalSynthCollateral, amount);
         assertEq(afterUserBalance-beforeUserBalance, amount);
     }
@@ -152,6 +153,7 @@ contract PerpLemmaCommonTest is Test {
         uint256 beforeMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         (uint256 base, uint256 quote) = d.pl().openShortWithExactQuote(exactUSDLAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl);
         uint256 afterMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
+        console.log(collateralAmount, base, quote);
         assertEq(afterMintedPositionUsdlForThisWrapper-beforeMintedPositionUsdlForThisWrapper, quote);
         assertEq(collateralAmount, base);
     }
@@ -168,7 +170,7 @@ contract PerpLemmaCommonTest is Test {
         uint256 beforeMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         (uint256 base, uint256 quote) = d.pl().closeShortWithExactQuote(exactUSDLAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl);
         uint256 afterMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
-        assertEq(beforeMintedPositionUsdlForThisWrapper-afterMintedPositionUsdlForThisWrapper, getRoundDown(quote));
+        assertEq(beforeMintedPositionUsdlForThisWrapper-afterMintedPositionUsdlForThisWrapper, quote);
         uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), collateralAmount, 0);
         uint256 _minETHtoRedeem = _deductFees(d.getTokenAddress("WETH"), _collateralAfterMinting, 0);
         assertLt(_minETHtoRedeem, base);
@@ -197,17 +199,15 @@ contract PerpLemmaCommonTest is Test {
     function closeLongWithExactBase(uint256 synthAmount, uint256 usdcAmount, address collateral) internal returns(uint256 usdcAmountToWithdraw) {
         uint256 beforeMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
         (uint256 base, uint256 quote) = d.pl().closeLongWithExactBase(synthAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsSynth);
-        console.log('base, quote: ', base, quote);
         uint256 afterMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
         assertEq(beforeMintedPositionSynthForThisWrapper-afterMintedPositionSynthForThisWrapper, base);
         uint256 decimal = IERC20Decimals(collateral).decimals();
         usdcAmount = (usdcAmount*1e18) / 10**decimal;
-        console.log('usdcAmount: ', usdcAmount);
+        usdcAmountToWithdraw = quote;
         // uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), usdcAmount, 0);
         // uint256 _minUSDCtoRedeem = _deductFees(d.getTokenAddress("WETH"), _collateralAfterMinting, 0);
-        // console.log('_minUSDCtoRedeem: ', _minUSDCtoRedeem, _collateralAfterMinting);
+        // console.log('_minUSDCtoRedeem: ', _minUSDCtoRedeem, quote);
         // assertLt(_minUSDCtoRedeem, quote);
-        usdcAmountToWithdraw = quote;
     }
 
     function closeLongWithExactQuote(uint256 synthAmount, uint256 usdcAmount) internal returns(uint256 usdcAmountToWithdraw) {
@@ -217,7 +217,7 @@ contract PerpLemmaCommonTest is Test {
         uint256 afterSynthMinting = _deductFees(d.getTokenAddress("WETH"), synthAmount, 0);
         uint256 _maxSynthToRedeem = _deductFees(d.getTokenAddress("WETH"), afterSynthMinting, 0);
         assertLe(_maxSynthToRedeem, beforeMintedPositionSynthForThisWrapper-afterMintedPositionSynthForThisWrapper);
-        assertEq(beforeMintedPositionSynthForThisWrapper-afterMintedPositionSynthForThisWrapper, getRoundDown(base)); // sometimes need to use getRoundDown(base) instead base
+        assertEq(beforeMintedPositionSynthForThisWrapper-afterMintedPositionSynthForThisWrapper, base);
         usdcAmountToWithdraw = quote;
     }
 
@@ -259,7 +259,6 @@ contract PerpLemmaCommonTest is Test {
         _withdrawUsdlCollateral(_maxETHtoRedeem, collateral, address(this));
     }
 
-    // need to verify
     function testCloseShortWithExactQuote1() public {
         uint256 beforeMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         testOpenShortWithExactBase();
@@ -268,19 +267,18 @@ contract PerpLemmaCommonTest is Test {
         uint256 collateralAmount = 1e18;
         uint256 exactUSDLAmount = afterMintedPositionUsdlForThisWrapper-beforeMintedPositionUsdlForThisWrapper;
         uint256 collateralToGetBack =  closeShortWithExactQuote(collateralAmount, exactUSDLAmount);
-        _withdrawUsdlCollateral(collateralToGetBack, collateral, address(this));
+       _withdrawUsdlCollateral(collateralToGetBack, collateral, address(this));
     }
 
-    // need to verify
     function testCloseShortWithExactQuote2() public {
         uint256 beforeMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         testOpenShortWithExactQuote();
         uint256 afterMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         address collateral = d.getTokenAddress("WETH");
         uint256 collateralAmount = 1e18;
-        uint256 exactUSDLAmount = afterMintedPositionUsdlForThisWrapper-beforeMintedPositionUsdlForThisWrapper;
-        // uint256 _exactUSDLAmountAfterMinting = _deductFees(d.getTokenAddress("WETH"), exactUSDLAmount, 0);
-        uint256 collateralToGetBack =  closeShortWithExactQuote(collateralAmount, exactUSDLAmount);
+        uint256 exactUSDLAmount2 = afterMintedPositionUsdlForThisWrapper-beforeMintedPositionUsdlForThisWrapper;
+        uint256 _exactUSDLAmountAfterMinting = _deductFees(d.getTokenAddress("WETH"), exactUSDLAmount2, 0);
+        uint256 collateralToGetBack =  closeShortWithExactQuote(collateralAmount, exactUSDLAmount2);
         _withdrawUsdlCollateral(collateralToGetBack, collateral, address(this));
     }
 
@@ -300,7 +298,7 @@ contract PerpLemmaCommonTest is Test {
     }
 
     function testCloseLongWithExactBase1() public {
-        testOpenLongWithExactBase(); // 1000000000000000000, 1098491447137910143682 
+        testOpenLongWithExactBase();
         address collateral = d.getTokenAddress("USDC");
         uint256 synthAmount = 1e18;
         uint256 usdcAmount = 1098e6;
@@ -310,7 +308,7 @@ contract PerpLemmaCommonTest is Test {
 
     function testCloseLongWithExactBase2() public {
         _depositSettlementToken(1100e6);
-        testOpenLongWithExactQuote(); // 999552647402874360, 1098000000000000000000
+        testOpenLongWithExactQuote();
         address collateral = d.getTokenAddress("USDC");
         uint256 synthAmount = 1e18;
         uint256 usdcAmount = 1098e6;
@@ -331,7 +329,6 @@ contract PerpLemmaCommonTest is Test {
         _withdrawSettlementToken(usdcAmountToWithdraw);
     }
 
-    // need to verify
     function testCloseLongWithExactQuote2() public {    
         testOpenLongWithExactQuote();
         uint256 synthAmount = 1e18;
