@@ -6,7 +6,6 @@ import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "../../contracts/interfaces/IERC20Decimals.sol";
 import "../../src/Deploy.sol";
 import "forge-std/Test.sol";
-import "forge-std/console.sol";
 
 contract USDLemmaTest is Test {
     Deploy public d;
@@ -107,7 +106,6 @@ contract USDLemmaTest is Test {
         uint256 afterTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 afterBalanceUSDL = d.usdl().balanceOf(to);
-        console.log(beforeTotalUsdl-afterTotalUsdl, amount);
         assertEq(beforeTotalUsdl-afterTotalUsdl, amount);
         assertTrue(afterBalanceCollateral > beforeBalanceCollateral);
         assertTrue(afterBalanceUSDL < beforeBalanceUSDL);

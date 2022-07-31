@@ -6,7 +6,6 @@ import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "../../contracts/interfaces/IERC20Decimals.sol";
 import "../../src/Deploy.sol";
 import "forge-std/Test.sol";
-import "forge-std/console.sol";
 
 contract LemmaSynthTest is Test {
     Deploy public d;
@@ -124,14 +123,14 @@ contract LemmaSynthTest is Test {
         uint256 afterTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 afterBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
-        console.log('beforeBalanceSynth: ', beforeBalanceSynth);
-        console.log('afterBalanceSynth: ', afterBalanceSynth);
-        console.log('beforeTotalSynth: ', beforeTotalSynth);
-        console.log('afterTotalSynth: ', afterTotalSynth);
-        console.log('beforeBalanceCollateral: ', beforeBalanceCollateral);
-        console.log('afterBalanceCollateral: ', afterBalanceCollateral);
-        console.log('beforeTotalSynth-afterTotalSynth: ', beforeTotalSynth-afterTotalSynth);
-        console.log('beforeBalanceSynth-afterBalanceSynth: ', beforeBalanceSynth-afterBalanceSynth);
+        // console.log('beforeBalanceSynth: ', beforeBalanceSynth);
+        // console.log('afterBalanceSynth: ', afterBalanceSynth);
+        // console.log('beforeTotalSynth: ', beforeTotalSynth);
+        // console.log('afterTotalSynth: ', afterTotalSynth);
+        // console.log('beforeBalanceCollateral: ', beforeBalanceCollateral);
+        // console.log('afterBalanceCollateral: ', afterBalanceCollateral);
+        // console.log('beforeTotalSynth-afterTotalSynth: ', beforeTotalSynth-afterTotalSynth);
+        // console.log('beforeBalanceSynth-afterBalanceSynth: ', beforeBalanceSynth-afterBalanceSynth);
         assertEq(beforeTotalSynth-afterTotalSynth, beforeBalanceSynth-afterBalanceSynth);
         assertTrue(afterBalanceCollateral > beforeBalanceCollateral);
         assertTrue(afterBalanceSynth < beforeBalanceSynth);

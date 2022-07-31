@@ -20,6 +20,15 @@ Open perp-lushan submodule repo
 3). npm run build
 4). cd .. 
 
+### Optimism-KOVAN Testnet Contract addresses
+
+```
+USDLemma: , 0x2cb5df8853d194729e39b65365c7bdb6cd9e2870
+LemmaSynth: , 0xe5ea26bedd24e568a3ce6456f83220ea250b312b
+SettlementTokenManager: , 0x7d14373a3078e4eb7280f1d6bd6cd29d4da52f48
+PerpLemmaCommon: , 0xb91ca316ffb00cb131e9f3f6472d0e94c70ba701
+```
+
 ### Run Using Foundry
 
 1. Install Foundry following the instructions here 

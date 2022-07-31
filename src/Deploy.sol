@@ -23,7 +23,6 @@ import "forge-std/Test.sol";
 
 struct Generic_Contracts {
     IERC20Decimals usdc;
-
     // TODO: Fix this, we need a WETH otherwise we can't deposit / withdraw ETH to change ETH balance
     IERC20Decimals weth;
 }
@@ -40,10 +39,8 @@ struct Deploy_PerpLemma {
     // NOTE: What is this? 
     // NOTE: In our local deployment it is address(0) here
     address trustedForwarder;
-
     // NOTE: In out local deployment it is Uint256Max however it is possible in the on-chain version it is a lower value
     uint256 maxPosition;
-
     // ChainID --> Address
     address usdlCollateral;
     address baseToken;
@@ -75,7 +72,6 @@ contract MockUniV3Router {
 
     function exactInputSingle(ISwapRouter.ExactInputSingleParams memory params) external returns(uint256) {
         if(address(router) != address(0)) {
-            console.log("[MockUniV3Router - exactInputSingle()] Using real router");
             if(IERC20Decimals(params.tokenIn).allowance(address(this), address(router)) != type(uint256).max) {
                 IERC20Decimals(params.tokenIn).approve(address(router), type(uint256).max);
             }
@@ -84,13 +80,11 @@ contract MockUniV3Router {
             uint256 result = router.exactInputSingle(params);
             // uint256 balanceAfter = IERC20Decimals(params.tokenOut).balanceOf(address(this));
             // uint256 result = uint256(int256(balanceAfter) - int256(balanceBefore));
-            console.log("[MockUniV3 Router - exactInputSingle()] Result = ", result);
 
             // NOTE: This is not needed as the params.recipient field already identifies the right recipient appunto  
             // IERC20Decimals(params.tokenOut).transfer(msg.sender, result);
             return result;
         } else {
-            console.log("[MockUniV3Router - exactInputSingle()] Using mock router");
             IERC20Decimals(params.tokenIn).transferFrom(msg.sender, address(this), params.amountIn);
             bank.giveMoney(params.tokenOut, address(params.recipient), nextAmount);
             return nextAmount;
@@ -99,7 +93,6 @@ contract MockUniV3Router {
 
     function exactOutputSingle(ISwapRouter.ExactOutputSingleParams memory params) external returns(uint256) {
         if(address(router) != address(0)) {
-            console.log("[MockUniV3Router - exactOutputSingle()] Using real router");
             if(IERC20Decimals(params.tokenIn).allowance(address(this), address(router)) != type(uint256).max) {
                 IERC20Decimals(params.tokenIn).approve(address(router), type(uint256).max);
             }
@@ -115,13 +108,11 @@ contract MockUniV3Router {
 
             // uint256 balanceAfter = IERC20Decimals(params.tokenOut).balanceOf(address(this));
             // uint256 result = uint256(int256(balanceAfter) - int256(balanceBefore));
-            console.log("[MockUniV3 Router - exactOutputSingle()] Result = ", result);
 
             // NOTE: This is not needed as the params.recipient field already identifies the right recipient appunto  
             // IERC20Decimals(params.tokenOut).transfer(msg.sender, result);
             return result;
         } else {
-            console.log("[MockUniV3Router - exactOutputSingle()] Using mock router");
             IERC20Decimals(params.tokenIn).transferFrom(msg.sender, address(this), nextAmount);
             bank.giveMoney(params.tokenOut, address(params.recipient), params.amountOut);
             return nextAmount;
@@ -158,7 +149,6 @@ contract Deploy {
     // NOTE: Chain ID --> Minimum Block for the Deployment 
     mapping(uint256 => uint256) public perp_min_block;
 
-
     constructor(uint256 _chain_id) {
         generic_chain_addresses["WETH"][10] = address(0x4200000000000000000000000000000000000006);
         generic_chain_addresses["WBTC"][10] = address(0x68f180fcCe6836688e9084f035309E29Bf0A2095);
@@ -189,10 +179,8 @@ contract Deploy {
         pc.ib = IBaseToken(perp_chain_addresses["vETH"][chain_id]);
         // pc.mr = IMarketRegistry(perp_chain_addresses["MarketRegistry"][chain_id]);
 
-        // console.log("Account Balance = ", pc.ch.getAccountBalance());
         pc.ab = IAccountBalance(pc.ch.getAccountBalance());
 
-        // console.log("Vault = ", pc.ch.getVault());
         pc.pv = IPerpVault(pc.ch.getVault());
 
         usdl = new USDLemma();
