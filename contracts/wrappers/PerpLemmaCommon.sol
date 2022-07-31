@@ -476,7 +476,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
         if(isIncreaseBase) {
             if(amountBase < 0) {
-                (, uint256 amountUSDCMinus_1e18) = closeShortWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance);
+                (, uint256 amountUSDCMinus_1e18) = closeShortWithExactBase(_amountBaseToRebalance, Basis.IsRebalance);
                 amountUSDCMinus = amountUSDCMinus_1e18 * (10 ** usdc.decimals()) / 1e18;
                 _withdraw(_amountBaseToRebalance, address(usdlCollateral), Basis.IsRebalance);
                 require(usdlCollateral.balanceOf(address(this)) > _amountBaseToRebalance, "T1");
@@ -484,17 +484,17 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             } else {
                 amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
                 _deposit(amountUSDCPlus, address(usdc), Basis.IsRebalance);
-                (, uint256 amountUSDCMinus_1e18) = openLongWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance);
+                (, uint256 amountUSDCMinus_1e18) = openLongWithExactBase(_amountBaseToRebalance, Basis.IsRebalance);
                 amountUSDCMinus = amountUSDCMinus_1e18 * (10 ** usdc.decimals()) / 1e18;
             }
         } else {
             if (amountBase <= 0) {
                 amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
                 _deposit(_amountBaseToRebalance, address(usdlCollateral), Basis.IsRebalance);
-                (, uint256 amountUSDCPlus_1e18) = openShortWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance); 
+                (, uint256 amountUSDCPlus_1e18) = openShortWithExactBase(_amountBaseToRebalance, Basis.IsRebalance); 
                 amountUSDCPlus = amountUSDCPlus_1e18 * (10 ** usdc.decimals()) / 1e18;
             } else {
-                (, uint256 amountUSDCPlus_1e18) = closeLongWithExactBase(_amountBaseToRebalance, address(0), 0, Basis.IsRebalance);
+                (, uint256 amountUSDCPlus_1e18) = closeLongWithExactBase(_amountBaseToRebalance, Basis.IsRebalance);
                 amountUSDCPlus = amountUSDCPlus_1e18 * (10 ** usdc.decimals()) / 1e18;
                 _withdraw(amountUSDCPlus, address(usdc), Basis.IsRebalance);
                 amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
@@ -555,29 +555,26 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// 2). openLongWithExactQuote => depositToWExactCollateral
     /// 3). closeLongWithExactBase => withdrawTo
     /// 4). closeLongWithExactQuote => withdrawToWExactCollateral
-    function openLongWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
-        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
+    function openLongWithExactBase(uint256 amount, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
+        // if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
         (uint256 base, uint256 quote) = trade(amount, false, false);
         calculateMintingAsset(base, basis, false);
         return (base, quote);
     }
 
-    function openLongWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
-        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
+    function openLongWithExactQuote(uint256 amount, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         (uint256 base, uint256 quote) = trade(amount, false, true);
         calculateMintingAsset(base, basis, false);
         return (base, quote);
     }
 
-    function closeLongWithExactBase(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
-        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
+    function closeLongWithExactBase(uint256 amount, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         (uint256 base, uint256 quote) = trade(amount, true, true);
         calculateMintingAsset(base, basis, true);
         return (base, quote);
     }
 
-    function closeLongWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
-        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
+    function closeLongWithExactQuote(uint256 amount, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         (uint256 base, uint256 quote) = trade(amount, true, false);
         base = getRoudDown(base, address(usdlCollateral)); // RoundDown
         calculateMintingAsset(base, basis, true);
@@ -589,29 +586,25 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// 2). openShortWithExactQuote => depositTo
     /// 3). closeShortWithExactBase => withdrawToWExactCollateral
     /// 4). closeShortWithExactQuote => withdrawTo
-    function openShortWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
-        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
+    function openShortWithExactBase(uint256 amount, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         (uint256 base, uint256 quote) = trade(amount, true, true);
         calculateMintingAsset(quote, basis, true);
         return (base, quote);
     }
 
-    function openShortWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
-        if((collateralIn != address(0)) && (amountIn > 0)) _deposit(amountIn, collateralIn, basis);
+    function openShortWithExactQuote(uint256 amount, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         (uint256 base, uint256 quote) = trade(amount, true, false);
         calculateMintingAsset(quote, basis, true);
         return (base, quote);
     }
 
-    function closeShortWithExactBase(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
-        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
+    function closeShortWithExactBase(uint256 amount, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         (uint256 base, uint256 quote) = trade(amount, false, false);
         calculateMintingAsset(quote, basis, false);
         return (base, quote);
     }
 
-    function closeShortWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
-        if((collateralOut != address(0)) && (amountOut > 0)) _withdraw(amountOut, collateralOut, basis);
+    function closeShortWithExactQuote(uint256 amount, Basis basis) public override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         (uint256 base, uint256 quote) = trade(amount, false, true);
         quote = getRoudDown(quote, address(usdc)); // RoundDown
         calculateMintingAsset(quote, basis, false);

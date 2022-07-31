@@ -154,7 +154,7 @@ contract LemmaSynth is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, ERC27
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpLemma);
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         (, uint256 _collateralRequired_1e18) = perpDEXWrapper.openLongWithExactBase(
-            amount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsSynth
+            amount, IPerpetualMixDEXWrapper.Basis.IsSynth
         ); 
 
         uint256 _collateralRequired = (address(collateral) == tailCollateral) ? amount : _collateralRequired_1e18;
@@ -184,7 +184,7 @@ contract LemmaSynth is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, ERC27
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
-        (uint256 _lemmaSynthToMint, ) = perpDEXWrapper.openLongWithExactQuote(collateralAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsSynth);
+        (uint256 _lemmaSynthToMint, ) = perpDEXWrapper.openLongWithExactQuote(collateralAmount, IPerpetualMixDEXWrapper.Basis.IsSynth);
         require(_lemmaSynthToMint >= minSynthToMint, "Synth minted too low");
         _mint(to, _lemmaSynthToMint);
         emit DepositTo(address(perpDEXWrapper), address(collateral), to, _lemmaSynthToMint, _collateralRequired);        
@@ -209,7 +209,7 @@ contract LemmaSynth is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, ERC27
         /// NOTE:- hasSettled Error: PerpLemma is settled. so call withdrawToWExactCollateral method to settle your collateral using exact synth
         require(!hasSettled, "hasSettled Error");
 
-        (, uint256 _collateralAmountToWithdraw1e_18) = perpDEXWrapper.closeLongWithExactBase(amount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsSynth); 
+        (, uint256 _collateralAmountToWithdraw1e_18) = perpDEXWrapper.closeLongWithExactBase(amount, IPerpetualMixDEXWrapper.Basis.IsSynth); 
         uint256 _collateralAmountToWithdraw = (address(collateral) == tailCollateral) ? amount : _collateralAmountToWithdraw1e_18;
         _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
             _collateralAmountToWithdraw,
@@ -241,7 +241,7 @@ contract LemmaSynth is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, ERC27
             perpDEXWrapper.getCollateralBackAfterSettlement(collateralAmount, to, false);
             return;
         } else {
-            (uint256 _lemmaSynthToBurn,) = perpDEXWrapper.closeLongWithExactQuote(collateralAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsSynth); 
+            (uint256 _lemmaSynthToBurn,) = perpDEXWrapper.closeLongWithExactQuote(collateralAmount, IPerpetualMixDEXWrapper.Basis.IsSynth); 
             require(_lemmaSynthToBurn <= maxSynthToBurn, "Too much Synth to burn");
             uint256 _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
             _perpWithdraw(to, perpDEXWrapper, address(collateral), _collateralAmountToWithdraw);

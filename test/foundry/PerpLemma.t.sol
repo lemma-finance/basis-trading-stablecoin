@@ -138,7 +138,7 @@ contract PerpLemmaCommonTest is Test {
 
     function openShortWithExactBase(uint256 collateralAmount) internal {
         uint256 beforeMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
-        (uint256 base, uint256 quote) = d.pl().openShortWithExactBase(collateralAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl);
+        (uint256 base, uint256 quote) = d.pl().openShortWithExactBase(collateralAmount, IPerpetualMixDEXWrapper.Basis.IsUsdl);
         uint256 afterMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         assertEq(afterMintedPositionUsdlForThisWrapper-beforeMintedPositionUsdlForThisWrapper, quote);
         assertEq(collateralAmount, base);
@@ -146,7 +146,7 @@ contract PerpLemmaCommonTest is Test {
 
     function openShortWithExactQuote(uint256 collateralAmount, uint256 exactUSDLAmount) internal {
         uint256 beforeMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
-        (uint256 base, uint256 quote) = d.pl().openShortWithExactQuote(exactUSDLAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl);
+        (uint256 base, uint256 quote) = d.pl().openShortWithExactQuote(exactUSDLAmount, IPerpetualMixDEXWrapper.Basis.IsUsdl);
         uint256 afterMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         assertEq(afterMintedPositionUsdlForThisWrapper-beforeMintedPositionUsdlForThisWrapper, quote);
         assertEq(collateralAmount, base);
@@ -154,7 +154,7 @@ contract PerpLemmaCommonTest is Test {
 
     function closeShortWithExactBase(uint256 collateralAmount) internal {
         uint256 beforeMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
-        (uint256 base, uint256 quote) = d.pl().closeShortWithExactBase(collateralAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl);
+        (uint256 base, uint256 quote) = d.pl().closeShortWithExactBase(collateralAmount, IPerpetualMixDEXWrapper.Basis.IsUsdl);
         uint256 afterMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         assertEq(beforeMintedPositionUsdlForThisWrapper-afterMintedPositionUsdlForThisWrapper, quote);
         assertEq(collateralAmount, base);
@@ -162,7 +162,7 @@ contract PerpLemmaCommonTest is Test {
 
     function closeShortWithExactQuote(uint256 collateralAmount, uint256 exactUSDLAmount) internal returns(uint256 collateralToGetBack){
         uint256 beforeMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
-        (uint256 base, uint256 quote) = d.pl().closeShortWithExactQuote(exactUSDLAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl);
+        (uint256 base, uint256 quote) = d.pl().closeShortWithExactQuote(exactUSDLAmount, IPerpetualMixDEXWrapper.Basis.IsUsdl);
         uint256 afterMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         assertEq(beforeMintedPositionUsdlForThisWrapper-afterMintedPositionUsdlForThisWrapper, quote);
         uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), collateralAmount, 0);
@@ -173,7 +173,7 @@ contract PerpLemmaCommonTest is Test {
 
     function openLongWithExactBase(uint256 synthAmount, uint256 usdcAmount, address collateral) internal {
         uint256 beforeMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
-        (uint256 base,) = d.pl().openLongWithExactBase(synthAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsSynth);
+        (uint256 base,) = d.pl().openLongWithExactBase(synthAmount, IPerpetualMixDEXWrapper.Basis.IsSynth);
         uint256 afterMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
         assertEq(afterMintedPositionSynthForThisWrapper-beforeMintedPositionSynthForThisWrapper, base);
         uint256 decimal = IERC20Decimals(collateral).decimals();
@@ -184,7 +184,7 @@ contract PerpLemmaCommonTest is Test {
         uint256 decimal = IERC20Decimals(collateral).decimals();
         usdcAmount = (usdcAmount*1e18) / 10**decimal;
         uint256 beforeMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
-        (uint256 base, uint256 quote) = d.pl().openLongWithExactQuote(usdcAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsSynth);
+        (uint256 base, uint256 quote) = d.pl().openLongWithExactQuote(usdcAmount, IPerpetualMixDEXWrapper.Basis.IsSynth);
         uint256 afterMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
         assertEq(afterMintedPositionSynthForThisWrapper-beforeMintedPositionSynthForThisWrapper, base);
         assertGe(quote, usdcAmount);
@@ -192,7 +192,7 @@ contract PerpLemmaCommonTest is Test {
 
     function closeLongWithExactBase(uint256 synthAmount, uint256 usdcAmount, address collateral) internal returns(uint256 usdcAmountToWithdraw) {
         uint256 beforeMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
-        (uint256 base, uint256 quote) = d.pl().closeLongWithExactBase(synthAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsSynth);
+        (uint256 base, uint256 quote) = d.pl().closeLongWithExactBase(synthAmount, IPerpetualMixDEXWrapper.Basis.IsSynth);
         uint256 afterMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
         assertEq(beforeMintedPositionSynthForThisWrapper-afterMintedPositionSynthForThisWrapper, base);
         uint256 decimal = IERC20Decimals(collateral).decimals();
@@ -205,7 +205,7 @@ contract PerpLemmaCommonTest is Test {
 
     function closeLongWithExactQuote(uint256 synthAmount, uint256 usdcAmount) internal returns(uint256 usdcAmountToWithdraw) {
         uint256 beforeMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
-        (uint256 base, uint256 quote) = d.pl().closeLongWithExactQuote(usdcAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsSynth);
+        (uint256 base, uint256 quote) = d.pl().closeLongWithExactQuote(usdcAmount, IPerpetualMixDEXWrapper.Basis.IsSynth);
         uint256 afterMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
         uint256 afterSynthMinting = _deductFees(d.getTokenAddress("WETH"), synthAmount, 0);
         uint256 _maxSynthToRedeem = _deductFees(d.getTokenAddress("WETH"), afterSynthMinting, 0);
@@ -828,7 +828,7 @@ contract PerpLemmaCommonTest is Test {
         uint256 usdcAmount = 1098e6; // USDL amount
         _depositSettlementToken(usdcAmount);
         _depositUsdlCollateral(collateralAmount, collateral, address(this));
-        (uint256 base, uint256 quote) = d.pl().openShortWithExactBase(collateralAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl);
+        (uint256 base, uint256 quote) = d.pl().openShortWithExactBase(collateralAmount, IPerpetualMixDEXWrapper.Basis.IsUsdl);
         int256 getTotalPosition = d.pl().getTotalPosition();
         assertGe(quote, uint256(getTotalPosition*(-1)));
     }
@@ -924,7 +924,7 @@ contract PerpLemmaCommonTest is Test {
         uint256 usdcAmount = 1098e6; // USDL amount
         _depositSettlementToken(usdcAmount);
         _depositUsdlCollateral(collateralAmount, collateral, address(this));
-        (uint256 base, uint256 quote) = d.pl().openShortWithExactBase(collateralAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl);
+        (uint256 base, uint256 quote) = d.pl().openShortWithExactBase(collateralAmount, IPerpetualMixDEXWrapper.Basis.IsUsdl);
     }
 
     // ! No Rebalance with Zero Amount

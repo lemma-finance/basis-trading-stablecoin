@@ -192,7 +192,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, ERC2771
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]);
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         (uint256 _collateralRequired_1e18, ) = perpDEXWrapper.openShortWithExactQuote(
-            amount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl
+            amount, IPerpetualMixDEXWrapper.Basis.IsUsdl
         );
 
         uint256 _collateralRequired = (address(collateral) == perpSettlementToken) ? amount : _collateralRequired_1e18;
@@ -224,15 +224,8 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, ERC2771
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]);
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
-
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
-        (, uint256 _usdlToMint) = perpDEXWrapper.openShortWithExactBase(
-            collateralAmount,
-            address(0),
-            0,
-            IPerpetualMixDEXWrapper.Basis.IsUsdl
-        );
-        
+        (, uint256 _usdlToMint) = perpDEXWrapper.openShortWithExactBase(collateralAmount, IPerpetualMixDEXWrapper.Basis.IsUsdl);
         require(_usdlToMint >= minUSDLToMint, "USDL minted too low");
         _mint(to, _usdlToMint);
         emit DepositTo(perpetualDEXIndex, address(collateral), to, _usdlToMint, _collateralRequired);
@@ -262,7 +255,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, ERC2771
             perpDEXWrapper.getCollateralBackAfterSettlement(amount, to, true);
             return;
         } else {
-            (_collateralAmountToWithdraw1e_18,) = perpDEXWrapper.closeShortWithExactQuote(amount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl); 
+            (_collateralAmountToWithdraw1e_18,) = perpDEXWrapper.closeShortWithExactQuote(amount, IPerpetualMixDEXWrapper.Basis.IsUsdl); 
             uint256 _collateralAmountToWithdraw = (address(collateral) == perpSettlementToken) ? amount : _collateralAmountToWithdraw1e_18;
             _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(_collateralAmountToWithdraw, address(collateral), false);
             if (address(collateral) == perpSettlementToken) {
@@ -296,7 +289,7 @@ contract USDLemma is ReentrancyGuardUpgradeable, ERC20PermitUpgradeable, ERC2771
         bool hasSettled = perpDEXWrapper.hasSettled();
         /// NOTE:- hasSettled Error: PerpLemma is settled call withdrawTo method to settle your collateral using exact usdl
         require(!hasSettled, "hasSettled Error");
-        (, uint256 _usdlToBurn) = perpDEXWrapper.closeShortWithExactBase(collateralAmount, address(0), 0, IPerpetualMixDEXWrapper.Basis.IsUsdl); 
+        (, uint256 _usdlToBurn) = perpDEXWrapper.closeShortWithExactBase(collateralAmount, IPerpetualMixDEXWrapper.Basis.IsUsdl); 
         require(_usdlToBurn <= maxUSDLToBurn, "Too much USDL to burn");
         uint256 _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
             collateralAmount,
