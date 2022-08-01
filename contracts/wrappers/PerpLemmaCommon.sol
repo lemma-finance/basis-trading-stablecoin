@@ -239,7 +239,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
     /// @notice Returns the relative margin in 1e18 format
-    /// TODO: Take into account tail assets
     function getRelativeMargin() external view override returns (uint256) {
         // NOTE: Returns totalCollateralValue + unrealizedPnL
         // https://github.com/yashnaman/perp-lushan/blob/main/contracts/interface/IClearingHouse.sol#L254

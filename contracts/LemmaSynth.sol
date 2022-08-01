@@ -36,7 +36,7 @@ contract LemmaSynth is
     /// Tail Collateral use to mint LemmaSynth
     /// Tail Collateral will not deposit into perp, It will stay in perpLemma BalanceSheet
     address public tailCollateral;
-    /// Fees taken by the protocol
+    /// Lemma Fees
     uint256 public fees;
     /// interactionBlock will restict multiple txs in same block
     bytes32 public interactionBlock;
@@ -138,9 +138,8 @@ contract LemmaSynth is
     }
 
     /// @notice Set Fees, can only be called by owner
-    /// @param _fees Fees taken by the protocol
+    /// @param _fees Fees taken by the Lemma protocol
     function setFees(uint256 _fees) external onlyRole(ONLY_OWNER) {
-        // TODO: Add a max fee in the code to guarantee users they will never be above a certain limit
         fees = _fees;
         emit FeesUpdated(fees);
     }

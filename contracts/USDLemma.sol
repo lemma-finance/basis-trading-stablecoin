@@ -38,7 +38,7 @@ contract USDLemma is
     address public settlementTokenManager;
     /// PerpV2 Settlement Token
     address public perpSettlementToken;
-    /// fees charged by perpV2
+    /// Lemma Fees
     uint256 public fees;
     /// interactionBlock will restict multiple txs in same block
     bytes32 public interactionBlock;
@@ -162,7 +162,7 @@ contract USDLemma is
     }
 
     /// @notice Set Fees, can only be called by owner
-    /// @param _fees Fees taken by the protocol
+    /// @param _fees Fees taken by the Lemma protocol
     function setFees(uint256 _fees) external onlyRole(ONLY_OWNER) {
         fees = _fees;
         emit FeesUpdated(fees);
