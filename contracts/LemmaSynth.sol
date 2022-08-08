@@ -150,7 +150,9 @@ contract LemmaSynth is
         ); 
         uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(_collateralRequired_1e18, address(collateral), false);
         require(_collateralRequired_1e18 <= maxCollateralAmountRequired, "collateral required execeeds maximum");
+        console.log("[depositTo()] T1");
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
+        console.log("[depositTo()] T2");
         _mint(to, amount);
         emit DepositTo(perpetualDEXIndex, address(collateral), to, amount, _collateralRequired);
     }
