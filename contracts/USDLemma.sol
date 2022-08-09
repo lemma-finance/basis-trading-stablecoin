@@ -2,14 +2,11 @@ pragma solidity =0.8.3;
 
 import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import { ERC20PermitUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/draft-ERC20PermitUpgradeable.sol";
+import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
-import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import { Utils } from "./libraries/Utils.sol";
-import { SafeMathExt } from "./libraries/SafeMathExt.sol";
 import { IPerpetualMixDEXWrapper } from "./interfaces/IPerpetualMixDEXWrapper.sol";
 import { ISettlementTokenManager } from "./interfaces/ISettlementTokenManager.sol";
 
@@ -23,9 +20,6 @@ contract USDLemma is
     ERC2771ContextUpgradeable,
     AccessControlUpgradeable
 {
-    using SafeCastUpgradeable for int256;
-    using SafeMathExt for int256;
-    using SafeMathExt for uint256;
 
     // Different Roles to perform restricted tx
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
@@ -106,6 +100,16 @@ contract USDLemma is
         }
         perpSettlementToken = _perpSettlementToken;
         addPerpetualDEXWrapper(0, _collateralAddress, _perpetualDEXWrapperAddress);
+    }
+
+    /// @notice changeAdmin is to change address of admin role
+    /// Only current admin can change admin and after new admin current admin address will be no more admin
+    /// @param newAdmin new admin address
+    function changeAdmin(address newAdmin) external onlyRole(ADMIN_ROLE) {
+        require(newAdmin != address(0), "NewAdmin should not ZERO address");
+        require(newAdmin != msg.sender, "Admin Addresses should not be same");
+        _setupRole(ADMIN_ROLE, newAdmin);
+        renounceRole(ADMIN_ROLE, msg.sender);
     }
 
     /// @notice Add address for perpetual dex wrapper for perpetual index and collateral - can only be called by owner

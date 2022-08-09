@@ -225,6 +225,14 @@ contract LemmaSynthTest is Test {
         _redeemSynthWExactCollateral(address(this), collateral, _maxUSDCtoRedeem);
     }
 
+    function testChangeAdminOfSynth() public {
+        vm.startPrank(address(d));
+        d.lSynth().changeAdmin(vm.addr(1));
+        vm.stopPrank();
+        assertEq(d.lSynth().hasRole(ADMIN_ROLE, vm.addr(1)), true);
+        assertEq(d.lSynth().hasRole(ADMIN_ROLE, address(d)), false);
+    }
+
     // Should Fail tests
 
     function testFailGetIndexPriceSynth1() public {

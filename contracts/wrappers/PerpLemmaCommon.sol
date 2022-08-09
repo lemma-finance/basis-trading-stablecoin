@@ -1,26 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.3;
 
+import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import { IPerpetualMixDEXWrapper } from "../interfaces/IPerpetualMixDEXWrapper.sol";
-import { Utils } from "../libraries/Utils.sol";
 import { SafeMathExt } from "../libraries/SafeMathExt.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "../libraries/TransferHelper.sol";
 import "../interfaces/IERC20Decimals.sol";
 import "../interfaces/Perpetual/IClearingHouse.sol";
 import "../interfaces/Perpetual/IClearingHouseConfig.sol";
 import "../interfaces/Perpetual/IIndexPrice.sol";
 import "../interfaces/Perpetual/IAccountBalance.sol";
 import "../interfaces/Perpetual/IMarketRegistry.sol";
-import "../interfaces/Perpetual/IExchange.sol";
 import "../interfaces/Perpetual/IPerpVault.sol";
-import "../interfaces/Perpetual/IUSDLemma.sol";
-import "../interfaces/Perpetual/IBaseToken.sol";
 
 /// @author Lemma Finance
 /// @notice PerpLemmaCommon contract will use to open short and long position with no-leverage
@@ -29,7 +24,6 @@ import "../interfaces/Perpetual/IBaseToken.sol";
 contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, AccessControlUpgradeable {
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
-    using Utils for int256;
     using SafeMathExt for int256;
 
     // Different Roles to perform restricted tx
@@ -58,7 +52,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     IPerpVault public perpVault;
     IAccountBalance public accountBalance;
     IMarketRegistry public marketRegistry;
-    IExchange public exchange;
 
     /// Is USDL collateral is tail then it will not deposit into perpV2, It will stay in PerpLemma BalanceSheet
     bool public isUsdlCollateralTailAsset;
@@ -144,7 +137,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         clearingHouse = IClearingHouse(_clearingHouse);
         clearingHouseConfig = IClearingHouseConfig(clearingHouse.getClearingHouseConfig());
         perpVault = IPerpVault(clearingHouse.getVault());
-        exchange = IExchange(clearingHouse.getExchange());
         accountBalance = IAccountBalance(clearingHouse.getAccountBalance());
         marketRegistry = IMarketRegistry(_marketRegistry);
         usdc = IERC20Decimals(perpVault.getSettlementToken());

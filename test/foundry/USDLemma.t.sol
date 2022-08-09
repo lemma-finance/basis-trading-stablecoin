@@ -220,6 +220,14 @@ contract USDLemmaTest is Test {
         _redeemUSDLWExactCollateral(address(this), collateral, _maxETHtoRedeem, 0);
     }
 
+    function testChangeAdminOfUSDL() public {
+        vm.startPrank(address(d));
+        d.usdl().changeAdmin(vm.addr(1));
+        vm.stopPrank();
+        assertEq(d.usdl().hasRole(ADMIN_ROLE, vm.addr(1)), true);
+        assertEq(d.usdl().hasRole(ADMIN_ROLE, address(d)), false);
+    }
+
     // Should Fail tests
     // reason: DEX Wrapper should not ZERO address
     function testFailGetFees1() public view {
