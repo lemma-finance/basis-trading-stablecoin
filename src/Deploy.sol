@@ -3,7 +3,6 @@ pragma solidity >=0.6.0 <0.9.0;
 
 import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "contracts/USDLemma.sol";
 import "contracts/LemmaSynth.sol";
 import "contracts/SettlementTokenManager.sol";
@@ -221,6 +220,7 @@ contract Deploy {
         lSynth.initialize(
             address(0),
             address(pl),
+            generic_chain_addresses["USDC"][chain_id],
             generic_chain_addresses["WETH"][chain_id],
             "LemmaSynth",
             "LSynth"

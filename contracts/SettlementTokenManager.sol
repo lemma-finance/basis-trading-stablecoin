@@ -92,6 +92,7 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
     /// @param _usdLemma usdLemma contract address
     function setUSDLemma(address _usdLemma) external onlyRole(ADMIN_ROLE) {
         require(_usdLemma != address(0), "USDLemma should not ZERO address");
+        renounceRole(USDLEMMA_ROLE, usdLemma);
         usdLemma = _usdLemma;
         grantRole(USDLEMMA_ROLE, usdLemma);
         emit SetUSDLemma(usdLemma);
@@ -101,6 +102,7 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
     /// @param _reBalancer address
     function setRebalancer(address _reBalancer) external onlyRole(ADMIN_ROLE) {
         require(_reBalancer != address(0), "Rebalancer should not ZERO address");
+        renounceRole(REBALANCER_ROLE, reBalancer);
         reBalancer = _reBalancer;
         grantRole(REBALANCER_ROLE, reBalancer);
         emit SetRebalancer(reBalancer);
@@ -120,7 +122,7 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
         require(isSettlementAllowed, "Settlement Token is not allowed");
         require(usdc.balanceOf(address(this)) >= settlementTokenAmount, "STM: Not enought balance");
         require(perpDexWrapper != address(0), "perpDexWrapper should not ZERO address");
-        SafeERC20Upgradeable.safeApprove(usdc, perpDexWrapper, settlementTokenAmount);
+        _approve(perpDexWrapper, settlementTokenAmount);
         _deposit(settlementTokenAmount, perpDexWrapper);
         emit SettlementTokenRecieve(settlementTokenAmount, perpDexWrapper);
     }
@@ -166,7 +168,7 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
 
     /// @notice Internal Methods
 
-    // @notice _deposit method which will deposit USDC into this given perpLemma contract
+    /// @notice _deposit method which will deposit USDC into this given perpLemma contract
     /// @param amount Amount of USDC need to transfer to perpLemma from USDLemma
     /// @param perpDexWrapper on this perpLemma contract the amount will be transfer
     function _deposit(uint256 amount, address perpDexWrapper) internal {
@@ -178,6 +180,12 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
     /// @param perpDexWrapper amount will be withdraw from this perpLemma contract
     function _withdraw(uint256 amount, address perpDexWrapper) internal {
         IPerpetualMixDEXWrapper(perpDexWrapper).withdrawSettlementToken(amount);
+    }
+
+    /// @notice give necessary approve for settlement token
+    function _approve(address perpDexWrapper, uint256 amount) internal {
+        SafeERC20Upgradeable.safeApprove(usdc, perpDexWrapper, 0);
+        SafeERC20Upgradeable.safeApprove(usdc, perpDexWrapper, amount);
     }
 
     function _msgSender()

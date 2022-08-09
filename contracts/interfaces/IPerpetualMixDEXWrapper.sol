@@ -51,23 +51,25 @@ interface IPerpetualMixDEXWrapper {
     function getIndexPrice() external view returns (uint256);
 
     // Convenience trading functions
-    function openLongWithExactBase(uint256 amount, Basis basis) external returns (uint256, uint256);
+    function openLongWithExactBase(uint256 amount) external returns (uint256, uint256);
 
-    function openLongWithExactQuote(uint256 amount, Basis basis) external returns (uint256, uint256);
+    function openLongWithExactQuote(uint256 amount) external returns (uint256, uint256);
 
-    function closeLongWithExactBase(uint256 amount, Basis basis) external returns (uint256, uint256);
+    function closeLongWithExactBase(uint256 amount) external returns (uint256, uint256);
 
-    function closeLongWithExactQuote(uint256 amount, Basis basis) external returns (uint256, uint256);
+    function closeLongWithExactQuote(uint256 amount) external returns (uint256, uint256);
 
-    function openShortWithExactBase(uint256 amount, Basis basis) external returns (uint256, uint256);
+    function openShortWithExactBase(uint256 amount) external returns (uint256, uint256);
 
-    function openShortWithExactQuote(uint256 amount, Basis basis) external returns (uint256, uint256);
+    function openShortWithExactQuote(uint256 amount) external returns (uint256, uint256);
 
-    function closeShortWithExactBase(uint256 amount, Basis basis) external returns (uint256, uint256);
+    function closeShortWithExactBase(uint256 amount) external returns (uint256, uint256);
 
-    function closeShortWithExactQuote(uint256 amount, Basis basis) external returns (uint256, uint256);
+    function closeShortWithExactQuote(uint256 amount) external returns (uint256, uint256);
 
     /////////
+
+    function calculateMintingAsset(uint256 amount, Basis basis, bool isOpenShort) external;
 
     function getMaxSettlementTokenAcceptableByVault() external view returns (uint256);
 
@@ -111,6 +113,8 @@ interface IPerpetualMixDEXWrapper {
     ) external view returns (uint256);
 
     function getFees() external view returns (uint256);
+
+    function usdc() external view returns (IERC20Decimals);
 
     function settle() external;
 }

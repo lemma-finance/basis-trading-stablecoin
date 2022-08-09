@@ -201,18 +201,14 @@ contract USDLemma is
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
-        (uint256 _collateralRequired_1e18, ) = perpDEXWrapper.openShortWithExactQuote(
-            amount,
-            IPerpetualMixDEXWrapper.Basis.IsUsdl
-        );
 
-        uint256 _collateralRequired = (address(collateral) == perpSettlementToken) ? amount : _collateralRequired_1e18;
-        _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
-            _collateralRequired,
-            address(collateral),
-            false
-        );
-        if (address(collateral) == perpSettlementToken) {
+        uint256 _collateralRequired;
+        if (address(collateral) == perpSettlementToken) { // USDC
+            _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
+                amount,
+                address(collateral),
+                false
+            );
             SafeERC20Upgradeable.safeTransferFrom(
                 IERC20Upgradeable(collateral),
                 _msgSender(),
@@ -224,9 +220,16 @@ contract USDLemma is
                 address(perpDEXWrapper)
             );
         } else {
+            (uint256 _collateralRequired_1e18, ) = perpDEXWrapper.openShortWithExactQuote(amount);
+            _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
+                _collateralRequired_1e18,
+                address(collateral),
+                false
+            );
             require(_collateralRequired_1e18 <= maxCollateralAmountRequired, "collateral required execeeds maximum");
             _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
         }
+        perpDEXWrapper.calculateMintingAsset(amount, IPerpetualMixDEXWrapper.Basis.IsUsdl, true);
         _mint(to, amount);
         emit DepositTo(perpetualDEXIndex, address(collateral), to, amount, _collateralRequired);
     }
@@ -248,17 +251,21 @@ contract USDLemma is
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
+
         uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
             collateralAmount,
             address(collateral),
             false
         );
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
-        (, uint256 _usdlToMint) = perpDEXWrapper.openShortWithExactBase(
-            collateralAmount,
-            IPerpetualMixDEXWrapper.Basis.IsUsdl
-        );
-        require(_usdlToMint >= minUSDLToMint, "USDL minted too low");
+        uint256 _usdlToMint;
+        if (address(collateral) == perpSettlementToken) { // USDC
+            _usdlToMint = collateralAmount; // if collateral is usdc then collateralAmount is usdcAmount
+        } else {
+            (, _usdlToMint) = perpDEXWrapper.openShortWithExactBase(collateralAmount);
+            require(_usdlToMint >= minUSDLToMint, "USDL minted too low");
+        }
+        perpDEXWrapper.calculateMintingAsset(_usdlToMint, IPerpetualMixDEXWrapper.Basis.IsUsdl, true);
         _mint(to, _usdlToMint);
         emit DepositTo(perpetualDEXIndex, address(collateral), to, _usdlToMint, _collateralRequired);
     }
@@ -287,31 +294,32 @@ contract USDLemma is
             perpDEXWrapper.getCollateralBackAfterSettlement(amount, to, true);
             return;
         } else {
-            (_collateralAmountToWithdraw1e_18, ) = perpDEXWrapper.closeShortWithExactQuote(
-                amount,
-                IPerpetualMixDEXWrapper.Basis.IsUsdl
-            );
-            uint256 _collateralAmountToWithdraw = (address(collateral) == perpSettlementToken)
-                ? amount
-                : _collateralAmountToWithdraw1e_18;
-            _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
-                _collateralAmountToWithdraw,
-                address(collateral),
-                false
-            );
-            if (address(collateral) == perpSettlementToken) {
+            uint256 _collateralAmountToWithdraw;
+            if (address(collateral) == perpSettlementToken) { // USDC
+                _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
+                    amount,
+                    address(collateral),
+                    false
+                );
                 ISettlementTokenManager(settlementTokenManager).settlementTokenRequested(
                     _collateralAmountToWithdraw,
                     address(perpDEXWrapper)
                 );
                 SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(collateral), to, _collateralAmountToWithdraw);
             } else {
+                (_collateralAmountToWithdraw1e_18, ) = perpDEXWrapper.closeShortWithExactQuote(amount);
+                _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
+                    _collateralAmountToWithdraw1e_18,
+                    address(collateral),
+                    false
+                );
                 require(
                     _collateralAmountToWithdraw1e_18 >= minCollateralAmountToGetBack,
                     "Collateral to get back too low"
                 );
                 _perpWithdraw(to, perpDEXWrapper, address(collateral), _collateralAmountToWithdraw);
             }
+            perpDEXWrapper.calculateMintingAsset(amount, IPerpetualMixDEXWrapper.Basis.IsUsdl, false);
             emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, _collateralAmountToWithdraw);
         }
     }
@@ -336,17 +344,21 @@ contract USDLemma is
         bool hasSettled = perpDEXWrapper.hasSettled();
         /// NOTE:- hasSettled Error: PerpLemma is settled call withdrawTo method to settle your collateral using exact usdl
         require(!hasSettled, "hasSettled Error");
-        (, uint256 _usdlToBurn) = perpDEXWrapper.closeShortWithExactBase(
-            collateralAmount,
-            IPerpetualMixDEXWrapper.Basis.IsUsdl
-        );
-        require(_usdlToBurn <= maxUSDLToBurn, "Too much USDL to burn");
+
+        uint256 _usdlToBurn;
+        if (address(collateral) == perpSettlementToken) { // USDC
+            _usdlToBurn = collateralAmount;
+        } else {
+            (, _usdlToBurn) = perpDEXWrapper.closeShortWithExactBase(collateralAmount);
+            require(_usdlToBurn <= maxUSDLToBurn, "Too much USDL to burn");
+        }
         uint256 _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
             collateralAmount,
             address(collateral),
             false
         );
         _perpWithdraw(to, perpDEXWrapper, address(collateral), _collateralAmountToWithdraw);
+        perpDEXWrapper.calculateMintingAsset(_usdlToBurn, IPerpetualMixDEXWrapper.Basis.IsUsdl, false);
         _burn(_msgSender(), _usdlToBurn);
         emit WithdrawTo(perpetualDEXIndex, address(collateral), to, _usdlToBurn, _collateralAmountToWithdraw);
     }
