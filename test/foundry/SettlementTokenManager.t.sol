@@ -103,4 +103,20 @@ contract SettlementTokenManagerTest is Test {
         uint256 usdlAmount = d.usdl().balanceOf(address(this));
         _redeemUSDLWExactUsdl(address(this), collateral, usdlAmount);
     }
+
+    function testSetUSDLemma1() public {
+        vm.startPrank(address(d));
+        d.settlementTokenManager().setUSDLemma(vm.addr(1));
+        address newUsdLemma = d.settlementTokenManager().usdLemma();
+        assertEq(newUsdLemma, vm.addr(1));
+        vm.stopPrank();
+    }
+
+    function testSetRebalancer1() public {
+        vm.startPrank(address(d));
+        d.settlementTokenManager().setRebalancer(vm.addr(1));
+        address newRebalancer = d.settlementTokenManager().reBalancer();
+        assertEq(newRebalancer, vm.addr(1));
+        vm.stopPrank();
+    }
 }

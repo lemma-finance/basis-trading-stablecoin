@@ -92,7 +92,7 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
     /// @param _usdLemma usdLemma contract address
     function setUSDLemma(address _usdLemma) external onlyRole(ADMIN_ROLE) {
         require(_usdLemma != address(0), "USDLemma should not ZERO address");
-        renounceRole(USDLEMMA_ROLE, usdLemma);
+        revokeRole(USDLEMMA_ROLE, usdLemma);
         usdLemma = _usdLemma;
         grantRole(USDLEMMA_ROLE, usdLemma);
         emit SetUSDLemma(usdLemma);
@@ -102,7 +102,7 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
     /// @param _reBalancer address
     function setRebalancer(address _reBalancer) external onlyRole(ADMIN_ROLE) {
         require(_reBalancer != address(0), "Rebalancer should not ZERO address");
-        renounceRole(REBALANCER_ROLE, reBalancer);
+        revokeRole(REBALANCER_ROLE, reBalancer);
         reBalancer = _reBalancer;
         grantRole(REBALANCER_ROLE, reBalancer);
         emit SetRebalancer(reBalancer);
