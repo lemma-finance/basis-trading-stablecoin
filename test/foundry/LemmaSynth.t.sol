@@ -140,7 +140,7 @@ contract LemmaSynthTest is Test {
     function testDepositToForSynth() public {
         address collateral = d.getTokenAddress("USDC");
         uint256 synthAmount = 9e17; // USDL amount
-        uint256 usdcAmount = 1100e6; // USDL amount
+        uint256 usdcAmount = 12000e6; // USDL amount
         _depositSettlementTokenMax();
         _mintSynthWExactSynth(address(this), collateral, synthAmount, usdcAmount);
     }
@@ -181,12 +181,8 @@ contract LemmaSynthTest is Test {
 
     // test depositTo and withdrawToWExactCollateral
     function testDepositToAndWithdrawToWExactCollateralForSynth() public {
+        testDepositToForSynth();
         address collateral = d.getTokenAddress("USDC");
-        uint256 synthAmount = 9e17; // USDL amount
-        uint256 usdcAmount = 1100e6; // USDL amount
-        _depositSettlementTokenMax();
-        _mintSynthWExactSynth(address(this), collateral, synthAmount, usdcAmount);
-
         uint256 collateralAmount = 988635431772441083946; // ~0.9998 eth
         uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("USDC"), collateralAmount, 0);
         uint256 _maxUSDCtoRedeem = _deductFees(d.getTokenAddress("USDC"), _collateralAfterMinting, 0);
@@ -319,6 +315,9 @@ contract LemmaSynthTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
+        vm.startPrank(address(d));
+        d.pl().setSettlementStart(true);
+        vm.stopPrank();
         d.lSynth().withdrawTo(address(this), 1e17, 0, 0, IERC20Decimals(collateral));
     }
 
@@ -347,6 +346,9 @@ contract LemmaSynthTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
+        vm.startPrank(address(d));
+        d.pl().setSettlementStart(true);
+        vm.stopPrank();
         uint256 beforeBalance = IERC20Decimals(collateral).balanceOf(address(this));
         d.lSynth().withdrawToWExactCollateral(address(this), 100e6, 0, type(uint256).max, IERC20Decimals(collateral));
         uint256 afterBalance = IERC20Decimals(collateral).balanceOf(address(this));
@@ -365,6 +367,9 @@ contract LemmaSynthTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
+        vm.startPrank(address(d));
+        d.pl().setSettlementStart(true);
+        vm.stopPrank();
         d.pl().setMintedPositionSynthForThisWrapper(0);
         d.lSynth().withdrawToWExactCollateral(address(this), 100e18, 0, 0, IERC20Decimals(collateral));
     }

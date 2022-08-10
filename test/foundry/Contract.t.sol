@@ -260,7 +260,7 @@ contract ContractTest is Test {
 
     function testMintingUSDLWExactCollateral() public {
         _depositSettlementTokenMax();
-        uint256 amount = 1e12;
+        uint256 amount = 1e18;
         _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
     }
 
@@ -779,6 +779,9 @@ contract ContractTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
+        vm.startPrank(address(d));
+        d.pl().setSettlementStart(true);
+        vm.stopPrank();
         uint256 beforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(this));
         uint256 _usdlToRedeem = d.usdl().balanceOf(address(this));
         _redeemUSDLWExactUsdl(d.getTokenAddress("WETH"), _usdlToRedeem); // get back user collateral after settlement
@@ -807,7 +810,10 @@ contract ContractTest is Test {
         d.getPerps().ib.close(); // Close market after 5 days
         vm.stopPrank();
         d.pl().settle(); // PerpLemma settle call
-
+        vm.startPrank(address(d));
+        d.pl().setSettlementStart(true);
+        vm.stopPrank();
+        
         uint256 aliceBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(alice);
         uint256 bobBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(bob);
         // uint256 perpLemmaBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));

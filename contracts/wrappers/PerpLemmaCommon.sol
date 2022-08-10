@@ -16,7 +16,6 @@ import "../interfaces/Perpetual/IIndexPrice.sol";
 import "../interfaces/Perpetual/IAccountBalance.sol";
 import "../interfaces/Perpetual/IMarketRegistry.sol";
 import "../interfaces/Perpetual/IPerpVault.sol";
-import "forge-std/Test.sol";
 
 /// @author Lemma Finance
 /// @notice PerpLemmaCommon contract will use to open short and long position with no-leverage
@@ -884,7 +883,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             if (!isUsdl) totalSynthCollateral -= amountUsdcCollateral;
         }
 
-        /// NEUM: Not enough USDL minted by this PerpLemmaContract
+        /// ERROR MESSAGE: => NEUM: Not enough USDL minted by this PerpLemmaContract
         if (isUsdl) {
             require(mintedPositionUsdlForThisWrapper >= usdlOrSynthAmount, "NEUM");
             mintedPositionUsdlForThisWrapper -= usdlOrSynthAmount;

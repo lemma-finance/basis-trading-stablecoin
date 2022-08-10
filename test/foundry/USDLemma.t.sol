@@ -181,7 +181,7 @@ contract USDLemmaTest is Test {
     // test depositTo and withdrawToWExactCollateral
     function testDepositToAndWithdrawToWExactCollateral() public {
         address collateral = d.getTokenAddress("WETH");
-        uint256 usdlAmount = 1096143206913675032725; // 1eth ~= 1096.143 USDL at this block 12137998
+        uint256 usdlAmount = 2192283206913675032725; // 1eth ~= 1096.143 USDL at this block 12137998
         _depositSettlementTokenMax();
         _mintUSDLWExactUSDL(address(this), collateral, usdlAmount, 0);
         uint256 collateralAMount = 1e18; // ~0.9998 eth
@@ -341,6 +341,9 @@ contract USDLemmaTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
+        vm.startPrank(address(d));
+        d.pl().setSettlementStart(true);
+        vm.stopPrank();
         d.pl().setMintedPositionUsdlForThisWrapper(0);
         d.usdl().withdrawTo(address(this), 100e18, 0, 0, IERC20Decimals(collateral));
     }
@@ -356,6 +359,9 @@ contract USDLemmaTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
+        vm.startPrank(address(d));
+        d.pl().setSettlementStart(true);
+        vm.stopPrank();
         uint256 beforeBalance = IERC20Decimals(collateral).balanceOf(address(this));
         d.usdl().withdrawTo(address(this), 100e18, 0, 0, IERC20Decimals(collateral));
         uint256 afterBalance = IERC20Decimals(collateral).balanceOf(address(this));
@@ -386,6 +392,9 @@ contract USDLemmaTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
+        vm.startPrank(address(d));
+        d.pl().setSettlementStart(true);
+        vm.stopPrank();
         d.usdl().withdrawToWExactCollateral(address(this), 1e17, 0, 0, IERC20Decimals(collateral));
     }
 

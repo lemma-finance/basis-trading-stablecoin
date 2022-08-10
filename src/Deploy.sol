@@ -8,6 +8,7 @@ import "contracts/LemmaSynth.sol";
 import "contracts/SettlementTokenManager.sol";
 import "contracts/wrappers/PerpLemmaCommon.sol";
 import "contracts/mock/TestPerpLemma.sol";
+import "contracts/mock/TestSetPriceFeed.sol";
 import "../contracts/interfaces/IERC20Decimals.sol";
 import "../contracts/interfaces/Perpetual/IClearingHouse.sol";
 import "../contracts/interfaces/Perpetual/IClearingHouseConfig.sol";
@@ -125,6 +126,7 @@ contract Deploy {
     LemmaSynth public lSynth;
     SettlementTokenManager public settlementTokenManager;
     TestPerpLemma public pl;
+    TestSetPriceFeed public testSetPriceFeed;
     
     Bank public bank = new Bank();
 
@@ -181,6 +183,19 @@ contract Deploy {
         pc.ab = IAccountBalance(pc.ch.getAccountBalance());
 
         pc.pv = IPerpVault(pc.ch.getVault());
+
+        testSetPriceFeed = new TestSetPriceFeed();
+
+        // address ownerrr = pc.ib.owner();
+        // console.log('ownerrr: ', ownerrr);
+
+        // Vm.startPrank(ownerrr);
+        // pc.ib.setPriceFeed(address(testSetPriceFeed));
+        // Vm.stopPrank();
+
+        // uint256 price = pc.ib.getIndexPrice(15 minutes);
+        // console.log('price: ', price);
+
 
         usdl = new USDLemma();
         lSynth = new LemmaSynth();

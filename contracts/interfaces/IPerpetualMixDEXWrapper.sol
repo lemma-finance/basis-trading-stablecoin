@@ -25,6 +25,8 @@ interface IPerpetualMixDEXWrapper {
         bool isExactInput
     ) external returns (uint256 base, uint256 quote);
 
+    function getAccountValue() external view returns(int256);
+
     function getRelativeMargin() external view returns (uint256);
 
     function getMargin() external view returns (int256);
