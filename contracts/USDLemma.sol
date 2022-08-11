@@ -204,6 +204,30 @@ contract USDLemma is
         emit DepositTo(perpetualDEXIndex, address(collateral), to, amount, _collateralRequired);
     }
 
+
+
+
+    function _recapIfNeeded(IPerpetualMixDEXWrapper perpDEXWrapper) internal {
+        int256 margin = perpDEXWrapper.getMargin();
+        print("[_recapIfNeeded()] margin = ", margin);
+
+        if (margin <= int256(perpDEXWrapper.getMinMarginForRecap())) {
+            uint256 requiredUSDC = uint256(int256(perpDEXWrapper.getMinMarginSafeThreshold()) - margin);
+            console.log("[_recapIfNeeded()] requiredUSDC = ", requiredUSDC);
+
+            uint256 maxSettlementTokenAcceptableFromPerpVault = perpDEXWrapper.getMaxSettlementTokenAcceptableByVault(); 
+            console.log("[_recapIfNeeded()] maxSettlementTokenAcceptableFromPerpVault = ", maxSettlementTokenAcceptableFromPerpVault);
+
+            // TODO: Check this as it can make TXs fail if we are too conservative with `perpDEXWrapper.minMarginSafeThreshold` 
+            require(requiredUSDC <= maxSettlementTokenAcceptableFromPerpVault, "Vault can't accept as many USDC");
+            uint256 maxSettlementTokenReserves = IERC20Upgradeable(perpDEXWrapper.getSettlementToken()).balanceOf(lemmaTreasury);
+            console.log("[_recapIfNeeded()] maxSettlementTokenReserves = ", maxSettlementTokenReserves);
+            require(requiredUSDC <= maxSettlementTokenReserves, "In Treasury not enough Settlement Token");
+
+            // TODO: Add SafeTransferFrom the Treasury to this contract or add a method to the trasury that allows to directly deposit settlementToken and prior makes some checks 
+        }
+    }
+
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of collateral
     /// @param to Receipent of minted USDL
     /// @param collateralAmount Amount of collateral to deposit in the collateral decimal format
@@ -239,9 +263,10 @@ contract USDLemma is
             IPerpetualMixDEXWrapper.Basis.IsUsdl
         );
 
-        int256 newMargin = perpDEXWrapper.getMargin();
-        print("[depositToWExactCollateral()] newMargin = ", newMargin);
-        require(newMargin > 0, "Marging too low");
+        _recapIfNeeded(perpDEXWrapper);
+        // int256 newMargin = perpDEXWrapper.getMargin();
+        // print("[depositToWExactCollateral()] newMargin = ", newMargin);
+        // require(newMargin > 0, "Marging too low");
         require(_usdlToMint >= minUSDLToMint, "USDL minted too low");
         _mint(to, _usdlToMint);
         emit DepositTo(perpetualDEXIndex, address(collateral), to, _usdlToMint, _collateralRequired);

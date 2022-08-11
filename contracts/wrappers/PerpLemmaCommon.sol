@@ -64,6 +64,12 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     int256 public amountQuote;
     uint256 public amountUsdlCollateralDeposited;
 
+    // NOTE: Below this margin, recapitalization in USDC is needed to push back the margin in a safe zone
+    uint256 public minMarginForRecap;
+
+    // NOTE: This is the min margin for safety
+    uint256 public minMarginSafeThreshold;
+
     uint256 public totalUsdlCollateral; // Tail Asset
     uint256 public totalSynthCollateral; // USDC
 
@@ -173,6 +179,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         renounceRole(ADMIN_ROLE, msg.sender);
     }
 
+
     ///@notice sets reBalncer address - only owner can set
     ///@param _reBalancer reBalancer address to set
     function setReBalancer(address _reBalancer) external onlyRole(ADMIN_ROLE) {
@@ -192,6 +199,20 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @dev This one probably not needed as we can call usdlCollateral.decimals() when we need it
     function getUsdlCollateralDecimals() external view override returns(uint256) {
         return usdlCollateralDecimals;
+    }
+
+    // NOTE: Abstraction Layer
+    function getSettlementToken() external view override returns(address) {
+        return perpVault.getSettlementToken();
+    }
+
+
+    function getMinMarginForRecap() external view override returns(uint256) {
+        return minMarginForRecap;
+    }
+
+    function getMinMarginSafeThreshold() external view override returns(uint256) {
+        return minMarginSafeThreshold;
     }
 
     function getIndexPrice() override public view returns(uint256) {
