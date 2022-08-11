@@ -341,9 +341,6 @@ contract USDLemmaTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
-        vm.startPrank(address(d));
-        d.pl().setSettlementStart(true);
-        vm.stopPrank();
         d.pl().setMintedPositionUsdlForThisWrapper(0);
         d.usdl().withdrawTo(address(this), 100e18, 0, 0, IERC20Decimals(collateral));
     }
@@ -359,9 +356,6 @@ contract USDLemmaTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
-        vm.startPrank(address(d));
-        d.pl().setSettlementStart(true);
-        vm.stopPrank();
         uint256 beforeBalance = IERC20Decimals(collateral).balanceOf(address(this));
         d.usdl().withdrawTo(address(this), 100e18, 0, 0, IERC20Decimals(collateral));
         uint256 afterBalance = IERC20Decimals(collateral).balanceOf(address(this));
@@ -392,9 +386,6 @@ contract USDLemmaTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
-        vm.startPrank(address(d));
-        d.pl().setSettlementStart(true);
-        vm.stopPrank();
         d.usdl().withdrawToWExactCollateral(address(this), 1e17, 0, 0, IERC20Decimals(collateral));
     }
 

@@ -17,7 +17,7 @@ interface IPerpetualMixDEXWrapper {
         uint256 amount,
         address to,
         bool isUsdl
-    ) external returns (uint256 collateralAmount1, uint256 collateralAmount2);
+    ) external;
 
     function trade(
         uint256 amount,
@@ -25,7 +25,7 @@ interface IPerpetualMixDEXWrapper {
         bool isExactInput
     ) external returns (uint256 base, uint256 quote);
 
-    function getAccountValue() external view returns(int256);
+    function getAccountValue() external view returns (int256);
 
     function getRelativeMargin() external view returns (uint256);
 
@@ -71,7 +71,11 @@ interface IPerpetualMixDEXWrapper {
 
     /////////
 
-    function calculateMintingAsset(uint256 amount, Basis basis, bool isOpenShort) external;
+    function calculateMintingAsset(
+        uint256 amount,
+        Basis basis,
+        bool isOpenShort
+    ) external;
 
     function getMaxSettlementTokenAcceptableByVault() external view returns (uint256);
 
@@ -81,17 +85,9 @@ interface IPerpetualMixDEXWrapper {
 
     function withdrawSettlementToken(uint256 _amount) external;
 
-    function deposit(
-        uint256 amount,
-        address collateral,
-        Basis basis
-    ) external;
+    function deposit(uint256 amount, address collateral) external;
 
-    function withdraw(
-        uint256 amount,
-        address collateral,
-        Basis basis
-    ) external;
+    function withdraw(uint256 amount, address collateral) external;
 
     function rebalance(
         address router,

@@ -139,7 +139,7 @@ contract ContractTest is Test {
         _getMoney(collateral, 1e40);
         uint256 balanceBefore = IERC20Decimals(collateral).balanceOf(address(d.pl()));
         IERC20Decimals(collateral).transfer(address(d.pl()), amount);
-        d.pl().deposit(amount, collateral, IPerpetualMixDEXWrapper.Basis.IsUsdl);
+        d.pl().deposit(amount, collateral);
         uint256 balanceAfter = IERC20Decimals(collateral).balanceOf(address(d.pl()));
         uint256 deltaBalance = uint256( int256(balanceAfter) - int256(balanceBefore) );
         // NOTE: This is a tail asset so need to remain the PerpLemmaCommon.sol balance sheet appunto 
@@ -779,16 +779,13 @@ contract ContractTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
-        vm.startPrank(address(d));
-        d.pl().setSettlementStart(true);
-        vm.stopPrank();
         uint256 beforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(this));
         uint256 _usdlToRedeem = d.usdl().balanceOf(address(this));
         _redeemUSDLWExactUsdl(d.getTokenAddress("WETH"), _usdlToRedeem); // get back user collateral after settlement
         uint256 afterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(this));
-        assertEq(afterBal-beforeBal, amount);
+        assertGt(afterBal-beforeBal, 99e16); //approx
         uint256 perpLemmaAfterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
-        assertEq(perpLemmaAfterBal, 0);
+        assertLt(perpLemmaAfterBal, 1e16);
     }
 
     function testSettleForMultipleUserUSDL() public {
@@ -810,9 +807,6 @@ contract ContractTest is Test {
         d.getPerps().ib.close(); // Close market after 5 days
         vm.stopPrank();
         d.pl().settle(); // PerpLemma settle call
-        vm.startPrank(address(d));
-        d.pl().setSettlementStart(true);
-        vm.stopPrank();
         
         uint256 aliceBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(alice);
         uint256 bobBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(bob);
@@ -834,6 +828,6 @@ contract ContractTest is Test {
         vm.stopPrank();
 
         uint256 perpLemmaAfterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
-        assertEq(perpLemmaAfterBal, 0);
+        assertLt(perpLemmaAfterBal, 1e16);
     }
 }

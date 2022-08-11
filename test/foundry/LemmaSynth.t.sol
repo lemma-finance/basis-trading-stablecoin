@@ -315,9 +315,6 @@ contract LemmaSynthTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
-        vm.startPrank(address(d));
-        d.pl().setSettlementStart(true);
-        vm.stopPrank();
         d.lSynth().withdrawTo(address(this), 1e17, 0, 0, IERC20Decimals(collateral));
     }
 
@@ -346,9 +343,6 @@ contract LemmaSynthTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
-        vm.startPrank(address(d));
-        d.pl().setSettlementStart(true);
-        vm.stopPrank();
         uint256 beforeBalance = IERC20Decimals(collateral).balanceOf(address(this));
         d.lSynth().withdrawToWExactCollateral(address(this), 100e6, 0, type(uint256).max, IERC20Decimals(collateral));
         uint256 afterBalance = IERC20Decimals(collateral).balanceOf(address(this));
@@ -367,9 +361,6 @@ contract LemmaSynthTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
-        vm.startPrank(address(d));
-        d.pl().setSettlementStart(true);
-        vm.stopPrank();
         d.pl().setMintedPositionSynthForThisWrapper(0);
         d.lSynth().withdrawToWExactCollateral(address(this), 100e18, 0, 0, IERC20Decimals(collateral));
     }

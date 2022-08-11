@@ -31,6 +31,15 @@ contract PerpLemmaCommonTest is Test {
         d.pl().grantRole(USDC_TREASURY, alice);
         d.pl().grantRole(USDC_TREASURY, bob);
         vm.stopPrank();
+        // address baseTokenOwner = d.getPerps().ib.owner();
+        // vm.startPrank(baseTokenOwner);
+        // d.getPerps().ib.setPriceFeed(address(d.testSetPriceFeed()));
+        // vm.stopPrank();
+        // uint256 price = d.getPerps().ib.getIndexPrice(15 minutes);
+        // uint256 getClosedPrice = d.getPerps().ib.getClosedPrice();
+        // console.log('price: ', price);
+        // console.log('baseTokenOwner: ', baseTokenOwner);
+        // console.log('getClosedPrice: ', getClosedPrice);
     }
 
     // Internal
@@ -62,11 +71,8 @@ contract PerpLemmaCommonTest is Test {
         // V_GTSTBC: greater than settlement token balance cap
         d.pl().usdc().approve(address(d.pl()), settlementTokenBalanceCap/10);
         uint256 beforeUserBalance = checkBalance(address(this), d.getTokenAddress("USDC"));
-        uint256 beforeTotalSynthCollateral = d.pl().totalSynthCollateral();
         d.pl().depositSettlementToken(settlementTokenBalanceCap/10);
-        uint256 afterTotalSynthCollateral = d.pl().totalSynthCollateral();
         uint256 afterUserBalance = checkBalance(address(this), d.getTokenAddress("USDC"));
-        assertEq(afterTotalSynthCollateral-beforeTotalSynthCollateral, settlementTokenBalanceCap/10);
         assertEq(beforeUserBalance-afterUserBalance, settlementTokenBalanceCap/10);
         return settlementTokenBalanceCap/10;
     }
@@ -79,34 +85,25 @@ contract PerpLemmaCommonTest is Test {
         // V_GTSTBC: greater than settlement token balance cap
         d.pl().usdc().approve(address(d.pl()), settlementTokenBalanceCap/10);
         uint256 beforeUserBalance = checkBalance(address(this), d.getTokenAddress("USDC"));
-        uint256 beforeTotalSynthCollateral = d.pl().totalSynthCollateral();
         d.pl().depositSettlementToken(usdcAmount);
-        uint256 afterTotalSynthCollateral = d.pl().totalSynthCollateral();
         uint256 afterUserBalance = checkBalance(address(this), d.getTokenAddress("USDC"));
-        assertEq(afterTotalSynthCollateral-beforeTotalSynthCollateral, usdcAmount);
         assertEq(beforeUserBalance-afterUserBalance, usdcAmount);
     }
 
     function _withdrawSettlementToken(uint256 amount) internal {
         uint256 beforeUserBalance = checkBalance(address(this), d.getTokenAddress("USDC"));
-        uint256 beforeTotalSynthCollateral = d.pl().totalSynthCollateral();
         amount = (amount * 1e6) / 1e18;
         d.pl().withdrawSettlementToken(amount);
-        uint256 afterTotalSynthCollateral = d.pl().totalSynthCollateral();
         uint256 afterUserBalance = checkBalance(address(this), d.getTokenAddress("USDC"));
-        assertEq(beforeTotalSynthCollateral-afterTotalSynthCollateral, amount);
         assertEq(afterUserBalance-beforeUserBalance, amount);
     }
 
     // It only works if hasSettlled true in perpLemmaCommon
     function _withdrawSettlementTokenTo(uint256 amount, address to) internal {
         uint256 beforeUserBalance = checkBalance(to, d.getTokenAddress("USDC"));
-        uint256 beforeTotalSynthCollateral = d.pl().totalSynthCollateral();
         amount = (amount * 1e6) / 1e18;
         d.pl().withdrawSettlementTokenTo(amount, to);
-        uint256 afterTotalSynthCollateral = d.pl().totalSynthCollateral();
         uint256 afterUserBalance = checkBalance(to, d.getTokenAddress("USDC"));
-        assertEq(beforeTotalSynthCollateral-afterTotalSynthCollateral, amount);
         assertEq(afterUserBalance-beforeUserBalance, amount);
     }
 
@@ -115,24 +112,18 @@ contract PerpLemmaCommonTest is Test {
         uint256 beforeUserBalance = checkBalance(to, collateral);
         IERC20Decimals(collateral).approve(address(d.pl()), amount);
         IERC20Decimals(collateral).transferFrom(to, address(d.pl()), amount);
-        uint256 beforeTotalUsdlCollateral = d.pl().totalUsdlCollateral();
-        d.pl().deposit(amount, collateral, IPerpetualMixDEXWrapper.Basis.IsUsdl);
-        uint256 afterTotalUsdlCollateral = d.pl().totalUsdlCollateral();
+        d.pl().deposit(amount, collateral);
         uint256 afterUserBalance = checkBalance(to, collateral);
-        assertEq(afterTotalUsdlCollateral-beforeTotalUsdlCollateral, amount);
         assertEq(beforeUserBalance-afterUserBalance, amount);
     }
 
     function _withdrawUsdlCollateral(uint256 amount, address collateral, address to) internal {
-        uint256 beforeTotalUsdlCollateral = d.pl().totalUsdlCollateral();
         uint256 beforeWethBalance = checkBalance(to, collateral);
-        d.pl().withdraw(amount, collateral, IPerpetualMixDEXWrapper.Basis.IsUsdl);
+        d.pl().withdraw(amount, collateral);
         vm.startPrank(d.pl().usdLemma());
         IERC20Decimals(collateral).transferFrom(address(d.pl()), to, amount);
         vm.stopPrank();
-        uint256 afterTotalUsdlCollateral = d.pl().totalUsdlCollateral();
         uint256 afterWethBalance = checkBalance(to, collateral);
-        assertEq(beforeTotalUsdlCollateral-afterTotalUsdlCollateral, amount);
         assertEq(afterWethBalance-beforeWethBalance, amount);
     }
 
@@ -430,24 +421,20 @@ contract PerpLemmaCommonTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
-        vm.startPrank(address(d));
-        d.pl().setSettlementStart(true);
-        vm.stopPrank();
         uint256 beforeMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         uint256 beforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(this));
         uint256 perpLemmaBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
-        
         // Users come to settle his/her collateral
         d.pl().getCollateralBackAfterSettlement(beforeMintedPositionUsdlForThisWrapper, address(this), true); // get back user collateral after settlement
         
         uint256 afterMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         uint256 afterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(this));
         uint256 perpLemmaAfterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
-        
-        assertEq(afterBal-beforeBal, amount);
+
         assertEq(afterMintedPositionUsdlForThisWrapper, 0);
         assertEq(perpLemmaBeforeBal, amount);
-        assertEq(perpLemmaAfterBal, 0);
+        assertLt(perpLemmaAfterBal, 1e16); // approx
+        assertGt(afterBal-beforeBal, 99e16); // approx (>0.99 eth)
     } 
 
     // Settlment for Multiple Usdl user
@@ -472,15 +459,15 @@ contract PerpLemmaCommonTest is Test {
         vm.stopPrank();
 
         address owner = d.getPerps().ib.owner();
+
         vm.startPrank(owner);
         d.getPerps().ib.pause(); // pause market
         vm.warp(block.timestamp + 6 days); // need to spend 5 days after pause as per perpv2 
         d.getPerps().ib.close(); // Close market after 5 days
         vm.stopPrank();
+
         d.pl().settle(); // PerpLemma settle call
-        vm.startPrank(address(d));
-        d.pl().setSettlementStart(true);
-        vm.stopPrank();
+        
         uint256 perpLemmaBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
         uint256 aliceBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(alice);
         uint256 bobBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(bob);
@@ -488,18 +475,18 @@ contract PerpLemmaCommonTest is Test {
         vm.startPrank(alice);
         d.pl().getCollateralBackAfterSettlement(aliceUsdlToRedeem, alice, true); // get back user collateral after settlement
         uint256 aliceAfterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(alice);
-        assertGt(aliceAfterBal-aliceBeforeBal, 1e18);
+        assertGt(aliceAfterBal-aliceBeforeBal, 99e16); // approx (>0.99 eth)
         vm.stopPrank();
 
         vm.startPrank(bob);
         d.pl().getCollateralBackAfterSettlement(bobUsdlToRedeem, bob, true); // get back user collateral after settlement
         uint256 bobAfterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(bob);
-        assertGt(bobAfterBal-bobBeforeBal, 9e17);
+        assertGt(bobAfterBal-bobBeforeBal, 9e17); // approx
         vm.stopPrank();
 
         uint256 perpLemmaAfterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
         assertEq(perpLemmaBeforeBal, 2e18);
-        assertEq(perpLemmaAfterBal, 0);
+        assertLt(perpLemmaAfterBal, 1e16); // approx
     }
 
     // Settlment for Single Synth user
@@ -518,9 +505,6 @@ contract PerpLemmaCommonTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
-        vm.startPrank(address(d));
-        d.pl().setSettlementStart(true);
-        vm.stopPrank();
         uint256 beforeMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
         uint256 beforeBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(this));
         uint256 perpLemmaBeforeBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(d.pl()));
@@ -532,8 +516,6 @@ contract PerpLemmaCommonTest is Test {
         uint256 afterBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(this));
         uint256 perpLemmaAfterBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(d.pl()));        
         assertEq(afterMintedPositionSynthForThisWrapper, 0);
-        // assertEq(afterBal-beforeBal, perpLemmaBeforeBal);
-        // assertEq(perpLemmaAfterBal, 0);
     }
 
     // Settlment for Multiple Synth user
@@ -564,9 +546,6 @@ contract PerpLemmaCommonTest is Test {
         d.getPerps().ib.close(); // Close market after 5 days
         vm.stopPrank();
         d.pl().settle(); // PerpLemma settle call
-        vm.startPrank(address(d));
-        d.pl().setSettlementStart(true);
-        vm.stopPrank();
         uint256 perpLemmaBeforeBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(d.pl()));
         uint256 aliceBeforeBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(alice);
         uint256 bobBeforeBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(bob);
@@ -585,7 +564,6 @@ contract PerpLemmaCommonTest is Test {
 
         uint256 perpLemmaAfterBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(d.pl()));
         assertGt(perpLemmaBeforeBal, 0);
-        // assertEq(perpLemmaAfterBal, 0);
     }
 
     // Settlement for Multiple mix users of USDL and Synths
@@ -604,12 +582,7 @@ contract PerpLemmaCommonTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
-        vm.startPrank(address(d));
-        d.pl().setSettlementStart(true);
-        vm.stopPrank();
         _withdrawSettlementTokenTo((depositedAmount*1e18)/1e6, address(this));
-        // uint256 perpLemmaBeforeWETHBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
-        // uint256 perpLemmaBeforeUSDCBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(d.pl()));
 
         // USDL And Synth Settlement
         usdlSettlementFortwoUser(aliceUsdlToRedeem, bobUsdlToRedeem);
@@ -637,30 +610,46 @@ contract PerpLemmaCommonTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
-        vm.startPrank(address(d));
-        d.pl().setSettlementStart(true);
-        vm.stopPrank();
         _withdrawSettlementTokenTo((depositedAmount*1e18)/1e6, address(this));
         uint256 perpLemmaBeforeWETHBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
         uint256 perpLemmaBeforeUSDCBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(d.pl()));
 
-        _getMoneyForTo(address(this), d.getTokenAddress("WETH"), perpLemmaBeforeWETHBal/2);
+        _getMoneyForTo(address(this), d.getTokenAddress("WETH"), perpLemmaBeforeWETHBal*2);
         IERC20Decimals(d.getTokenAddress("WETH")).approve(address(d.pl()), type(uint256).max);
-        d.pl().depositAnyAsset(perpLemmaBeforeWETHBal/2, d.getTokenAddress("WETH"));
+        d.pl().depositAnyAsset(perpLemmaBeforeWETHBal*2, d.getTokenAddress("WETH"));
         d.pl().withdrawAnyAsset(perpLemmaBeforeUSDCBal/2, d.getTokenAddress("USDC"), address(this));
 
         perpLemmaBeforeWETHBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
         perpLemmaBeforeUSDCBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(d.pl()));
 
         // USDL And Synth Settlement
-        usdlSettlementFortwoUser(aliceUsdlToRedeem, bobUsdlToRedeem);
-        synthSettlementFortwoUser(aliceSynthToRedeem, bobSynthToRedeem);
+        vm.startPrank(alice);
+        uint256 aliceBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(alice);
+        d.pl().getCollateralBackAfterSettlement(aliceUsdlToRedeem, alice, true); // get back user collateral after settlement
+        uint256 aliceAfterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(alice);
+        assertGt(aliceAfterBal-aliceBeforeBal, 0);
+        vm.stopPrank();
 
-        uint256 perpLemmaAfterWETHBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
-        uint256 perpLemmaAfterUSDCBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(d.pl()));
+        vm.startPrank(bob);
+        uint256 bobBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(bob);
+        d.pl().getCollateralBackAfterSettlement(bobUsdlToRedeem, bob, true); // get back user collateral after settlement
+        uint256 bobAfterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(bob);
+        assertGt(bobAfterBal-bobBeforeBal, 0);
+        vm.stopPrank();
 
-        assertEq(perpLemmaAfterWETHBal, 0);
-        assertEq(perpLemmaAfterUSDCBal, 0);
+        vm.startPrank(alice);
+        aliceBeforeBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(alice);
+        d.pl().getCollateralBackAfterSettlement(aliceSynthToRedeem, alice, false); // get back user collateral after settlement
+        aliceAfterBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(alice);
+        assertGt(aliceAfterBal-aliceBeforeBal, 0);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        bobBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(bob);
+        d.pl().getCollateralBackAfterSettlement(bobSynthToRedeem, bob, false); // get back user collateral after settlement
+        bobAfterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(bob);
+        assertGt(bobAfterBal-bobBeforeBal, 0);
+        vm.stopPrank();
     }
 
     function testSettlement7() public {
@@ -678,9 +667,6 @@ contract PerpLemmaCommonTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
-        vm.startPrank(address(d));
-        d.pl().setSettlementStart(true);
-        vm.stopPrank();
         _withdrawSettlementTokenTo((depositedAmount*1e18)/1e6, address(this));
         uint256 perpLemmaBeforeWETHBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
         uint256 perpLemmaBeforeUSDCBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(d.pl()));
@@ -719,30 +705,46 @@ contract PerpLemmaCommonTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
-        vm.startPrank(address(d));
-        d.pl().setSettlementStart(true);
-        vm.stopPrank();
         _withdrawSettlementTokenTo((depositedAmount*1e18)/1e6, address(this));
         uint256 perpLemmaBeforeWETHBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
         uint256 perpLemmaBeforeUSDCBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(d.pl()));
 
-        // _getMoneyForTo(address(this), d.getTokenAddress("WETH"), perpLemmaBeforeWETHBal/2);
-        // IERC20Decimals(d.getTokenAddress("WETH")).approve(address(d.pl()), type(uint256).max);
-        // d.pl().depositAnyAsset(perpLemmaBeforeWETHBal/2, d.getTokenAddress("WETH"));
+        _getMoneyForTo(address(this), d.getTokenAddress("WETH"), perpLemmaBeforeWETHBal*2);
+        IERC20Decimals(d.getTokenAddress("WETH")).approve(address(d.pl()), type(uint256).max);
+        d.pl().depositAnyAsset(perpLemmaBeforeWETHBal*2, d.getTokenAddress("WETH"));
         d.pl().withdrawAnyAsset(perpLemmaBeforeUSDCBal/2, d.getTokenAddress("USDC"), address(this));
 
         perpLemmaBeforeWETHBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
         perpLemmaBeforeUSDCBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(d.pl()));
 
         // USDL And Synth Settlement
-        usdlSettlementFortwoUser(aliceUsdlToRedeem, bobUsdlToRedeem);
-        synthSettlementFortwoUser(aliceSynthToRedeem, bobSynthToRedeem);
+        vm.startPrank(alice);
+        uint256 aliceBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(alice);
+        d.pl().getCollateralBackAfterSettlement(aliceUsdlToRedeem, alice, true); // get back user collateral after settlement
+        uint256 aliceAfterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(alice);
+        assertGt(aliceAfterBal-aliceBeforeBal, 0);
+        vm.stopPrank();
 
-        uint256 perpLemmaAfterWETHBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
-        uint256 perpLemmaAfterUSDCBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(d.pl()));
+        vm.startPrank(alice);
+        aliceBeforeBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(alice);
+        d.pl().getCollateralBackAfterSettlement(aliceSynthToRedeem, alice, false); // get back user collateral after settlement
+        aliceAfterBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(alice);
+        assertGt(aliceAfterBal-aliceBeforeBal, 0);
+        vm.stopPrank();
 
-        assertEq(perpLemmaAfterWETHBal, 0);
-        assertEq(perpLemmaAfterUSDCBal, 0);
+        vm.startPrank(bob);
+        uint256 bobBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(bob);
+        d.pl().getCollateralBackAfterSettlement(bobUsdlToRedeem, bob, true); // get back user collateral after settlement
+        uint256 bobAfterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(bob);
+        assertGt(bobAfterBal-bobBeforeBal, 0);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        bobBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(bob);
+        d.pl().getCollateralBackAfterSettlement(bobSynthToRedeem, bob, false); // get back user collateral after settlement
+        bobAfterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(bob);
+        assertGt(bobAfterBal-bobBeforeBal, 0);
+        vm.stopPrank();
     }
 
     function testSettlement9() public {
@@ -760,9 +762,7 @@ contract PerpLemmaCommonTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
-        vm.startPrank(address(d));
-        d.pl().setSettlementStart(true);
-        vm.stopPrank();
+
         _withdrawSettlementTokenTo((depositedAmount*1e18)/1e6, address(this));
         uint256 perpLemmaBeforeWETHBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
         uint256 perpLemmaBeforeUSDCBal = IERC20Decimals(d.getTokenAddress("USDC")).balanceOf(address(d.pl()));

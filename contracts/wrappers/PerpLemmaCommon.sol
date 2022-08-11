@@ -16,6 +16,7 @@ import "../interfaces/Perpetual/IIndexPrice.sol";
 import "../interfaces/Perpetual/IAccountBalance.sol";
 import "../interfaces/Perpetual/IMarketRegistry.sol";
 import "../interfaces/Perpetual/IPerpVault.sol";
+import "../interfaces/Perpetual/IBaseToken.sol";
 
 /// @author Lemma Finance
 /// @notice PerpLemmaCommon contract will use to open short and long position with no-leverage
@@ -72,21 +73,17 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// Amount of usdl's collateral that is deposited in perpLemma nd then deposited into perpV2
     uint256 public amountUsdlCollateralDeposited;
 
-    /// Amount of USDL collateral deposited in Perplemma
-    uint256 public totalUsdlCollateral; // Tail Asset
-    /// Amount of LemmaSynth collateral deposited in Perplemma
-    uint256 public totalSynthCollateral; // USDC
-
     // Gets set only when Settlement has already happened
     // NOTE: This should be equal to the amount of USDL minted depositing on that dexIndex
     /// Amount of USDL minted through this perpLemma, it is tracking because usdl can be mint by multiple perpLemma
     uint256 public mintedPositionUsdlForThisWrapper;
     /// Amount of LemmaSynth minted
     uint256 public mintedPositionSynthForThisWrapper;
+    /// Settlement time price
+    uint256 public closedPrice;
 
     // Has the Market Settled, If settled we can't mint new USDL or Synth
     bool public override hasSettled;
-    bool public settlementStart;
 
     // Events
     event USDLemmaUpdated(address indexed usdlAddress);
@@ -204,7 +201,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         uint256 currentPrice = getIndexPrice();
         uint256 oracleDecimals = 18;
         // NOTE: Need an amount in 1e18 to be compared with account value which I think is in 1e18
-        int256 deltaPosition = int256(currentPrice * amount / (10 ** (usdlCollateral.decimals())));
+        int256 deltaPosition = int256((currentPrice * amount) / (10**(usdlCollateral.decimals())));
         // int256 deltaPosition = int256(currentPrice * amount / (10 ** (oracleDecimals + usdlCollateral.decimals() - usdc.decimals())));
         // NOTE: More short --> Increase Negative Base
         int256 futureTotalPositionValue = currentAccountValue + ((isShort) ? int256(-1) : int256(1)) * deltaPosition;
@@ -214,22 +211,21 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
         uint256 extraUSDC_1e18 = (futureTotalPositionValue >= 0) ? 0 : uint256(-futureTotalPositionValue);
         // uint256 extraUSDC_1e18 = (futureAccountValue >= 0) ? 0 : uint256(-futureAccountValue);
-        extraUSDC = getAmountInCollateralDecimalsForPerp(extraUSDC_1e18, address(usdc), false); 
+        extraUSDC = getAmountInCollateralDecimalsForPerp(extraUSDC_1e18, address(usdc), false);
 
-        uint256 maxSettlementTokenAcceptableFromPerpVault = getMaxSettlementTokenAcceptableByVault(); 
+        uint256 maxSettlementTokenAcceptableFromPerpVault = getMaxSettlementTokenAcceptableByVault();
 
-        if(extraUSDC > maxSettlementTokenAcceptableFromPerpVault) {
+        if (extraUSDC > maxSettlementTokenAcceptableFromPerpVault) {
             isAcceptable = false;
-        }
-        else {
+        } else {
             isAcceptable = true;
         }
     }
 
     /// @notice Returns the current amount of collateral value (in USDC) after the PnL in 1e18 format
     /// TODO: Take into account tail assets
-    function getAccountValue() override public view returns(int256 value_1e18) {
-        value_1e18 = clearingHouse.getAccountValue(address(this)); 
+    function getAccountValue() public view override returns (int256 value_1e18) {
+        value_1e18 = clearingHouse.getAccountValue(address(this));
     }
 
     // Returns the margin
@@ -293,12 +289,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     ////////////////////////
     /// EXTERNAL METHODS ///
     ////////////////////////
-
-    /// @notice setSettlementStart after it start settleCollateral func can call - only owner can set
-    /// @param _start will be true or false for to staart or not
-    function setSettlementStart(bool _start) external onlyRole(ONLY_OWNER) {
-        settlementStart = _start;
-    }
 
     /// @notice Defines the USDL Collateral as a tail asset by only owner role
     function setIsUsdlCollateralTailAsset(bool _x) external onlyRole(ONLY_OWNER) {
@@ -373,7 +363,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         require(_amount > 0, "Amount should greater than zero");
         SafeERC20Upgradeable.safeTransferFrom(usdc, msg.sender, address(this), _amount);
         perpVault.deposit(address(usdc), _amount);
-        totalSynthCollateral += _amount;
     }
 
     /// @notice withdrawSettlementToken is used to withdraw settlement token USDC from perp vault - only owner can withdraw
@@ -382,7 +371,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         require(_amount > 0, "Amount should greater than zero");
         perpVault.withdraw(address(usdc), _amount);
         SafeERC20Upgradeable.safeTransfer(usdc, msg.sender, _amount);
-        totalSynthCollateral -= _amount;
     }
 
     /// @notice withdrawSettlementTokenTo is used to withdraw settlement token USDC from perp vault - only owner can withdraw
@@ -392,48 +380,38 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         require(_amount > 0, "Amount should greater than zero");
         require(hasSettled, "Perpetual is not settled yet");
         SafeERC20Upgradeable.safeTransfer(usdc, _to, _amount);
-        totalSynthCollateral -= _amount;
     }
 
     /// @notice deposit method is to call from USDLemma or LemmaSynth while mint USDL or Synth
     /// @param amount of assets to deposit
     /// @param collateral needs to deposit
-    /// @param basis is enum that defines the deposit call from Usdl or lemmaSynth contract
-    function deposit(
-        uint256 amount,
-        address collateral,
-        Basis basis
-    ) external override onlyRole(PERPLEMMA_ROLE) {
-        _deposit(amount, collateral, basis);
+    function deposit(uint256 amount, address collateral) external override onlyRole(PERPLEMMA_ROLE) {
+        _deposit(amount, collateral);
     }
 
     /// @notice withdraw method is to call from USDLemma or LemmaSynth while redeem USDL or Synth
     /// @param amount of assets to withdraw
     /// @param collateral needs to withdraw
-    /// @param basis is enum that defines the withdraw call from Usdl or lemmaSynth contract
-    function withdraw(
-        uint256 amount,
-        address collateral,
-        Basis basis
-    ) external override onlyRole(PERPLEMMA_ROLE) {
-        _withdraw(amount, collateral, basis);
+    function withdraw(uint256 amount, address collateral) external override onlyRole(PERPLEMMA_ROLE) {
+        _withdraw(amount, collateral);
     }
 
     /// @notice when perpetual is in CLEARED state, withdraw the collateral
     /// @dev Anybody can call it so that it happens as quickly as possible
     function settle() external override {
         clearingHouse.quitMarket(address(this), usdlBaseTokenAddress);
+        closedPrice = IBaseToken(usdlBaseTokenAddress).getClosedPrice();
 
         // NOTE: Settle pending funding rates
         clearingHouse.settleAllFunding(address(this));
 
         uint256 freeUSDCCollateral = perpVault.getFreeCollateral(address(this));
-        _withdraw(freeUSDCCollateral, address(usdc), Basis.IsSettle);
+        _withdraw(freeUSDCCollateral, address(usdc));
 
         if (!isUsdlCollateralTailAsset) {
             // NOTE: This amount of free collateral is the one internally used to check for the V_NEFC error, so this is the max withdrawable
             uint256 freeCollateralUSDL = perpVault.getFreeCollateralByToken(address(this), address(usdlCollateral));
-            _withdraw(freeCollateralUSDL, address(usdlCollateral), Basis.IsSettle);
+            _withdraw(freeCollateralUSDL, address(usdlCollateral));
         }
 
         // All the collateral is now back
@@ -445,7 +423,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         uint256 amount,
         address to,
         bool isUsdl
-    ) external override onlyRole(PERPLEMMA_ROLE) returns (uint256, uint256) {
+    ) external override onlyRole(PERPLEMMA_ROLE) {
         return settleCollateral(amount, to, isUsdl);
     }
 
@@ -482,25 +460,25 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             if (amountBase < 0) {
                 (, uint256 amountUSDCMinus_1e18) = closeShortWithExactBase(_amountBaseToRebalance);
                 amountUSDCMinus = (amountUSDCMinus_1e18 * (10**usdc.decimals())) / 1e18;
-                _withdraw(_amountBaseToRebalance, address(usdlCollateral), Basis.IsRebalance);
+                _withdraw(_amountBaseToRebalance, address(usdlCollateral));
                 require(usdlCollateral.balanceOf(address(this)) > _amountBaseToRebalance, "T1");
                 amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
             } else {
                 amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
-                _deposit(amountUSDCPlus, address(usdc), Basis.IsRebalance);
+                _deposit(amountUSDCPlus, address(usdc));
                 (, uint256 amountUSDCMinus_1e18) = openLongWithExactBase(_amountBaseToRebalance);
                 amountUSDCMinus = (amountUSDCMinus_1e18 * (10**usdc.decimals())) / 1e18;
             }
         } else {
             if (amountBase <= 0) {
                 amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
-                _deposit(_amountBaseToRebalance, address(usdlCollateral), Basis.IsRebalance);
+                _deposit(_amountBaseToRebalance, address(usdlCollateral));
                 (, uint256 amountUSDCPlus_1e18) = openShortWithExactBase(_amountBaseToRebalance);
                 amountUSDCPlus = (amountUSDCPlus_1e18 * (10**usdc.decimals())) / 1e18;
             } else {
                 (, uint256 amountUSDCPlus_1e18) = closeLongWithExactBase(_amountBaseToRebalance);
                 amountUSDCPlus = (amountUSDCPlus_1e18 * (10**usdc.decimals())) / 1e18;
-                _withdraw(amountUSDCPlus, address(usdc), Basis.IsRebalance);
+                _withdraw(amountUSDCPlus, address(usdc));
                 amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
             }
         }
@@ -516,7 +494,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         uint256 amount,
         Basis basis,
         bool isOpenShort
-    ) external override onlyRole(PERPLEMMA_ROLE) { 
+    ) external override onlyRole(PERPLEMMA_ROLE) {
         _calculateMintingAsset(amount, basis, isOpenShort);
     }
 
@@ -569,12 +547,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// 2). openLongWithExactQuote => depositToWExactCollateral
     /// 3). closeLongWithExactBase => withdrawTo
     /// 4). closeLongWithExactQuote => withdrawToWExactCollateral
-    function openLongWithExactBase(uint256 amount)
-        public
-        override
-        onlyRole(PERPLEMMA_ROLE)
-        returns (uint256, uint256)
-    {
+    function openLongWithExactBase(uint256 amount) public override onlyRole(PERPLEMMA_ROLE) returns (uint256, uint256) {
         (uint256 base, uint256 quote) = trade(amount, false, false);
         return (base, quote);
     }
@@ -738,67 +711,26 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         roundDownAmount = (amount % (uint256(10**(collateralDecimals))) != 0) ? amount - 1 : amount;
     }
 
-    /// @notice getAllBalance is simple view method to give deposited balance and currentBalance of USDL and Synth
-    function getAllBalance()
-        internal
-        view
-        returns (
-            uint256,
-            uint256,
-            uint256,
-            uint256
-        )
-    {
-        return (
-            totalUsdlCollateral,
-            usdlCollateral.balanceOf(address(this)),
-            totalSynthCollateral,
-            usdc.balanceOf(address(this))
-        );
-    }
-
     /// @notice to deposit collateral in vault for short or open position
     /// @dev If collateral is tail asset no need to deposit it in Perp, it has to stay in this contract balance sheet
-    function _deposit(
-        uint256 collateralAmount,
-        address collateral,
-        Basis basis
-    ) internal {
+    function _deposit(uint256 collateralAmount, address collateral) internal {
         if (collateral == address(usdc)) {
             perpVault.deposit(address(usdc), collateralAmount);
         } else if ((collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset)) {
             perpVault.deposit(collateral, collateralAmount);
             amountUsdlCollateralDeposited += collateralAmount;
         }
-
-        if (Basis.IsRebalance != basis) {
-            if (Basis.IsUsdl == basis) {
-                totalUsdlCollateral += collateralAmount;
-            } else {
-                totalSynthCollateral += collateralAmount;
-            }
-        }
     }
 
     /// @notice to withdraw collateral from vault after long or close position
     /// @dev If collateral is tail asset no need to withdraw it from Perp, it is already in this contract balance sheet
-    function _withdraw(
-        uint256 amountToWithdraw,
-        address collateral,
-        Basis basis
-    ) internal {
+    function _withdraw(uint256 amountToWithdraw, address collateral) internal {
         if (collateral == address(usdc)) {
             perpVault.withdraw(address(usdc), amountToWithdraw);
         } else if ((collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset)) {
             // NOTE: This is problematic with ETH
             perpVault.withdraw(collateral, amountToWithdraw);
             amountUsdlCollateralDeposited -= amountToWithdraw;
-        }
-
-        if (Basis.IsUsdl == basis) {
-            totalUsdlCollateral =  (totalUsdlCollateral < amountToWithdraw) ? 0 : (totalUsdlCollateral - amountToWithdraw);
-        } else if (Basis.IsSynth == basis) {
-            totalSynthCollateral =  (totalSynthCollateral < amountToWithdraw) ? 0 : (totalSynthCollateral - amountToWithdraw);
         }
     }
 
@@ -830,67 +762,69 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
     /// @notice settleCollateral is called when market is settled and it will pro-rata distribute the funds
     /// Before market settled, rebalance function called and collateral is not same in perpLemma when it is deposited
-    /// So we will use track variables totalUsdlCollateral, totalSynthCollateral and current balances of usdl and synth to distribute the pro-rata base collateral
+    /// So we will use ClosePerpMarket price and current balances of usdl and synth to distribute the pro-rata base collateral
     function settleCollateral(
         uint256 usdlOrSynthAmount,
         address to,
         bool isUsdl
-    ) internal returns (uint256 amountUsdlCollateral1e_18, uint256 amountUsdcCollateral1e_18) {
-        require(settlementStart, "Collateral distribution not started yet");
-        uint256 positionAtSettlementInQuote = isUsdl
-            ? mintedPositionUsdlForThisWrapper
-            : mintedPositionSynthForThisWrapper;
-        require(positionAtSettlementInQuote > 0, "Settled vUSD position amount should not ZERO");
+    ) internal {
+        uint256 tailCollateralBal = (usdlCollateral.balanceOf(address(this)) * 1e18) / (10**usdlCollateral.decimals());
+        uint256 synthCollateralBal = (usdc.balanceOf(address(this)) * 1e18) / (10**usdc.decimals());
+        require(tailCollateralBal > 0 || synthCollateralBal > 0, "Not Enough collateral for settle");
 
-        uint256 tailAmount;
-        uint256 usdcAmount;
-
-        // a = totalUsdlCollateral ===> Total usdlcollateral that is deposited in perpLemma.
-        // b = usdlCollateral.balanceOf(address(this)) ===> Current Total usdlcollateral perpLemma has.
-        // c = totalSynthCollateral ===> Total synthcollateral that is deposited in perpLemma.
-        // d = usdc.balanceOf(address(this)) ===> Current Total synthcollateral perpLemma has.
-        (uint256 a, uint256 b, uint256 c, uint256 d) = getAllBalance();
         if (isUsdl) {
-            tailAmount = a > b ? b : a;
-            usdcAmount = c >= d ? 0 : d - c;
-        } else {
-            usdcAmount = c < d ? c : d;
-            tailAmount = a >= b ? 0 : b - a;
-        }
-
-        if (tailAmount != 0) {
-            uint256 collateralDecimals = IERC20Decimals(address(usdlCollateral)).decimals();
-            tailAmount = (tailAmount * 1e18) / (10**collateralDecimals);
-            amountUsdlCollateral1e_18 = (usdlOrSynthAmount * tailAmount) / positionAtSettlementInQuote;
-            uint256 amountUsdlCollateral = getAmountInCollateralDecimalsForPerp(
-                amountUsdlCollateral1e_18,
-                address(usdlCollateral),
-                false
-            );
-            SafeERC20Upgradeable.safeTransfer(usdlCollateral, to, amountUsdlCollateral);
-            if (isUsdl) totalUsdlCollateral -= amountUsdlCollateral;
-        }
-        if (usdcAmount != 0) {
-            uint256 collateralDecimals = IERC20Decimals(address(usdc)).decimals();
-            usdcAmount = (usdcAmount * 1e18) / (10**collateralDecimals);
-            amountUsdcCollateral1e_18 = (usdlOrSynthAmount * usdcAmount) / positionAtSettlementInQuote;
-            uint256 amountUsdcCollateral = getAmountInCollateralDecimalsForPerp(
-                amountUsdcCollateral1e_18,
-                address(usdc),
-                false
-            );
-            SafeERC20Upgradeable.safeTransfer(usdc, to, amountUsdcCollateral);
-            if (!isUsdl) totalSynthCollateral -= amountUsdcCollateral;
-        }
-
-        /// ERROR MESSAGE: => NEUM: Not enough USDL minted by this PerpLemmaContract
-        if (isUsdl) {
+            uint256 tailCollateralTransfer = (usdlOrSynthAmount * 1e18) / closedPrice;
+            if (tailCollateralTransfer <= tailCollateralBal) {
+                SafeERC20Upgradeable.safeTransfer(usdlCollateral, to, getAmountInCollateralDecimalsForPerp(tailCollateralTransfer, address(usdlCollateral), false));
+            } else {
+                if (tailCollateralBal > 0) {
+                    SafeERC20Upgradeable.safeTransfer(usdlCollateral, to, getAmountInCollateralDecimalsForPerp(tailCollateralBal, address(usdlCollateral), false));
+                }
+                if (synthCollateralBal > getSynthInDollar()) { // do we have extra synth for usdlUser
+                    uint256 checkDiffInDollar = (tailCollateralTransfer - tailCollateralBal) * closedPrice; // calculate the needed extra synth to transfer
+                    uint256 checkUSDCForUSdl = synthCollateralBal - getSynthInDollar(); // check how much extra synth we have for usdlUser
+                    if (checkUSDCForUSdl > checkDiffInDollar) {
+                        SafeERC20Upgradeable.safeTransfer(usdc, to, getAmountInCollateralDecimalsForPerp(checkDiffInDollar, address(usdc), false));
+                    } else {
+                        SafeERC20Upgradeable.safeTransfer(usdc, to, getAmountInCollateralDecimalsForPerp(checkUSDCForUSdl, address(usdc), false));
+                    }
+                }
+            }
+            /// ERROR MESSAGE: => NEUM: Not enough USDL minted by this PerpLemmaContract
             require(mintedPositionUsdlForThisWrapper >= usdlOrSynthAmount, "NEUM");
             mintedPositionUsdlForThisWrapper -= usdlOrSynthAmount;
         } else {
+            uint256 usdcCollateralTransfer = (usdlOrSynthAmount * closedPrice) / 1e18;
+            if (usdcCollateralTransfer <= synthCollateralBal) {
+                SafeERC20Upgradeable.safeTransfer(usdc,to,getAmountInCollateralDecimalsForPerp(usdcCollateralTransfer, address(usdc), false));
+            } else {
+                if (synthCollateralBal > 0) {
+                    SafeERC20Upgradeable.safeTransfer(usdc, to, getAmountInCollateralDecimalsForPerp(synthCollateralBal, address(usdc), false));
+                }
+                if (tailCollateralBal > getUSDLInTail()) { // do we have extra tail for synthUser
+                    uint256 checkDiffInTail = ((usdcCollateralTransfer - synthCollateralBal) * 1e18) / closedPrice; // calculate the needed extra tail to transfer
+                    uint256 checkTailForSynth = tailCollateralBal - getUSDLInTail(); // check how much extra tail we have for synthUser
+                    if (checkTailForSynth > checkDiffInTail) {
+                        SafeERC20Upgradeable.safeTransfer(usdlCollateral, to, getAmountInCollateralDecimalsForPerp(checkDiffInTail, address(usdlCollateral), false));
+                    } else {
+                        SafeERC20Upgradeable.safeTransfer(usdlCollateral, to, getAmountInCollateralDecimalsForPerp(checkTailForSynth, address(usdlCollateral), false));
+                    }
+                }
+            }
+            /// ERROR MESSAGE: => NEUM: Not enough USDL minted by this PerpLemmaContract
             require(mintedPositionSynthForThisWrapper >= usdlOrSynthAmount, "NEUM");
             mintedPositionSynthForThisWrapper -= usdlOrSynthAmount;
         }
+    }
+
+    /// @notice getSynthInDollar will give lemmaSynth in dollar price, for e.g 1 LemmaSynthETH => 1000 USDC
+    function getSynthInDollar() internal view returns (uint256) {
+        return (mintedPositionSynthForThisWrapper * closedPrice) / 1e18;
+    }
+
+    /// @notice getUSDLInTail will give USDL in eth/tail collateral price, for e.g 1000 USDL => 1 ETH
+    function getUSDLInTail() internal view returns (uint256) {
+        return (mintedPositionUsdlForThisWrapper * 1e18) / closedPrice;
     }
 
     /// @notice swap USDC -> USDLCollateral

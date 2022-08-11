@@ -342,12 +342,7 @@ contract LemmaSynth is
             address(perpDEXWrapper),
             amount
         );
-        perpDEXWrapper.deposit(
-            amount,
-            collateral,
-            // ternary operator use below line
-            collateral == tailCollateral ? IPerpetualMixDEXWrapper.Basis.IsUsdl : IPerpetualMixDEXWrapper.Basis.IsSynth
-        );
+        perpDEXWrapper.deposit(amount, collateral);
     }
 
     /// @notice _perpWithdraw to withdraw collateral from perp Vault
@@ -357,12 +352,7 @@ contract LemmaSynth is
         address collateral,
         uint256 amount
     ) internal {
-        perpDEXWrapper.withdraw(
-            amount,
-            collateral,
-            // ternary operator use below line
-            collateral == tailCollateral ? IPerpetualMixDEXWrapper.Basis.IsUsdl : IPerpetualMixDEXWrapper.Basis.IsSynth
-        );
+        perpDEXWrapper.withdraw(amount, collateral);
         SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), address(perpDEXWrapper), to, amount);
     }
 

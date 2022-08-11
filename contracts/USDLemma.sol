@@ -20,7 +20,6 @@ contract USDLemma is
     ERC2771ContextUpgradeable,
     AccessControlUpgradeable
 {
-
     // Different Roles to perform restricted tx
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant LEMMA_SWAP = keccak256("LEMMA_SWAP");
@@ -207,7 +206,8 @@ contract USDLemma is
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
 
         uint256 _collateralRequired;
-        if (address(collateral) == perpSettlementToken) { // USDC
+        if (address(collateral) == perpSettlementToken) {
+            // USDC
             _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
                 amount,
                 address(collateral),
@@ -263,7 +263,8 @@ contract USDLemma is
         );
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
         uint256 _usdlToMint;
-        if (address(collateral) == perpSettlementToken) { // USDC
+        if (address(collateral) == perpSettlementToken) {
+            // USDC
             _usdlToMint = collateralAmount; // if collateral is usdc then collateralAmount is usdcAmount
         } else {
             (, _usdlToMint) = perpDEXWrapper.openShortWithExactBase(collateralAmount);
@@ -299,7 +300,8 @@ contract USDLemma is
             return;
         } else {
             uint256 _collateralAmountToWithdraw;
-            if (address(collateral) == perpSettlementToken) { // USDC
+            if (address(collateral) == perpSettlementToken) {
+                // USDC
                 _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
                     amount,
                     address(collateral),
@@ -350,7 +352,8 @@ contract USDLemma is
         require(!hasSettled, "hasSettled Error");
 
         uint256 _usdlToBurn;
-        if (address(collateral) == perpSettlementToken) { // USDC
+        if (address(collateral) == perpSettlementToken) {
+            // USDC
             _usdlToBurn = collateralAmount;
         } else {
             (, _usdlToBurn) = perpDEXWrapper.closeShortWithExactBase(collateralAmount);
@@ -409,7 +412,7 @@ contract USDLemma is
             address(perpDEXWrapper),
             amount
         );
-        perpDEXWrapper.deposit(amount, collateral, IPerpetualMixDEXWrapper.Basis.IsUsdl);
+        perpDEXWrapper.deposit(amount, collateral);
     }
 
     /// @notice _perpWithdraw to withdraw collateral from perp Vault
@@ -419,7 +422,7 @@ contract USDLemma is
         address collateral,
         uint256 amount
     ) internal {
-        perpDEXWrapper.withdraw(amount, collateral, IPerpetualMixDEXWrapper.Basis.IsUsdl);
+        perpDEXWrapper.withdraw(amount, collateral);
         SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), address(perpDEXWrapper), to, amount);
     }
 
