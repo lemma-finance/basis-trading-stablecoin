@@ -231,21 +231,16 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param amount The amount of the new position 
     /// @param isShort If we are minting USDL or a Synth by changing our Position on Perp  
     function getRequiredUSDCToBackMinting(uint256 amount, bool isShort) override external view returns(bool isAcceptable, uint256 extraUSDC) {
-        int256 currentTotalPositionValue = getTotalPosition();
-        print("[getRequiredUSDCToBackMinting()] currentTotalPositionValue = ", currentTotalPositionValue);    
-        int256 currentAccountValue = getAccountValue();
-        print("[getRequiredUSDCToBackMinting()] currentAccountValue = ", currentAccountValue);
-        
-        console.log("[getRequiredUSDCToBackMinting()] amount = ", amount);
-        console.log("[getRequiredUSDCToBackMinting()] isShort = ", (isShort) ? "true" : "false");
+        // NOTE: According to Perp, this is defined as accountValue = totalCollateralValue + totalUnrealizedPnl, in 18 decimals   
+        int256 currentAccountValue = getAccountValue(); 
         uint256 currentPrice = getIndexPrice();
-        console.log("[getRequiredUSDCToBackMinting()] currentPrice = ", currentPrice);
         uint256 oracleDecimals = 18;
+
+        // NOTE: Computing the absolute delta in terms of quote token for the new position 
         // NOTE: Need an amount in 1e18 to be compared with account value which I think is in 1e18
         int256 deltaPosition = int256(currentPrice * amount / (10 ** (usdlCollateral.decimals())));
-        // int256 deltaPosition = int256(currentPrice * amount / (10 ** (oracleDecimals + usdlCollateral.decimals() - usdc.decimals())));
-        print("[getRequiredUSDCToBackMinting()] deltaPosition = ", deltaPosition);
-        // NOTE: More short --> Increase Negative Base
+
+        // NOTE: Computing the next position 
         int256 futureTotalPositionValue = currentAccountValue + ((isShort) ? int256(-1) : int256(1)) * deltaPosition;
         // int256 futureTotalPositionValue = currentTotalPositionValue + ((isShort) ? int256(-1) : int256(1)) * deltaPosition;
         print("[getRequiredUSDCToBackMinting()] futureTotalPositionValue = ", futureTotalPositionValue);
@@ -278,6 +273,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @notice Returns the current amount of collateral value (in USDC) after the PnL in 1e18 format
     /// TODO: Take into account tail assets
     function getAccountValue() override public view returns(int256 value_1e18) {
+        // NOTE: Get account value of a trader 
+        /// @dev accountValue = totalCollateralValue + totalUnrealizedPnl, in 18 decimals
+        // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/interface/IClearingHouse.sol#L290
         value_1e18 = clearingHouse.getAccountValue(address(this)); 
     }
 
@@ -292,6 +290,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     function getSettlementTokenAmountInVault() external view override returns(int256) {
         return perpVault.getBalance(address(this));
     }
+
+
 
     /// @notice Returns the relative margin in 1e18 format
     /// TODO: Take into account tail assets
@@ -342,6 +342,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @notice Returns the margin
     function getMargin() external view override returns(int256) {
         int256 _margin = accountBalance.getMarginRequirementForLiquidation(address(this));
+        print("[PerpLemmaCommon getMargin()] _margin = ", _margin);
         return _margin;
     }
 

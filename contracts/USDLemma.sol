@@ -221,11 +221,15 @@ contract USDLemma is
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
 
-        (bool isAcceptable, uint256 extraUSDC) = perpDEXWrapper.getRequiredUSDCToBackMinting(_collateralRequired, true);
-        // TODO: Add check and decide where to take it
-        require(isAcceptable, "Can't deposit enough collateral in Perp");
-        uint256 availableCollateral = getAvailableSettlementToken(perpetualDEXIndex, address(collateral));
-        require(availableCollateral >= extraUSDC, "Not enough collateral in Treasury to back the position");
+        int256 initialMargin = perpDEXWrapper.getMargin();
+        print("[depositToWExactCollateral()] initialMargin = ", initialMargin);
+
+        // NOTE: Replacing this with `getMarginRequirementForLiquidation()` call
+        // (bool isAcceptable, uint256 extraUSDC) = perpDEXWrapper.getRequiredUSDCToBackMinting(_collateralRequired, true);
+        // // TODO: Add check and decide where to take it
+        // require(isAcceptable, "Can't deposit enough collateral in Perp");
+        // uint256 availableCollateral = getAvailableSettlementToken(perpetualDEXIndex, address(collateral));
+        // require(availableCollateral >= extraUSDC, "Not enough collateral in Treasury to back the position");
 
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
         (, uint256 _usdlToMint) = perpDEXWrapper.openShortWithExactBase(
@@ -234,6 +238,10 @@ contract USDLemma is
             0,
             IPerpetualMixDEXWrapper.Basis.IsUsdl
         );
+
+        int256 newMargin = perpDEXWrapper.getMargin();
+        print("[depositToWExactCollateral()] newMargin = ", newMargin);
+        require(newMargin > 0, "Marging too low");
         require(_usdlToMint >= minUSDLToMint, "USDL minted too low");
         _mint(to, _usdlToMint);
         emit DepositTo(perpetualDEXIndex, address(collateral), to, _usdlToMint, _collateralRequired);
