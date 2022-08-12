@@ -12,13 +12,13 @@ interface IPerpetualMixDEXWrapper {
     function getMargin() external view returns(int256);
 
     function getSettlementToken() external view returns(address);
-    
+
     function getMinMarginForRecap() external view returns(uint256);
 
     function getMinMarginSafeThreshold() external view returns(uint256);
 
-
-
+    function setMinMarginForRecap(uint256 _margin) external;
+    function setMinMarginSafeThreshold(uint256 _margin) external;
 
     function getDeltaExposure() external view returns(int256);
     function getExposureDetails() external view returns(uint256, uint256, int256, int256, uint256);

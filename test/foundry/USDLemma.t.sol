@@ -20,6 +20,8 @@ contract USDLemmaTest is Test {
         vm.startPrank(address(d));
         d.pl().grantRole(USDC_TREASURY, address(this));
         d.usdl().grantRole(LEMMA_SWAP, address(this));
+        d.pl().setMinMarginForRecap(0);
+        d.pl().setMinMarginSafeThreshold(1e18);
         vm.stopPrank();
     }
 
@@ -106,7 +108,21 @@ contract USDLemmaTest is Test {
         assertTrue(afterBalanceUSDL > beforeBalanceUSDL);
         assertTrue(afterBalanceCollateral < beforeBalanceCollateral);
     }
-    
+
+    function _mintUSDLWExactCollateralNoChecks(address to, address collateral, uint256 amount) internal {
+        address usdl = d.pl().usdLemma();
+        _getMoneyForTo(to, collateral, amount);
+        uint256 beforeBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
+        uint256 beforeBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
+        IERC20Decimals(collateral).approve(usdl, type(uint256).max);
+        uint256 beforeTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
+        // 4th param is minUSDLToMint which is need to be set using callStatic, currently set 0 for not breaking revert
+        // calsstatic is not possible in solidity so
+        d.usdl().depositToWExactCollateral(to, amount, 0, 0, IERC20Upgradeable(collateral)); 
+        uint256 afterTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
+        uint256 afterBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
+        uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);    }
+
     function _redeemUSDLWExactUsdl(address to, address collateral, uint256 amount) internal {
         address usdl = d.pl().usdLemma();
         uint256 beforeBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
@@ -155,6 +171,16 @@ contract USDLemmaTest is Test {
     // test depositToWExactCollateral
     function testDepositToWExactCollateral1() public {
         _depositWExactCollateral(1e18);
+    }
+
+    // test depositToWExactCollateral
+    function testDepositToWExactCollateral3() public {
+        console.log("[testDepositToWExactCollateral3()] Start");
+        _depositWExactCollateral(1e18);
+        console.log("[testDepositToWExactCollateral3()] First Minting Works");
+        address collateral = d.getTokenAddress("WETH");
+        _mintUSDLWExactCollateralNoChecks(address(this), collateral, 3e18);
+        console.log("[testDepositToWExactCollateral3()] Second Minting Works");
     }
 
     function testFailDepositToWExactCollateralNoUSDC1() public {

@@ -162,6 +162,15 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
     }
 
+    function setMinMarginForRecap(uint256 _margin) external override onlyRole(ADMIN_ROLE) {
+        minMarginForRecap = _margin;
+    }
+
+    function setMinMarginSafeThreshold(uint256 _margin) external override onlyRole(ADMIN_ROLE) {
+        require(_margin > minMarginForRecap, "Needs to be > minMarginForRecap");
+        minMarginSafeThreshold = _margin;
+    }
+
 
     /// @notice Returning the max amount of USDC Tokens that is possible to put in Vault to collateralize positions
     /// @dev The underlying Perp Protocol (so far we only have PerpV2) can have a limit on the total amount of Settlement Token the Vault can accept 
