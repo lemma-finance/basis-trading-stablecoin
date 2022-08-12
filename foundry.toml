@@ -2,6 +2,8 @@
 src = 'src'
 out = 'artifacts'
 solc = '0.8.3'
+test = 'test/foundry'
+cache_path  = 'forge-cache'
 libs = ['lib','node_modules']
 remappings = [
     '@ensdomains/=node_modules/@ensdomains/',

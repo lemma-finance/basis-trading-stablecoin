@@ -27,7 +27,7 @@ async function mineBlocks(blockNumber) {
   }
 }
 
-describe("eip4626xUSDL", function () {
+describe("eip4626-xUSDL", function () {
   let owner;
   let user1;
   let user2;
