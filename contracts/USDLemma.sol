@@ -11,6 +11,7 @@ import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/
 import { Utils } from "./libraries/Utils.sol";
 import { SafeMathExt } from "./libraries/SafeMathExt.sol";
 import { IPerpetualMixDEXWrapper } from "./interfaces/IPerpetualMixDEXWrapper.sol";
+import "./interfaces/IERC20Decimals.sol";
 import "forge-std/Test.sol";
 
 /// @author Lemma Finance
@@ -210,6 +211,7 @@ contract USDLemma is
     function _recapIfNeeded(IPerpetualMixDEXWrapper perpDEXWrapper) internal {
         int256 margin = perpDEXWrapper.getMargin();
         print("[_recapIfNeeded()] margin = ", margin);
+        console.log("[_recapIfNeeded()] perpDEXWrapper.getMinMarginForRecap() = ", perpDEXWrapper.getMinMarginForRecap());
 
         if (margin <= int256(perpDEXWrapper.getMinMarginForRecap())) {
             uint256 requiredUSDC = uint256(int256(perpDEXWrapper.getMinMarginSafeThreshold()) - margin);
@@ -226,6 +228,27 @@ contract USDLemma is
 
             // TODO: Add SafeTransferFrom the Treasury to this contract or add a method to the trasury that allows to directly deposit settlementToken and prior makes some checks 
         }
+    }
+
+    function _computeExpectedUSDCCollateralRequiredForTrade(IPerpetualMixDEXWrapper perpDEXWrapper, uint256 amount) internal returns(uint256) {
+        // NOTE: Estimating USDC needed 
+        console.log("[_computeExpectedUSDCCollateralRequiredForTrade()] USDC Decimals = ", IERC20Decimals(perpDEXWrapper.getSettlementToken()).decimals());
+        uint256 freeCollateralBefore = perpDEXWrapper.getFreeCollateral();
+        console.log("[_computeExpectedUSDCCollateralRequiredForTrade()] freeCollateralBefore = ", freeCollateralBefore);
+        uint256 indexPrice = perpDEXWrapper.getIndexPrice();
+        console.log("[_computeExpectedUSDCCollateralRequiredForTrade()] IndexPrice = ", indexPrice);
+        (uint24 imRatio, uint24 mmRatio) = perpDEXWrapper.getCollateralRatios();
+        console.log("[_computeExpectedUSDCCollateralRequiredForTrade()] imRatio = ", imRatio);
+        console.log("[_computeExpectedUSDCCollateralRequiredForTrade()] mmRatio = ", mmRatio);
+        uint256 desiredCollateralRatio = uint256(imRatio);
+        uint256 expectedUSDCRequired = amount * indexPrice / 10 ** (18 + 18 - IERC20Decimals(perpDEXWrapper.getSettlementToken()).decimals());
+        console.log("[_computeExpectedUSDCCollateralRequiredForTrade()] expectedUSDCRequired = ", expectedUSDCRequired);
+        uint256 expectedUSDCDeductedFromFreeCollateral = expectedUSDCRequired * uint256(imRatio) / 1e6;
+        console.log("[_computeExpectedUSDCCollateralRequiredForTrade()] expectedUSDCDeductedFromFreeCollateral = ", expectedUSDCDeductedFromFreeCollateral);
+        uint256 expectedFinalFreeCollateral = freeCollateralBefore - expectedUSDCDeductedFromFreeCollateral;
+        console.log("[_computeExpectedUSDCCollateralRequiredForTrade()] expectedFinalFreeCollateral = ", expectedFinalFreeCollateral);
+
+        return expectedUSDCDeductedFromFreeCollateral;
     }
 
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of collateral
@@ -245,6 +268,7 @@ contract USDLemma is
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
 
+
         int256 initialMargin = perpDEXWrapper.getMargin();
         print("[depositToWExactCollateral()] initialMargin = ", initialMargin);
 
@@ -255,6 +279,8 @@ contract USDLemma is
         // uint256 availableCollateral = getAvailableSettlementToken(perpetualDEXIndex, address(collateral));
         // require(availableCollateral >= extraUSDC, "Not enough collateral in Treasury to back the position");
 
+        uint256 expectedUSDCDeductedFromFreeCollateral = _computeExpectedUSDCCollateralRequiredForTrade(perpDEXWrapper, collateralAmount);
+
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
         (, uint256 _usdlToMint) = perpDEXWrapper.openShortWithExactBase(
             collateralAmount,
@@ -262,6 +288,10 @@ contract USDLemma is
             0,
             IPerpetualMixDEXWrapper.Basis.IsUsdl
         );
+
+
+        uint256 freeCollateralAfter = perpDEXWrapper.getFreeCollateral();
+        console.log("[depositToWExactCollateral()] freeCollateralAfter = ", freeCollateralAfter);
 
         _recapIfNeeded(perpDEXWrapper);
         // int256 newMargin = perpDEXWrapper.getMargin();

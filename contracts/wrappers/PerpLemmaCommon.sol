@@ -210,6 +210,16 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return usdlCollateralDecimals;
     }
 
+
+    function getFreeCollateral() external view override returns(uint256) {
+        return perpVault.getFreeCollateral(address(this));
+    }
+
+    function getCollateralRatios() external view override returns(uint24 imRatio, uint24 mmRatio) {
+        imRatio = clearingHouseConfig.getImRatio();
+        mmRatio = clearingHouseConfig.getMmRatio();
+    }
+
     // NOTE: Abstraction Layer
     function getSettlementToken() external view override returns(address) {
         return perpVault.getSettlementToken();

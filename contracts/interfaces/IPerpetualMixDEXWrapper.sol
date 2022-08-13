@@ -17,6 +17,10 @@ interface IPerpetualMixDEXWrapper {
 
     function getMinMarginSafeThreshold() external view returns(uint256);
 
+    function getCollateralRatios() external view returns(uint24 imRatio, uint24 mmRatio);
+    function getFreeCollateral() external view returns(uint256);
+
+
     function setMinMarginForRecap(uint256 _margin) external;
     function setMinMarginSafeThreshold(uint256 _margin) external;
 

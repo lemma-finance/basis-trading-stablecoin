@@ -20,8 +20,6 @@ contract USDLemmaTest is Test {
         vm.startPrank(address(d));
         d.pl().grantRole(USDC_TREASURY, address(this));
         d.usdl().grantRole(LEMMA_SWAP, address(this));
-        d.pl().setMinMarginForRecap(0);
-        d.pl().setMinMarginSafeThreshold(1e18);
         vm.stopPrank();
     }
 
@@ -45,6 +43,70 @@ contract USDLemmaTest is Test {
         return amount - 1;
     }
 
+
+
+    // NOTE: Deposits settlementToken amount as percentage of the remaining availability so 100% is equivalent to max settlementToken 
+    function _depositSettlementTokenPerc(uint256 perc1e6) internal {
+        _getMoney(address(d.pl().usdc()), 1e40);
+
+        IERC20Decimals settlementToken = IERC20Decimals(d.pl().perpVault().getSettlementToken());
+        uint256 perpVaultSettlementTokenBalanceBefore = settlementToken.balanceOf(address(d.pl().perpVault()));
+        uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.pl().clearingHouse().getClearingHouseConfig()).getSettlementTokenBalanceCap();
+        uint256 maxUSDCToDeposit = uint256(int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore));
+        uint256 usdcToDeposit = maxUSDCToDeposit * perc1e6 / 1e6;
+        console.log("[_depositSettlementTokenPerc()] maxUSDCToDeposit = ", maxUSDCToDeposit);
+        console.log("[_depositSettlementTokenPerc()] usdcToDeposit = ", usdcToDeposit);
+        console.log("[_depositSettlementTokenPerc()] perpVaultSettlementTokenBalanceBefore = ", perpVaultSettlementTokenBalanceBefore);
+
+        // uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
+        // NOTE: Unclear why I need to use 1/10 of the cap
+        // NOTE: If I do not limit this amount I get 
+        // V_GTSTBC: greater than settlement token balance cap
+
+        d.pl().usdc().approve(address(d.pl()), usdcToDeposit);
+        d.pl().depositSettlementToken(usdcToDeposit);
+
+
+        uint256 perpVaultSettlementTokenBalanceAfter = settlementToken.balanceOf(address(d.pl().perpVault()));
+        console.log("[_depositSettlementTokenPerc()] perpVaultSettlementTokenBalanceAfter = ", perpVaultSettlementTokenBalanceAfter);
+        uint256 delta = perpVaultSettlementTokenBalanceAfter - perpVaultSettlementTokenBalanceBefore;
+        require(delta == usdcToDeposit, "Delta is different");
+
+        // d.pl().usdc().approve(address(d.pl()), settlementTokenBalanceCap/10);
+        // d.pl().depositSettlementToken(settlementTokenBalanceCap/10);
+    }
+
+
+    function _depositSettlementToken(uint256 amount) internal {
+        _getMoney(address(d.pl().usdc()), 1e40);
+
+        IERC20Decimals settlementToken = IERC20Decimals(d.pl().perpVault().getSettlementToken());
+        uint256 perpVaultSettlementTokenBalanceBefore = settlementToken.balanceOf(address(d.pl().perpVault()));
+        // uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.pl().clearingHouse().getClearingHouseConfig()).getSettlementTokenBalanceCap();
+        // uint256 maxUSDCToDeposit = uint256(int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore));
+        // uint256 usdcToDeposit = maxUSDCToDeposit * perc1e6 / 1e6;
+        // console.log("[_depositSettlementTokenPerc()] maxUSDCToDeposit = ", maxUSDCToDeposit);
+        // console.log("[_depositSettlementTokenPerc()] usdcToDeposit = ", usdcToDeposit);
+        console.log("[_depositSettlementTokenPerc()] perpVaultSettlementTokenBalanceBefore = ", perpVaultSettlementTokenBalanceBefore);
+
+        // uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
+        // NOTE: Unclear why I need to use 1/10 of the cap
+        // NOTE: If I do not limit this amount I get 
+        // V_GTSTBC: greater than settlement token balance cap
+
+        d.pl().usdc().approve(address(d.pl()), amount);
+        d.pl().depositSettlementToken(amount);
+
+
+        uint256 perpVaultSettlementTokenBalanceAfter = settlementToken.balanceOf(address(d.pl().perpVault()));
+        console.log("[_depositSettlementTokenPerc()] perpVaultSettlementTokenBalanceAfter = ", perpVaultSettlementTokenBalanceAfter);
+        uint256 delta = perpVaultSettlementTokenBalanceAfter - perpVaultSettlementTokenBalanceBefore;
+        require(delta == amount, "Delta is different");
+
+        // d.pl().usdc().approve(address(d.pl()), settlementTokenBalanceCap/10);
+        // d.pl().depositSettlementToken(settlementTokenBalanceCap/10);
+    }
+
     function _depositSettlementTokenMax() internal {
         _getMoney(address(d.pl().usdc()), 1e40);
 
@@ -60,6 +122,8 @@ contract USDLemmaTest is Test {
 
         d.pl().usdc().approve(address(d.pl()), usdcToDeposit);
         d.pl().depositSettlementToken(usdcToDeposit);
+
+        console.log("[_depositSettlementTokenMax()] DONE");
 
         // d.pl().usdc().approve(address(d.pl()), settlementTokenBalanceCap/10);
         // d.pl().depositSettlementToken(settlementTokenBalanceCap/10);
@@ -181,6 +245,22 @@ contract USDLemmaTest is Test {
         address collateral = d.getTokenAddress("WETH");
         _mintUSDLWExactCollateralNoChecks(address(this), collateral, 3e18);
         console.log("[testDepositToWExactCollateral3()] Second Minting Works");
+    }
+
+
+
+    function testDepositToWExactCollateral5() public {
+        vm.startPrank(address(d));
+        d.pl().setMinMarginForRecap(3e18);
+        d.pl().setMinMarginSafeThreshold(5e18);
+        vm.stopPrank();
+        console.log("[testDepositToWExactCollateral5()] Start");
+        _depositSettlementToken(328392000);
+        address collateral = d.getTokenAddress("WETH");
+        uint256 amount = 3e18;
+        console.log("[testDepositToWExactCollateral5()] amount = ", amount);
+        _mintUSDLWExactCollateralNoChecks(address(this), collateral, amount);
+        console.log("[testDepositToWExactCollateral3()] Minting Works");
     }
 
     function testFailDepositToWExactCollateralNoUSDC1() public {
