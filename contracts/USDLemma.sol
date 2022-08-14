@@ -287,7 +287,7 @@ contract USDLemma is
         // require(availableCollateral >= extraUSDC, "Not enough collateral in Treasury to back the position");
 
 
-        uint256 expectedRequiredUSDC = perpDEXWrapper.computeRequiredUSDCForTrade(collateralAmount, true);
+        (uint256 expectedRequiredUSDC) = perpDEXWrapper.computeRequiredUSDCForTrade(collateralAmount, true);
         if(expectedRequiredUSDC > 0) {
             require(perpDEXWrapper.isAdditionalUSDCAcceptable(expectedRequiredUSDC), "The Vault can't accept the USDC we need to add");
             ILemmaTreasury(lemmaTreasury).recapitalizeWrapper(address(perpDEXWrapper), expectedRequiredUSDC);
@@ -313,6 +313,10 @@ contract USDLemma is
         // require(newMargin > 0, "Marging too low");
         require(_usdlToMint >= minUSDLToMint, "USDL minted too low");
         _mint(to, _usdlToMint);
+
+
+        // TODO: Check Free Collateral After to see if it needs recapitalization 
+
         emit DepositTo(perpetualDEXIndex, address(collateral), to, _usdlToMint, _collateralRequired);
     }
 

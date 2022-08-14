@@ -64,8 +64,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     int256 public amountQuote;
     uint256 public amountUsdlCollateralDeposited;
 
-    // NOTE: Below this margin, recapitalization in USDC is needed to push back the margin in a safe zone
-    uint256 public minMarginForRecap;
+    // NOTE: Below this free collateral amount, recapitalization in USDC is needed to push back the margin in a safe zone
+    uint256 public minFreeCollateral;
 
     // NOTE: This is the min margin for safety
     uint256 public minMarginSafeThreshold;
@@ -162,12 +162,12 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
     }
 
-    function setMinMarginForRecap(uint256 _margin) external override onlyRole(ADMIN_ROLE) {
-        minMarginForRecap = _margin;
+    function setMinFreeCollateral(uint256 _minFreeCollateral) external override onlyRole(ADMIN_ROLE) {
+        minFreeCollateral = _minFreeCollateral;
     }
 
     function setMinMarginSafeThreshold(uint256 _margin) external override onlyRole(ADMIN_ROLE) {
-        require(_margin > minMarginForRecap, "Needs to be > minMarginForRecap");
+        require(_margin > minFreeCollateral, "Needs to be > minFreeCollateral");
         minMarginSafeThreshold = _margin;
     }
 
@@ -226,8 +226,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
 
-    function getMinMarginForRecap() external view override returns(uint256) {
-        return minMarginForRecap;
+    function getMinFreeCollateral() external view override returns(uint256) {
+        return minFreeCollateral;
     }
 
     function getMinMarginSafeThreshold() external view override returns(uint256) {
@@ -487,13 +487,25 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
 
 
+    function _min(uint256 a, uint256 b) internal pure returns(uint256) {
+        return (a <= b) ? a : b;
+    }
+
     function _max(int256 a, int256 b) internal pure returns(int256) {
         return (a >= b) ? a : b;
+    }
+
+    function _abs(int256 a) internal pure returns(uint256) {
+        return (a >= 0) ? uint256(a) : uint256(-1 * a);
     }
 
     function computeRequiredUSDCForTrade(uint256 amount, bool isShort) external view override returns(uint256 requiredUSDC) {
         // NOTE: Estimating USDC needed 
         console.log("[computeRequiredUSDCForTrade()] USDC Decimals = ", usdc.decimals());
+
+        console.log("[computeRequiredUSDCForTrade()] amount = ", amount);
+        print("[computeRequiredUSDCForTrade()] amountBase = ", amountBase);
+
         uint256 freeCollateralBefore = getFreeCollateral();
         console.log("[computeRequiredUSDCForTrade()] freeCollateralBefore = ", freeCollateralBefore);
         uint256 indexPrice = getIndexPrice();
@@ -502,9 +514,30 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         console.log("[computeRequiredUSDCForTrade()] imRatio = ", imRatio);
         console.log("[computeRequiredUSDCForTrade()] mmRatio = ", mmRatio);
         uint256 desiredCollateralRatio = uint256(imRatio);
-        uint256 expectedUSDCRequired = amount * indexPrice / 10 ** (18 + 18 - usdc.decimals());
-        console.log("[computeRequiredUSDCForTrade()] expectedUSDCRequired = ", expectedUSDCRequired);
-        uint256 expectedUSDCDeductedFromFreeCollateral = expectedUSDCRequired * uint256(imRatio) / 1e6;
+
+        uint256 deltaAmount = amount;
+
+        if( 
+            ((isShort) && (amountBase > 0)) ||  // NOTE Decrease Long 
+            ((!isShort) && (amountBase < 0))    // NOTE Decrease Short
+            ) {
+                if(amount <= _abs(amountBase)) {
+                    console.log("[computeRequiredUSDCForTrade()] Position Decreases but does not flip, so it just frees up collateral");
+                    return 0;
+                }
+
+                if( amount <= 2*_abs(amountBase) ) {
+                    console.log("[computeRequiredUSDCForTrade()] Position has flipped but the final position is <= the original one so it just frees up collateral");
+                    return 0;
+                }
+
+                deltaAmount = amount - 2 * _abs(amountBase);
+            } 
+
+        uint256 expectedDeltaQuote = deltaAmount * indexPrice / 10 ** (18 + 18 - usdc.decimals());
+        console.log("[computeRequiredUSDCForTrade()] expectedDeltaQuote = ", expectedDeltaQuote);
+
+        uint256 expectedUSDCDeductedFromFreeCollateral = expectedDeltaQuote * uint256(imRatio) / 1e6;
         console.log("[computeRequiredUSDCForTrade()] expectedUSDCDeductedFromFreeCollateral = ", expectedUSDCDeductedFromFreeCollateral);
 
         if(expectedUSDCDeductedFromFreeCollateral > freeCollateralBefore) {

@@ -13,8 +13,9 @@ interface IPerpetualMixDEXWrapper {
 
     function getSettlementToken() external view returns(address);
 
-    function getMinMarginForRecap() external view returns(uint256);
 
+
+    function getMinFreeCollateral() external view returns(uint256);
     function getMinMarginSafeThreshold() external view returns(uint256);
 
     function getCollateralRatios() external view returns(uint24 imRatio, uint24 mmRatio);
@@ -23,7 +24,7 @@ interface IPerpetualMixDEXWrapper {
     function isAdditionalUSDCAcceptable(uint256 amount) external view returns(bool);
 
 
-    function setMinMarginForRecap(uint256 _margin) external;
+    function setMinFreeCollateral(uint256 _margin) external;
     function setMinMarginSafeThreshold(uint256 _margin) external;
 
     function getDeltaExposure() external view returns(int256);
