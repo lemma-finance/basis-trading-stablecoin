@@ -258,17 +258,25 @@ contract USDLemmaTest is Test {
         vm.stopPrank();
 
         // d.bank().giveMoney(d.pl().getSettlementToken(), address(d.lemmaTreasury()), 5e30);
-        console.log("[testDepositToWExactCollateral5()] Start");
+        console.log("[testDepositToWExactCollateralNoNeedToRecap()] Start");
         _depositSettlementToken(1e12);
+
+        uint256 freeCollateralBefore = d.pl().getFreeCollateral();
 
         // NOTE: Limit for recap needed
         // _depositSettlementToken(328392000);
 
         address collateral = d.getTokenAddress("WETH");
         uint256 amount = 3e18;
-        console.log("[testDepositToWExactCollateral5()] amount = ", amount);
+        console.log("[testDepositToWExactCollateralNoNeedToRecap()] amount = ", amount);
         _mintUSDLWExactCollateralNoChecks(address(this), collateral, amount);
-        console.log("[testDepositToWExactCollateral3()] Minting Works");
+
+        uint256 freeCollateralAfter = d.pl().getFreeCollateral();
+
+        // NOTE: After minting, we get some extra collaterals that is less than the initial one but still positive 
+        assertTrue(freeCollateralAfter < freeCollateralBefore);
+        assertTrue(freeCollateralAfter > 0);
+        console.log("[testDepositToWExactCollateralNoNeedToRecap()] Minting Works");
     }
 
 
@@ -280,7 +288,7 @@ contract USDLemmaTest is Test {
         vm.stopPrank();
 
         // d.bank().giveMoney(d.pl().getSettlementToken(), address(d.lemmaTreasury()), 5e30);
-        console.log("[testDepositToWExactCollateral5()] Start");
+        console.log("[testFailDepositToWExactCollateralNeedRecap()] Start");
         _depositSettlementToken(1e5);
 
         // NOTE: Limit for recap needed
@@ -288,9 +296,9 @@ contract USDLemmaTest is Test {
 
         address collateral = d.getTokenAddress("WETH");
         uint256 amount = 3e18;
-        console.log("[testDepositToWExactCollateral5()] amount = ", amount);
+        console.log("[testFailDepositToWExactCollateralNeedRecap()] amount = ", amount);
         _mintUSDLWExactCollateralNoChecks(address(this), collateral, amount);
-        console.log("[testDepositToWExactCollateral3()] Minting Works");
+        console.log("[testFailDepositToWExactCollateralNeedRecap()] Minting Works");
     }
 
 
@@ -302,14 +310,19 @@ contract USDLemmaTest is Test {
         vm.stopPrank();
 
         d.bank().giveMoney(d.pl().getSettlementToken(), address(d.lemmaTreasury()), 5e30);
-        console.log("[testDepositToWExactCollateral5()] Start");
+        console.log("[testDepositToWExactCollateralNeedToRecap()] Start");
         _depositSettlementToken(300000000);
+
         // _depositSettlementToken(328392000);
         address collateral = d.getTokenAddress("WETH");
         uint256 amount = 3e18;
-        console.log("[testDepositToWExactCollateral5()] amount = ", amount);
+        console.log("[testDepositToWExactCollateralNeedToRecap()] amount = ", amount);
         _mintUSDLWExactCollateralNoChecks(address(this), collateral, amount);
-        console.log("[testDepositToWExactCollateral3()] Minting Works");
+
+        // NOTE: In this case, Perp has been recapitalized during the minting and the recap set the Free Collateral exactly to zero so it is important 
+        // to add further logic to recapitalize further 
+        assertTrue(d.pl().getFreeCollateral() == 0);
+        console.log("[testDepositToWExactCollateralNeedToRecap()] Minting Works");
     }
 
 

@@ -287,6 +287,7 @@ contract USDLemma is
         // require(availableCollateral >= extraUSDC, "Not enough collateral in Treasury to back the position");
 
 
+        // NOTE: User the default collateral ratio used by Perp at this time 
         (uint256 expectedRequiredUSDC) = perpDEXWrapper.computeRequiredUSDCForTrade(collateralAmount, true);
         if(expectedRequiredUSDC > 0) {
             require(perpDEXWrapper.isAdditionalUSDCAcceptable(expectedRequiredUSDC), "The Vault can't accept the USDC we need to add");

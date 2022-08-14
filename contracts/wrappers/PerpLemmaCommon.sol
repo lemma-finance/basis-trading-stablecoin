@@ -70,6 +70,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     // NOTE: This is the min margin for safety
     uint256 public minMarginSafeThreshold;
 
+    // NOTE: This is very important to define the margin we want to keep when minting
+    uint24 public collateralRatio;
+
     uint256 public totalUsdlCollateral; // Tail Asset
     uint256 public totalSynthCollateral; // USDC
 
@@ -81,6 +84,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     // Has the Market Settled
     bool public override hasSettled;
     address public rebalancer;
+
 
     // events
     event USDLemmaUpdated(address usdlAddress);
@@ -138,6 +142,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         marketRegistry = IMarketRegistry(_marketRegistry);
         usdc = IERC20Decimals(perpVault.getSettlementToken());
 
+        collateralRatio = clearingHouseConfig.getImRatio();
+
         usdlCollateral = IERC20Decimals(_usdlCollateral);
         usdlCollateralDecimals = usdlCollateral.decimals(); // need to verify
         usdlCollateral.approve(_clearingHouse, MAX_UINT256);
@@ -163,12 +169,20 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
     function setMinFreeCollateral(uint256 _minFreeCollateral) external override onlyRole(ADMIN_ROLE) {
+        // TODO: Emit Event
         minFreeCollateral = _minFreeCollateral;
     }
 
     function setMinMarginSafeThreshold(uint256 _margin) external override onlyRole(ADMIN_ROLE) {
+        // TODO: Add Emit Event
         require(_margin > minFreeCollateral, "Needs to be > minFreeCollateral");
         minMarginSafeThreshold = _margin;
+    }
+
+    function setCollateralRatio(uint24 _collateralRatio) external override onlyRole(ADMIN_ROLE) {
+        // TODO: Add Emit Event
+        // NOTE: This one should always be >= imRatio or >= mmRatio but not sure if a require is needed
+        collateralRatio = _collateralRatio;
     }
 
 
@@ -495,6 +509,10 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return (a >= b) ? a : b;
     }
 
+    function _max(uint256 a, uint256 b) internal pure returns(uint256) {
+        return (a >= b) ? a : b;
+    }
+
     function _abs(int256 a) internal pure returns(uint256) {
         return (a >= 0) ? uint256(a) : uint256(-1 * a);
     }
@@ -505,6 +523,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
         console.log("[computeRequiredUSDCForTrade()] amount = ", amount);
         print("[computeRequiredUSDCForTrade()] amountBase = ", amountBase);
+        console.log("[computeRequiredUSDCForTrade()] collateralRatio = ", collateralRatio);
 
         uint256 freeCollateralBefore = getFreeCollateral();
         console.log("[computeRequiredUSDCForTrade()] freeCollateralBefore = ", freeCollateralBefore);
@@ -513,7 +532,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         (uint24 imRatio, uint24 mmRatio) = getCollateralRatios();
         console.log("[computeRequiredUSDCForTrade()] imRatio = ", imRatio);
         console.log("[computeRequiredUSDCForTrade()] mmRatio = ", mmRatio);
-        uint256 desiredCollateralRatio = uint256(imRatio);
+
+        console.log("[computeRequiredUSDCForTrade()] collateralRatio = ", collateralRatio);
 
         uint256 deltaAmount = amount;
 
@@ -537,7 +557,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         uint256 expectedDeltaQuote = deltaAmount * indexPrice / 10 ** (18 + 18 - usdc.decimals());
         console.log("[computeRequiredUSDCForTrade()] expectedDeltaQuote = ", expectedDeltaQuote);
 
-        uint256 expectedUSDCDeductedFromFreeCollateral = expectedDeltaQuote * uint256(imRatio) / 1e6;
+        uint256 expectedUSDCDeductedFromFreeCollateral = expectedDeltaQuote * uint256(collateralRatio) / 1e6;
         console.log("[computeRequiredUSDCForTrade()] expectedUSDCDeductedFromFreeCollateral = ", expectedUSDCDeductedFromFreeCollateral);
 
         if(expectedUSDCDeductedFromFreeCollateral > freeCollateralBefore) {
