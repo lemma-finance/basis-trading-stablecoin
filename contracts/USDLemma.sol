@@ -12,6 +12,7 @@ import { Utils } from "./libraries/Utils.sol";
 import { SafeMathExt } from "./libraries/SafeMathExt.sol";
 import { IPerpetualMixDEXWrapper } from "./interfaces/IPerpetualMixDEXWrapper.sol";
 import "./interfaces/IERC20Decimals.sol";
+import "./interfaces/ILemmaTreasury.sol";
 import "forge-std/Test.sol";
 
 /// @author Lemma Finance
@@ -208,26 +209,30 @@ contract USDLemma is
 
 
 
-    function _recapIfNeeded(IPerpetualMixDEXWrapper perpDEXWrapper) internal {
-        int256 margin = perpDEXWrapper.getMargin();
-        print("[_recapIfNeeded()] margin = ", margin);
-        console.log("[_recapIfNeeded()] perpDEXWrapper.getMinMarginForRecap() = ", perpDEXWrapper.getMinMarginForRecap());
+    // function _recapIfNeeded(IPerpetualMixDEXWrapper perpDEXWrapper) internal {
+    //     int256 margin = perpDEXWrapper.getMargin();
+    //     print("[_recapIfNeeded()] margin = ", margin);
+    //     console.log("[_recapIfNeeded()] perpDEXWrapper.getMinMarginForRecap() = ", perpDEXWrapper.getMinMarginForRecap());
 
-        if (margin <= int256(perpDEXWrapper.getMinMarginForRecap())) {
-            uint256 requiredUSDC = uint256(int256(perpDEXWrapper.getMinMarginSafeThreshold()) - margin);
-            console.log("[_recapIfNeeded()] requiredUSDC = ", requiredUSDC);
+    //     if (margin <= int256(perpDEXWrapper.getMinMarginForRecap())) {
+    //         uint256 requiredUSDC = uint256(int256(perpDEXWrapper.getMinMarginSafeThreshold()) - margin);
+    //         console.log("[_recapIfNeeded()] requiredUSDC = ", requiredUSDC);
 
-            uint256 maxSettlementTokenAcceptableFromPerpVault = perpDEXWrapper.getMaxSettlementTokenAcceptableByVault(); 
-            console.log("[_recapIfNeeded()] maxSettlementTokenAcceptableFromPerpVault = ", maxSettlementTokenAcceptableFromPerpVault);
+    //         uint256 maxSettlementTokenAcceptableFromPerpVault = perpDEXWrapper.getMaxSettlementTokenAcceptableByVault(); 
+    //         console.log("[_recapIfNeeded()] maxSettlementTokenAcceptableFromPerpVault = ", maxSettlementTokenAcceptableFromPerpVault);
 
-            // TODO: Check this as it can make TXs fail if we are too conservative with `perpDEXWrapper.minMarginSafeThreshold` 
-            require(requiredUSDC <= maxSettlementTokenAcceptableFromPerpVault, "Vault can't accept as many USDC");
-            uint256 maxSettlementTokenReserves = IERC20Upgradeable(perpDEXWrapper.getSettlementToken()).balanceOf(lemmaTreasury);
-            console.log("[_recapIfNeeded()] maxSettlementTokenReserves = ", maxSettlementTokenReserves);
-            require(requiredUSDC <= maxSettlementTokenReserves, "In Treasury not enough Settlement Token");
+    //         // TODO: Check this as it can make TXs fail if we are too conservative with `perpDEXWrapper.minMarginSafeThreshold` 
+    //         require(requiredUSDC <= maxSettlementTokenAcceptableFromPerpVault, "Vault can't accept as many USDC");
+    //         uint256 maxSettlementTokenReserves = IERC20Upgradeable(perpDEXWrapper.getSettlementToken()).balanceOf(lemmaTreasury);
+    //         console.log("[_recapIfNeeded()] maxSettlementTokenReserves = ", maxSettlementTokenReserves);
+    //         require(requiredUSDC <= maxSettlementTokenReserves, "In Treasury not enough Settlement Token");
 
-            // TODO: Add SafeTransferFrom the Treasury to this contract or add a method to the trasury that allows to directly deposit settlementToken and prior makes some checks 
-        }
+    //         // TODO: Add SafeTransferFrom the Treasury to this contract or add a method to the trasury that allows to directly deposit settlementToken and prior makes some checks 
+    //     }
+    // }
+
+    function _max(int256 a, int256 b) internal pure returns(int256) {
+        return (a >= b) ? a : b;
     }
 
     function _computeExpectedUSDCCollateralRequiredForTrade(IPerpetualMixDEXWrapper perpDEXWrapper, uint256 amount) internal returns(uint256) {
@@ -250,6 +255,8 @@ contract USDLemma is
 
         return expectedUSDCDeductedFromFreeCollateral;
     }
+
+
 
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of collateral
     /// @param to Receipent of minted USDL
@@ -279,7 +286,14 @@ contract USDLemma is
         // uint256 availableCollateral = getAvailableSettlementToken(perpetualDEXIndex, address(collateral));
         // require(availableCollateral >= extraUSDC, "Not enough collateral in Treasury to back the position");
 
-        uint256 expectedUSDCDeductedFromFreeCollateral = _computeExpectedUSDCCollateralRequiredForTrade(perpDEXWrapper, collateralAmount);
+
+        uint256 expectedRequiredUSDC = perpDEXWrapper.computeRequiredUSDCForTrade(collateralAmount, true);
+        if(expectedRequiredUSDC > 0) {
+            require(perpDEXWrapper.isAdditionalUSDCAcceptable(expectedRequiredUSDC), "The Vault can't accept the USDC we need to add");
+            ILemmaTreasury(lemmaTreasury).recapitalizeWrapper(address(perpDEXWrapper), expectedRequiredUSDC);
+        }
+
+        // uint256 expectedUSDCDeductedFromFreeCollateral = _computeExpectedUSDCCollateralRequiredForTrade(perpDEXWrapper, collateralAmount);
 
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
         (, uint256 _usdlToMint) = perpDEXWrapper.openShortWithExactBase(
@@ -290,10 +304,10 @@ contract USDLemma is
         );
 
 
-        uint256 freeCollateralAfter = perpDEXWrapper.getFreeCollateral();
-        console.log("[depositToWExactCollateral()] freeCollateralAfter = ", freeCollateralAfter);
+        // uint256 freeCollateralAfter = perpDEXWrapper.getFreeCollateral();
+        // console.log("[depositToWExactCollateral()] freeCollateralAfter = ", freeCollateralAfter);
 
-        _recapIfNeeded(perpDEXWrapper);
+        // _recapIfNeeded(perpDEXWrapper);
         // int256 newMargin = perpDEXWrapper.getMargin();
         // print("[depositToWExactCollateral()] newMargin = ", newMargin);
         // require(newMargin > 0, "Marging too low");

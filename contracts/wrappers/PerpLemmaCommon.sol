@@ -211,11 +211,11 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
 
-    function getFreeCollateral() external view override returns(uint256) {
+    function getFreeCollateral() public view override returns(uint256) {
         return perpVault.getFreeCollateral(address(this));
     }
 
-    function getCollateralRatios() external view override returns(uint24 imRatio, uint24 mmRatio) {
+    function getCollateralRatios() public view override returns(uint24 imRatio, uint24 mmRatio) {
         imRatio = clearingHouseConfig.getImRatio();
         mmRatio = clearingHouseConfig.getMmRatio();
     }
@@ -483,6 +483,52 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         uint256 amount, address to, bool isUsdl
     ) external override onlyRole(PERPLEMMA_ROLE) returns(uint256, uint256) {
         return settleCollateral(amount, to, isUsdl);
+    }
+
+
+
+    function _max(int256 a, int256 b) internal pure returns(int256) {
+        return (a >= b) ? a : b;
+    }
+
+    function computeRequiredUSDCForTrade(uint256 amount, bool isShort) external view override returns(uint256 requiredUSDC) {
+        // NOTE: Estimating USDC needed 
+        console.log("[computeRequiredUSDCForTrade()] USDC Decimals = ", usdc.decimals());
+        uint256 freeCollateralBefore = getFreeCollateral();
+        console.log("[computeRequiredUSDCForTrade()] freeCollateralBefore = ", freeCollateralBefore);
+        uint256 indexPrice = getIndexPrice();
+        console.log("[computeRequiredUSDCForTrade()] IndexPrice = ", indexPrice);
+        (uint24 imRatio, uint24 mmRatio) = getCollateralRatios();
+        console.log("[computeRequiredUSDCForTrade()] imRatio = ", imRatio);
+        console.log("[computeRequiredUSDCForTrade()] mmRatio = ", mmRatio);
+        uint256 desiredCollateralRatio = uint256(imRatio);
+        uint256 expectedUSDCRequired = amount * indexPrice / 10 ** (18 + 18 - usdc.decimals());
+        console.log("[computeRequiredUSDCForTrade()] expectedUSDCRequired = ", expectedUSDCRequired);
+        uint256 expectedUSDCDeductedFromFreeCollateral = expectedUSDCRequired * uint256(imRatio) / 1e6;
+        console.log("[computeRequiredUSDCForTrade()] expectedUSDCDeductedFromFreeCollateral = ", expectedUSDCDeductedFromFreeCollateral);
+
+        if(expectedUSDCDeductedFromFreeCollateral > freeCollateralBefore) {
+            requiredUSDC = expectedUSDCDeductedFromFreeCollateral - freeCollateralBefore;
+        }
+
+        console.log("[computeRequiredUSDCForTrade()] requiredUSDC = ", requiredUSDC);
+
+        // uint256 expectedFinalFreeCollateral = freeCollateralBefore - expectedUSDCDeductedFromFreeCollateral;
+        // console.log("[computeRequiredUSDCForTrade()] expectedFinalFreeCollateral = ", expectedFinalFreeCollateral);
+        // uint256 requiredUSDCCollateral = uint256(_max(int256(0), int256(expectedFinalFreeCollateral) - int256(freeCollateralBefore)));
+        // console.log("[computeRequiredUSDCForTrade()] requiredUSDCCollateral = ", requiredUSDCCollateral);
+        // return requiredUSDCCollateral;
+    }
+
+
+
+    
+    function isAdditionalUSDCAcceptable(uint256 amount) external view override returns(bool) {
+        uint256 vaultSettlementTokenBalance = usdc.balanceOf(address(perpVault));
+        uint256 vaultSettlementTokenBalanceCap = clearingHouseConfig.getSettlementTokenBalanceCap();
+        require(vaultSettlementTokenBalanceCap >= vaultSettlementTokenBalance, "isAdditionalUSDCAcceptable Cap needs to be >= Current");
+        uint256 maxAcceptableToken = uint256( int256(vaultSettlementTokenBalanceCap) - int256(vaultSettlementTokenBalance) );
+        return amount <= maxAcceptableToken;
     }
 
     /// @notice Rebalances USDL or Synth emission swapping by Perp backed to Token backed

@@ -8,6 +8,7 @@ import "contracts/USDLemma.sol";
 import "contracts/LemmaSynth.sol";
 import "contracts/wrappers/PerpLemmaCommon.sol";
 import "contracts/mock/TestPerpLemma.sol";
+import "contracts/LemmaTreasury.sol";
 import "../contracts/interfaces/IERC20Decimals.sol";
 import "../contracts/interfaces/Perpetual/IClearingHouse.sol";
 import "../contracts/interfaces/Perpetual/IClearingHouseConfig.sol";
@@ -133,6 +134,8 @@ contract Deploy {
     USDLemma public usdl;
     LemmaSynth public lSynth;
     TestPerpLemma public pl;
+
+    LemmaTreasury public lemmaTreasury;
     
     Bank public bank = new Bank();
 
@@ -195,6 +198,7 @@ contract Deploy {
 
         usdl = new USDLemma();
         lSynth = new LemmaSynth();
+        lemmaTreasury = new LemmaTreasury();
 
         pl = _deployPerpLemma(
                 Deploy_PerpLemma({

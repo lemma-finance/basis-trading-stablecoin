@@ -18,6 +18,7 @@ contract USDLemmaTest is Test {
     function setUp() public {
         d = new Deploy(10);
         vm.startPrank(address(d));
+        d.pl().grantRole(USDC_TREASURY, address(d.lemmaTreasury()));
         d.pl().grantRole(USDC_TREASURY, address(this));
         d.usdl().grantRole(LEMMA_SWAP, address(this));
         vm.stopPrank();
@@ -249,19 +250,68 @@ contract USDLemmaTest is Test {
 
 
 
-    function testDepositToWExactCollateral5() public {
+    function testDepositToWExactCollateralNoNeedToRecap() public {
         vm.startPrank(address(d));
-        d.pl().setMinMarginForRecap(3e18);
-        d.pl().setMinMarginSafeThreshold(5e18);
+        // d.pl().setMinMarginForRecap(3e18);
+        // d.pl().setMinMarginSafeThreshold(5e18);
+        d.usdl().setLemmaTreasury(address(d.lemmaTreasury()));
         vm.stopPrank();
+
+        // d.bank().giveMoney(d.pl().getSettlementToken(), address(d.lemmaTreasury()), 5e30);
         console.log("[testDepositToWExactCollateral5()] Start");
-        _depositSettlementToken(328392000);
+        _depositSettlementToken(1e12);
+
+        // NOTE: Limit for recap needed
+        // _depositSettlementToken(328392000);
+
         address collateral = d.getTokenAddress("WETH");
         uint256 amount = 3e18;
         console.log("[testDepositToWExactCollateral5()] amount = ", amount);
         _mintUSDLWExactCollateralNoChecks(address(this), collateral, amount);
         console.log("[testDepositToWExactCollateral3()] Minting Works");
     }
+
+
+    function testFailDepositToWExactCollateralNeedRecap() public {
+        vm.startPrank(address(d));
+        // d.pl().setMinMarginForRecap(3e18);
+        // d.pl().setMinMarginSafeThreshold(5e18);
+        d.usdl().setLemmaTreasury(address(d.lemmaTreasury()));
+        vm.stopPrank();
+
+        // d.bank().giveMoney(d.pl().getSettlementToken(), address(d.lemmaTreasury()), 5e30);
+        console.log("[testDepositToWExactCollateral5()] Start");
+        _depositSettlementToken(1e5);
+
+        // NOTE: Limit for recap needed
+        // _depositSettlementToken(328392000);
+
+        address collateral = d.getTokenAddress("WETH");
+        uint256 amount = 3e18;
+        console.log("[testDepositToWExactCollateral5()] amount = ", amount);
+        _mintUSDLWExactCollateralNoChecks(address(this), collateral, amount);
+        console.log("[testDepositToWExactCollateral3()] Minting Works");
+    }
+
+
+    function testDepositToWExactCollateralNeedToRecap() public {
+        vm.startPrank(address(d));
+        // d.pl().setMinMarginForRecap(3e18);
+        // d.pl().setMinMarginSafeThreshold(5e18);
+        d.usdl().setLemmaTreasury(address(d.lemmaTreasury()));
+        vm.stopPrank();
+
+        d.bank().giveMoney(d.pl().getSettlementToken(), address(d.lemmaTreasury()), 5e30);
+        console.log("[testDepositToWExactCollateral5()] Start");
+        _depositSettlementToken(300000000);
+        // _depositSettlementToken(328392000);
+        address collateral = d.getTokenAddress("WETH");
+        uint256 amount = 3e18;
+        console.log("[testDepositToWExactCollateral5()] amount = ", amount);
+        _mintUSDLWExactCollateralNoChecks(address(this), collateral, amount);
+        console.log("[testDepositToWExactCollateral3()] Minting Works");
+    }
+
 
     function testFailDepositToWExactCollateralNoUSDC1() public {
         uint256 collateralAmount = 1e18;

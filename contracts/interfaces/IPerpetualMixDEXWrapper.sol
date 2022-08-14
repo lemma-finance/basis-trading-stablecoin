@@ -19,6 +19,8 @@ interface IPerpetualMixDEXWrapper {
 
     function getCollateralRatios() external view returns(uint24 imRatio, uint24 mmRatio);
     function getFreeCollateral() external view returns(uint256);
+    function computeRequiredUSDCForTrade(uint256 amount, bool isShort) external view returns(uint256);
+    function isAdditionalUSDCAcceptable(uint256 amount) external view returns(bool);
 
 
     function setMinMarginForRecap(uint256 _margin) external;
