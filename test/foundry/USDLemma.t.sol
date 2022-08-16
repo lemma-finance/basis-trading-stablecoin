@@ -210,7 +210,7 @@ contract USDLemmaTest is Test {
         assertTrue(afterBalanceUSDL < beforeBalanceUSDL);
     }
 
-    function _mintSynthWExactCollateralNoChecks(address to, address collateral, uint256 amount) internal {
+    function _mintSynthWExactCollateralNoChecks(address to, address collateral, uint256 amount, uint256 dexIndex) internal {
         address lemmaSynth = d.pl().lemmaSynth();
         _getMoneyForTo(to, collateral, amount);
         uint256 beforeBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
@@ -221,7 +221,7 @@ contract USDLemmaTest is Test {
         amount = (amount*1e18) / 10**decimal;
         // 4th param is minSynthToMint which is need to be set using callStatic, currently set 0 for not breaking revert
         // calsstatic is not possible in solidity so
-        d.lSynth().depositToWExactCollateral(to, amount, 0, 0, IERC20Upgradeable(collateral)); 
+        d.lSynth().depositToWExactCollateral(to, amount, dexIndex, 0, IERC20Upgradeable(collateral)); 
         uint256 afterTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
         uint256 afterBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
@@ -376,7 +376,7 @@ contract USDLemmaTest is Test {
 
         address collateral = d.getTokenAddress("WETH");
         // NOTE: Minting just a little bit of USDL to start with a net short position 
-        _mintSynthWExactCollateralNoChecks(address(this), collateral, 3e15);
+        _mintSynthWExactCollateralNoChecks(address(this), collateral, 3e15, 1);
 
         // _depositSettlementToken(328392000);
         uint256 amount = 3e18;

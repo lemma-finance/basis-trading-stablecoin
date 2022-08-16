@@ -13,7 +13,7 @@
   },
   "files": {
     "contracts/LemmaSynth.sol": {
-      "lastModificationDate": 1660259364447,
+      "lastModificationDate": 1660626496342,
       "contentHash": "c040cef26e34edf5b586d1bc79f815bc",
       "sourceName": "contracts/LemmaSynth.sol",
       "solcConfig": {
@@ -73,7 +73,7 @@
       }
     },
     "contracts/SettlementTokenManager.sol": {
-      "lastModificationDate": 1660073788340,
+      "lastModificationDate": 1660626496343,
       "contentHash": "d98ef9741c57942375b61b1c1e45cba4",
       "sourceName": "contracts/SettlementTokenManager.sol",
       "solcConfig": {
@@ -126,8 +126,8 @@
       }
     },
     "contracts/USDLemma.sol": {
-      "lastModificationDate": 1660259364668,
-      "contentHash": "415d89395039a84a3bb42d62a1f31ed3",
+      "lastModificationDate": 1660631509886,
+      "contentHash": "fb5ff996b09758b3dccd47cdf7cba1cf",
       "sourceName": "contracts/USDLemma.sol",
       "solcConfig": {
         "settings": {
@@ -157,8 +157,15 @@
       },
       "imports": [
         "contracts/interfaces/IERC20Decimals.sol",
+        "contracts/interfaces/ILemmaTreasury.sol",
         "contracts/interfaces/IPerpetualMixDEXWrapper.sol",
         "contracts/interfaces/ISettlementTokenManager.sol",
+        "lib/forge-std/lib/ds-test/src/test.sol",
+        "lib/forge-std/src/Script.sol",
+        "lib/forge-std/src/Test.sol",
+        "lib/forge-std/src/Vm.sol",
+        "lib/forge-std/src/console.sol",
+        "lib/forge-std/src/console2.sol",
         "node_modules/@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol",
         "node_modules/@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol",
         "node_modules/@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol",
@@ -226,9 +233,50 @@
         }
       }
     },
+    "contracts/interfaces/ILemmaTreasury.sol": {
+      "lastModificationDate": 1660562133937,
+      "contentHash": "a052165040242d765b9591e52801970a",
+      "sourceName": "contracts/interfaces/ILemmaTreasury.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs"
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "contracts/interfaces/IERC20Decimals.sol",
+        "node_modules/@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol"
+      ],
+      "versionRequirement": "=0.8.3",
+      "artifacts": {
+        "ILemmaTreasury": {
+          "0.8.3+commit.8d00100c.Darwin.appleclang": "ILemmaTreasury.sol/ILemmaTreasury.json"
+        }
+      }
+    },
     "contracts/interfaces/IPerpetualMixDEXWrapper.sol": {
-      "lastModificationDate": 1660259671871,
-      "contentHash": "dab32817f436771fd8a1f5120db748d6",
+      "lastModificationDate": 1660631144468,
+      "contentHash": "6187bfe48e63c68b756acfa01b915372",
       "sourceName": "contracts/interfaces/IPerpetualMixDEXWrapper.sol",
       "solcConfig": {
         "settings": {
@@ -268,7 +316,7 @@
       }
     },
     "contracts/interfaces/ISettlementTokenManager.sol": {
-      "lastModificationDate": 1659258520415,
+      "lastModificationDate": 1660626496343,
       "contentHash": "c566a344e8454f8c31106a484438d554",
       "sourceName": "contracts/interfaces/ISettlementTokenManager.sol",
       "solcConfig": {
@@ -344,7 +392,7 @@
       }
     },
     "contracts/interfaces/Perpetual/IBaseToken.sol": {
-      "lastModificationDate": 1660242686012,
+      "lastModificationDate": 1660626496343,
       "contentHash": "23a2cf8db613b773f8b5bb56f26f9bbb",
       "sourceName": "contracts/interfaces/Perpetual/IBaseToken.sol",
       "solcConfig": {
@@ -496,7 +544,7 @@
       }
     },
     "contracts/interfaces/Perpetual/IIndexPrice.sol": {
-      "lastModificationDate": 1659258971623,
+      "lastModificationDate": 1660626496344,
       "contentHash": "062978cdff6f5efe875c875a591c2b8f",
       "sourceName": "contracts/interfaces/Perpetual/IIndexPrice.sol",
       "solcConfig": {
@@ -818,8 +866,8 @@
       }
     },
     "contracts/wrappers/PerpLemmaCommon.sol": {
-      "lastModificationDate": 1660259660375,
-      "contentHash": "cf86c9497180b47eabc2fca1d077215f",
+      "lastModificationDate": 1660645364557,
+      "contentHash": "e2cf46d1e5e2a747ca8f0ad162356760",
       "sourceName": "contracts/wrappers/PerpLemmaCommon.sol",
       "solcConfig": {
         "settings": {
@@ -860,6 +908,12 @@
         "contracts/libraries/Constant.sol",
         "contracts/libraries/SafeMathExt.sol",
         "contracts/libraries/Utils.sol",
+        "lib/forge-std/lib/ds-test/src/test.sol",
+        "lib/forge-std/src/Script.sol",
+        "lib/forge-std/src/Test.sol",
+        "lib/forge-std/src/Vm.sol",
+        "lib/forge-std/src/console.sol",
+        "lib/forge-std/src/console2.sol",
         "node_modules/@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol",
         "node_modules/@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol",
         "node_modules/@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol",
@@ -885,7 +939,7 @@
       }
     },
     "contracts/xLemmaSynth.sol": {
-      "lastModificationDate": 1659695315007,
+      "lastModificationDate": 1660626496345,
       "contentHash": "4c57b5328587850bb99dd71291320163",
       "sourceName": "contracts/xLemmaSynth.sol",
       "solcConfig": {
@@ -939,7 +993,7 @@
       }
     },
     "contracts/xUSDL.sol": {
-      "lastModificationDate": 1660259364980,
+      "lastModificationDate": 1660626496345,
       "contentHash": "0ee0458a6fb8291e590470cdc905059c",
       "sourceName": "contracts/xUSDL.sol",
       "solcConfig": {
@@ -2362,7 +2416,7 @@
       }
     },
     "script/LemmaSynthScript.sol": {
-      "lastModificationDate": 1660033674292,
+      "lastModificationDate": 1660626496348,
       "contentHash": "efd017c70ff7092e6472749749c623ff",
       "sourceName": "script/LemmaSynthScript.sol",
       "solcConfig": {
@@ -2396,6 +2450,7 @@
         "contracts/SettlementTokenManager.sol",
         "contracts/USDLemma.sol",
         "contracts/interfaces/IERC20Decimals.sol",
+        "contracts/interfaces/ILemmaTreasury.sol",
         "contracts/interfaces/IPerpetualMixDEXWrapper.sol",
         "contracts/interfaces/ISettlementTokenManager.sol",
         "contracts/interfaces/Perpetual/IAccountBalance.sol",
@@ -2409,7 +2464,9 @@
         "contracts/libraries/SafeMathExt.sol",
         "contracts/libraries/Utils.sol",
         "contracts/wrappers/PerpLemmaCommon.sol",
+        "lib/forge-std/lib/ds-test/src/test.sol",
         "lib/forge-std/src/Script.sol",
+        "lib/forge-std/src/Test.sol",
         "lib/forge-std/src/Vm.sol",
         "lib/forge-std/src/console.sol",
         "lib/forge-std/src/console2.sol",
@@ -2446,7 +2503,7 @@
       }
     },
     "script/LemmaTestnetScripts.sol": {
-      "lastModificationDate": 1660033669345,
+      "lastModificationDate": 1660626496348,
       "contentHash": "50c4e26480648e7c03eabd0efe4a8f6a",
       "sourceName": "script/LemmaTestnetScripts.sol",
       "solcConfig": {
@@ -2480,6 +2537,7 @@
         "contracts/SettlementTokenManager.sol",
         "contracts/USDLemma.sol",
         "contracts/interfaces/IERC20Decimals.sol",
+        "contracts/interfaces/ILemmaTreasury.sol",
         "contracts/interfaces/IPerpetualMixDEXWrapper.sol",
         "contracts/interfaces/ISettlementTokenManager.sol",
         "contracts/interfaces/Perpetual/IAccountBalance.sol",
@@ -2493,7 +2551,9 @@
         "contracts/libraries/SafeMathExt.sol",
         "contracts/libraries/Utils.sol",
         "contracts/wrappers/PerpLemmaCommon.sol",
+        "lib/forge-std/lib/ds-test/src/test.sol",
         "lib/forge-std/src/Script.sol",
+        "lib/forge-std/src/Test.sol",
         "lib/forge-std/src/Vm.sol",
         "lib/forge-std/src/console.sol",
         "lib/forge-std/src/console2.sol",
@@ -2530,7 +2590,7 @@
       }
     },
     "script/LemmaTestnetScriptsForPerpOnly.sol": {
-      "lastModificationDate": 1660033663578,
+      "lastModificationDate": 1660626496348,
       "contentHash": "ca5d890c57abfa1ad906121a645daca6",
       "sourceName": "script/LemmaTestnetScriptsForPerpOnly.sol",
       "solcConfig": {
@@ -2564,6 +2624,7 @@
         "contracts/SettlementTokenManager.sol",
         "contracts/USDLemma.sol",
         "contracts/interfaces/IERC20Decimals.sol",
+        "contracts/interfaces/ILemmaTreasury.sol",
         "contracts/interfaces/IPerpetualMixDEXWrapper.sol",
         "contracts/interfaces/ISettlementTokenManager.sol",
         "contracts/interfaces/Perpetual/IAccountBalance.sol",
@@ -2577,7 +2638,9 @@
         "contracts/libraries/SafeMathExt.sol",
         "contracts/libraries/Utils.sol",
         "contracts/wrappers/PerpLemmaCommon.sol",
+        "lib/forge-std/lib/ds-test/src/test.sol",
         "lib/forge-std/src/Script.sol",
+        "lib/forge-std/src/Test.sol",
         "lib/forge-std/src/Vm.sol",
         "lib/forge-std/src/console.sol",
         "lib/forge-std/src/console2.sol",
@@ -2614,7 +2677,7 @@
       }
     },
     "script/LemmaTestnetScriptsUsingProxies.sol": {
-      "lastModificationDate": 1660033650651,
+      "lastModificationDate": 1660626496349,
       "contentHash": "50cc3e779d073825f7a5680122a9c14d",
       "sourceName": "script/LemmaTestnetScriptsUsingProxies.sol",
       "solcConfig": {
@@ -2648,6 +2711,7 @@
         "contracts/SettlementTokenManager.sol",
         "contracts/USDLemma.sol",
         "contracts/interfaces/IERC20Decimals.sol",
+        "contracts/interfaces/ILemmaTreasury.sol",
         "contracts/interfaces/IPerpetualMixDEXWrapper.sol",
         "contracts/interfaces/ISettlementTokenManager.sol",
         "contracts/interfaces/Perpetual/IAccountBalance.sol",
@@ -2661,7 +2725,9 @@
         "contracts/libraries/SafeMathExt.sol",
         "contracts/libraries/Utils.sol",
         "contracts/wrappers/PerpLemmaCommon.sol",
+        "lib/forge-std/lib/ds-test/src/test.sol",
         "lib/forge-std/src/Script.sol",
+        "lib/forge-std/src/Test.sol",
         "lib/forge-std/src/Vm.sol",
         "lib/forge-std/src/console.sol",
         "lib/forge-std/src/console2.sol",
@@ -2702,7 +2768,7 @@
       }
     },
     "script/xLemmaSynthDeploy.sol": {
-      "lastModificationDate": 1659696002715,
+      "lastModificationDate": 1660626496349,
       "contentHash": "9b4d7bf2f77f060ca6a9213b3cb1d7ae",
       "sourceName": "script/xLemmaSynthDeploy.sol",
       "solcConfig": {
@@ -2788,7 +2854,7 @@
       }
     },
     "script/xUSDLDeploy.sol": {
-      "lastModificationDate": 1659508906947,
+      "lastModificationDate": 1660626496349,
       "contentHash": "8dc616d6c5969a412fdd838868cc6934",
       "sourceName": "script/xUSDLDeploy.sol",
       "solcConfig": {
@@ -2821,6 +2887,7 @@
         "contracts/SettlementTokenManager.sol",
         "contracts/USDLemma.sol",
         "contracts/interfaces/IERC20Decimals.sol",
+        "contracts/interfaces/ILemmaTreasury.sol",
         "contracts/interfaces/IPerpetualMixDEXWrapper.sol",
         "contracts/interfaces/ISettlementTokenManager.sol",
         "contracts/interfaces/Perpetual/IAccountBalance.sol",
@@ -2875,8 +2942,8 @@
       }
     },
     "src/Deploy.sol": {
-      "lastModificationDate": 1660158346579,
-      "contentHash": "9e8742f7835abf80dafed32682ebaa84",
+      "lastModificationDate": 1660631186052,
+      "contentHash": "255d065484d11d1779b6cfe28e1d05f8",
       "sourceName": "src/Deploy.sol",
       "solcConfig": {
         "settings": {
@@ -2941,7 +3008,7 @@
       }
     },
     "test/foundry/Contract.t.sol": {
-      "lastModificationDate": 1660258855591,
+      "lastModificationDate": 1660626496350,
       "contentHash": "f45cbbc247de7a57275fe3cc0842480a",
       "sourceName": "test/foundry/Contract.t.sol",
       "solcConfig": {
@@ -3003,7 +3070,7 @@
       }
     },
     "test/foundry/LemmaSynth.t.sol": {
-      "lastModificationDate": 1660258878440,
+      "lastModificationDate": 1660626496350,
       "contentHash": "9885da1ce7dabca1b92b0d14cc5d245c",
       "sourceName": "test/foundry/LemmaSynth.t.sol",
       "solcConfig": {
@@ -3065,7 +3132,7 @@
       }
     },
     "test/foundry/PerpLemma.t.sol": {
-      "lastModificationDate": 1660259173047,
+      "lastModificationDate": 1660645171007,
       "contentHash": "57f5cc076983ee7b9f43f629706273bd",
       "sourceName": "test/foundry/PerpLemma.t.sol",
       "solcConfig": {
@@ -3127,7 +3194,7 @@
       }
     },
     "test/foundry/SettlementTokenManager.t.sol": {
-      "lastModificationDate": 1660073435102,
+      "lastModificationDate": 1660626496351,
       "contentHash": "671537ba8194f514b4cb912c34a2ff01",
       "sourceName": "test/foundry/SettlementTokenManager.t.sol",
       "solcConfig": {
@@ -3189,8 +3256,8 @@
       }
     },
     "test/foundry/USDLemma.t.sol": {
-      "lastModificationDate": 1660258928107,
-      "contentHash": "cf679c62cf0e75cbb843f5489645df1c",
+      "lastModificationDate": 1660645753332,
+      "contentHash": "94bffbfa6818ebc39c8295bbf86def9e",
       "sourceName": "test/foundry/USDLemma.t.sol",
       "solcConfig": {
         "settings": {

@@ -526,7 +526,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                 console.log("[computeRequiredUSDCForTrade()] Flipping Case");
                 if(isShort) console.log("[computeRequiredUSDCForTrade()] isShort = true");
                 else console.log("[computeRequiredUSDCForTrade()] isShort = false");
-                print("[computeRequiredUSDCForTrade()] amountbase = ", amountBase);
+                // print("[computeRequiredUSDCForTrade()] amountbase = ", amountBase);
                 console.log("[computeRequiredUSDCForTrade()] amountBaseInCollateralDecimals = ", amountBaseInCollateralDecimals);
                 if(amount <= amountBaseInCollateralDecimals) {
                     console.log("[computeRequiredUSDCForTrade()] Position Decreases but does not flip, so it just frees up collateral");
