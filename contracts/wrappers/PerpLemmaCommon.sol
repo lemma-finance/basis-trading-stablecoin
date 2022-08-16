@@ -17,6 +17,7 @@ import "../interfaces/Perpetual/IAccountBalance.sol";
 import "../interfaces/Perpetual/IMarketRegistry.sol";
 import "../interfaces/Perpetual/IPerpVault.sol";
 import "../interfaces/Perpetual/IBaseToken.sol";
+import "forge-std/Test.sol";
 
 /// @author Lemma Finance
 /// @notice PerpLemmaCommon contract will use to open short and long position with no-leverage
@@ -316,7 +317,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @notice Returns the margin
     function getMargin() external view override returns (int256) {
         int256 _margin = accountBalance.getMarginRequirementForLiquidation(address(this));
-        print("[PerpLemmaCommon getMargin()] _margin = ", _margin);
+        // print("[PerpLemmaCommon getMargin()] _margin = ", _margin);
         return _margin;
     }
 
@@ -501,7 +502,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         console.log("[computeRequiredUSDCForTrade()] USDC Decimals = ", usdc.decimals());
 
         console.log("[computeRequiredUSDCForTrade()] amount = ", amount);
-        print("[computeRequiredUSDCForTrade()] amountBase = ", amountBase);
+        // print("[computeRequiredUSDCForTrade()] amountBase = ", amountBase);
         console.log("[computeRequiredUSDCForTrade()] collateralRatio = ", collateralRatio);
 
         uint256 freeCollateralBefore = getFreeCollateral();
@@ -917,7 +918,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                     SafeERC20Upgradeable.safeTransfer(usdlCollateral, to, getAmountInCollateralDecimalsForPerp(tailCollateralBal, address(usdlCollateral), false));
                 }
                 if (synthCollateralBal > getSynthInDollar()) { // do we have extra synth for usdlUser
-                    uint256 checkDiffInDollar = (tailCollateralTransfer - tailCollateralBal) * closedPrice; // calculate the needed extra synth to transfer
+                    uint256 checkDiffInDollar = ((tailCollateralTransfer - tailCollateralBal) * closedPrice) / 1e18; // calculate the needed extra synth to transfer
                     uint256 checkUSDCForUSdl = synthCollateralBal - getSynthInDollar(); // check how much extra synth we have for usdlUser
                     if (checkUSDCForUSdl > checkDiffInDollar) {
                         SafeERC20Upgradeable.safeTransfer(usdc, to, getAmountInCollateralDecimalsForPerp(checkDiffInDollar, address(usdc), false));

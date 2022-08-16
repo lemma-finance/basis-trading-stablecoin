@@ -8,10 +8,10 @@ import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/ac
 import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import { IPerpetualMixDEXWrapper } from "./interfaces/IPerpetualMixDEXWrapper.sol";
+import { ISettlementTokenManager } from "./interfaces/ISettlementTokenManager.sol";
 import "./interfaces/IERC20Decimals.sol";
 import "./interfaces/ILemmaTreasury.sol";
 import "forge-std/Test.sol";
-import { ISettlementTokenManager } from "./interfaces/ISettlementTokenManager.sol";
 
 /// @author Lemma Finance
 /// @notice USDLemma contract is use to mint or burn USDL Stablecoin
@@ -314,7 +314,7 @@ contract USDLemma is
 
 
         int256 initialMargin = perpDEXWrapper.getMargin();
-        print("[depositToWExactCollateral()] initialMargin = ", initialMargin);
+        // print("[depositToWExactCollateral()] initialMargin = ", initialMargin);
 
         // NOTE: Replacing this with `getMarginRequirementForLiquidation()` call
         // (bool isAcceptable, uint256 extraUSDC) = perpDEXWrapper.getRequiredUSDCToBackMinting(_collateralRequired, true);

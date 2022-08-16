@@ -318,7 +318,7 @@ contract USDLemmaTest is Test {
     function testFailDepositToWExactCollateralNoUSDC1() public {
         uint256 collateralAmount = 1e18;
         address collateral = d.getTokenAddress("WETH");
-        _mintUSDLWExactCollateral(address(this), collateral, collateralAmount);
+        _mintUSDLWExactCollateral(address(this), collateral, collateralAmount, 0);
     }
 
 
