@@ -7,15 +7,13 @@ import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/m
 import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import { IEIP4626 } from "./interfaces/eip4626/IEIP4626.sol";
 
-// import "forge-std/Test.sol";
-
 /// @author Lemma Finance
-contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
+contract xLemmaSynth is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771ContextUpgradeable {
     uint256 public minimumLock;
 
     mapping(address => uint256) public userUnlockBlock;
 
-    IERC20Upgradeable public usdl;
+    IERC20Upgradeable public lSynth;
 
     //events
     event MinimumLockUpdated(uint256 newLock);
@@ -25,15 +23,17 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
 
     function initialize(
         address _trustedForwarder,
-        address _usdl,
-        address _periphery
+        address _lSynth,
+        address _periphery,
+        string memory _name,
+        string memory _symbol
     ) external initializer {
         __Ownable_init();
-        __ERC20_init("xUSDLemma", "xUSDL");
-        __ERC20Permit_init("xUSDLemma");
+        __ERC20_init(_name, _symbol);
+        __ERC20Permit_init(_name);
         __ERC2771Context_init(_trustedForwarder);
-        usdl = IERC20Upgradeable(_usdl);
-        SafeERC20Upgradeable.safeApprove(usdl, address(usdl), type(uint256).max);
+        lSynth = IERC20Upgradeable(_lSynth);
+        SafeERC20Upgradeable.safeApprove(lSynth, address(lSynth), type(uint256).max);
         setPeriphery(_periphery);
     }
 
@@ -43,35 +43,35 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
         emit PeripheryUpdated(_periphery);
     }
 
-    /// @notice updated minimum number of blocks to be locked before xUSDL tokens are unlocked
+    /// @notice updated minimum number of blocks to be locked before xLemmaSynth tokens are unlocked
     function setMinimumLock(uint256 _minimumLock) external onlyOwner {
         minimumLock = _minimumLock;
         emit MinimumLockUpdated(_minimumLock);
     }
 
-    /// @notice reset approvals for usdl contract to user usdl as needed
+    /// @notice reset approvals for lSynth contract to user lSynth as needed
     function resetApprovals() external {
-        SafeERC20Upgradeable.safeApprove(usdl, address(usdl), type(uint256).max);
+        SafeERC20Upgradeable.safeApprove(lSynth, address(lSynth), type(uint256).max);
     }
 
     /// @notice The address of the underlying token used for the Vault uses for accounting, depositing, and withdrawing.
     function asset() external view override returns (address) {
-        return address(usdl);
+        return address(lSynth);
     }
 
     /// @notice totalAssets Total amount of the underlying asset that is “managed” by Vault.
-    /// @return totalManagedAssets Amount of USDL in xUsdl contract
+    /// @return totalManagedAssets Amount of lSynth in xLemmaSynth contract
     function totalAssets() public view override returns (uint256 totalManagedAssets) {
-        totalManagedAssets = usdl.balanceOf(address(this));
+        totalManagedAssets = lSynth.balanceOf(address(this));
     }
 
     /// @notice Mints shares Vault shares to receiver by depositing exactly amount of underlying tokens.
-    /// @param assets of USDL to deposit
-    /// @param receiver address of user to transfer xUSDL
-    /// @return shares total xUsdl share minted
+    /// @param assets of lSynth to deposit
+    /// @param receiver address of user to transfer xLemmaSynth
+    /// @return shares total xLemmaSynth share minted
     function deposit(uint256 assets, address receiver) external override returns (uint256 shares) {
         require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
-        SafeERC20Upgradeable.safeTransferFrom(usdl, _msgSender(), address(this), assets);
+        SafeERC20Upgradeable.safeTransferFrom(lSynth, _msgSender(), address(this), assets);
         if (periphery != _msgSender()) {
             userUnlockBlock[_msgSender()] = block.number + minimumLock;
         }
@@ -80,12 +80,12 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
     }
 
     /// @notice Mints exactly shares Vault shares to receiver by depositing amount of underlying tokens.
-    /// @param shares of xUSDL should mint
-    /// @param receiver address of user to transfer xUSDL
-    /// @return assets total Usdl need to deposit
+    /// @param shares of xLemmaSynth should mint
+    /// @param receiver address of user to transfer xLemmaSynth
+    /// @return assets total lSynth need to deposit
     function mint(uint256 shares, address receiver) external override returns (uint256 assets) {
         require((assets = previewMint(shares)) != 0, "ZERO_SHARES");
-        SafeERC20Upgradeable.safeTransferFrom(usdl, _msgSender(), address(this), assets);
+        SafeERC20Upgradeable.safeTransferFrom(lSynth, _msgSender(), address(this), assets);
         if (periphery != _msgSender()) {
             userUnlockBlock[_msgSender()] = block.number + minimumLock;
         }
@@ -94,81 +94,81 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
     }
 
     /// @notice Redeems shares from owner and sends assets of underlying tokens to receiver.
-    /// @param assets Amount of USDL withdrawn
-    /// @param receiver address of user to transfer USDL
-    /// @param owner of xUSDL to burn
-    /// @return shares total xUsdl share burned
+    /// @param assets Amount of lSynth withdrawn
+    /// @param receiver address of user to transfer lSynth
+    /// @param owner of xLemmaSynth to burn
+    /// @return shares total xLemmaSynth share burned
     function withdraw(
         uint256 assets,
         address receiver,
         address owner
     ) external override returns (uint256 shares) {
-        require(owner == _msgSender(), "xUSDL: Invalid Owner");
-        require(block.number >= userUnlockBlock[_msgSender()], "xUSDL: Locked tokens");
+        require(owner == _msgSender(), "xLemmaSynth: Invalid Owner");
+        require(block.number >= userUnlockBlock[_msgSender()], "xLemmaSynth: Locked tokens");
         require((shares = previewWithdraw(assets)) != 0, "ZERO_SHARES");
         _burn(owner, shares);
-        SafeERC20Upgradeable.safeTransfer(usdl, receiver, assets);
+        SafeERC20Upgradeable.safeTransfer(lSynth, receiver, assets);
         emit Withdraw(owner, receiver, assets, shares);
     }
 
     /// @notice Redeems shares from owner and sends assets of underlying tokens to receiver.
-    /// @param shares of xUSDL should redeem
-    /// @param receiver address of user to transfer USDL
-    /// @param owner of xUSDL to burn
-    /// @return assets total Usdl need to withdraw
+    /// @param shares of xLemmaSynth should redeem
+    /// @param receiver address of user to transfer lSynth
+    /// @param owner of xLemmaSynth to burn
+    /// @return assets total lSynth need to withdraw
     function redeem(
         uint256 shares,
         address receiver,
         address owner
     ) external override returns (uint256 assets) {
-        require(owner == _msgSender(), "xUSDL: Invalid Owner");
-        require(block.number >= userUnlockBlock[_msgSender()], "xUSDL: Locked tokens");
+        require(owner == _msgSender(), "xLemmaSynth: Invalid Owner");
+        require(block.number >= userUnlockBlock[_msgSender()], "xLemmaSynth: Locked tokens");
         require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
         _burn(owner, shares);
-        SafeERC20Upgradeable.safeTransfer(usdl, receiver, assets);
+        SafeERC20Upgradeable.safeTransfer(lSynth, receiver, assets);
         emit Withdraw(owner, receiver, assets, shares);
     }
 
     /// @notice Total number of underlying assets that depositor’s shares represent.
     /// @param user balanceOf userAddress
-    /// @return usdl balance of user
+    /// @return lSynth balance of user
     function assetsOf(address user) external view override returns (uint256) {
         return previewRedeem(balanceOf(user));
     }
 
-    /// @notice The current exchange rate of shares to assets(in terms of USDL)
-    /// @return price Price of 1 xUSDL in terms of USDL
+    /// @notice The current exchange rate of shares to assets(in terms of lSynth)
+    /// @return price Price of 1 xLemmaSynth in terms of lSynth
     function assetsPerShare() public view override returns (uint256 price) {
         price = (totalAssets() * 1e18) / totalSupply();
     }
 
     /// @notice previewDeposit Allows an on-chain or off-chain user to simulate the effects of their deposit at the current block, given current on-chain conditions.
-    /// @param assets of USDL to deposit
-    /// @return shares total xUsdl share minted
+    /// @param assets of lSynth to deposit
+    /// @return shares total xLemmaSynth share minted
     function previewDeposit(uint256 assets) public view override returns (uint256 shares) {
         uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
         return supply == 0 ? assets : (assets * 1e18) / assetsPerShare();
     }
 
     /// @notice previewWithdraw Allows an on-chain or off-chain user to simulate the effects of their withdrawal at the current block, given current on-chain conditions.
-    /// @param assets of USDL to withdraw
-    /// @return shares total xUsdl share burned
+    /// @param assets of lSynth to withdraw
+    /// @return shares total xLemmaSynth share burned
     function previewWithdraw(uint256 assets) public view override returns (uint256 shares) {
         uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
         return supply == 0 ? assets : (assets * 1e18) / assetsPerShare();
     }
 
     /// @notice previewMint Allows an on-chain or off-chain user to simulate the effects of their mint at the current block, given current on-chain conditions.
-    /// @param shares of xUSDL to mint
-    /// @return assets total Usdl need to deposit
+    /// @param shares of xLemmaSynth to mint
+    /// @return assets total lSynth need to deposit
     function previewMint(uint256 shares) public view override returns (uint256 assets) {
         uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
         return supply == 0 ? shares : shares = (assetsPerShare() * shares) / 1e18;
     }
 
     /// @notice previewRedeem Allows an on-chain or off-chain user to simulate the effects of their redeemption at the current block, given current on-chain conditions.
-    /// @param shares of xUSDL to burned
-    /// @return assets total Usdl need to withdraw
+    /// @param shares of xLemmaSynth to burned
+    /// @return assets total lSynth need to withdraw
     function previewRedeem(uint256 shares) public view override returns (uint256 assets) {
         uint256 supply = totalSupply(); // Saves an extra SLOAD if totalSupply is non-zero.
         return supply == 0 ? shares : shares = (assetsPerShare() * shares) / 1e18;
@@ -212,7 +212,7 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
         address,
         uint256
     ) internal view override {
-        require(block.number >= userUnlockBlock[from], "xUSDL: Locked tokens");
+        require(block.number >= userUnlockBlock[from], "xLemmaSynth: Locked tokens");
     }
 
     function _afterTokenTransfer(

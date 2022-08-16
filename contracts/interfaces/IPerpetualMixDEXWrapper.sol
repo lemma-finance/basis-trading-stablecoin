@@ -4,12 +4,12 @@ pragma solidity =0.8.3;
 import "../interfaces/IERC20Decimals.sol";
 
 interface IPerpetualMixDEXWrapper {
-    enum Basis {IsUsdl, IsSynth, IsRebalance, IsSettle}
-    function hasSettled() external view returns(bool);
-    function getCollateralBackAfterSettlement(uint256 amount, address to, bool isUsdl) external returns(uint256 collateralAmount1, uint256 collateralAmount2);
-    function trade(uint256 amount, bool isShorting, bool isExactInput) external returns (uint256 base, uint256 quote);
-    function getRelativeMargin() external view returns(uint256);
-    function getMargin() external view returns(int256);
+    enum Basis {
+        IsUsdl,
+        IsSynth,
+        IsRebalance,
+        IsSettle
+    }
 
     function getSettlementToken() external view returns(address);
 
@@ -28,46 +28,84 @@ interface IPerpetualMixDEXWrapper {
     function setMinMarginSafeThreshold(uint256 _margin) external;
 
     function setCollateralRatio(uint24 _ratio) external;
+    
+    function hasSettled() external view returns (bool);
 
-    function getDeltaExposure() external view returns(int256);
-    function getExposureDetails() external view returns(uint256, uint256, int256, int256, uint256);
+    function getCollateralBackAfterSettlement(
+        uint256 amount,
+        address to,
+        bool isUsdl
+    ) external;
 
+    function trade(
+        uint256 amount,
+        bool isShorting,
+        bool isExactInput
+    ) external returns (uint256 base, uint256 quote);
+
+    function getAccountValue() external view returns (int256);
+
+    function getRelativeMargin() external view returns (uint256);
+
+    function getMargin() external view returns (int256);
+
+    function getDeltaExposure() external view returns (int256);
+
+    function getExposureDetails()
+        external
+        view
+        returns (
+            uint256,
+            uint256,
+            int256,
+            int256,
+            uint256
+        );
 
     function getCollateralTokens() external view returns (address[] memory res);
-    function getRequiredUSDCToBackMinting(uint256 amount, bool isShort) external view returns(bool, uint256);
-    function getAccountValue() external view returns(int256);
-    function getUsdlCollateralDecimals() external view returns(uint256);
-    function getIndexPrice() external view returns(uint256);
 
-    // Convenience trading functions 
-    function openLongWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) external returns(uint256, uint256);
-    function openLongWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) external returns(uint256, uint256);
-    function closeLongWithExactBase(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) external returns(uint256, uint256);
-    function closeLongWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) external returns(uint256, uint256);
+    function getRequiredUSDCToBackMinting(uint256 amount, bool isShort) external view returns (bool, uint256);
 
-    function openShortWithExactBase(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) external returns(uint256, uint256);
-    function openShortWithExactQuote(uint256 amount, address collateralIn, uint256 amountIn, Basis basis) external returns(uint256, uint256);
-    function closeShortWithExactBase(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) external returns(uint256, uint256);
-    function closeShortWithExactQuote(uint256 amount, address collateralOut, uint256 amountOut, Basis basis) external returns(uint256, uint256);
+    function getUsdlCollateralDecimals() external view returns (uint256);
+
+    function getIndexPrice() external view returns (uint256);
+
+    // Convenience trading functions
+    function openLongWithExactBase(uint256 amount) external returns (uint256, uint256);
+
+    function openLongWithExactQuote(uint256 amount) external returns (uint256, uint256);
+
+    function closeLongWithExactBase(uint256 amount) external returns (uint256, uint256);
+
+    function closeLongWithExactQuote(uint256 amount) external returns (uint256, uint256);
+
+    function openShortWithExactBase(uint256 amount) external returns (uint256, uint256);
+
+    function openShortWithExactQuote(uint256 amount) external returns (uint256, uint256);
+
+    function closeShortWithExactBase(uint256 amount) external returns (uint256, uint256);
+
+    function closeShortWithExactQuote(uint256 amount) external returns (uint256, uint256);
+
     /////////
 
-    function getMaxSettlementTokenAcceptableByVault() external view returns(uint256);
-    function getSettlementTokenAmountInVault() external view returns(int256);
+    function calculateMintingAsset(
+        uint256 amount,
+        Basis basis,
+        bool isOpenShort
+    ) external;
+
+    function getMaxSettlementTokenAcceptableByVault() external view returns (uint256);
+
+    function getSettlementTokenAmountInVault() external view returns (int256);
+
     function depositSettlementToken(uint256 _amount) external;
 
     function withdrawSettlementToken(uint256 _amount) external;
 
-    function deposit(
-        uint256 amount,
-        address collateral,
-        Basis basis
-    ) external;
+    function deposit(uint256 amount, address collateral) external;
 
-    function withdraw(
-        uint256 amount,
-        address collateral,
-        Basis basis
-    ) external;
+    function withdraw(uint256 amount, address collateral) external;
 
     function rebalance(
         address router,
@@ -92,48 +130,7 @@ interface IPerpetualMixDEXWrapper {
 
     function getFees() external view returns (uint256);
 
+    function usdc() external view returns (IERC20Decimals);
+
     function settle() external;
-
-    /////////////// UNNECESSARY METHODS /////////////
-
-    /*
-    function getCollateralAmountGivenUnderlyingAssetAmount(uint256 amount, bool isShorting)
-        external
-        returns (uint256 collateralAmountRequired);
-
-
-    function getAmountInCollateralDecimals(uint256 amount, bool roundUp) external view returns (uint256);
-
-    function open(uint256 amount, uint256 collateralAmountRequired) external;
-
-    function close(uint256 amount, uint256 collateralAmountRequired) external;
-
-    function openWExactCollateral(uint256 collateralAmount) external returns (uint256 USDLToMint);
-
-    function closeWExactCollateral(uint256 collateralAmount) external returns (uint256 USDLToBurn);
-
-    // For USDLemma
-    function openShortWithExactCollateral(uint256 collateralAmount) external returns (uint256 USDLToMint);
-
-    function closeLongWithExactCollateral(uint256 collateralAmount) external returns (uint256 USDLToBurn);
-
-    function openShortWithExactQuoteForUSDL(uint256 amount, uint256 collateralAmountRequired) external;
-
-    function closeLongWithExactQuoteForUSDL(uint256 amount, uint256 collateralAmountToGetBack) external;
-
-    // For LemmaETH
-    function openLongWithExactCollateral(uint256 collateralAmount) external returns (uint256 USDLToMint);
-
-    function closeShortWithExactCollateral(uint256 collateralAmount) external returns (uint256 USDLToBurn);
-
-    function openLongWithExactBaseForSynth(uint256 amount, uint256 collateralAmountRequired) external;
-
-    function closeShortWithExactBaseForSynth(uint256 amount, uint256 collateralAmountToGetBack) external;
-
-    function getCollateralAmountGivenUnderlyingAssetAmountForPerp(
-        uint256 amount,
-        bool isShorting,
-        bool isUsdl
-    ) external returns (uint256 collateralAmountRequired);
-    */
 }
