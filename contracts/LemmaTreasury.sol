@@ -29,7 +29,6 @@ contract LemmaTreasury is ILemmaTreasury {
         SafeERC20Upgradeable.safeApprove(IERC20Decimals(settlementToken), wrapper, amount);
         console.log("[recapitalizeWrapper()] Trying to recapitalize PerpWrapper for USDC Amount = ", amount);
         IPerpetualMixDEXWrapper(wrapper).depositSettlementToken(amount);
-        console.log("[recapitalizeWrapper()] Done");
     }
 
 }

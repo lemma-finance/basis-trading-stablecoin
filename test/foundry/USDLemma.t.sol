@@ -656,6 +656,11 @@ contract USDLemmaTest is Test {
     }
 
     function testDepositToWExactCollateralAndwithdrawToWExactCollateralWithUSDC() public {
+        vm.startPrank(address(d));
+        d.usdl().setLemmaTreasury(address(d.lemmaTreasury()));
+        vm.stopPrank();
+        _depositSettlementToken(1e12);
+
         uint256 collateralAmount = 1000e18; // USDCAmount
         // _depositSettlementTokenMax();
         address collateral = d.getTokenAddress("USDC");
