@@ -12,6 +12,8 @@ interface IBaseToken {
     event PriceFeedChanged(address indexed priceFeed);
     event StatusUpdated(Status indexed status);
 
+    function setPriceFeed(address) external;
+
     function pause() external;
 
     function close() external;
@@ -21,6 +23,8 @@ interface IBaseToken {
     /// @notice Get the price feed address
     /// @return priceFeed the current price feed
     function getPriceFeed() external view returns (address priceFeed);
+
+    function getIndexPrice(uint256) external view returns (uint256);
 
     function getPausedTimestamp() external view returns (uint256);
 

@@ -6,7 +6,6 @@ import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "../../contracts/interfaces/IERC20Decimals.sol";
 import "../../src/Deploy.sol";
 import "forge-std/Test.sol";
-import "forge-std/console.sol";
 
 contract USDLemmaTest is Test {
     Deploy public d;
@@ -21,6 +20,7 @@ contract USDLemmaTest is Test {
         d.pl().grantRole(USDC_TREASURY, address(d.lemmaTreasury()));
         d.pl().grantRole(USDC_TREASURY, address(this));
         d.usdl().grantRole(LEMMA_SWAP, address(this));
+        d.usdl().addPerpetualDEXWrapper(1, d.getTokenAddress("USDC"), address(d.pl()));
         vm.stopPrank();
     }
 
@@ -39,12 +39,6 @@ contract USDLemmaTest is Test {
         d.bank().giveMoney(token, to, amount);
         assertTrue(IERC20Decimals(token).balanceOf(to) >= amount);
     }
-
-    function getRoudDown(uint256 amount) internal pure returns (uint256) {
-        return amount - 1;
-    }
-
-
 
     // NOTE: Deposits settlementToken amount as percentage of the remaining availability so 100% is equivalent to max settlementToken 
     function _depositSettlementTokenPerc(uint256 perc1e6) internal {
@@ -110,17 +104,14 @@ contract USDLemmaTest is Test {
 
     function _depositSettlementTokenMax() internal {
         _getMoney(address(d.pl().usdc()), 1e40);
-
         IERC20Decimals settlementToken = IERC20Decimals(d.pl().perpVault().getSettlementToken());
         uint256 perpVaultSettlementTokenBalanceBefore = settlementToken.balanceOf(address(d.pl().perpVault()));
         uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.pl().clearingHouse().getClearingHouseConfig()).getSettlementTokenBalanceCap();
         uint256 usdcToDeposit = uint256(int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore));
-
         // uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
         // NOTE: Unclear why I need to use 1/10 of the cap
         // NOTE: If I do not limit this amount I get 
         // V_GTSTBC: greater than settlement token balance cap
-
         d.pl().usdc().approve(address(d.pl()), usdcToDeposit);
         d.pl().depositSettlementToken(usdcToDeposit);
 
@@ -138,7 +129,7 @@ contract USDLemmaTest is Test {
         d.getPerps().pv.deposit(address(d.pl().usdc()), amount);
     }
 
-    function _mintUSDLWExactUSDL(address to, address collateral, uint256 amount) internal {
+    function _mintUSDLWExactUSDL(address to, address collateral, uint256 amount, uint256 dexIndex) internal {
         address usdl = d.pl().usdLemma();
         _getMoneyForTo(to, collateral, amount);
         uint256 beforeBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
@@ -147,7 +138,7 @@ contract USDLemmaTest is Test {
         uint256 beforeTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
         // 4th param is maxCollateralAmountRequired which is need to be set using callStatic, currently set uint256 max
         // calsstatic is not possible in solidity so
-        d.usdl().depositTo(to, amount, 0, type(uint256).max, IERC20Upgradeable(collateral));
+        d.usdl().depositTo(to, amount, dexIndex, type(uint256).max, IERC20Upgradeable(collateral));
         uint256 afterTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();        
         uint256 afterBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
@@ -156,7 +147,7 @@ contract USDLemmaTest is Test {
         assertTrue(afterBalanceCollateral < beforeBalanceCollateral);
     }
 
-    function _mintUSDLWExactCollateral(address to, address collateral, uint256 amount) internal {
+    function _mintUSDLWExactCollateral(address to, address collateral, uint256 amount, uint256 dexIndex) internal {
         address usdl = d.pl().usdLemma();
         _getMoneyForTo(to, collateral, amount);
         uint256 beforeBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
@@ -165,7 +156,7 @@ contract USDLemmaTest is Test {
         uint256 beforeTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
         // 4th param is minUSDLToMint which is need to be set using callStatic, currently set 0 for not breaking revert
         // calsstatic is not possible in solidity so
-        d.usdl().depositToWExactCollateral(to, amount, 0, 0, IERC20Upgradeable(collateral)); 
+        d.usdl().depositToWExactCollateral(to, amount, dexIndex, 0, IERC20Upgradeable(collateral)); 
         uint256 afterTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
         uint256 afterBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
@@ -186,30 +177,31 @@ contract USDLemmaTest is Test {
         d.usdl().depositToWExactCollateral(to, amount, 0, 0, IERC20Upgradeable(collateral)); 
         uint256 afterTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
         uint256 afterBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
-        uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);    }
-
-    function _redeemUSDLWExactUsdl(address to, address collateral, uint256 amount) internal {
-        address usdl = d.pl().usdLemma();
-        uint256 beforeBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
-        uint256 beforeBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
-        assertTrue(beforeBalanceUSDL > 0, "!USDL");
-        // uint256 beforeTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
-        d.usdl().withdrawTo(to, amount, 0, 0, IERC20Upgradeable(collateral));
-        // uint256 afterTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
-        uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
-        uint256 afterBalanceUSDL = d.usdl().balanceOf(to);
-        // assertEq(beforeTotalUsdl-amount, getRoudDown(afterTotalUsdl));
-        assertTrue(afterBalanceCollateral > beforeBalanceCollateral);
-        assertTrue(afterBalanceUSDL < beforeBalanceUSDL);
+        uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);    
     }
 
-    function _redeemUSDLWExactCollateral(address to, address collateral, uint256 collateralAmount) internal {
+    function _redeemUSDLWExactUsdl(address to, address collateral, uint256 amount, uint256 dexIndex) internal {
         address usdl = d.pl().usdLemma();
         uint256 beforeBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 beforeBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
         assertTrue(beforeBalanceUSDL > 0, "!USDL");
         uint256 beforeTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
-        d.usdl().withdrawToWExactCollateral(to, collateralAmount, 0, type(uint256).max, IERC20Upgradeable(collateral));
+        d.usdl().withdrawTo(to, amount, dexIndex, 0, IERC20Upgradeable(collateral));
+        uint256 afterTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
+        uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
+        uint256 afterBalanceUSDL = d.usdl().balanceOf(to);
+        assertEq(beforeTotalUsdl-afterTotalUsdl, amount);
+        assertTrue(afterBalanceCollateral > beforeBalanceCollateral);
+        assertTrue(afterBalanceUSDL < beforeBalanceUSDL);
+    }
+
+    function _redeemUSDLWExactCollateral(address to, address collateral, uint256 collateralAmount, uint256 dexIndex) internal {
+        address usdl = d.pl().usdLemma();
+        uint256 beforeBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
+        uint256 beforeBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
+        assertTrue(beforeBalanceUSDL > 0, "!USDL");
+        uint256 beforeTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
+        d.usdl().withdrawToWExactCollateral(to, collateralAmount, dexIndex, type(uint256).max, IERC20Upgradeable(collateral));
         uint256 afterTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 afterBalanceUSDL = d.usdl().balanceOf(to);
@@ -218,7 +210,7 @@ contract USDLemmaTest is Test {
         assertTrue(afterBalanceUSDL < beforeBalanceUSDL);
     }
 
-    function _mintSynthWExactCollateralNoChecks(address to, address collateral, uint256 amount) internal {
+    function _mintSynthWExactCollateralNoChecks(address to, address collateral, uint256 amount, uint256 dexIndex) internal {
         address lemmaSynth = d.pl().lemmaSynth();
         _getMoneyForTo(to, collateral, amount);
         uint256 beforeBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
@@ -229,7 +221,7 @@ contract USDLemmaTest is Test {
         amount = (amount*1e18) / 10**decimal;
         // 4th param is minSynthToMint which is need to be set using callStatic, currently set 0 for not breaking revert
         // calsstatic is not possible in solidity so
-        d.lSynth().depositToWExactCollateral(to, amount, 0, 0, IERC20Upgradeable(collateral)); 
+        d.lSynth().depositToWExactCollateral(to, amount, dexIndex, 0, IERC20Upgradeable(collateral)); 
         uint256 afterTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
         uint256 afterBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
@@ -243,14 +235,13 @@ contract USDLemmaTest is Test {
         address collateral = d.getTokenAddress("WETH");
         uint256 usdlAmount = 1000e18; // USDL amount
         _depositSettlementTokenMax();
-        _mintUSDLWExactUSDL(address(this), collateral, usdlAmount);
+        _mintUSDLWExactUSDL(address(this), collateral, usdlAmount, 0);
     }
-
 
     function _depositWExactCollateral(uint256 collateralAmount) internal {
         _depositSettlementTokenMax();
         address collateral = d.getTokenAddress("WETH");
-        _mintUSDLWExactCollateral(address(this), collateral, collateralAmount);
+        _mintUSDLWExactCollateral(address(this), collateral, collateralAmount, 0);
     }
 
     // test depositToWExactCollateral
@@ -267,8 +258,6 @@ contract USDLemmaTest is Test {
         _mintUSDLWExactCollateralNoChecks(address(this), collateral, 3e18);
         console.log("[testDepositToWExactCollateral3()] Second Minting Works");
     }
-
-
 
     function testDepositToWExactCollateralNoNeedToRecap() public {
         vm.startPrank(address(d));
@@ -394,7 +383,7 @@ contract USDLemmaTest is Test {
 
         address collateral = d.getTokenAddress("WETH");
         // NOTE: Minting just a little bit of USDL to start with a net short position 
-        _mintSynthWExactCollateralNoChecks(address(this), collateral, 3e15);
+        _mintSynthWExactCollateralNoChecks(address(this), collateral, 3e15, 1);
 
         // _depositSettlementToken(328392000);
         uint256 amount = 3e18;
@@ -413,16 +402,16 @@ contract USDLemmaTest is Test {
     function testFailDepositToWExactCollateralNoUSDC1() public {
         uint256 collateralAmount = 1e18;
         address collateral = d.getTokenAddress("WETH");
-        _mintUSDLWExactCollateral(address(this), collateral, collateralAmount);
+        _mintUSDLWExactCollateral(address(this), collateral, collateralAmount, 0);
     }
 
 
     // test depositTo and withdrawTo
-    function testDepositToAndWithdrawTo111() public {
+    function testDepositToAndWithdrawTo11() public {
         testDepositTo();
         address collateral = d.getTokenAddress("WETH");
         uint256 usdlAmount = d.usdl().balanceOf(address(this));
-        _redeemUSDLWExactUsdl(address(this), collateral, usdlAmount);
+        _redeemUSDLWExactUsdl(address(this), collateral, usdlAmount, 0);
     }
 
     // test depositToWExactCollateral and withdrawTo
@@ -431,7 +420,7 @@ contract USDLemmaTest is Test {
         _depositWExactCollateral(collateralAmount);
         address collateral = d.getTokenAddress("WETH");
         uint256 usdlAmount = d.usdl().balanceOf(address(this));
-        _redeemUSDLWExactUsdl(address(this), collateral, usdlAmount);
+        _redeemUSDLWExactUsdl(address(this), collateral, usdlAmount, 0);
     }
     
     // test depositToWExactCollateral and withdrawToWExactCollateral
@@ -441,19 +430,19 @@ contract USDLemmaTest is Test {
         address collateral = d.getTokenAddress("WETH");
         uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), collateralAmount, 0);
         uint256 _maxETHtoRedeem = _deductFees(d.getTokenAddress("WETH"), _collateralAfterMinting, 0);
-        _redeemUSDLWExactCollateral(address(this), collateral, _maxETHtoRedeem);
+        _redeemUSDLWExactCollateral(address(this), collateral, _maxETHtoRedeem, 0);
     }
 
     // test depositTo and withdrawToWExactCollateral
     function testDepositToAndWithdrawToWExactCollateral() public {
         address collateral = d.getTokenAddress("WETH");
-        uint256 usdlAmount = 1096143206913675032725; // 1eth ~= 1096.143 USDL at this block 12137998
+        uint256 usdlAmount = 2192283206913675032725; // 1eth ~= 1096.143 USDL at this block 12137998
         _depositSettlementTokenMax();
-        _mintUSDLWExactUSDL(address(this), collateral, usdlAmount);
+        _mintUSDLWExactUSDL(address(this), collateral, usdlAmount, 0);
         uint256 collateralAMount = 1e18; // ~0.9998 eth
         uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), collateralAMount, 0);
         uint256 _maxETHtoRedeem = _deductFees(d.getTokenAddress("WETH"), _collateralAfterMinting, 0);
-        _redeemUSDLWExactCollateral(address(this), collateral, _maxETHtoRedeem);
+        _redeemUSDLWExactCollateral(address(this), collateral, _maxETHtoRedeem, 0);
     }
 
     // Should Fail tests
@@ -466,11 +455,11 @@ contract USDLemmaTest is Test {
         address collateral = d.getTokenAddress("WETH");
         uint256 usdlAmount = 1096143206913675032725; // 1eth ~= 1096.143 USDL at this block 12137998
         _depositSettlementTokenMax();
-        _mintUSDLWExactUSDL(address(this), collateral, usdlAmount);
+        _mintUSDLWExactUSDL(address(this), collateral, usdlAmount, 0);
         uint256 collateralAMount = 1e18; // ~0.9998 eth
         uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), collateralAMount, 0);
         uint256 _maxETHtoRedeem = _deductFees(d.getTokenAddress("WETH"), _collateralAfterMinting, 0);
-        _redeemUSDLWExactCollateral(address(this), collateral, _maxETHtoRedeem);
+        _redeemUSDLWExactCollateral(address(this), collateral, _maxETHtoRedeem, 0);
     }
 
     function testFailDepositToWExactCollateralAndwithdrawToWExactCollateral() public {
@@ -483,7 +472,15 @@ contract USDLemmaTest is Test {
         address collateral = d.getTokenAddress("WETH");
         uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), collateralAmount, 0);
         uint256 _maxETHtoRedeem = _deductFees(d.getTokenAddress("WETH"), _collateralAfterMinting, 0);
-        _redeemUSDLWExactCollateral(address(this), collateral, _maxETHtoRedeem);
+        _redeemUSDLWExactCollateral(address(this), collateral, _maxETHtoRedeem, 0);
+    }
+
+    function testChangeAdminOfUSDL() public {
+        vm.startPrank(address(d));
+        d.usdl().changeAdmin(vm.addr(1));
+        vm.stopPrank();
+        assertEq(d.usdl().hasRole(ADMIN_ROLE, vm.addr(1)), true);
+        assertEq(d.usdl().hasRole(ADMIN_ROLE, address(d)), false);
     }
 
     // Should Fail tests
@@ -645,5 +642,26 @@ contract USDLemmaTest is Test {
 
         d.pl().settle(); // PerpLemma settle call
         d.usdl().withdrawToWExactCollateral(address(this), 1e17, 0, 0, IERC20Decimals(collateral));
+    }
+
+    // TEST with USDC collateral
+    function testDepositToAndWithdrawToWithUSDC() public {
+        address collateral = d.getTokenAddress("USDC");
+        uint256 usdlAmount = 1000e18; // USDL amount
+        // _depositSettlementTokenMax();
+        _mintUSDLWExactUSDL(address(this), collateral, usdlAmount, 1);
+        
+        usdlAmount = d.usdl().balanceOf(address(this));
+        _redeemUSDLWExactUsdl(address(this), collateral, usdlAmount, 1);
+    }
+
+    function testDepositToWExactCollateralAndwithdrawToWExactCollateralWithUSDC() public {
+        uint256 collateralAmount = 1000e18; // USDCAmount
+        // _depositSettlementTokenMax();
+        address collateral = d.getTokenAddress("USDC");
+        _mintUSDLWExactCollateral(address(this), collateral, collateralAmount, 1);
+        uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("USDC"), collateralAmount, 1);
+        uint256 _maxETHtoRedeem = _deductFees(d.getTokenAddress("USDC"), _collateralAfterMinting, 1);
+        _redeemUSDLWExactCollateral(address(this), collateral, _maxETHtoRedeem, 1);
     }
 }

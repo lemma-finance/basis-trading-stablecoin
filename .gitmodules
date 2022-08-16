@@ -3,10 +3,10 @@
 	url = git@github.com:yashnaman/mai-protocol-v3.git
 	branch = 72d510e29134a73651e6325ca85f59245eef4713
 
-[submodule "perp-lushan"]
-	path = perp-lushan
-	url = git@github.com:yashnaman/perp-lushan.git
-	branch = f91926a724ec3b33e66ecec8ce42879cdb2a4540
+[submodule "perp-curie-contract"]
+	path = perp-curie-contract
+	url = https://github.com/perpetual-protocol/perp-curie-contract.git
+
 [submodule "lib/forge-std"]
 	path = lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
