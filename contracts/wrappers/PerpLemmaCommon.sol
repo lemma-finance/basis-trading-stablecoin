@@ -521,18 +521,27 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             ((isShort) && (amountBase > 0)) ||  // NOTE Decrease Long 
             ((!isShort) && (amountBase < 0))    // NOTE Decrease Short
             ) {
-                if(amount <= _abs(amountBase)) {
+                // NOTE: amountBase is in vToken amount so 1e18
+                uint256 amountBaseInCollateralDecimals = _abs(amountBase) * 10**(usdlCollateral.decimals()) / 1e18;
+                console.log("[computeRequiredUSDCForTrade()] Flipping Case");
+                if(isShort) console.log("[computeRequiredUSDCForTrade()] isShort = true");
+                else console.log("[computeRequiredUSDCForTrade()] isShort = false");
+                print("[computeRequiredUSDCForTrade()] amountbase = ", amountBase);
+                console.log("[computeRequiredUSDCForTrade()] amountBaseInCollateralDecimals = ", amountBaseInCollateralDecimals);
+                if(amount <= amountBaseInCollateralDecimals) {
                     console.log("[computeRequiredUSDCForTrade()] Position Decreases but does not flip, so it just frees up collateral");
                     return 0;
                 }
 
-                if( amount <= 2*_abs(amountBase) ) {
+                if( amount <= 2*amountBaseInCollateralDecimals ) {
                     console.log("[computeRequiredUSDCForTrade()] Position has flipped but the final position is <= the original one so it just frees up collateral");
                     return 0;
                 }
-
-                deltaAmount = amount - 2 * _abs(amountBase);
-            } 
+                console.log("[computeRequiredUSDCForTrade()] Position has flipped and the final position is > the original");
+                deltaAmount = amount - 2 * amountBaseInCollateralDecimals;
+            }
+        
+        console.log("[computeRequiredUSDCForTrade()] deltaAmount = ", deltaAmount);
 
         uint256 expectedDeltaQuote = deltaAmount * indexPrice / 10 ** (18 + 18 - usdc.decimals());
         console.log("[computeRequiredUSDCForTrade()] expectedDeltaQuote = ", expectedDeltaQuote);

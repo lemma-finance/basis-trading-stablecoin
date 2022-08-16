@@ -210,6 +210,26 @@ contract USDLemmaTest is Test {
         assertTrue(afterBalanceUSDL < beforeBalanceUSDL);
     }
 
+    function _mintSynthWExactCollateralNoChecks(address to, address collateral, uint256 amount) internal {
+        address lemmaSynth = d.pl().lemmaSynth();
+        _getMoneyForTo(to, collateral, amount);
+        uint256 beforeBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
+        uint256 beforeBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
+        IERC20Decimals(collateral).approve(lemmaSynth, type(uint256).max);
+        uint256 beforeTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
+        uint256 decimal = IERC20Decimals(collateral).decimals();
+        amount = (amount*1e18) / 10**decimal;
+        // 4th param is minSynthToMint which is need to be set using callStatic, currently set 0 for not breaking revert
+        // calsstatic is not possible in solidity so
+        d.lSynth().depositToWExactCollateral(to, amount, 0, 0, IERC20Upgradeable(collateral)); 
+        uint256 afterTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
+        uint256 afterBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
+        uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
+        // assertEq(afterTotalSynth-beforeTotalSynth, afterBalanceSynth);
+        // assertTrue(afterBalanceSynth > beforeBalanceSynth);
+        // assertTrue(afterBalanceCollateral < beforeBalanceCollateral);
+    }
+
     // test depositTo
     function testDepositTo() public {
         address collateral = d.getTokenAddress("WETH");
@@ -291,7 +311,7 @@ contract USDLemmaTest is Test {
     }
 
 
-    function testDepositToWExactCollateralNeedToRecap() public {
+    function testDepositToWExactCollateralStartNeutralNeedToRecap() public {
         vm.startPrank(address(d));
         // d.pl().setMinMarginForRecap(3e18);
         // d.pl().setMinMarginSafeThreshold(5e18);
@@ -311,6 +331,63 @@ contract USDLemmaTest is Test {
         // NOTE: In this case, Perp has been recapitalized during the minting and the recap set the Free Collateral exactly to zero so it is important 
         // to add further logic to recapitalize further 
         assertTrue(d.pl().getFreeCollateral() == 0);
+        console.log("[testDepositToWExactCollateralNeedToRecap()] Minting Works");
+    }
+
+
+
+    function testDepositToWExactCollateralStartShortNeedToRecap() public {
+        vm.startPrank(address(d));
+        // d.pl().setMinMarginForRecap(3e18);
+        // d.pl().setMinMarginSafeThreshold(5e18);
+        d.usdl().setLemmaTreasury(address(d.lemmaTreasury()));
+        vm.stopPrank();
+
+        d.bank().giveMoney(d.pl().getSettlementToken(), address(d.lemmaTreasury()), 5e30);
+        console.log("[testDepositToWExactCollateralNeedToRecap()] Start");
+        _depositSettlementToken(300000000);
+
+        address collateral = d.getTokenAddress("WETH");
+        // NOTE: Minting just a little bit of USDL to start with a net short position 
+        _mintUSDLWExactCollateralNoChecks(address(this), collateral, 1e15);
+
+        // _depositSettlementToken(328392000);
+        uint256 amount = 3e18;
+        console.log("[testDepositToWExactCollateralNeedToRecap()] amount = ", amount);
+        _mintUSDLWExactCollateralNoChecks(address(this), collateral, amount);
+
+        // NOTE: In this case, Perp has been recapitalized during the minting and the recap set the Free Collateral exactly to zero so it is important 
+        // to add further logic to recapitalize further 
+        assertTrue(d.pl().getFreeCollateral() == 0);
+        console.log("[testDepositToWExactCollateralNeedToRecap()] Minting Works");
+    }
+
+
+    function testDepositToWExactCollateralStartLongNeedToRecap() public {
+        vm.startPrank(address(d));
+        // d.pl().setMinMarginForRecap(3e18);
+        // d.pl().setMinMarginSafeThreshold(5e18);
+        d.usdl().setLemmaTreasury(address(d.lemmaTreasury()));
+        vm.stopPrank();
+
+        d.bank().giveMoney(d.pl().getSettlementToken(), address(d.lemmaTreasury()), 5e30);
+        console.log("[testDepositToWExactCollateralNeedToRecap()] Start");
+        _depositSettlementToken(300000000);
+
+        address collateral = d.getTokenAddress("WETH");
+        // NOTE: Minting just a little bit of USDL to start with a net short position 
+        _mintSynthWExactCollateralNoChecks(address(this), collateral, 3e15);
+
+        // _depositSettlementToken(328392000);
+        uint256 amount = 3e18;
+        console.log("[testDepositToWExactCollateralNeedToRecap()] amount = ", amount);
+        _mintUSDLWExactCollateralNoChecks(address(this), collateral, amount);
+
+
+        // NOTE: In this case, Perp has been recapitalized during the minting and the recap set the Free Collateral exactly to zero so it is important 
+        // to add further logic to recapitalize further 
+        console.log("[testDepositToWExactCollateralStartLongNeedToRecap()] d.pl().getFreeCollateral() = ", d.pl().getFreeCollateral());
+        // assertTrue(d.pl().getFreeCollateral() == 0);
         console.log("[testDepositToWExactCollateralNeedToRecap()] Minting Works");
     }
 
