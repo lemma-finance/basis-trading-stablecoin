@@ -263,15 +263,25 @@ contract PerpLemmaCommonTest is Test {
     }
 
     function testCloseShortWithExactQuote2() public {
+        console.log("[testCloseShortWithExactQuote2()] T1");
         uint256 beforeMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
+        console.log("[testCloseShortWithExactQuote2()] T2");
         testOpenShortWithExactQuote();
+        console.log("[testCloseShortWithExactQuote2()] T3");
         uint256 afterMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
+        console.log("[testCloseShortWithExactQuote2()] T5");
         address collateral = d.getTokenAddress("WETH");
         uint256 collateralAmount = 5e17;
+        console.log("[testCloseShortWithExactQuote2()] T6");
+        console.log("[testCloseShortWithExactQuote2()] beforeMintedPositionUsdlForThisWrapper = ", beforeMintedPositionUsdlForThisWrapper);
+        console.log("[testCloseShortWithExactQuote2()] afterMintedPositionUsdlForThisWrapper = ", afterMintedPositionUsdlForThisWrapper);
         uint256 exactUSDLAmount2 = afterMintedPositionUsdlForThisWrapper-beforeMintedPositionUsdlForThisWrapper;
+        console.log("[testCloseShortWithExactQuote2()] T7");
         // uint256 _exactUSDLAmountAfterMinting = _deductFees(d.getTokenAddress("WETH"), exactUSDLAmount2, 0);
         uint256 collateralToGetBack =  closeShortWithExactQuote(collateralAmount, exactUSDLAmount2);
+        console.log("[testCloseShortWithExactQuote2()] T10");
         _withdrawUsdlCollateral(collateralToGetBack, collateral, address(this));
+        console.log("[testCloseShortWithExactQuote2()] T11");
     }
 
     function testOpenLongWithExactBase() public {
