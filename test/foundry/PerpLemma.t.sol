@@ -270,15 +270,20 @@ contract PerpLemmaCommonTest is Test {
     }
 
     function testCloseShortWithExactQuote2() public {
+        console.log("[testCloseShortWithExactQuote2()] T1");
         uint256 beforeMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
+        console.log("[testCloseShortWithExactQuote2()] T2");
         testOpenShortWithExactQuote();
+        console.log("[testCloseShortWithExactQuote2()] T3");
         uint256 afterMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
+        console.log("[testCloseShortWithExactQuote2()] T5");
         address collateral = d.getTokenAddress("WETH");
         uint256 exactUSDLAmount2 = afterMintedPositionUsdlForThisWrapper-beforeMintedPositionUsdlForThisWrapper;
         // uint256 collateralAmount = 5e17;
         uint256 collateralAmount = getUSDPriceInEth(exactUSDLAmount2);
         uint256 collateralToGetBack =  closeShortWithExactQuote(collateralAmount/2, exactUSDLAmount2/2); // half position closed
         _withdrawUsdlCollateral(collateralToGetBack, collateral, address(this));
+        console.log("[testCloseShortWithExactQuote2()] T11");
     }
 
     function testOpenLongWithExactBase() public returns(uint256 base, uint256 quote) {

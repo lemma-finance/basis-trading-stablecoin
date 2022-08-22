@@ -335,7 +335,7 @@ contract USDLemmaTest is Test {
     }
 
 
-    function testDepositToWExactCollateralStartLongNeedToRecap() public {
+    function testDepositToWExactCollateralStartLongNeedToRecapSmallFlip() public {
         vm.startPrank(address(d));
         // d.pl().setMinMarginForRecap(3e18);
         // d.pl().setMinMarginSafeThreshold(5e18);
@@ -359,9 +359,9 @@ contract USDLemmaTest is Test {
 
         // NOTE: In this case, Perp has been recapitalized during the minting and the recap set the Free Collateral exactly to zero so it is important 
         // to add further logic to recapitalize further 
-        console.log("[testDepositToWExactCollateralStartLongNeedToRecap()] d.pl().getFreeCollateral() = ", d.pl().getFreeCollateral());
+        console.log("[testDepositToWExactCollateralStartLongNeedToRecapLargeFlip()] d.pl().getFreeCollateral() = ", d.pl().getFreeCollateral());
         // assertTrue(d.pl().getFreeCollateral() == 0);
-        console.log("[testDepositToWExactCollateralNeedToRecap()] Minting Works");
+        console.log("[testDepositToWExactCollateralStartLongNeedToRecapLargeFlip()] Minting Works");
     }
 
 
