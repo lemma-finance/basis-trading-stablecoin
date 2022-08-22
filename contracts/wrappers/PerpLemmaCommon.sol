@@ -479,8 +479,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return settleCollateral(amount, to, isUsdl);
     }
 
-
-
     function _min(uint256 a, uint256 b) internal pure returns(uint256) {
         return (a <= b) ? a : b;
     }
@@ -499,7 +497,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
     function computeRequiredUSDCForTrade(uint256 amount, bool isShort) external view override returns(uint256 requiredUSDC) {
         // NOTE: Estimating USDC needed 
-        console.log("[computeRequiredUSDCForTrade()] USDC Decimals = ", usdc.decimals());
+        console.log("\n[computeRequiredUSDCForTrade()] USDC Decimals = ", usdc.decimals());
 
         console.log("[computeRequiredUSDCForTrade()] amount = ", amount);
         // print("[computeRequiredUSDCForTrade()] amountBase = ", amountBase);
@@ -553,7 +551,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             requiredUSDC = expectedUSDCDeductedFromFreeCollateral - freeCollateralBefore;
         }
 
-        console.log("[computeRequiredUSDCForTrade()] requiredUSDC = ", requiredUSDC);
+        console.log("[computeRequiredUSDCForTrade()] requiredUSDC \n= ", requiredUSDC);
 
         // uint256 expectedFinalFreeCollateral = freeCollateralBefore - expectedUSDCDeductedFromFreeCollateral;
         // console.log("[computeRequiredUSDCForTrade()] expectedFinalFreeCollateral = ", expectedFinalFreeCollateral);
@@ -693,7 +691,12 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// 2). openLongWithExactQuote => depositToWExactCollateral
     /// 3). closeLongWithExactBase => withdrawTo
     /// 4). closeLongWithExactQuote => withdrawToWExactCollateral
-    function openLongWithExactBase(uint256 amount) public override onlyRole(PERPLEMMA_ROLE) returns (uint256, uint256) {
+    function openLongWithExactBase(uint256 amount) 
+        public 
+        override 
+        onlyRole(PERPLEMMA_ROLE) 
+        returns (uint256, uint256) 
+    {
         (uint256 base, uint256 quote) = trade(amount, false, false);
         return (base, quote);
     }

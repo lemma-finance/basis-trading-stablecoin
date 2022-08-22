@@ -83,7 +83,6 @@ contract ContractTest is Test {
         _getMoney(collateral, 1e40);
 
         // uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
-        // console.log("settlementTokenBalanceCap = ", settlementTokenBalanceCap);
 
         // // NOTE: Unclear why I need to use 1/10 of the cap
         // // NOTE: If I do not limit this amount I get 
@@ -110,7 +109,6 @@ contract ContractTest is Test {
         _getMoneyForTo(to, collateral, 1e40);
 
         // uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
-        // console.log("settlementTokenBalanceCap = ", settlementTokenBalanceCap);
 
         // // NOTE: Unclear why I need to use 1/10 of the cap
         // // NOTE: If I do not limit this amount I get 
@@ -150,7 +148,6 @@ contract ContractTest is Test {
         _getMoney(collateral, 1e40);
 
         // uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
-        // console.log("settlementTokenBalanceCap = ", settlementTokenBalanceCap);
 
         // // NOTE: Unclear why I need to use 1/10 of the cap
         // // NOTE: If I do not limit this amount I get 
@@ -232,11 +229,6 @@ contract ContractTest is Test {
     function _checkNetShort() internal view returns(bool res) {
         res = d.pl().amountBase() < 0;
     }
-
-    // function testExample() public {
-    //     console.log("USDL Address = ", address(d.usdl()));
-    //     assertTrue(true);
-    // }
 
     function testGetMoney() public {
         d.bank().giveMoney(d.getTokenAddress("WETH"), address(this), 1e40);
@@ -497,10 +489,6 @@ contract ContractTest is Test {
 
         vm.expectRevert(bytes("Unprofitable"));
         require(amountUSDCPlus > amountUSDCMinus, "Unprofitable");
-
-        // console.log("[testRebalanceIncLongIsProfitFalse()] usdlCollateralAmountToRebalance = ", usdlCollateralAmountToRebalance);
-        // console.log("[testRebalanceIncLongIsProfitFalse()] usdlCollateralAmountGotBack = ", usdlCollateralAmountGotBack);
-        // console.log("[testRebalanceIncLongIsProfitFalse()] usdcAmount = ", usdcAmount);
 
         // require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
         int256 baseAmountAfter = d.pl().amountBase();
@@ -810,7 +798,7 @@ contract ContractTest is Test {
         
         uint256 aliceBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(alice);
         uint256 bobBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(bob);
-        // uint256 perpLemmaBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
+        uint256 perpLemmaBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
 
         uint256 aliceUsdlToRedeem = d.usdl().balanceOf(alice);
         uint256 bobUsdlToRedeem = d.usdl().balanceOf(bob);
@@ -828,6 +816,6 @@ contract ContractTest is Test {
         vm.stopPrank();
 
         uint256 perpLemmaAfterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
-        assertLt(perpLemmaAfterBal, 1e16);
+        assertLt(perpLemmaAfterBal, 2e16);
     }
 }

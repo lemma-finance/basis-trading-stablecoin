@@ -291,8 +291,6 @@ contract USDLemma is
         return expectedUSDCDeductedFromFreeCollateral;
     }
 
-
-
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of collateral
     /// @param to Receipent of minted USDL
     /// @param collateralAmount Amount of collateral to deposit in the collateral decimal format
@@ -311,8 +309,6 @@ contract USDLemma is
         );
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
-
-
         int256 initialMargin = perpDEXWrapper.getMargin();
         // print("[depositToWExactCollateral()] initialMargin = ", initialMargin);
 
@@ -342,12 +338,10 @@ contract USDLemma is
 
         // uint256 freeCollateralAfter = perpDEXWrapper.getFreeCollateral();
         // console.log("[depositToWExactCollateral()] freeCollateralAfter = ", freeCollateralAfter);
-
         // _recapIfNeeded(perpDEXWrapper);
         // int256 newMargin = perpDEXWrapper.getMargin();
         // print("[depositToWExactCollateral()] newMargin = ", newMargin);
         // require(newMargin > 0, "Marging too low");
-
         
         perpDEXWrapper.calculateMintingAsset(_usdlToMint, IPerpetualMixDEXWrapper.Basis.IsUsdl, true);
         _mint(to, _usdlToMint);
