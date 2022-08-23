@@ -12,6 +12,7 @@ import { ISettlementTokenManager } from "./interfaces/ISettlementTokenManager.so
 import "./interfaces/IERC20Decimals.sol";
 import "./interfaces/ILemmaTreasury.sol";
 import "forge-std/Test.sol";
+// import "hardhat/console.sol";
 
 /// @author Lemma Finance
 /// @notice USDLemma contract is use to mint or burn USDL Stablecoin

@@ -17,8 +17,8 @@ import "../interfaces/Perpetual/IAccountBalance.sol";
 import "../interfaces/Perpetual/IMarketRegistry.sol";
 import "../interfaces/Perpetual/IPerpVault.sol";
 import "../interfaces/Perpetual/IBaseToken.sol";
-// import "forge-std/Test.sol";
-import "hardhat/console.sol";
+import "forge-std/Test.sol";
+// import "hardhat/console.sol";
 
 /// @author Lemma Finance
 /// @notice PerpLemmaCommon contract will use to open short and long position with no-leverage
