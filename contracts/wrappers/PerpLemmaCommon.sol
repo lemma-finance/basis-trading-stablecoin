@@ -17,7 +17,8 @@ import "../interfaces/Perpetual/IAccountBalance.sol";
 import "../interfaces/Perpetual/IMarketRegistry.sol";
 import "../interfaces/Perpetual/IPerpVault.sol";
 import "../interfaces/Perpetual/IBaseToken.sol";
-import "forge-std/Test.sol";
+// import "forge-std/Test.sol";
+import "hardhat/console.sol";
 
 /// @author Lemma Finance
 /// @notice PerpLemmaCommon contract will use to open short and long position with no-leverage
@@ -97,6 +98,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
     // Events
     event USDLemmaUpdated(address indexed usdlAddress);
+    event SetLemmaSynth(address indexed lemmaSynthAddress);
     event ReferrerUpdated(bytes32 indexed referrerCode);
     event RebalancerUpdated(address indexed rebalancerAddress);
     event MaxPositionUpdated(uint256 indexed maxPos);
@@ -357,6 +359,18 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
         SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, MAX_UINT256);
         emit USDLemmaUpdated(usdLemma);
+    }
+
+    /// @notice sets LemmaSynth address - only owner can set
+    /// @param _lemmaSynth LemmaSynth address to set
+    function setLemmaSynth(address _lemmaSynth) external onlyRole(ONLY_OWNER) {
+        require(_lemmaSynth != address(0), "LemmaSynth should not ZERO address");
+        lemmaSynth = _lemmaSynth;
+        SafeERC20Upgradeable.safeApprove(usdc, lemmaSynth, 0);
+        SafeERC20Upgradeable.safeApprove(usdc, lemmaSynth, MAX_UINT256);
+        SafeERC20Upgradeable.safeApprove(usdlCollateral, lemmaSynth, 0);
+        SafeERC20Upgradeable.safeApprove(usdlCollateral, lemmaSynth, MAX_UINT256);
+        emit SetLemmaSynth(lemmaSynth);
     }
 
     /// @notice sets refferer code - only owner can set
