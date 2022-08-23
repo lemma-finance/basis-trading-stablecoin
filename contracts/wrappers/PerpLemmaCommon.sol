@@ -130,8 +130,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         _setRoleAdmin(REBALANCER_ROLE, ADMIN_ROLE);
         _setupRole(ADMIN_ROLE, msg.sender);
         grantRole(ONLY_OWNER, msg.sender);
-        grantRole(PERPLEMMA_ROLE, _usdLemma);
-        grantRole(PERPLEMMA_ROLE, _lemmaSynth);
 
         require(_usdlBaseToken != address(0), "UsdlBaseToken should not ZERO address");
         require(_clearingHouse != address(0), "ClearingHouse should not ZERO address");
@@ -163,6 +161,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
 
         if (usdLemma != address(0)) {
+            grantRole(PERPLEMMA_ROLE, _usdLemma);
             SafeERC20Upgradeable.safeApprove(usdc, usdLemma, 0);
             SafeERC20Upgradeable.safeApprove(usdc, usdLemma, MAX_UINT256);
             SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
@@ -170,6 +169,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
 
         if (lemmaSynth != address(0)) {
+            grantRole(PERPLEMMA_ROLE, _lemmaSynth);
             SafeERC20Upgradeable.safeApprove(usdc, lemmaSynth, 0);
             SafeERC20Upgradeable.safeApprove(usdc, lemmaSynth, MAX_UINT256);
             SafeERC20Upgradeable.safeApprove(usdlCollateral, lemmaSynth, 0);
@@ -354,6 +354,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     function setUSDLemma(address _usdLemma) external onlyRole(ONLY_OWNER) {
         require(_usdLemma != address(0), "UsdLemma should not ZERO address");
         usdLemma = _usdLemma;
+        grantRole(PERPLEMMA_ROLE, usdLemma);
         SafeERC20Upgradeable.safeApprove(usdc, usdLemma, 0);
         SafeERC20Upgradeable.safeApprove(usdc, usdLemma, MAX_UINT256);
         SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
@@ -366,6 +367,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     function setLemmaSynth(address _lemmaSynth) external onlyRole(ONLY_OWNER) {
         require(_lemmaSynth != address(0), "LemmaSynth should not ZERO address");
         lemmaSynth = _lemmaSynth;
+        grantRole(PERPLEMMA_ROLE, lemmaSynth);
         SafeERC20Upgradeable.safeApprove(usdc, lemmaSynth, 0);
         SafeERC20Upgradeable.safeApprove(usdc, lemmaSynth, MAX_UINT256);
         SafeERC20Upgradeable.safeApprove(usdlCollateral, lemmaSynth, 0);
