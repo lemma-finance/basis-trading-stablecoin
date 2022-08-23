@@ -493,22 +493,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return settleCollateral(amount, to, isUsdl);
     }
 
-    function _min(uint256 a, uint256 b) internal pure returns(uint256) {
-        return (a <= b) ? a : b;
-    }
-
-    function _max(int256 a, int256 b) internal pure returns(int256) {
-        return (a >= b) ? a : b;
-    }
-
-    function _max(uint256 a, uint256 b) internal pure returns(uint256) {
-        return (a >= b) ? a : b;
-    }
-
-    function _abs(int256 a) internal pure returns(uint256) {
-        return (a >= 0) ? uint256(a) : uint256(-1 * a);
-    }
-
     function computeRequiredUSDCForTrade(uint256 amount, bool isShort) external view override returns(uint256 requiredUSDC) {
         // NOTE: Estimating USDC needed 
         console.log("\n[computeRequiredUSDCForTrade()] USDC Decimals = ", usdc.decimals());
@@ -1067,6 +1051,22 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
         SafeERC20Upgradeable.safeApprove(IERC20Upgradeable(tokenIn), router, 0);
         return res;
+    }
+
+    function _min(uint256 a, uint256 b) internal pure returns(uint256) {
+        return (a <= b) ? a : b;
+    }
+
+    function _max(int256 a, int256 b) internal pure returns(int256) {
+        return (a >= b) ? a : b;
+    }
+
+    function _max(uint256 a, uint256 b) internal pure returns(uint256) {
+        return (a >= b) ? a : b;
+    }
+
+    function _abs(int256 a) internal pure returns(uint256) {
+        return (a >= 0) ? uint256(a) : uint256(-1 * a);
     }
 
     function _msgSender()
