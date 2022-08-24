@@ -5,6 +5,7 @@ import { IPerpetualMixDEXWrapper } from "../../contracts/interfaces/IPerpetualMi
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "../../contracts/interfaces/IERC20Decimals.sol";
 import "../../src/Deploy.sol";
+import "./mocks/MockChainlinkAggregator.sol";
 import "forge-std/Test.sol";
 
 contract USDLemmaTest is Test {
@@ -14,7 +15,26 @@ contract USDLemmaTest is Test {
     bytes32 public constant LEMMA_SWAP = keccak256("LEMMA_SWAP");
     bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
 
+    address public addrChainLinkPriceFeedForETH;
+
+    MockAggregatorProxy public mockOracleAggregatorProxy;
+
+
+    // Source 
+    // https://ethereum.stackexchange.com/questions/884/how-to-convert-an-address-to-bytes-in-solidity
+    function _fromAddrToBytes32(address addr) internal returns(bytes32) {
+        return bytes32(uint256(uint160(addr)) << 96);
+    }
+
     function setUp() public {
+        // NOTE: The aggregator address should be in slot 0 so 
+        // https://optimistic.etherscan.io/address/0x94740ca2c47e13b7b0d3f44fc552ecc880e1d824#code#F1#L14
+        addrChainLinkPriceFeedForETH = address(0x94740cA2c47E13b7b0d3F44FC552Ecc880e1d824);
+        mockOracleAggregatorProxy = new MockAggregatorProxy();
+        mockOracleAggregatorProxy.setRealAggregator(addrChainLinkPriceFeedForETH);
+        uint256 slotAggregatorAddress = uint256(0);
+        vm.store(addrChainLinkPriceFeedForETH, bytes32(slotAggregatorAddress), _fromAddrToBytes32(address(mockOracleAggregatorProxy)));
+
         d = new Deploy(10);
         vm.startPrank(address(d));
         d.pl().grantRole(USDC_TREASURY, address(d.lemmaTreasury()));
