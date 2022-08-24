@@ -22,13 +22,14 @@ task("accounts", "Prints the list of accounts", async (args, hre) => {
 const config: HardhatUserConfig = {
   networks: {
     hardhat: {
-      // forking: {
-      //   url: "https://mainnet.infura.io/v3/" + process.env.INFURA_KEY,
-      // },
+      forking: {
+        url: "https://mainnet.optimism.io",
+        // url: "https://mainnet.infura.io/v3/" + process.env.INFURA_KEY,
+      },
       // accounts: {
       //   mnemonic: process.env.MNEMONIC
       // },
-      // chainId: 1,
+      chainId: 10,
       allowUnlimitedContractSize: true,
     },
     local: {
@@ -39,6 +40,12 @@ const config: HardhatUserConfig = {
     },
     arbitrumTestnet: {
       url: "https://rinkeby.arbitrum.io/rpc",
+      accounts: {
+        mnemonic: process.env.MNEMONIC,
+      },
+    },
+    optimism: {
+      url: "https://mainnet.optimism.io",
       accounts: {
         mnemonic: process.env.MNEMONIC,
       },

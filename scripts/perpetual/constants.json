@@ -3,5 +3,16 @@
         "trustedForwarder": "0x0f3BF5c241B6625C0fA781ED137fDe6786b2e66f",
         "lemmaTreasury": "0x0f3BF5c241B6625C0fA781ED137fDe6786b2e66f",
         "reBalancer": "0x0f3BF5c241B6625C0fA781ED137fDe6786b2e66f"
+    },
+    "31337": {
+        "trustedForwarder": "0x0f3BF5c241B6625C0fA781ED137fDe6786b2e66f",
+        "lemmaTreasury": "0x0f3BF5c241B6625C0fA781ED137fDe6786b2e66f",
+        "reBalancer": "0x0f3BF5c241B6625C0fA781ED137fDe6786b2e66f"
+    },
+    "10": {
+        "trustedForwarder": "0x0f3BF5c241B6625C0fA781ED137fDe6786b2e66f",
+        "lemmaTreasury": "0x0f3BF5c241B6625C0fA781ED137fDe6786b2e66f",
+        "reBalancer": "0x0f3BF5c241B6625C0fA781ED137fDe6786b2e66f"
     }
+
 }

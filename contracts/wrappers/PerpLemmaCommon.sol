@@ -389,7 +389,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         emit MaxPositionUpdated(maxPosition);
     }
 
-    /// @notice setSettlementTokenmanager is to set the address of settlementTokenManager by admin role only
+    /// @notice setSettlementTokenManager is to set the address of settlementTokenManager by admin role only
     /// @param _settlementTokenManager address
     function setSettlementTokenManager(address _settlementTokenManager) external onlyRole(ADMIN_ROLE) {
         revokeRole(USDC_TREASURY, settlementTokenManager);

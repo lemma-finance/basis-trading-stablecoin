@@ -22,6 +22,7 @@ import { SettlementTokenManager__factory, USDLemma__factory } from "../../types"
 bn.config({ EXPONENTIAL_AT: 999999, DECIMAL_PLACES: 40 });
 const SAVE_PREFIX = "./deployments/";
 const SAVE_POSTFIX = ".deployment.perp.js";
+const mainnetAddressesURL = "https://metadata.perp.exchange/v2/optimism.json";
 const testnetAddressesURL = "https://metadata.perp.exchange/v2/optimism-kovan.json";
 let deployedContracts = {};
 
@@ -30,12 +31,20 @@ const save = async network => {
 };
 
 async function main() {
-  let perpV2Config = await fetchFromURL(testnetAddressesURL);
+  // let perpV2Config = await fetchFromURL(testnetAddressesURL);
+  let { chainId } = await ethers.provider.getNetwork()
+  console.log('chainId: ', chainId);
+  let perpV2Config;
+
+  if (chainId == 10) {
+    perpV2Config = await fetchFromURL(mainnetAddressesURL)
+  } else if (chainId == 69) {
+    perpV2Config = await fetchFromURL(testnetAddressesURL)
+  }
   const network = perpV2Config.network;
   const contracts = perpV2Config.contracts;
   const collaterals = perpV2Config.collaterals;
   const externalContracts = perpV2Config.externalContracts;
-  const chainId = perpV2Config.chainId;
 
   const peripheryAddress = AddressZero;
   const USDLemmaAddress = "";
@@ -53,8 +62,13 @@ async function main() {
   let vault = new ethers.Contract(contracts.Vault.address, VaultAbi.abi, defaultSigner);
   let exchange = new ethers.Contract(contracts.Exchange.address, ExchangeAbi.abi, defaultSigner);
   let marketRegistry = new ethers.Contract(contracts.MarketRegistry.address, MarketRegistryAbi.abi, defaultSigner);
-  let collateral = new ethers.Contract(collaterals[2].address, TestERC20Abi.abi, defaultSigner); //WETH
-  let collateral2 = new ethers.Contract(collaterals[1].address, TestERC20Abi.abi, defaultSigner); //WBTC
+  // let collateral = new ethers.Contract(collaterals[2].address, TestERC20Abi.abi, defaultSigner); //WETH
+  // let collateral2 = new ethers.Contract(collaterals[1].address, TestERC20Abi.abi, defaultSigner); //WBTC
+  let collateral = new ethers.Contract( 
+    chainId == 10 ? collaterals[0].address : collaterals[2].address, 
+    TestERC20Abi.abi, 
+    defaultSigner
+  ); //WETH
   let baseToken = new ethers.Contract(contracts.vETH.address, BaseTokenAbi.abi, defaultSigner);
   let baseToken2 = new ethers.Contract(contracts.vBTC.address, TestERC20Abi.abi, defaultSigner);
   let quoteToken = new ethers.Contract(contracts.QuoteToken.address, QuoteTokenAbi.abi, defaultSigner);
@@ -89,6 +103,8 @@ async function main() {
     ],
     { initializer: "initialize" },
   );
+  console.log('perpLemma.address: ', perpLemma.address);
+  await delay(10000);
 
   // Deploy lemmaSynth
   const LemmaSynth = await ethers.getContractFactory("LemmaSynth");
@@ -106,6 +122,8 @@ async function main() {
       initializer: "initialize",
     },
   );
+  console.log('lemmaSynth.address: ', lemmaSynth.address);
+  await delay(10000);
 
   // Deploy xLemmaSynth
   console.log("deploying xLemmaSynth");
@@ -123,6 +141,7 @@ async function main() {
       initializer: "initialize",
     },
   );
+  console.log('xLemmaSynth.address: ', xLemmaSynth.address);
   await delay(10000);
 
   console.log("configuring parameters");

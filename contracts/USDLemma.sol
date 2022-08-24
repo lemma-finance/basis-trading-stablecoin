@@ -128,9 +128,9 @@ contract USDLemma is
         emit PerpetualDexWrapperAdded(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
     }
 
-    /// @notice setSettlementTokenmanager is to set the address of settlementTokenManager
+    /// @notice setSettlementTokenManager is to set the address of settlementTokenManager
     /// @param _settlementTokenManager address
-    function setSettlementTokenmanager(address _settlementTokenManager) external onlyRole(ONLY_OWNER) {
+    function setSettlementTokenManager(address _settlementTokenManager) external onlyRole(ONLY_OWNER) {
         settlementTokenManager = _settlementTokenManager;
         emit SetSettlementTokenManager(settlementTokenManager);
     }
