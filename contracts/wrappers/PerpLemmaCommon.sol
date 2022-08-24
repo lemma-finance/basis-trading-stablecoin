@@ -497,22 +497,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
     function computeRequiredUSDCForTrade(uint256 amount, bool isShort) external view override returns(uint256 requiredUSDC) {
         // NOTE: Estimating USDC needed 
-        console.log("\n[computeRequiredUSDCForTrade()] USDC Decimals = ", usdc.decimals());
-
-        console.log("[computeRequiredUSDCForTrade()] amount = ", amount);
-        // print("[computeRequiredUSDCForTrade()] amountBase = ", amountBase);
-        console.log("[computeRequiredUSDCForTrade()] collateralRatio = ", collateralRatio);
-
         uint256 freeCollateralBefore = getFreeCollateral();
-        console.log("[computeRequiredUSDCForTrade()] freeCollateralBefore = ", freeCollateralBefore);
         uint256 indexPrice = getIndexPrice();
-        console.log("[computeRequiredUSDCForTrade()] IndexPrice = ", indexPrice);
         (uint24 imRatio, uint24 mmRatio) = getCollateralRatios();
-        console.log("[computeRequiredUSDCForTrade()] imRatio = ", imRatio);
-        console.log("[computeRequiredUSDCForTrade()] mmRatio = ", mmRatio);
-
-        console.log("[computeRequiredUSDCForTrade()] collateralRatio = ", collateralRatio);
-
         uint256 deltaAmount = amount;
 
         if( 
@@ -521,43 +508,26 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             ) {
                 // NOTE: amountBase is in vToken amount so 1e18
                 uint256 amountBaseInCollateralDecimals = _abs(amountBase) * 10**(usdlCollateral.decimals()) / 1e18;
-                console.log("[computeRequiredUSDCForTrade()] Flipping Case");
-                if(isShort) console.log("[computeRequiredUSDCForTrade()] isShort = true");
-                else console.log("[computeRequiredUSDCForTrade()] isShort = false");
-                // print("[computeRequiredUSDCForTrade()] amountbase = ", amountBase);
-                console.log("[computeRequiredUSDCForTrade()] amountBaseInCollateralDecimals = ", amountBaseInCollateralDecimals);
                 if(amount <= amountBaseInCollateralDecimals) {
-                    console.log("[computeRequiredUSDCForTrade()] Position Decreases but does not flip, so it just frees up collateral");
+                    // NOTE: Position Decreases but does not flip, so it just frees up collateral
                     return 0;
                 }
 
                 if( amount <= 2*amountBaseInCollateralDecimals ) {
-                    console.log("[computeRequiredUSDCForTrade()] Position has flipped but the final position is <= the original one so it just frees up collateral");
+                    // NOTE: Position has flipped but the final position is <= the original one so it just frees up collateral
                     return 0;
                 }
-                console.log("[computeRequiredUSDCForTrade()] Position has flipped and the final position is > the original");
+                // NOTE: Position has flipped and the final position is > the original
                 deltaAmount = amount - 2 * amountBaseInCollateralDecimals;
             }
         
-        console.log("[computeRequiredUSDCForTrade()] deltaAmount = ", deltaAmount);
-
         uint256 expectedDeltaQuote = deltaAmount * indexPrice / 10 ** (18 + 18 - usdc.decimals());
-        console.log("[computeRequiredUSDCForTrade()] expectedDeltaQuote = ", expectedDeltaQuote);
 
         uint256 expectedUSDCDeductedFromFreeCollateral = expectedDeltaQuote * uint256(collateralRatio) / 1e6;
-        console.log("[computeRequiredUSDCForTrade()] expectedUSDCDeductedFromFreeCollateral = ", expectedUSDCDeductedFromFreeCollateral);
 
         if(expectedUSDCDeductedFromFreeCollateral > freeCollateralBefore) {
             requiredUSDC = expectedUSDCDeductedFromFreeCollateral - freeCollateralBefore;
         }
-
-        console.log("[computeRequiredUSDCForTrade()] requiredUSDC \n= ", requiredUSDC);
-
-        // uint256 expectedFinalFreeCollateral = freeCollateralBefore - expectedUSDCDeductedFromFreeCollateral;
-        // console.log("[computeRequiredUSDCForTrade()] expectedFinalFreeCollateral = ", expectedFinalFreeCollateral);
-        // uint256 requiredUSDCCollateral = uint256(_max(int256(0), int256(expectedFinalFreeCollateral) - int256(freeCollateralBefore)));
-        // console.log("[computeRequiredUSDCForTrade()] requiredUSDCCollateral = ", requiredUSDCCollateral);
-        // return requiredUSDCCollateral;
     }
 
 
