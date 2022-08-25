@@ -436,13 +436,13 @@ contract USDLemmaTest is Test {
         _mintUSDLWExactCollateralNoChecks(address(this), collateral, 1e15);
 
         console.log("Price Before = ", d.pl().getIndexPrice());
-        // NOTE: Let's move forward of 1 day with a +1% price change
-        // _advancePerc(8 hours, 1e4);
+        // NOTE: Let's move forward of 1 day with a +0.1% price change
+        _advancePerc(8 hours, 1e3);
         console.log("Price After 8h = ", d.pl().getIndexPrice());
-        // _advancePerc(8 hours, 3e4);
-        // console.log("Price After 16h = ", d.pl().getIndexPrice());
-        // _advancePerc(8 hours, 5e4);
-        // console.log("Price After 24h = ", d.pl().getIndexPrice());
+        _advancePerc(8 hours, 3e4);
+        console.log("Price After 16h = ", d.pl().getIndexPrice());
+        _advancePerc(8 hours, 5e4);
+        console.log("Price After 24h = ", d.pl().getIndexPrice());
 
         // console.log("Trying to check new price corresponds");
         // assertTrue(d.pl().getIndexPrice() == newPrice);
