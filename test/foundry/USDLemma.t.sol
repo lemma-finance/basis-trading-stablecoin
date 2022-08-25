@@ -26,7 +26,11 @@ contract USDLemmaTest is Test {
         return bytes32(uint256(uint160(addr)) << 96);
     }
 
+
     function setUp() public {
+        // NOTE: Address used to call the setter methods 
+        address perpOwner = address(0x76Ff908b6d43C182DAEC59b35CebC1d7A17D8086);
+
         // NOTE: The aggregator address should be in slot 0 so 
         // https://optimistic.etherscan.io/address/0x94740ca2c47e13b7b0d3f44fc552ecc880e1d824#code#F1#L14
         addrChainLinkPriceFeedForETH = address(0x94740cA2c47E13b7b0d3F44FC552Ecc880e1d824);
@@ -387,8 +391,10 @@ contract USDLemmaTest is Test {
         console.log("[testDepositToWExactCollateralNeedToRecap()] Minting Works");
     }
 
-    function _advanceTime(uint256 delta, uint256 price) internal {
-        vm.warp(block.timestamp + delta);
+    function _advancePerc(uint256 deltaT, int256 pricePerc) internal returns(int256 nextPrice) {
+        nextPrice = mockOracleAggregatorProxy.getLatestAnswer() * (1e6 + pricePerc) / 1e6;
+        vm.warp(block.timestamp + deltaT);
+        mockOracleAggregatorProxy.advance(deltaT, nextPrice);
     }
 
     function testDepositToWExactCollateralStartShortNeedToRecapDynamic1() public {
@@ -409,7 +415,19 @@ contract USDLemmaTest is Test {
         // NOTE: Minting just a little bit of USDL to start with a net short position 
         _mintUSDLWExactCollateralNoChecks(address(this), collateral, 1e15);
 
-        _advanceTime(1 days, 0);
+
+        console.log("Price Before = ", d.pl().getIndexPrice());
+        // NOTE: Let's move forward of 1 day with a +1% price change
+        _advancePerc(8 hours, 1e4);
+        console.log("Price After 8h = ", d.pl().getIndexPrice());
+        _advancePerc(8 hours, 3e4);
+        console.log("Price After 16h = ", d.pl().getIndexPrice());
+        _advancePerc(8 hours, 5e4);
+        console.log("Price After 24h = ", d.pl().getIndexPrice());
+
+        // console.log("Trying to check new price corresponds");
+        // assertTrue(d.pl().getIndexPrice() == newPrice);
+        // console.log("DONE");
 
         // _depositSettlementToken(328392000);
         uint256 amount = 3e18;

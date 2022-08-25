@@ -130,6 +130,7 @@ contract MockAggregatorProxy is AggregatorV2V3Interface {
         oracleStatusCurrent.latestAnswer = answer;
         oracleStatusCurrent.latestTimestamp += deltaT;
         oracleStatusCurrent.latestRound = roundId;
+        console.log("[Oracle advance()] oracleStatusCurrent.latestRound = ", oracleStatusCurrent.latestRound);
     }
 
     function decimals() external view override returns (uint8) {
