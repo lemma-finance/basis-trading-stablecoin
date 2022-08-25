@@ -6,7 +6,14 @@ import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "../../contracts/interfaces/IERC20Decimals.sol";
 import "../../src/Deploy.sol";
 import "./mocks/MockChainlinkAggregator.sol";
+import "./mocks/MockPriceFeed.sol";
 import "forge-std/Test.sol";
+
+interface IBaseTokenSetter {
+    function owner() external returns(address);
+    function getPriceFeed() external returns(address);
+    function setPriceFeed(address priceFeedArg) external;
+}
 
 contract USDLemmaTest is Test {
     Deploy public d;
@@ -18,6 +25,7 @@ contract USDLemmaTest is Test {
     address public addrChainLinkPriceFeedForETH;
 
     MockAggregatorProxy public mockOracleAggregatorProxy;
+    MockPriceFeed public mockPriceFeed;
 
 
     // Source 
@@ -30,14 +38,22 @@ contract USDLemmaTest is Test {
     function setUp() public {
         // NOTE: Address used to call the setter methods 
         address perpOwner = address(0x76Ff908b6d43C182DAEC59b35CebC1d7A17D8086);
+        address baseTokenMarket = address(0x8C835DFaA34e2AE61775e80EE29E2c724c6AE2BB);
+        mockPriceFeed = new MockPriceFeed();
+        mockPriceFeed.setRealPriceFeed(IBaseTokenSetter(baseTokenMarket).getPriceFeed());
+        vm.startPrank(IBaseTokenSetter(baseTokenMarket).owner());
+        console.log("Trying to set Mock Oracle");
+        IBaseTokenSetter(baseTokenMarket).setPriceFeed(address(mockPriceFeed));
+        console.log("Trying to set Mock Oracle DONE");
+        vm.stopPrank();
 
         // NOTE: The aggregator address should be in slot 0 so 
         // https://optimistic.etherscan.io/address/0x94740ca2c47e13b7b0d3f44fc552ecc880e1d824#code#F1#L14
-        addrChainLinkPriceFeedForETH = address(0x94740cA2c47E13b7b0d3F44FC552Ecc880e1d824);
-        mockOracleAggregatorProxy = new MockAggregatorProxy();
-        mockOracleAggregatorProxy.setRealAggregator(addrChainLinkPriceFeedForETH);
-        uint256 slotAggregatorAddress = uint256(0);
-        vm.store(addrChainLinkPriceFeedForETH, bytes32(slotAggregatorAddress), _fromAddrToBytes32(address(mockOracleAggregatorProxy)));
+        // addrChainLinkPriceFeedForETH = address(0x94740cA2c47E13b7b0d3F44FC552Ecc880e1d824);
+        // mockOracleAggregatorProxy = new MockAggregatorProxy();
+        // mockOracleAggregatorProxy.setRealAggregator(addrChainLinkPriceFeedForETH);
+        // uint256 slotAggregatorAddress = uint256(0);
+        // vm.store(addrChainLinkPriceFeedForETH, bytes32(slotAggregatorAddress), _fromAddrToBytes32(address(mockOracleAggregatorProxy)));
 
         d = new Deploy(10);
         vm.startPrank(address(d));
@@ -391,10 +407,14 @@ contract USDLemmaTest is Test {
         console.log("[testDepositToWExactCollateralNeedToRecap()] Minting Works");
     }
 
-    function _advancePerc(uint256 deltaT, int256 pricePerc) internal returns(int256 nextPrice) {
-        nextPrice = mockOracleAggregatorProxy.getLatestAnswer() * (1e6 + pricePerc) / 1e6;
+    function _advancePerc(uint256 deltaT, int256 pricePerc) internal returns(uint256 nextPrice) {
+        console.log("[_advancePerc()] Current Price = ", d.pl().getIndexPrice());
+        nextPrice = uint256(int256(d.pl().getIndexPrice()) * (int256(1e6) + pricePerc) / 1e6);
+        console.log("[_advancePerc()] nextPrice = ", nextPrice);
+        // nextPrice = mockOracleAggregatorProxy.getLatestAnswer() * (1e6 + pricePerc) / 1e6;
         vm.warp(block.timestamp + deltaT);
-        mockOracleAggregatorProxy.advance(deltaT, nextPrice);
+        mockPriceFeed.setPrice(nextPrice);
+        // mockOracleAggregatorProxy.advance(deltaT, nextPrice);
     }
 
     function testDepositToWExactCollateralStartShortNeedToRecapDynamic1() public {
@@ -415,15 +435,14 @@ contract USDLemmaTest is Test {
         // NOTE: Minting just a little bit of USDL to start with a net short position 
         _mintUSDLWExactCollateralNoChecks(address(this), collateral, 1e15);
 
-
         console.log("Price Before = ", d.pl().getIndexPrice());
         // NOTE: Let's move forward of 1 day with a +1% price change
-        _advancePerc(8 hours, 1e4);
+        // _advancePerc(8 hours, 1e4);
         console.log("Price After 8h = ", d.pl().getIndexPrice());
-        _advancePerc(8 hours, 3e4);
-        console.log("Price After 16h = ", d.pl().getIndexPrice());
-        _advancePerc(8 hours, 5e4);
-        console.log("Price After 24h = ", d.pl().getIndexPrice());
+        // _advancePerc(8 hours, 3e4);
+        // console.log("Price After 16h = ", d.pl().getIndexPrice());
+        // _advancePerc(8 hours, 5e4);
+        // console.log("Price After 24h = ", d.pl().getIndexPrice());
 
         // console.log("Trying to check new price corresponds");
         // assertTrue(d.pl().getIndexPrice() == newPrice);
