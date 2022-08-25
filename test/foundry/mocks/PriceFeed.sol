@@ -40,6 +40,7 @@ contract MockPriceFeed is IPriceFeedV2 {
 
     function cacheTwap(uint256 interval) external override returns (uint256) {
         // TODO: Implement
+        return IPriceFeedV2(realPriceFeed).cacheTwap(interval);
     }
 
     function getPrice(uint256 interval) external view override returns(uint256) {
