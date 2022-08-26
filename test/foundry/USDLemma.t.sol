@@ -514,7 +514,7 @@ contract USDLemmaTest is Test {
         // NOTE: Minting just a little bit of USDL to start with a net short position 
         _mintSynthWExactCollateralNoChecks(address(this), collateral, 3e18, 1);
 
-        _advancePerc(8 hours, 3e4);
+        _advancePerc(8 hours, -20e4);
         console.log("Price After 24h = ", d.pl().getIndexPrice());
 
         // _depositSettlementToken(328392000);
