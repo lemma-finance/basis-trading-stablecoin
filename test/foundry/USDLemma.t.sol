@@ -24,6 +24,8 @@ contract USDLemmaTest is Test {
 
     address public addrChainLinkPriceFeedForETH;
 
+
+
     MockAggregatorProxy public mockOracleAggregatorProxy;
     MockPriceFeed public mockPriceFeed;
 
@@ -407,13 +409,14 @@ contract USDLemmaTest is Test {
         console.log("[testDepositToWExactCollateralNeedToRecap()] Minting Works");
     }
 
+
     function _advancePerc(uint256 deltaT, int256 pricePerc) internal returns(uint256 nextPrice) {
         console.log("[_advancePerc()] Current Price = ", d.pl().getIndexPrice());
         nextPrice = uint256(int256(d.pl().getIndexPrice()) * (int256(1e6) + pricePerc) / 1e6);
         console.log("[_advancePerc()] nextPrice = ", nextPrice);
         // nextPrice = mockOracleAggregatorProxy.getLatestAnswer() * (1e6 + pricePerc) / 1e6;
         vm.warp(block.timestamp + deltaT);
-        mockPriceFeed.setPrice(nextPrice);
+        mockPriceFeed.setPriceFromPriceFeed(nextPrice);
         // mockOracleAggregatorProxy.advance(deltaT, nextPrice);
     }
 
@@ -437,7 +440,8 @@ contract USDLemmaTest is Test {
 
         console.log("Price Before = ", d.pl().getIndexPrice());
         // NOTE: Let's move forward of 1 day with a +0.1% price change
-        _advancePerc(8 hours, 1e3);
+        mockPriceFeed.advancePerc(8 hours, 1e3);
+        // _advancePerc(8 hours, 1e3);
         console.log("Price After 8h = ", d.pl().getIndexPrice());
 
         // _depositSettlementToken(328392000);
@@ -445,13 +449,16 @@ contract USDLemmaTest is Test {
         console.log("[testDepositToWExactCollateralNeedToRecap()] amount = ", amount);
         _mintUSDLWExactCollateralNoChecks(address(this), collateral, amount);
 
-        _advancePerc(8 hours, 3e4);
+        mockPriceFeed.advancePerc(8 hours, 1e3);
+        // _advancePerc(8 hours, 3e4);
         console.log("Price After 16h = ", d.pl().getIndexPrice());
 
         console.log("[testDepositToWExactCollateralNeedToRecap()] amount = ", amount);
         _mintUSDLWExactCollateralNoChecks(address(this), collateral, amount);
 
-        _advancePerc(8 hours, 5e4);
+
+        mockPriceFeed.advancePerc(8 hours, 5e4);
+        // _advancePerc(8 hours, 5e4);
         console.log("Price After 24h = ", d.pl().getIndexPrice());
 
         console.log("[testDepositToWExactCollateralNeedToRecap()] amount = ", amount);
@@ -515,7 +522,8 @@ contract USDLemmaTest is Test {
         _mintSynthWExactCollateralNoChecks(address(this), collateral, 3e18, 1);
 
 
-        _advancePerc(8 hours, -20e4);
+        mockPriceFeed.advancePerc(8 hours, -20e4);
+        // _advancePerc(8 hours, -20e4);
         console.log("Price After 8h = ", d.pl().getIndexPrice());
 
         // _depositSettlementToken(328392000);
@@ -552,7 +560,8 @@ contract USDLemmaTest is Test {
         // NOTE: Minting just a little bit of USDL to start with a net short position 
         _mintSynthWExactCollateralNoChecks(address(this), collateral, 3e18, 1);
 
-        _advancePerc(8 hours, 20e4);
+        mockPriceFeed.advancePerc(8 hours, 20e4);
+        // _advancePerc(8 hours, 20e4);
         console.log("Price After 8h = ", d.pl().getIndexPrice());
 
         // _depositSettlementToken(328392000);
@@ -655,7 +664,9 @@ contract USDLemmaTest is Test {
         testDepositTo();
         address collateral = d.getTokenAddress("WETH");
         uint256 usdlAmount = d.usdl().balanceOf(address(this));
-        _advancePerc(8 hours, 20e4);
+
+        mockPriceFeed.advancePerc(8 hours, 20e4);
+        // _advancePerc(8 hours, 20e4);
         console.log("Price After 8h = ", d.pl().getIndexPrice());
         _redeemUSDLWExactUsdl(address(this), collateral, usdlAmount, 0);
     }

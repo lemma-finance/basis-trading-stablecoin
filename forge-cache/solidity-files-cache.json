@@ -126,7 +126,7 @@
       }
     },
     "contracts/USDLemma.sol": {
-      "lastModificationDate": 1660649644525,
+      "lastModificationDate": 1661335859590,
       "contentHash": "fb5ff996b09758b3dccd47cdf7cba1cf",
       "sourceName": "contracts/USDLemma.sol",
       "solcConfig": {
@@ -866,7 +866,7 @@
       }
     },
     "contracts/wrappers/PerpLemmaCommon.sol": {
-      "lastModificationDate": 1660649644529,
+      "lastModificationDate": 1661335859594,
       "contentHash": "e2cf46d1e5e2a747ca8f0ad162356760",
       "sourceName": "contracts/wrappers/PerpLemmaCommon.sol",
       "solcConfig": {
@@ -993,7 +993,7 @@
       }
     },
     "contracts/xUSDL.sol": {
-      "lastModificationDate": 1660649644529,
+      "lastModificationDate": 1661335859594,
       "contentHash": "0ee0458a6fb8291e590470cdc905059c",
       "sourceName": "contracts/xUSDL.sol",
       "solcConfig": {
@@ -3008,7 +3008,7 @@
       }
     },
     "test/foundry/Contract.t.sol": {
-      "lastModificationDate": 1660649644529,
+      "lastModificationDate": 1661335859598,
       "contentHash": "f45cbbc247de7a57275fe3cc0842480a",
       "sourceName": "test/foundry/Contract.t.sol",
       "solcConfig": {
@@ -3070,7 +3070,7 @@
       }
     },
     "test/foundry/LemmaSynth.t.sol": {
-      "lastModificationDate": 1660649644529,
+      "lastModificationDate": 1661335859602,
       "contentHash": "9885da1ce7dabca1b92b0d14cc5d245c",
       "sourceName": "test/foundry/LemmaSynth.t.sol",
       "solcConfig": {
@@ -3132,7 +3132,7 @@
       }
     },
     "test/foundry/PerpLemma.t.sol": {
-      "lastModificationDate": 1660677561430,
+      "lastModificationDate": 1661335859602,
       "contentHash": "778b98a352b8aea5db643ba8df90b057",
       "sourceName": "test/foundry/PerpLemma.t.sol",
       "solcConfig": {
@@ -3256,8 +3256,8 @@
       }
     },
     "test/foundry/USDLemma.t.sol": {
-      "lastModificationDate": 1661256681849,
-      "contentHash": "051945fa68281b39e2261179b854ce9d",
+      "lastModificationDate": 1661511630729,
+      "contentHash": "987d9ca5cc543814d5622bd5312f9b25",
       "sourceName": "test/foundry/USDLemma.t.sol",
       "solcConfig": {
         "settings": {
@@ -3308,12 +3308,122 @@
         "node_modules/@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol",
         "node_modules/@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol",
         "node_modules/@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol",
-        "src/Deploy.sol"
+        "src/Deploy.sol",
+        "test/foundry/mocks/MockChainlinkAggregator.sol",
+        "test/foundry/mocks/MockPriceFeed.sol"
       ],
       "versionRequirement": ">=0.6.0, <0.9.0",
       "artifacts": {
+        "IBaseTokenSetter": {
+          "0.8.3+commit.8d00100c.Linux.gcc": "USDLemma.t.sol/IBaseTokenSetter.json"
+        },
         "USDLemmaTest": {
           "0.8.3+commit.8d00100c.Linux.gcc": "USDLemma.t.sol/USDLemmaTest.json"
+        }
+      }
+    },
+    "test/foundry/mocks/MockChainlinkAggregator.sol": {
+      "lastModificationDate": 1661420500516,
+      "contentHash": "166896871d5ef3055cf6168e70bf28a7",
+      "sourceName": "test/foundry/mocks/MockChainlinkAggregator.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs"
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "lib/forge-std/lib/ds-test/src/test.sol",
+        "lib/forge-std/src/Script.sol",
+        "lib/forge-std/src/Test.sol",
+        "lib/forge-std/src/Vm.sol",
+        "lib/forge-std/src/console.sol",
+        "lib/forge-std/src/console2.sol"
+      ],
+      "versionRequirement": ">=0.6.0, <0.9.0",
+      "artifacts": {
+        "AggregatorInterface": {
+          "0.8.3+commit.8d00100c.Linux.gcc": "MockChainlinkAggregator.sol/AggregatorInterface.json"
+        },
+        "AggregatorV2V3Interface": {
+          "0.8.3+commit.8d00100c.Linux.gcc": "MockChainlinkAggregator.sol/AggregatorV2V3Interface.json"
+        },
+        "AggregatorV3Interface": {
+          "0.8.3+commit.8d00100c.Linux.gcc": "MockChainlinkAggregator.sol/AggregatorV3Interface.json"
+        },
+        "MockAggregatorProxy": {
+          "0.8.3+commit.8d00100c.Linux.gcc": "MockChainlinkAggregator.sol/MockAggregatorProxy.json"
+        }
+      }
+    },
+    "test/foundry/mocks/MockPriceFeed.sol": {
+      "lastModificationDate": 1661511529856,
+      "contentHash": "7c2204b840eaf9b05421db9d7e39191d",
+      "sourceName": "test/foundry/mocks/MockPriceFeed.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs"
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "lib/forge-std/lib/ds-test/src/test.sol",
+        "lib/forge-std/src/Script.sol",
+        "lib/forge-std/src/Test.sol",
+        "lib/forge-std/src/Vm.sol",
+        "lib/forge-std/src/console.sol",
+        "lib/forge-std/src/console2.sol"
+      ],
+      "versionRequirement": "^0.8.3",
+      "artifacts": {
+        "IPriceFeed": {
+          "0.8.3+commit.8d00100c.Linux.gcc": "MockPriceFeed.sol/IPriceFeed.json"
+        },
+        "IPriceFeedV2": {
+          "0.8.3+commit.8d00100c.Linux.gcc": "MockPriceFeed.sol/IPriceFeedV2.json"
+        },
+        "MockPriceFeed": {
+          "0.8.3+commit.8d00100c.Linux.gcc": "MockPriceFeed.sol/MockPriceFeed.json"
         }
       }
     }
