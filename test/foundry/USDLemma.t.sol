@@ -410,15 +410,16 @@ contract USDLemmaTest is Test {
     }
 
 
-    function _advancePerc(uint256 deltaT, int256 pricePerc) internal returns(uint256 nextPrice) {
-        console.log("[_advancePerc()] Current Price = ", d.pl().getIndexPrice());
-        nextPrice = uint256(int256(d.pl().getIndexPrice()) * (int256(1e6) + pricePerc) / 1e6);
-        console.log("[_advancePerc()] nextPrice = ", nextPrice);
-        // nextPrice = mockOracleAggregatorProxy.getLatestAnswer() * (1e6 + pricePerc) / 1e6;
-        vm.warp(block.timestamp + deltaT);
-        mockPriceFeed.setPriceFromPriceFeed(nextPrice);
-        // mockOracleAggregatorProxy.advance(deltaT, nextPrice);
-    }
+
+    // function _advancePerc(uint256 deltaT, int256 pricePerc) internal returns(uint256 nextPrice) {
+    //     console.log("[_advancePerc()] Current Price = ", d.pl().getIndexPrice());
+    //     nextPrice = uint256(int256(d.pl().getIndexPrice()) * (int256(1e6) + pricePerc) / 1e6);
+    //     console.log("[_advancePerc()] nextPrice = ", nextPrice);
+    //     // nextPrice = mockOracleAggregatorProxy.getLatestAnswer() * (1e6 + pricePerc) / 1e6;
+    //     vm.warp(block.timestamp + deltaT);
+    //     mockPriceFeed.setPriceFromPriceFeed(nextPrice);
+    //     // mockOracleAggregatorProxy.advance(deltaT, nextPrice);
+    // }
 
     function testDynamicDepositToWExactCollateralStartShortNeedToRecap1() public {
         console.log("T1 ", d.pl().usdlBaseTokenAddress());

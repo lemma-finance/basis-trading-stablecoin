@@ -3256,8 +3256,8 @@
       }
     },
     "test/foundry/USDLemma.t.sol": {
-      "lastModificationDate": 1661511630729,
-      "contentHash": "987d9ca5cc543814d5622bd5312f9b25",
+      "lastModificationDate": 1661511750078,
+      "contentHash": "eb33be6a586556994004accabef7a072",
       "sourceName": "test/foundry/USDLemma.t.sol",
       "solcConfig": {
         "settings": {
