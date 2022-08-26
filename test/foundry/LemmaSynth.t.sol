@@ -5,6 +5,9 @@ import { IPerpetualMixDEXWrapper } from "../../contracts/interfaces/IPerpetualMi
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "../../contracts/interfaces/IERC20Decimals.sol";
 import "../../src/Deploy.sol";
+
+
+import "./mocks/MockPriceFeed.sol";
 import "forge-std/Test.sol";
 
 contract LemmaSynthTest is Test {
@@ -14,7 +17,20 @@ contract LemmaSynthTest is Test {
     bytes32 public constant LEMMA_SWAP = keccak256("LEMMA_SWAP");
     bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
 
+
+    MockPriceFeed public mockPriceFeed;
+
     function setUp() public {
+        address perpOwner = address(0x76Ff908b6d43C182DAEC59b35CebC1d7A17D8086);
+        address baseTokenMarket = address(0x8C835DFaA34e2AE61775e80EE29E2c724c6AE2BB);
+        mockPriceFeed = new MockPriceFeed();
+        mockPriceFeed.setRealPriceFeed(IBaseTokenSetter(baseTokenMarket).getPriceFeed());
+        vm.startPrank(IBaseTokenSetter(baseTokenMarket).owner());
+        console.log("Trying to set Mock Oracle");
+        IBaseTokenSetter(baseTokenMarket).setPriceFeed(address(mockPriceFeed));
+        console.log("Trying to set Mock Oracle DONE");
+        vm.stopPrank();
+
         d = new Deploy(10);
         vm.startPrank(address(d));
         d.pl().setUSDLemma(address(d.usdl()));

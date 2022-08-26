@@ -2,6 +2,12 @@
 pragma solidity ^0.8.3;
 import "forge-std/Test.sol";
 
+interface IBaseTokenSetter {
+    function owner() external returns(address);
+    function getPriceFeed() external returns(address);
+    function setPriceFeed(address priceFeedArg) external;
+}
+
 // Source 
 // https://github.com/perpetual-protocol/perp-oracle-contract/blob/main/contracts/interface/IPriceFeed.sol
 interface IPriceFeed {

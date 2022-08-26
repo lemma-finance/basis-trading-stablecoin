@@ -3070,8 +3070,8 @@
       }
     },
     "test/foundry/LemmaSynth.t.sol": {
-      "lastModificationDate": 1661335859602,
-      "contentHash": "9885da1ce7dabca1b92b0d14cc5d245c",
+      "lastModificationDate": 1661513201076,
+      "contentHash": "9362e6b0361fccd1b8f8cc8371e71b51",
       "sourceName": "test/foundry/LemmaSynth.t.sol",
       "solcConfig": {
         "settings": {
@@ -3122,7 +3122,8 @@
         "node_modules/@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol",
         "node_modules/@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol",
         "node_modules/@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol",
-        "src/Deploy.sol"
+        "src/Deploy.sol",
+        "test/foundry/mocks/MockPriceFeed.sol"
       ],
       "versionRequirement": ">=0.6.0, <0.9.0",
       "artifacts": {
@@ -3256,8 +3257,8 @@
       }
     },
     "test/foundry/USDLemma.t.sol": {
-      "lastModificationDate": 1661511750078,
-      "contentHash": "eb33be6a586556994004accabef7a072",
+      "lastModificationDate": 1661513234644,
+      "contentHash": "e65c91187c02abd62f7e1cf1cbcb52a3",
       "sourceName": "test/foundry/USDLemma.t.sol",
       "solcConfig": {
         "settings": {
@@ -3309,14 +3310,10 @@
         "node_modules/@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol",
         "node_modules/@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol",
         "src/Deploy.sol",
-        "test/foundry/mocks/MockChainlinkAggregator.sol",
         "test/foundry/mocks/MockPriceFeed.sol"
       ],
       "versionRequirement": ">=0.6.0, <0.9.0",
       "artifacts": {
-        "IBaseTokenSetter": {
-          "0.8.3+commit.8d00100c.Linux.gcc": "USDLemma.t.sol/IBaseTokenSetter.json"
-        },
         "USDLemmaTest": {
           "0.8.3+commit.8d00100c.Linux.gcc": "USDLemma.t.sol/USDLemmaTest.json"
         }
@@ -3377,8 +3374,8 @@
       }
     },
     "test/foundry/mocks/MockPriceFeed.sol": {
-      "lastModificationDate": 1661511529856,
-      "contentHash": "7c2204b840eaf9b05421db9d7e39191d",
+      "lastModificationDate": 1661513241212,
+      "contentHash": "d123a593960bcbcb71fc07f6befa1af7",
       "sourceName": "test/foundry/mocks/MockPriceFeed.sol",
       "solcConfig": {
         "settings": {
@@ -3416,6 +3413,9 @@
       ],
       "versionRequirement": "^0.8.3",
       "artifacts": {
+        "IBaseTokenSetter": {
+          "0.8.3+commit.8d00100c.Linux.gcc": "MockPriceFeed.sol/IBaseTokenSetter.json"
+        },
         "IPriceFeed": {
           "0.8.3+commit.8d00100c.Linux.gcc": "MockPriceFeed.sol/IPriceFeed.json"
         },

@@ -5,15 +5,11 @@ import { IPerpetualMixDEXWrapper } from "../../contracts/interfaces/IPerpetualMi
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "../../contracts/interfaces/IERC20Decimals.sol";
 import "../../src/Deploy.sol";
-import "./mocks/MockChainlinkAggregator.sol";
+// import "./mocks/MockChainlinkAggregator.sol";
+
 import "./mocks/MockPriceFeed.sol";
 import "forge-std/Test.sol";
 
-interface IBaseTokenSetter {
-    function owner() external returns(address);
-    function getPriceFeed() external returns(address);
-    function setPriceFeed(address priceFeedArg) external;
-}
 
 contract USDLemmaTest is Test {
     Deploy public d;
@@ -26,7 +22,8 @@ contract USDLemmaTest is Test {
 
 
 
-    MockAggregatorProxy public mockOracleAggregatorProxy;
+
+    // MockAggregatorProxy public mockOracleAggregatorProxy;
     MockPriceFeed public mockPriceFeed;
 
 
