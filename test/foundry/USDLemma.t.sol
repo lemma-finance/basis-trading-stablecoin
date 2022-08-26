@@ -650,6 +650,16 @@ contract USDLemmaTest is Test {
         _redeemUSDLWExactUsdl(address(this), collateral, usdlAmount, 0);
     }
 
+    // test depositTo and withdrawTo
+    function testDynamicDepositToAndWithdrawTo11() public {
+        testDepositTo();
+        address collateral = d.getTokenAddress("WETH");
+        uint256 usdlAmount = d.usdl().balanceOf(address(this));
+        _advancePerc(8 hours, 20e4);
+        console.log("Price After 8h = ", d.pl().getIndexPrice());
+        _redeemUSDLWExactUsdl(address(this), collateral, usdlAmount, 0);
+    }
+
     // test depositToWExactCollateral and withdrawTo
     function testDepositToWExactCollateralAndwithdrawTo() public {
         uint256 collateralAmount = 1e12;
