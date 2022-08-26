@@ -417,7 +417,7 @@ contract USDLemmaTest is Test {
         // mockOracleAggregatorProxy.advance(deltaT, nextPrice);
     }
 
-    function testDepositToWExactCollateralStartShortNeedToRecapDynamic1() public {
+    function testDynamicDepositToWExactCollateralStartShortNeedToRecap1() public {
         console.log("T1 ", d.pl().usdlBaseTokenAddress());
         vm.startPrank(address(d));
         // d.pl().setMinMarginForRecap(3e18);
@@ -439,17 +439,21 @@ contract USDLemmaTest is Test {
         // NOTE: Let's move forward of 1 day with a +0.1% price change
         _advancePerc(8 hours, 1e3);
         console.log("Price After 8h = ", d.pl().getIndexPrice());
-        _advancePerc(8 hours, 3e4);
-        console.log("Price After 16h = ", d.pl().getIndexPrice());
-        _advancePerc(8 hours, 5e4);
-        console.log("Price After 24h = ", d.pl().getIndexPrice());
-
-        // console.log("Trying to check new price corresponds");
-        // assertTrue(d.pl().getIndexPrice() == newPrice);
-        // console.log("DONE");
 
         // _depositSettlementToken(328392000);
         uint256 amount = 3e18;
+        console.log("[testDepositToWExactCollateralNeedToRecap()] amount = ", amount);
+        _mintUSDLWExactCollateralNoChecks(address(this), collateral, amount);
+
+        _advancePerc(8 hours, 3e4);
+        console.log("Price After 16h = ", d.pl().getIndexPrice());
+
+        console.log("[testDepositToWExactCollateralNeedToRecap()] amount = ", amount);
+        _mintUSDLWExactCollateralNoChecks(address(this), collateral, amount);
+
+        _advancePerc(8 hours, 5e4);
+        console.log("Price After 24h = ", d.pl().getIndexPrice());
+
         console.log("[testDepositToWExactCollateralNeedToRecap()] amount = ", amount);
         _mintUSDLWExactCollateralNoChecks(address(this), collateral, amount);
 
