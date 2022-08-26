@@ -457,9 +457,6 @@ contract USDLemmaTest is Test {
         console.log("[testDepositToWExactCollateralNeedToRecap()] amount = ", amount);
         _mintUSDLWExactCollateralNoChecks(address(this), collateral, amount);
 
-        // NOTE: In this case, Perp has been recapitalized during the minting and the recap set the Free Collateral exactly to zero so it is important 
-        // to add further logic to recapitalize further 
-        // assertTrue(d.pl().getFreeCollateral() == 0);
         console.log("[testDepositToWExactCollateralNeedToRecap()] Minting Works");
     }
 
@@ -496,6 +493,44 @@ contract USDLemmaTest is Test {
         // assertTrue(d.pl().getFreeCollateral() == 0);
         console.log("[testDepositToWExactCollateralStartLongNeedToRecapSmallFlip()] Minting Works");
     }
+
+
+
+
+    function testDynamicDepositToWExactCollateralStartLongNeedToRecapSmallFlip() public {
+        vm.startPrank(address(d));
+        // d.pl().setMinMarginForRecap(3e18);
+        // d.pl().setMinMarginSafeThreshold(5e18);
+        d.usdl().setLemmaTreasury(address(d.lemmaTreasury()));
+        // NOTE: Let's try to use 100% collateral ratio
+        d.pl().setCollateralRatio(1e6);
+        vm.stopPrank();
+
+        d.bank().giveMoney(d.pl().getSettlementToken(), address(d.lemmaTreasury()), 5e30);
+        console.log("[testDepositToWExactCollateralStartLongNeedToRecapSmallFlip()] Start");
+        _depositSettlementToken(300000000);
+
+        address collateral = d.getTokenAddress("WETH");
+        // NOTE: Minting just a little bit of USDL to start with a net short position 
+        _mintSynthWExactCollateralNoChecks(address(this), collateral, 3e18, 1);
+
+        _advancePerc(8 hours, 3e4);
+        console.log("Price After 24h = ", d.pl().getIndexPrice());
+
+        // _depositSettlementToken(328392000);
+        uint256 amount = 1e18;
+        console.log("[testDepositToWExactCollateralStartLongNeedToRecapSmallFlip()] amount = ", amount);
+        _mintUSDLWExactCollateralNoChecks(address(this), collateral, amount);
+
+
+        // NOTE: In this case, Perp has been recapitalized during the minting and the recap set the Free Collateral exactly to zero so it is important 
+        // to add further logic to recapitalize further 
+        console.log("[testDepositToWExactCollateralStartLongNeedToRecapSmallFlip()] d.pl().getFreeCollateral() = ", d.pl().getFreeCollateral());
+        // assertTrue(d.pl().getFreeCollateral() == 0);
+        console.log("[testDepositToWExactCollateralStartLongNeedToRecapSmallFlip()] Minting Works");
+    }
+
+
 
 
     function testDepositToWExactCollateralStartLongNeedToRecapLargeFlip1() public {
