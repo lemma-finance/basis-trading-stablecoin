@@ -2,9 +2,23 @@ const ethers = require("ethers");
 const config = require("./config.json");
 const myArgs = process.argv.slice(2);
 
-const trace = myArgs[0];
-const idx = myArgs[1];
-cmd = `config["traces"][${trace}]["trace"][${idx}]`;
+cmd = `config["traces"]["${config['config']['traceGroup']}"][${config['config']['traceIdx']}]`;
+
+// const n = myArgs[0];
+// const idx = myArgs[1];
+// cmd = `config["traces"]["tracesOf${n}"][${idx}]`;
 const res = eval(cmd);
-console.log(`Converting res = ${res}`);
-console.log(ethers.utils.defaultAbiCoder.encode(["uint256[2]"], [[res["dt"], res["dp"]]]));
+// console.log(`Converting res = ${res}`);
+arr = []
+
+for (i=0; i<res.length; ++i) {
+    arr.push(res[i]["dt"]);
+    arr.push(res[i]["dp"]);
+}
+
+
+// console.log(arr);
+
+console.log(ethers.utils.defaultAbiCoder.encode([`int256[]`], [arr]));
+
+

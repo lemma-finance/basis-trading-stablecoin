@@ -20,11 +20,26 @@ contract USDLemmaTest is Test {
 
     address public addrChainLinkPriceFeedForETH;
 
-
-
+    int256[] public trace;
+    uint256 nextOracleUpdate;
 
     // MockAggregatorProxy public mockOracleAggregatorProxy;
     MockPriceFeed public mockPriceFeed;
+
+
+
+    constructor() {
+        _loadTrace();
+    }
+
+    function _mineBlock() internal {
+        if(nextOracleUpdate < trace.length) {
+            uint256 dt = uint256(trace[nextOracleUpdate]);
+            int256 dp = trace[nextOracleUpdate+1];
+            mockPriceFeed.advancePerc(dt,dp);
+            nextOracleUpdate += 2;
+        }
+    }
 
 
     // Source 
@@ -33,6 +48,15 @@ contract USDLemmaTest is Test {
         return bytes32(uint256(uint160(addr)) << 96);
     }
 
+    function _loadTrace(/*string memory n, string memory id*/) internal {
+        string[] memory temp = new string[](4);
+        temp[0] = "node";
+        temp[1] = "test/foundry/utils/read_config.js";
+        // temp[2] = n;
+        // temp[3] = id;
+        trace = abi.decode(vm.ffi(temp), (int256[]));
+        // console.log(trace);
+    }
 
     function setUp() public {
         // NOTE: Address used to call the setter methods 
@@ -45,6 +69,8 @@ contract USDLemmaTest is Test {
         IBaseTokenSetter(baseTokenMarket).setPriceFeed(address(mockPriceFeed));
         console.log("Trying to set Mock Oracle DONE");
         vm.stopPrank();
+
+        // _loadTrace(/*"3", "0"*/);
 
         // NOTE: The aggregator address should be in slot 0 so 
         // https://optimistic.etherscan.io/address/0x94740ca2c47e13b7b0d3f44fc552ecc880e1d824#code#F1#L14
@@ -420,6 +446,7 @@ contract USDLemmaTest is Test {
 
     function testDynamicDepositToWExactCollateralStartShortNeedToRecap1() public {
         console.log("T1 ", d.pl().usdlBaseTokenAddress());
+        // console.log("8 hours = ", 8 hours);
         vm.startPrank(address(d));
         // d.pl().setMinMarginForRecap(3e18);
         // d.pl().setMinMarginSafeThreshold(5e18);
@@ -438,7 +465,8 @@ contract USDLemmaTest is Test {
 
         console.log("Price Before = ", d.pl().getIndexPrice());
         // NOTE: Let's move forward of 1 day with a +0.1% price change
-        mockPriceFeed.advancePerc(8 hours, 1e3);
+        _mineBlock();
+        // mockPriceFeed.advancePerc(8 hours, 1e3);
         // _advancePerc(8 hours, 1e3);
         console.log("Price After 8h = ", d.pl().getIndexPrice());
 
@@ -447,15 +475,16 @@ contract USDLemmaTest is Test {
         console.log("[testDepositToWExactCollateralNeedToRecap()] amount = ", amount);
         _mintUSDLWExactCollateralNoChecks(address(this), collateral, amount);
 
-        mockPriceFeed.advancePerc(8 hours, 1e3);
+        _mineBlock();
+        // mockPriceFeed.advancePerc(8 hours, 1e3);
         // _advancePerc(8 hours, 3e4);
         console.log("Price After 16h = ", d.pl().getIndexPrice());
 
         console.log("[testDepositToWExactCollateralNeedToRecap()] amount = ", amount);
         _mintUSDLWExactCollateralNoChecks(address(this), collateral, amount);
 
-
-        mockPriceFeed.advancePerc(8 hours, 5e4);
+        _mineBlock();
+        // mockPriceFeed.advancePerc(8 hours, 5e4);
         // _advancePerc(8 hours, 5e4);
         console.log("Price After 24h = ", d.pl().getIndexPrice());
 
@@ -482,9 +511,13 @@ contract USDLemmaTest is Test {
         console.log("[testDepositToWExactCollateralStartLongNeedToRecapSmallFlip()] Start");
         _depositSettlementToken(300000000);
 
+        _mineBlock();
+
         address collateral = d.getTokenAddress("WETH");
         // NOTE: Minting just a little bit of USDL to start with a net short position 
         _mintSynthWExactCollateralNoChecks(address(this), collateral, 3e18, 1);
+
+        _mineBlock();
 
         // _depositSettlementToken(328392000);
         uint256 amount = 1e18;
@@ -515,12 +548,14 @@ contract USDLemmaTest is Test {
         console.log("[testDepositToWExactCollateralStartLongNeedToRecapSmallFlip()] Start");
         _depositSettlementToken(300000000);
 
+        _mineBlock();
+
         address collateral = d.getTokenAddress("WETH");
         // NOTE: Minting just a little bit of USDL to start with a net short position 
         _mintSynthWExactCollateralNoChecks(address(this), collateral, 3e18, 1);
 
-
-        mockPriceFeed.advancePerc(8 hours, -20e4);
+        _mineBlock();
+        // mockPriceFeed.advancePerc(8 hours, -20e4);
         // _advancePerc(8 hours, -20e4);
         console.log("Price After 8h = ", d.pl().getIndexPrice());
 
@@ -554,11 +589,14 @@ contract USDLemmaTest is Test {
         console.log("[testDepositToWExactCollateralStartLongNeedToRecapSmallFlip()] Start");
         _depositSettlementToken(300000000);
 
+        _mineBlock();
+
         address collateral = d.getTokenAddress("WETH");
         // NOTE: Minting just a little bit of USDL to start with a net short position 
         _mintSynthWExactCollateralNoChecks(address(this), collateral, 3e18, 1);
 
-        mockPriceFeed.advancePerc(8 hours, 20e4);
+        _mineBlock();
+        // mockPriceFeed.advancePerc(8 hours, 20e4);
         // _advancePerc(8 hours, 20e4);
         console.log("Price After 8h = ", d.pl().getIndexPrice());
 
@@ -591,9 +629,13 @@ contract USDLemmaTest is Test {
         console.log("[testDepositToWExactCollateralStartLongNeedToRecapLargeFlip1()] Start");
         _depositSettlementToken(300000000);
 
+        _mineBlock();
+
         address collateral = d.getTokenAddress("WETH");
         // NOTE: Minting just a little bit of USDL to start with a net short position 
         _mintSynthWExactCollateralNoChecks(address(this), collateral, 1e18, 1);
+
+        _mineBlock();
 
         // _depositSettlementToken(328392000);
         uint256 amount = 3e18;
@@ -622,9 +664,13 @@ contract USDLemmaTest is Test {
         console.log("[testDepositToWExactCollateralStartLongNeedToRecapLargeFlip2()] Start");
         _depositSettlementToken(300000000);
 
+        _mineBlock();
+
         address collateral = d.getTokenAddress("WETH");
         // NOTE: Minting just a little bit of USDL to start with a net short position 
         _mintSynthWExactCollateralNoChecks(address(this), collateral, 1e18, 1);
+
+        _mineBlock();
 
         // _depositSettlementToken(328392000);
         uint256 amount = 3e18;
@@ -673,6 +719,7 @@ contract USDLemmaTest is Test {
     function testDepositToWExactCollateralAndwithdrawTo() public {
         uint256 collateralAmount = 1e12;
         _depositWExactCollateral(collateralAmount);
+        _mineBlock();
         address collateral = d.getTokenAddress("WETH");
         uint256 usdlAmount = d.usdl().balanceOf(address(this));
         _redeemUSDLWExactUsdl(address(this), collateral, usdlAmount, 0);
@@ -682,6 +729,7 @@ contract USDLemmaTest is Test {
     function testDepositToWExactCollateralAndwithdrawToWExactCollateral() public {
         uint256 collateralAmount = 1e12;
         _depositWExactCollateral(collateralAmount);
+        _mineBlock();
         address collateral = d.getTokenAddress("WETH");
         uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), collateralAmount, 0);
         uint256 _maxETHtoRedeem = _deductFees(d.getTokenAddress("WETH"), _collateralAfterMinting, 0);
@@ -693,6 +741,7 @@ contract USDLemmaTest is Test {
         address collateral = d.getTokenAddress("WETH");
         uint256 usdlAmount = 2192283206913675032725; // 1eth ~= 1096.143 USDL at this block 12137998
         _depositSettlementTokenMax();
+        _mineBlock();
         _mintUSDLWExactUSDL(address(this), collateral, usdlAmount, 0);
         uint256 collateralAMount = 1e18; // ~0.9998 eth
         uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), collateralAMount, 0);
@@ -710,7 +759,9 @@ contract USDLemmaTest is Test {
         address collateral = d.getTokenAddress("WETH");
         uint256 usdlAmount = 1096143206913675032725; // 1eth ~= 1096.143 USDL at this block 12137998
         _depositSettlementTokenMax();
+        _mineBlock();
         _mintUSDLWExactUSDL(address(this), collateral, usdlAmount, 0);
+        _mineBlock();
         uint256 collateralAMount = 1e18; // ~0.9998 eth
         uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), collateralAMount, 0);
         uint256 _maxETHtoRedeem = _deductFees(d.getTokenAddress("WETH"), _collateralAfterMinting, 0);
