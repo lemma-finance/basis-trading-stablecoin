@@ -31,6 +31,11 @@ contract PerpLemmaCommonTest is Test {
         d.pl().grantRole(USDC_TREASURY, alice);
         d.pl().grantRole(USDC_TREASURY, bob);
         vm.stopPrank();
+
+        vm.startPrank(address(d));
+        d.pl().setCollateralRatio(0.50e6);
+        vm.stopPrank();
+
         // address baseTokenOwner = d.getPerps().ib.owner();
         // vm.startPrank(baseTokenOwner);
         // d.getPerps().ib.setPriceFeed(address(d.testSetPriceFeed()));
@@ -93,6 +98,7 @@ contract PerpLemmaCommonTest is Test {
     function _withdrawSettlementToken(uint256 amount) internal {
         uint256 beforeUserBalance = checkBalance(address(this), d.getTokenAddress("USDC"));
         amount = (amount * 1e6) / 1e18;
+        console.log("[_withdrawSettlementToken] Trying to withdraw USDC = ", amount);
         d.pl().withdrawSettlementToken(amount);
         uint256 afterUserBalance = checkBalance(address(this), d.getTokenAddress("USDC"));
         assertEq(afterUserBalance-beforeUserBalance, amount);
@@ -333,13 +339,19 @@ contract PerpLemmaCommonTest is Test {
     }
 
     function testCloseLongWithExactQuote2() public {    
+        console.log("[testCloseLongWithExactQuote2()] T1 FreeCollateral = ", d.pl().getFreeCollateral());
+        // _depositSettlementToken(1e12);
         testOpenLongWithExactQuote();
+        console.log("[testCloseLongWithExactQuote2()] T2 FreeCollateral = ", d.pl().getFreeCollateral());
         uint256 synthAmount = 1e18;
         uint256 usdcAmount = 1098e18; // USDC(actual 1e6)
         uint256 afterSynthMinting = _deductFees(d.getTokenAddress("WETH"), usdcAmount, 0);
         uint256 _maxUSDCToRedeem = _deductFees(d.getTokenAddress("WETH"), afterSynthMinting, 0);
         uint256 usdcAmountToWithdraw = closeLongWithExactQuote(synthAmount, _maxUSDCToRedeem);
-        _withdrawSettlementToken(usdcAmountToWithdraw);
+        console.log("[testCloseLongWithExactQuote2()] T3 FreeCollateral = ", d.pl().getFreeCollateral());
+        console.log("[testCloseLongWithExactQuote2()] T3 usdcAmountToWithdraw = ", usdcAmountToWithdraw);
+        _withdrawSettlementToken(usdcAmountToWithdraw-1);
+        console.log("[testCloseLongWithExactQuote2()] T5");
     }
 
     // Settlement testcases
