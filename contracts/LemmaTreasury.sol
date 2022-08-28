@@ -9,9 +9,9 @@ import "./interfaces/IERC20Decimals.sol";
 
 contract LemmaTreasury is ILemmaTreasury {
     // NOTE: Requires approve from all the PerpDEXWrappers
-    // NOTE: Add Custom Logic to check this 
-    function isCollateralAvailable(address collateral, uint256 amount) public view override returns(bool) {
-        // NOTE: Now naive logic 
+    // NOTE: Add Custom Logic to check this
+    function isCollateralAvailable(address collateral, uint256 amount) public view override returns (bool) {
+        // NOTE: Now naive logic
         return IERC20Decimals(collateral).balanceOf(address(this)) >= amount;
     }
 

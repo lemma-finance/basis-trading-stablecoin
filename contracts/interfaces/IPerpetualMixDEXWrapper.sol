@@ -11,24 +11,26 @@ interface IPerpetualMixDEXWrapper {
         IsSettle
     }
 
-    function getSettlementToken() external view returns(address);
+    function getSettlementToken() external view returns (address);
 
+    function getMinFreeCollateral() external view returns (uint256);
 
+    function getMinMarginSafeThreshold() external view returns (uint256);
 
-    function getMinFreeCollateral() external view returns(uint256);
-    function getMinMarginSafeThreshold() external view returns(uint256);
+    function getCollateralRatios() external view returns (uint24 imRatio, uint24 mmRatio);
 
-    function getCollateralRatios() external view returns(uint24 imRatio, uint24 mmRatio);
-    function getFreeCollateral() external view returns(uint256);
-    function computeRequiredUSDCForTrade(uint256 amount, bool isShort) external view returns(uint256);
-    function isAdditionalUSDCAcceptable(uint256 amount) external view returns(bool);
+    function getFreeCollateral() external view returns (uint256);
 
+    function computeRequiredUSDCForTrade(uint256 amount, bool isShort) external view returns (uint256);
+
+    function isAdditionalUSDCAcceptable(uint256 amount) external view returns (bool);
 
     function setMinFreeCollateral(uint256 _margin) external;
+
     function setMinMarginSafeThreshold(uint256 _margin) external;
 
     function setCollateralRatio(uint24 _ratio) external;
-    
+
     function hasSettled() external view returns (bool);
 
     function getCollateralBackAfterSettlement(

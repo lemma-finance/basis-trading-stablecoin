@@ -25,7 +25,7 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
 
     // Different Roles to perform restricted tx
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    bytes32 public constant ONLY_OWNER = keccak256("ONLY_OWNER");
+    bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
     bytes32 public constant USDLEMMA_ROLE = keccak256("USDLEMMA_ROLE");
     bytes32 public constant REBALANCER_ROLE = keccak256("REBALANCER_ROLE");
 
@@ -55,10 +55,10 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
 
         __AccessControl_init();
         _setRoleAdmin(USDLEMMA_ROLE, ADMIN_ROLE);
-        _setRoleAdmin(ONLY_OWNER, ADMIN_ROLE);
+        _setRoleAdmin(OWNER_ROLE, ADMIN_ROLE);
         _setRoleAdmin(REBALANCER_ROLE, ADMIN_ROLE);
         _setupRole(ADMIN_ROLE, msg.sender);
-        grantRole(ONLY_OWNER, msg.sender);
+        grantRole(OWNER_ROLE, msg.sender);
         if (_usdLemma != address(0)) {
             grantRole(USDLEMMA_ROLE, _usdLemma);
             usdLemma = _usdLemma;
@@ -83,7 +83,7 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
 
     /// @notice setIsSettlementAllowed is to enable or disable to allow mint USDL using USDC on USDLemma
     /// @param _isSettlementAllowed true or false
-    function setIsSettlementAllowed(bool _isSettlementAllowed) external onlyRole(ONLY_OWNER) {
+    function setIsSettlementAllowed(bool _isSettlementAllowed) external onlyRole(OWNER_ROLE) {
         isSettlementAllowed = _isSettlementAllowed;
         emit SetIsSettlementAllowed(_isSettlementAllowed);
     }
