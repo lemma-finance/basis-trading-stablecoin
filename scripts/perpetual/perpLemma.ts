@@ -32,14 +32,14 @@ const save = async network => {
 
 async function main() {
   // let perpV2Config = await fetchFromURL(testnetAddressesURL);
-  let { chainId } = await ethers.provider.getNetwork()
-  console.log('chainId: ', chainId);
+  let { chainId } = await ethers.provider.getNetwork();
+  console.log("chainId: ", chainId);
   let perpV2Config;
 
   if (chainId == 10) {
-    perpV2Config = await fetchFromURL(mainnetAddressesURL)
+    perpV2Config = await fetchFromURL(mainnetAddressesURL);
   } else if (chainId == 69) {
-    perpV2Config = await fetchFromURL(testnetAddressesURL)
+    perpV2Config = await fetchFromURL(testnetAddressesURL);
   }
   const network = perpV2Config.network;
   const contracts = perpV2Config.contracts;
@@ -65,12 +65,16 @@ async function main() {
   let marketRegistry = new ethers.Contract(contracts.MarketRegistry.address, MarketRegistryAbi.abi, defaultSigner);
   // let collateral = new ethers.Contract(collaterals[2].address, TestERC20Abi.abi, defaultSigner); //WETH
   // let collateral2 = new ethers.Contract(collaterals[1].address, TestERC20Abi.abi, defaultSigner); //WBTC
-  let collateral = new ethers.Contract( wbtcCollateral, TestERC20Abi.abi, defaultSigner);
+  let collateral = new ethers.Contract(wbtcCollateral, TestERC20Abi.abi, defaultSigner);
   let baseToken = new ethers.Contract(contracts.vBTC.address, BaseTokenAbi.abi, defaultSigner);
   let quoteToken = new ethers.Contract(contracts.QuoteToken.address, QuoteTokenAbi.abi, defaultSigner);
   let accountBalance = new ethers.Contract(contracts.AccountBalance.address, AccountBalanceAbi.abi, defaultSigner);
   let usdLemma = new ethers.Contract(USDLemmaAddress, USDLemma__factory.abi, defaultSigner);
-  let settlementTokenManager = new ethers.Contract(SettlementTokenManagerAddress, SettlementTokenManager__factory.abi, defaultSigner);
+  let settlementTokenManager = new ethers.Contract(
+    SettlementTokenManagerAddress,
+    SettlementTokenManager__factory.abi,
+    defaultSigner,
+  );
 
   let uniswapV3Factory = new ethers.Contract(
     externalContracts.UniswapV3Factory,
@@ -100,26 +104,19 @@ async function main() {
     ],
     { initializer: "initialize" },
   );
-  console.log('perpLemma.address: ', perpLemma.address);
+  console.log("perpLemma.address: ", perpLemma.address);
   await delay(10000);
 
   // Deploy lemmaSynth
   const LemmaSynth = await ethers.getContractFactory("LemmaSynth");
   const lemmaSynth = await upgrades.deployProxy(
     LemmaSynth,
-    [
-        config[chainId].trustedForwarder, 
-        perpLemma.address,
-        settlementToken,
-        wbtcCollateral,
-        "LSynthWbtc",
-        "LSWbtc"
-    ],
+    [config[chainId].trustedForwarder, perpLemma.address, settlementToken, wbtcCollateral, "LSynthWbtc", "LSWbtc"],
     {
       initializer: "initialize",
     },
   );
-  console.log('lemmaSynth.address: ', lemmaSynth.address);
+  console.log("lemmaSynth.address: ", lemmaSynth.address);
   await delay(10000);
 
   // Deploy xLemmaSynth
@@ -127,18 +124,12 @@ async function main() {
   const XLemmaSynth = await ethers.getContractFactory("xLemmaSynth");
   const xLemmaSynth = await upgrades.deployProxy(
     XLemmaSynth,
-    [
-        config[chainId].trustedForwarder, 
-        lemmaSynth.address, 
-        peripheryAddress,
-        "xLSynthWbtc",
-        "xLSWbtc"
-    ],
+    [config[chainId].trustedForwarder, lemmaSynth.address, peripheryAddress, "xLSynthWbtc", "xLSWbtc"],
     {
       initializer: "initialize",
     },
   );
-  console.log('xLemmaSynth.address: ', xLemmaSynth.address);
+  console.log("xLemmaSynth.address: ", xLemmaSynth.address);
   await delay(10000);
 
   console.log("configuring parameters");
