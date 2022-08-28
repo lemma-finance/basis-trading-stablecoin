@@ -25,7 +25,7 @@ contract LemmaSynth is
     /// Different Roles to perform restricted tx
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant LEMMA_SWAP = keccak256("LEMMA_SWAP");
-    bytes32 public constant ONLY_OWNER = keccak256("ONLY_OWNER");
+    bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
 
     /// PerpLemma contract associated with this LemmaSynth
     address public perpLemma;
@@ -93,9 +93,9 @@ contract LemmaSynth is
 
         __AccessControl_init();
         _setRoleAdmin(LEMMA_SWAP, ADMIN_ROLE);
-        _setRoleAdmin(ONLY_OWNER, ADMIN_ROLE);
+        _setRoleAdmin(OWNER_ROLE, ADMIN_ROLE);
         _setupRole(ADMIN_ROLE, msg.sender);
-        grantRole(ONLY_OWNER, msg.sender);
+        grantRole(OWNER_ROLE, msg.sender);
 
         usdc = _usdc;
         tailCollateral = _tailCollateral;
@@ -121,14 +121,14 @@ contract LemmaSynth is
         uint256 perpetualDEXIndex,
         address collateralAddress,
         address perpetualDEXWrapperAddress
-    ) public onlyRole(ONLY_OWNER) {
+    ) public onlyRole(OWNER_ROLE) {
         perpetualDEXWrappers[perpetualDEXIndex][collateralAddress] = perpetualDEXWrapperAddress;
         emit PerpetualDexWrapperAdded(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
     }
 
     /// @notice setTailCollateral set tail collateral, By only owner Role
     /// @param _tailCollateral which collateral address is use to mint LemmaSynth
-    function setTailCollateral(address _tailCollateral) external onlyRole(ONLY_OWNER) {
+    function setTailCollateral(address _tailCollateral) external onlyRole(OWNER_ROLE) {
         tailCollateral = _tailCollateral;
         emit SetTailCollateral(_tailCollateral);
     }
@@ -160,7 +160,7 @@ contract LemmaSynth is
 
     /// @notice Set Fees, can only be called by owner
     /// @param _fees Fees taken by the Lemma protocol
-    function setFees(uint256 _fees) external onlyRole(ONLY_OWNER) {
+    function setFees(uint256 _fees) external onlyRole(OWNER_ROLE) {
         fees = _fees;
         emit FeesUpdated(fees);
     }

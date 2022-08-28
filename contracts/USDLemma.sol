@@ -27,7 +27,7 @@ contract USDLemma is
     // Different Roles to perform restricted tx
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant LEMMA_SWAP = keccak256("LEMMA_SWAP");
-    bytes32 public constant ONLY_OWNER = keccak256("ONLY_OWNER");
+    bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
 
     /// Lemma Treasury address
     address public lemmaTreasury;
@@ -94,9 +94,9 @@ contract USDLemma is
 
         __AccessControl_init();
         _setRoleAdmin(LEMMA_SWAP, ADMIN_ROLE);
-        _setRoleAdmin(ONLY_OWNER, ADMIN_ROLE);
+        _setRoleAdmin(OWNER_ROLE, ADMIN_ROLE);
         _setupRole(ADMIN_ROLE, msg.sender);
-        grantRole(ONLY_OWNER, msg.sender);
+        grantRole(OWNER_ROLE, msg.sender);
 
         if (_settlementTokenManager != address(0)) {
             settlementTokenManager = _settlementTokenManager;
@@ -123,14 +123,14 @@ contract USDLemma is
         uint256 perpetualDEXIndex,
         address collateralAddress,
         address perpetualDEXWrapperAddress
-    ) public onlyRole(ONLY_OWNER) {
+    ) public onlyRole(OWNER_ROLE) {
         perpetualDEXWrappers[perpetualDEXIndex][collateralAddress] = perpetualDEXWrapperAddress;
         emit PerpetualDexWrapperAdded(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
     }
 
     /// @notice setSettlementTokenManager is to set the address of settlementTokenManager
     /// @param _settlementTokenManager address
-    function setSettlementTokenManager(address _settlementTokenManager) external onlyRole(ONLY_OWNER) {
+    function setSettlementTokenManager(address _settlementTokenManager) external onlyRole(OWNER_ROLE) {
         settlementTokenManager = _settlementTokenManager;
         emit SetSettlementTokenManager(settlementTokenManager);
     }
@@ -162,7 +162,7 @@ contract USDLemma is
 
     /// @notice Set Lemma treasury, can only be called by owner
     /// @param _lemmaTreasury Address of Lemma Treasury
-    function setLemmaTreasury(address _lemmaTreasury) external onlyRole(ONLY_OWNER) {
+    function setLemmaTreasury(address _lemmaTreasury) external onlyRole(OWNER_ROLE) {
         require(_lemmaTreasury != address(0), "LemmaTreasury should not ZERO address");
         lemmaTreasury = _lemmaTreasury;
         emit LemmaTreasuryUpdated(lemmaTreasury);
@@ -170,7 +170,7 @@ contract USDLemma is
 
     /// @notice Set Fees, can only be called by owner
     /// @param _fees Fees taken by the Lemma protocol
-    function setFees(uint256 _fees) external onlyRole(ONLY_OWNER) {
+    function setFees(uint256 _fees) external onlyRole(OWNER_ROLE) {
         fees = _fees;
         emit FeesUpdated(fees);
     }

@@ -16,7 +16,7 @@ contract PerpLemmaCommonTest is Test {
     bytes32 public constant PERPLEMMA_ROLE = keccak256("PERPLEMMA_ROLE");
     bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
     bytes32 public constant REBALANCER_ROLE = keccak256("REBALANCER_ROLE");
-    bytes32 public constant ONLY_OWNER = keccak256("ONLY_OWNER");
+    bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
     
     function setUp() public {
         d = new Deploy(10);
@@ -25,7 +25,7 @@ contract PerpLemmaCommonTest is Test {
         d.pl().grantRole(USDC_TREASURY, address(this));
         d.pl().grantRole(PERPLEMMA_ROLE, address(this));
         d.pl().grantRole(REBALANCER_ROLE, address(this));
-        d.pl().grantRole(ONLY_OWNER, address(this));
+        d.pl().grantRole(OWNER_ROLE, address(this));
         d.pl().grantRole(PERPLEMMA_ROLE, alice);
         d.pl().grantRole(PERPLEMMA_ROLE, bob);
         d.pl().grantRole(USDC_TREASURY, alice);
@@ -911,7 +911,7 @@ contract PerpLemmaCommonTest is Test {
 
     function testSetIsUsdlCollateralTailAsset() public {
         vm.startPrank(address(d));
-        d.pl().grantRole(ONLY_OWNER, vm.addr(1));
+        d.pl().grantRole(OWNER_ROLE, vm.addr(1));
         vm.stopPrank();
         vm.startPrank(vm.addr(1));
         d.pl().setIsUsdlCollateralTailAsset(true);
@@ -923,10 +923,6 @@ contract PerpLemmaCommonTest is Test {
 
     function testSetUSDLemma() public {
         vm.startPrank(address(d));
-        d.pl().grantRole(ONLY_OWNER, vm.addr(1));
-        vm.stopPrank();
-
-        vm.startPrank(vm.addr(1));
         d.pl().setUSDLemma(vm.addr(1));
         vm.stopPrank();
 
@@ -944,18 +940,14 @@ contract PerpLemmaCommonTest is Test {
 
     // REASON: UsdLemma should not ZERO address
     function testFailSetUSDLemma() public {
-        vm.startPrank(address(d));
-        d.pl().grantRole(ONLY_OWNER, vm.addr(1));
-        vm.stopPrank();
-
-        vm.startPrank(vm.addr(1));
+        vm.startPrank(vm.addr(1)); // without ADMIN_ROLE address
         d.pl().setUSDLemma(address(0));
         vm.stopPrank();
     }
 
     function testSetReferrerCode() public {
         vm.startPrank(address(d));
-        d.pl().grantRole(ONLY_OWNER, vm.addr(1));
+        d.pl().grantRole(OWNER_ROLE, vm.addr(1));
         vm.stopPrank();
 
         bytes32 referrerCode = keccak256("Test");
@@ -968,7 +960,7 @@ contract PerpLemmaCommonTest is Test {
 
     function testSetMaxPosition() public {
         vm.startPrank(address(d));
-        d.pl().grantRole(ONLY_OWNER, vm.addr(1));
+        d.pl().grantRole(OWNER_ROLE, vm.addr(1));
         vm.stopPrank();
 
         uint256 _maxPosition = 1000000e18;
@@ -981,7 +973,7 @@ contract PerpLemmaCommonTest is Test {
     // FAIL. Reason: max position reached
     function testFailMaxPosition() public {
         vm.startPrank(address(d));
-        d.pl().grantRole(ONLY_OWNER, vm.addr(1));
+        d.pl().grantRole(OWNER_ROLE, vm.addr(1));
         vm.stopPrank();
 
         uint256 _maxPosition = 1e17;

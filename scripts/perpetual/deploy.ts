@@ -73,7 +73,7 @@ async function main() {
     UniswapV3FactoryAbi.abi,
     defaultSigner,
   );
-  let pool = new ethers.Contract(perpV2Config.pools[0].address, UniswapV3PoolAbi.abi, defaultSigner); //vETH-vUSD pool
+  // let pool = new ethers.Contract(perpV2Config.pools[9].address, UniswapV3PoolAbi.abi, defaultSigner); //vETH-vUSD pool
 
   const stmRebalancer = defaultSigner.address;
   const settlementToken = await vault.getSettlementToken(); // usdc

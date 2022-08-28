@@ -31,7 +31,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
     // Different Roles to perform restricted tx
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    bytes32 public constant ONLY_OWNER = keccak256("ONLY_OWNER");
+    bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
     bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
     bytes32 public constant PERPLEMMA_ROLE = keccak256("PERPLEMMA_ROLE");
     bytes32 public constant REBALANCER_ROLE = keccak256("REBALANCER_ROLE");
@@ -125,11 +125,11 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
         __AccessControl_init();
         _setRoleAdmin(PERPLEMMA_ROLE, ADMIN_ROLE);
-        _setRoleAdmin(ONLY_OWNER, ADMIN_ROLE);
+        _setRoleAdmin(OWNER_ROLE, ADMIN_ROLE);
         _setRoleAdmin(USDC_TREASURY, ADMIN_ROLE);
         _setRoleAdmin(REBALANCER_ROLE, ADMIN_ROLE);
         _setupRole(ADMIN_ROLE, msg.sender);
-        grantRole(ONLY_OWNER, msg.sender);
+        grantRole(OWNER_ROLE, msg.sender);
 
         require(_usdlBaseToken != address(0), "UsdlBaseToken should not ZERO address");
         require(_clearingHouse != address(0), "ClearingHouse should not ZERO address");
@@ -273,8 +273,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return perpVault.getBalance(address(this));
     }
 
-
-
     /// @notice Returns the relative margin in 1e18 format
     function getRelativeMargin() external view override returns (uint256) {
         // NOTE: Returns totalCollateralValue + unrealizedPnL
@@ -327,31 +325,31 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// EXTERNAL METHODS ///
     ////////////////////////
 
-    function setMinFreeCollateral(uint256 _minFreeCollateral) external override onlyRole(ADMIN_ROLE) {
+    function setMinFreeCollateral(uint256 _minFreeCollateral) external override onlyRole(OWNER_ROLE) {
         // TODO: Emit Event
         minFreeCollateral = _minFreeCollateral;
     }
 
-    function setMinMarginSafeThreshold(uint256 _margin) external override onlyRole(ADMIN_ROLE) {
+    function setMinMarginSafeThreshold(uint256 _margin) external override onlyRole(OWNER_ROLE) {
         // TODO: Add Emit Event
         require(_margin > minFreeCollateral, "Needs to be > minFreeCollateral");
         minMarginSafeThreshold = _margin;
     }
 
-    function setCollateralRatio(uint24 _collateralRatio) external override onlyRole(ADMIN_ROLE) {
+    function setCollateralRatio(uint24 _collateralRatio) external override onlyRole(OWNER_ROLE) {
         // TODO: Add Emit Event
         // NOTE: This one should always be >= imRatio or >= mmRatio but not sure if a require is needed
         collateralRatio = _collateralRatio;
     }
 
     /// @notice Defines the USDL Collateral as a tail asset by only owner role
-    function setIsUsdlCollateralTailAsset(bool _x) external onlyRole(ONLY_OWNER) {
+    function setIsUsdlCollateralTailAsset(bool _x) external onlyRole(OWNER_ROLE) {
         isUsdlCollateralTailAsset = _x;
     }
 
     /// @notice sets USDLemma address - only owner can set
     /// @param _usdLemma USDLemma address to set
-    function setUSDLemma(address _usdLemma) external onlyRole(ONLY_OWNER) {
+    function setUSDLemma(address _usdLemma) external onlyRole(ADMIN_ROLE) {
         require(_usdLemma != address(0), "UsdLemma should not ZERO address");
         usdLemma = _usdLemma;
         grantRole(PERPLEMMA_ROLE, usdLemma);
@@ -364,7 +362,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
     /// @notice sets LemmaSynth address - only owner can set
     /// @param _lemmaSynth LemmaSynth address to set
-    function setLemmaSynth(address _lemmaSynth) external onlyRole(ONLY_OWNER) {
+    function setLemmaSynth(address _lemmaSynth) external onlyRole(ADMIN_ROLE) {
         require(_lemmaSynth != address(0), "LemmaSynth should not ZERO address");
         lemmaSynth = _lemmaSynth;
         grantRole(PERPLEMMA_ROLE, lemmaSynth);
@@ -377,14 +375,14 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
     /// @notice sets refferer code - only owner can set
     /// @param _referrerCode referrerCode of address to set
-    function setReferrerCode(bytes32 _referrerCode) external onlyRole(ONLY_OWNER) {
+    function setReferrerCode(bytes32 _referrerCode) external onlyRole(OWNER_ROLE) {
         referrerCode = _referrerCode;
         emit ReferrerUpdated(referrerCode);
     }
 
     /// @notice sets maximum position the wrapper can take (in terms of base) - only owner can set
     /// @param _maxPosition reBalancer address to set
-    function setMaxPosition(uint256 _maxPosition) external onlyRole(ONLY_OWNER) {
+    function setMaxPosition(uint256 _maxPosition) external onlyRole(OWNER_ROLE) {
         maxPosition = _maxPosition;
         emit MaxPositionUpdated(maxPosition);
     }
@@ -444,7 +442,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @notice withdrawSettlementTokenTo is used to withdraw settlement token USDC from perp vault - only owner can withdraw
     /// @param _amount USDC amount need to withdraw from perp vault
     /// @param _to address where to transfer fund
-    function withdrawSettlementTokenTo(uint256 _amount, address _to) external onlyRole(ONLY_OWNER) {
+    function withdrawSettlementTokenTo(uint256 _amount, address _to) external onlyRole(OWNER_ROLE) {
         require(_amount > 0, "Amount should greater than zero");
         require(hasSettled, "Perpetual is not settled yet");
         SafeERC20Upgradeable.safeTransfer(usdc, _to, _amount);
