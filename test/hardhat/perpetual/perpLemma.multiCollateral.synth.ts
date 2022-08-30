@@ -26,7 +26,7 @@ import {
   CollateralManager,
 } from "../../perp-lushan/typechain";
 import { QuoteToken } from "../../perp-lushan/typechain/QuoteToken";
-import { TestPerpLemma } from "../../types/TestPerpLemma";
+import { TestPerpLemma } from "../../../types/TestPerpLemma";
 
 use(solidity);
 
