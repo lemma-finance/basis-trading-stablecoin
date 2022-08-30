@@ -19,6 +19,8 @@ import "../interfaces/Perpetual/IPerpVault.sol";
 import "../interfaces/Perpetual/IBaseToken.sol";
 import "forge-std/Test.sol";
 
+// import "hardhat/console.sol";
+
 /// @author Lemma Finance
 /// @notice PerpLemmaCommon contract will use to open short and long position with no-leverage
 /// USDLemma and LemmaSynth will consime the methods to open short or long on derivative dex
@@ -30,7 +32,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
     // Different Roles to perform restricted tx
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    bytes32 public constant ONLY_OWNER = keccak256("ONLY_OWNER");
+    bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
     bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
     bytes32 public constant PERPLEMMA_ROLE = keccak256("PERPLEMMA_ROLE");
     bytes32 public constant REBALANCER_ROLE = keccak256("REBALANCER_ROLE");
@@ -97,6 +99,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
     // Events
     event USDLemmaUpdated(address indexed usdlAddress);
+    event SetLemmaSynth(address indexed lemmaSynthAddress);
     event ReferrerUpdated(bytes32 indexed referrerCode);
     event RebalancerUpdated(address indexed rebalancerAddress);
     event MaxPositionUpdated(uint256 indexed maxPos);
@@ -123,13 +126,11 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
         __AccessControl_init();
         _setRoleAdmin(PERPLEMMA_ROLE, ADMIN_ROLE);
-        _setRoleAdmin(ONLY_OWNER, ADMIN_ROLE);
+        _setRoleAdmin(OWNER_ROLE, ADMIN_ROLE);
         _setRoleAdmin(USDC_TREASURY, ADMIN_ROLE);
         _setRoleAdmin(REBALANCER_ROLE, ADMIN_ROLE);
         _setupRole(ADMIN_ROLE, msg.sender);
-        grantRole(ONLY_OWNER, msg.sender);
-        grantRole(PERPLEMMA_ROLE, _usdLemma);
-        grantRole(PERPLEMMA_ROLE, _lemmaSynth);
+        grantRole(OWNER_ROLE, msg.sender);
 
         require(_usdlBaseToken != address(0), "UsdlBaseToken should not ZERO address");
         require(_clearingHouse != address(0), "ClearingHouse should not ZERO address");
@@ -161,6 +162,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         SafeERC20Upgradeable.safeApprove(usdc, address(perpVault), MAX_UINT256);
 
         if (usdLemma != address(0)) {
+            grantRole(PERPLEMMA_ROLE, _usdLemma);
             SafeERC20Upgradeable.safeApprove(usdc, usdLemma, 0);
             SafeERC20Upgradeable.safeApprove(usdc, usdLemma, MAX_UINT256);
             SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
@@ -168,6 +170,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
 
         if (lemmaSynth != address(0)) {
+            grantRole(PERPLEMMA_ROLE, _lemmaSynth);
             SafeERC20Upgradeable.safeApprove(usdc, lemmaSynth, 0);
             SafeERC20Upgradeable.safeApprove(usdc, lemmaSynth, MAX_UINT256);
             SafeERC20Upgradeable.safeApprove(usdlCollateral, lemmaSynth, 0);
@@ -185,16 +188,15 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
     // NOTE: Abstraction Layer
-    function getSettlementToken() external view override returns(address) {
+    function getSettlementToken() external view override returns (address) {
         return perpVault.getSettlementToken();
     }
 
-
-    function getMinFreeCollateral() external view override returns(uint256) {
+    function getMinFreeCollateral() external view override returns (uint256) {
         return minFreeCollateral;
     }
 
-    function getMinMarginSafeThreshold() external view override returns(uint256) {
+    function getMinMarginSafeThreshold() external view override returns (uint256) {
         return minMarginSafeThreshold;
     }
 
@@ -212,21 +214,26 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         res[0] = perpVault.getSettlementToken();
     }
 
-    /// @notice It returns the amount of USDC that are possibly needed to properly collateralize the new position on Perp 
-    /// @dev When the position is reduced in absolute terms, then there is no need for additional collateral while when it increases in absolute terms then we need to add more 
-    /// @param amount The amount of the new position 
-    /// @param isShort If we are minting USDL or a Synth by changing our Position on Perp  
-    function getRequiredUSDCToBackMinting(uint256 amount, bool isShort) override external view returns(bool isAcceptable, uint256 extraUSDC) {
-        // NOTE: According to Perp, this is defined as accountValue = totalCollateralValue + totalUnrealizedPnl, in 18 decimals   
-        int256 currentAccountValue = getAccountValue(); 
+    /// @notice It returns the amount of USDC that are possibly needed to properly collateralize the new position on Perp
+    /// @dev When the position is reduced in absolute terms, then there is no need for additional collateral while when it increases in absolute terms then we need to add more
+    /// @param amount The amount of the new position
+    /// @param isShort If we are minting USDL or a Synth by changing our Position on Perp
+    function getRequiredUSDCToBackMinting(uint256 amount, bool isShort)
+        external
+        view
+        override
+        returns (bool isAcceptable, uint256 extraUSDC)
+    {
+        // NOTE: According to Perp, this is defined as accountValue = totalCollateralValue + totalUnrealizedPnl, in 18 decimals
+        int256 currentAccountValue = getAccountValue();
         uint256 currentPrice = getIndexPrice();
         uint256 oracleDecimals = 18;
 
-        // NOTE: Computing the absolute delta in terms of quote token for the new position 
+        // NOTE: Computing the absolute delta in terms of quote token for the new position
         // NOTE: Need an amount in 1e18 to be compared with account value which I think is in 1e18
-        int256 deltaPosition = int256(currentPrice * amount / (10 ** (usdlCollateral.decimals())));
+        int256 deltaPosition = int256((currentPrice * amount) / (10**(usdlCollateral.decimals())));
 
-        // NOTE: Computing the next position 
+        // NOTE: Computing the next position
         int256 futureTotalPositionValue = currentAccountValue + ((isShort) ? int256(-1) : int256(1)) * deltaPosition;
         // int256 futureTotalPositionValue = currentTotalPositionValue + ((isShort) ? int256(-1) : int256(1)) * deltaPosition;
         // int256 futureAccountValue = futureTotalPositionValue + currentAccountValue;
@@ -245,11 +252,11 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
     }
 
-    function getFreeCollateral() public view override returns(uint256) {
+    function getFreeCollateral() public view override returns (uint256) {
         return perpVault.getFreeCollateral(address(this));
     }
 
-    function getCollateralRatios() public view override returns(uint24 imRatio, uint24 mmRatio) {
+    function getCollateralRatios() public view override returns (uint24 imRatio, uint24 mmRatio) {
         imRatio = clearingHouseConfig.getImRatio();
         mmRatio = clearingHouseConfig.getMmRatio();
     }
@@ -270,8 +277,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     function getSettlementTokenAmountInVault() external view override returns (int256) {
         return perpVault.getBalance(address(this));
     }
-
-
 
     /// @notice Returns the relative margin in 1e18 format
     function getRelativeMargin() external view override returns (uint256) {
@@ -325,33 +330,34 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// EXTERNAL METHODS ///
     ////////////////////////
 
-    function setMinFreeCollateral(uint256 _minFreeCollateral) external override onlyRole(ADMIN_ROLE) {
+    function setMinFreeCollateral(uint256 _minFreeCollateral) external override onlyRole(OWNER_ROLE) {
         // TODO: Emit Event
         minFreeCollateral = _minFreeCollateral;
     }
 
-    function setMinMarginSafeThreshold(uint256 _margin) external override onlyRole(ADMIN_ROLE) {
+    function setMinMarginSafeThreshold(uint256 _margin) external override onlyRole(OWNER_ROLE) {
         // TODO: Add Emit Event
         require(_margin > minFreeCollateral, "Needs to be > minFreeCollateral");
         minMarginSafeThreshold = _margin;
     }
 
-    function setCollateralRatio(uint24 _collateralRatio) external override onlyRole(ADMIN_ROLE) {
+    function setCollateralRatio(uint24 _collateralRatio) external override onlyRole(OWNER_ROLE) {
         // TODO: Add Emit Event
         // NOTE: This one should always be >= imRatio or >= mmRatio but not sure if a require is needed
         collateralRatio = _collateralRatio;
     }
 
     /// @notice Defines the USDL Collateral as a tail asset by only owner role
-    function setIsUsdlCollateralTailAsset(bool _x) external onlyRole(ONLY_OWNER) {
+    function setIsUsdlCollateralTailAsset(bool _x) external onlyRole(OWNER_ROLE) {
         isUsdlCollateralTailAsset = _x;
     }
 
     /// @notice sets USDLemma address - only owner can set
     /// @param _usdLemma USDLemma address to set
-    function setUSDLemma(address _usdLemma) external onlyRole(ONLY_OWNER) {
+    function setUSDLemma(address _usdLemma) external onlyRole(ADMIN_ROLE) {
         require(_usdLemma != address(0), "UsdLemma should not ZERO address");
         usdLemma = _usdLemma;
+        grantRole(PERPLEMMA_ROLE, usdLemma);
         SafeERC20Upgradeable.safeApprove(usdc, usdLemma, 0);
         SafeERC20Upgradeable.safeApprove(usdc, usdLemma, MAX_UINT256);
         SafeERC20Upgradeable.safeApprove(usdlCollateral, usdLemma, 0);
@@ -359,21 +365,34 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         emit USDLemmaUpdated(usdLemma);
     }
 
+    /// @notice sets LemmaSynth address - only owner can set
+    /// @param _lemmaSynth LemmaSynth address to set
+    function setLemmaSynth(address _lemmaSynth) external onlyRole(ADMIN_ROLE) {
+        require(_lemmaSynth != address(0), "LemmaSynth should not ZERO address");
+        lemmaSynth = _lemmaSynth;
+        grantRole(PERPLEMMA_ROLE, lemmaSynth);
+        SafeERC20Upgradeable.safeApprove(usdc, lemmaSynth, 0);
+        SafeERC20Upgradeable.safeApprove(usdc, lemmaSynth, MAX_UINT256);
+        SafeERC20Upgradeable.safeApprove(usdlCollateral, lemmaSynth, 0);
+        SafeERC20Upgradeable.safeApprove(usdlCollateral, lemmaSynth, MAX_UINT256);
+        emit SetLemmaSynth(lemmaSynth);
+    }
+
     /// @notice sets refferer code - only owner can set
     /// @param _referrerCode referrerCode of address to set
-    function setReferrerCode(bytes32 _referrerCode) external onlyRole(ONLY_OWNER) {
+    function setReferrerCode(bytes32 _referrerCode) external onlyRole(OWNER_ROLE) {
         referrerCode = _referrerCode;
         emit ReferrerUpdated(referrerCode);
     }
 
     /// @notice sets maximum position the wrapper can take (in terms of base) - only owner can set
     /// @param _maxPosition reBalancer address to set
-    function setMaxPosition(uint256 _maxPosition) external onlyRole(ONLY_OWNER) {
+    function setMaxPosition(uint256 _maxPosition) external onlyRole(OWNER_ROLE) {
         maxPosition = _maxPosition;
         emit MaxPositionUpdated(maxPosition);
     }
 
-    /// @notice setSettlementTokenmanager is to set the address of settlementTokenManager by admin role only
+    /// @notice setSettlementTokenManager is to set the address of settlementTokenManager by admin role only
     /// @param _settlementTokenManager address
     function setSettlementTokenManager(address _settlementTokenManager) external onlyRole(ADMIN_ROLE) {
         revokeRole(USDC_TREASURY, settlementTokenManager);
@@ -428,7 +447,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @notice withdrawSettlementTokenTo is used to withdraw settlement token USDC from perp vault - only owner can withdraw
     /// @param _amount USDC amount need to withdraw from perp vault
     /// @param _to address where to transfer fund
-    function withdrawSettlementTokenTo(uint256 _amount, address _to) external onlyRole(ONLY_OWNER) {
+    function withdrawSettlementTokenTo(uint256 _amount, address _to) external onlyRole(OWNER_ROLE) {
         require(_amount > 0, "Amount should greater than zero");
         require(hasSettled, "Perpetual is not settled yet");
         SafeERC20Upgradeable.safeTransfer(usdc, _to, _amount);
@@ -479,97 +498,82 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return settleCollateral(amount, to, isUsdl);
     }
 
-
-
-    function _min(uint256 a, uint256 b) internal pure returns(uint256) {
-        return (a <= b) ? a : b;
-    }
-
-    function _max(int256 a, int256 b) internal pure returns(int256) {
-        return (a >= b) ? a : b;
-    }
-
-    function _max(uint256 a, uint256 b) internal pure returns(uint256) {
-        return (a >= b) ? a : b;
-    }
-
-    function _abs(int256 a) internal pure returns(uint256) {
-        return (a >= 0) ? uint256(a) : uint256(-1 * a);
-    }
-
-    function computeRequiredUSDCForTrade(uint256 amount, bool isShort) external view override returns(uint256 requiredUSDC) {
-        // NOTE: Estimating USDC needed 
-        console.log("[computeRequiredUSDCForTrade()] USDC Decimals = ", usdc.decimals());
+    function computeRequiredUSDCForTrade(uint256 amount, bool isShort)
+        external
+        view
+        override
+        returns (uint256 requiredUSDC)
+    {
+        // NOTE: Estimating USDC needed
+        console.log("\n[computeRequiredUSDCForTrade()] USDC Decimals = ", usdc.decimals());
 
         console.log("[computeRequiredUSDCForTrade()] amount = ", amount);
         // print("[computeRequiredUSDCForTrade()] amountBase = ", amountBase);
         console.log("[computeRequiredUSDCForTrade()] collateralRatio = ", collateralRatio);
 
         uint256 freeCollateralBefore = getFreeCollateral();
-        console.log("[computeRequiredUSDCForTrade()] freeCollateralBefore = ", freeCollateralBefore);
         uint256 indexPrice = getIndexPrice();
-        console.log("[computeRequiredUSDCForTrade()] IndexPrice = ", indexPrice);
         (uint24 imRatio, uint24 mmRatio) = getCollateralRatios();
-        console.log("[computeRequiredUSDCForTrade()] imRatio = ", imRatio);
-        console.log("[computeRequiredUSDCForTrade()] mmRatio = ", mmRatio);
-
-        console.log("[computeRequiredUSDCForTrade()] collateralRatio = ", collateralRatio);
-
         uint256 deltaAmount = amount;
 
-        if( 
-            ((isShort) && (amountBase > 0)) ||  // NOTE Decrease Long 
-            ((!isShort) && (amountBase < 0))    // NOTE Decrease Short
-            ) {
-                // NOTE: amountBase is in vToken amount so 1e18
-                uint256 amountBaseInCollateralDecimals = _abs(amountBase) * 10**(usdlCollateral.decimals()) / 1e18;
-                console.log("[computeRequiredUSDCForTrade()] Flipping Case");
-                if(isShort) console.log("[computeRequiredUSDCForTrade()] isShort = true");
-                else console.log("[computeRequiredUSDCForTrade()] isShort = false");
-                // print("[computeRequiredUSDCForTrade()] amountbase = ", amountBase);
-                console.log("[computeRequiredUSDCForTrade()] amountBaseInCollateralDecimals = ", amountBaseInCollateralDecimals);
-                if(amount <= amountBaseInCollateralDecimals) {
-                    console.log("[computeRequiredUSDCForTrade()] Position Decreases but does not flip, so it just frees up collateral");
-                    return 0;
-                }
-
-                if( amount <= 2*amountBaseInCollateralDecimals ) {
-                    console.log("[computeRequiredUSDCForTrade()] Position has flipped but the final position is <= the original one so it just frees up collateral");
-                    return 0;
-                }
-                console.log("[computeRequiredUSDCForTrade()] Position has flipped and the final position is > the original");
-                deltaAmount = amount - 2 * amountBaseInCollateralDecimals;
+        if (
+            ((isShort) && (amountBase > 0)) || ((!isShort) && (amountBase < 0)) // NOTE Decrease Long // NOTE Decrease Short
+        ) {
+            // NOTE: amountBase is in vToken amount so 1e18
+            uint256 amountBaseInCollateralDecimals = (_abs(amountBase) * 10**(usdlCollateral.decimals())) / 1e18;
+            console.log("[computeRequiredUSDCForTrade()] Flipping Case");
+            if (isShort) console.log("[computeRequiredUSDCForTrade()] isShort = true");
+            else console.log("[computeRequiredUSDCForTrade()] isShort = false");
+            // print("[computeRequiredUSDCForTrade()] amountbase = ", amountBase);
+            console.log(
+                "[computeRequiredUSDCForTrade()] amountBaseInCollateralDecimals = ",
+                amountBaseInCollateralDecimals
+            );
+            if (amount <= amountBaseInCollateralDecimals) {
+                console.log(
+                    "[computeRequiredUSDCForTrade()] Position Decreases but does not flip, so it just frees up collateral"
+                );
+                return 0;
             }
-        
-        console.log("[computeRequiredUSDCForTrade()] deltaAmount = ", deltaAmount);
 
-        uint256 expectedDeltaQuote = deltaAmount * indexPrice / 10 ** (18 + 18 - usdc.decimals());
-        console.log("[computeRequiredUSDCForTrade()] expectedDeltaQuote = ", expectedDeltaQuote);
-
-        uint256 expectedUSDCDeductedFromFreeCollateral = expectedDeltaQuote * uint256(collateralRatio) / 1e6;
-        console.log("[computeRequiredUSDCForTrade()] expectedUSDCDeductedFromFreeCollateral = ", expectedUSDCDeductedFromFreeCollateral);
-
-        if(expectedUSDCDeductedFromFreeCollateral > freeCollateralBefore) {
-            requiredUSDC = expectedUSDCDeductedFromFreeCollateral - freeCollateralBefore;
+            if (amount <= 2 * amountBaseInCollateralDecimals) {
+                console.log(
+                    "[computeRequiredUSDCForTrade()] Position has flipped but the final position is <= the original one so it just frees up collateral"
+                );
+                return 0;
+            }
+            console.log(
+                "[computeRequiredUSDCForTrade()] Position has flipped and the final position is > the original"
+            );
+            deltaAmount = amount - 2 * amountBaseInCollateralDecimals;
         }
 
-        console.log("[computeRequiredUSDCForTrade()] requiredUSDC = ", requiredUSDC);
+        console.log("[computeRequiredUSDCForTrade()] deltaAmount = ", deltaAmount);
 
-        // uint256 expectedFinalFreeCollateral = freeCollateralBefore - expectedUSDCDeductedFromFreeCollateral;
-        // console.log("[computeRequiredUSDCForTrade()] expectedFinalFreeCollateral = ", expectedFinalFreeCollateral);
-        // uint256 requiredUSDCCollateral = uint256(_max(int256(0), int256(expectedFinalFreeCollateral) - int256(freeCollateralBefore)));
-        // console.log("[computeRequiredUSDCForTrade()] requiredUSDCCollateral = ", requiredUSDCCollateral);
-        // return requiredUSDCCollateral;
+        uint256 expectedDeltaQuote = (deltaAmount * indexPrice) / 10**(18 + 18 - usdc.decimals());
+        console.log("[computeRequiredUSDCForTrade()] expectedDeltaQuote = ", expectedDeltaQuote);
+
+        uint256 expectedUSDCDeductedFromFreeCollateral = (expectedDeltaQuote * uint256(collateralRatio)) / 1e6;
+        console.log(
+            "[computeRequiredUSDCForTrade()] expectedUSDCDeductedFromFreeCollateral = ",
+            expectedUSDCDeductedFromFreeCollateral
+        );
+
+        if (expectedUSDCDeductedFromFreeCollateral > freeCollateralBefore) {
+            requiredUSDC = expectedUSDCDeductedFromFreeCollateral - freeCollateralBefore;
+        }
     }
 
-
-
-    
-    function isAdditionalUSDCAcceptable(uint256 amount) external view override returns(bool) {
+    function isAdditionalUSDCAcceptable(uint256 amount) external view override returns (bool) {
         uint256 vaultSettlementTokenBalance = usdc.balanceOf(address(perpVault));
         uint256 vaultSettlementTokenBalanceCap = clearingHouseConfig.getSettlementTokenBalanceCap();
-        require(vaultSettlementTokenBalanceCap >= vaultSettlementTokenBalance, "isAdditionalUSDCAcceptable Cap needs to be >= Current");
-        uint256 maxAcceptableToken = uint256( int256(vaultSettlementTokenBalanceCap) - int256(vaultSettlementTokenBalance) );
+        require(
+            vaultSettlementTokenBalanceCap >= vaultSettlementTokenBalance,
+            "isAdditionalUSDCAcceptable Cap needs to be >= Current"
+        );
+        uint256 maxAcceptableToken = uint256(
+            int256(vaultSettlementTokenBalanceCap) - int256(vaultSettlementTokenBalance)
+        );
         return amount <= maxAcceptableToken;
     }
 
@@ -921,18 +925,35 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         if (isUsdl) {
             uint256 tailCollateralTransfer = (usdlOrSynthAmount * 1e18) / closedPrice;
             if (tailCollateralTransfer <= tailCollateralBal) {
-                SafeERC20Upgradeable.safeTransfer(usdlCollateral, to, getAmountInCollateralDecimalsForPerp(tailCollateralTransfer, address(usdlCollateral), false));
+                SafeERC20Upgradeable.safeTransfer(
+                    usdlCollateral,
+                    to,
+                    getAmountInCollateralDecimalsForPerp(tailCollateralTransfer, address(usdlCollateral), false)
+                );
             } else {
                 if (tailCollateralBal > 0) {
-                    SafeERC20Upgradeable.safeTransfer(usdlCollateral, to, getAmountInCollateralDecimalsForPerp(tailCollateralBal, address(usdlCollateral), false));
+                    SafeERC20Upgradeable.safeTransfer(
+                        usdlCollateral,
+                        to,
+                        getAmountInCollateralDecimalsForPerp(tailCollateralBal, address(usdlCollateral), false)
+                    );
                 }
-                if (synthCollateralBal > getSynthInDollar()) { // do we have extra synth for usdlUser
+                if (synthCollateralBal > getSynthInDollar()) {
+                    // do we have extra synth for usdlUser
                     uint256 checkDiffInDollar = ((tailCollateralTransfer - tailCollateralBal) * closedPrice) / 1e18; // calculate the needed extra synth to transfer
                     uint256 checkUSDCForUSdl = synthCollateralBal - getSynthInDollar(); // check how much extra synth we have for usdlUser
                     if (checkUSDCForUSdl > checkDiffInDollar) {
-                        SafeERC20Upgradeable.safeTransfer(usdc, to, getAmountInCollateralDecimalsForPerp(checkDiffInDollar, address(usdc), false));
+                        SafeERC20Upgradeable.safeTransfer(
+                            usdc,
+                            to,
+                            getAmountInCollateralDecimalsForPerp(checkDiffInDollar, address(usdc), false)
+                        );
                     } else {
-                        SafeERC20Upgradeable.safeTransfer(usdc, to, getAmountInCollateralDecimalsForPerp(checkUSDCForUSdl, address(usdc), false));
+                        SafeERC20Upgradeable.safeTransfer(
+                            usdc,
+                            to,
+                            getAmountInCollateralDecimalsForPerp(checkUSDCForUSdl, address(usdc), false)
+                        );
                     }
                 }
             }
@@ -942,18 +963,35 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         } else {
             uint256 usdcCollateralTransfer = (usdlOrSynthAmount * closedPrice) / 1e18;
             if (usdcCollateralTransfer <= synthCollateralBal) {
-                SafeERC20Upgradeable.safeTransfer(usdc,to,getAmountInCollateralDecimalsForPerp(usdcCollateralTransfer, address(usdc), false));
+                SafeERC20Upgradeable.safeTransfer(
+                    usdc,
+                    to,
+                    getAmountInCollateralDecimalsForPerp(usdcCollateralTransfer, address(usdc), false)
+                );
             } else {
                 if (synthCollateralBal > 0) {
-                    SafeERC20Upgradeable.safeTransfer(usdc, to, getAmountInCollateralDecimalsForPerp(synthCollateralBal, address(usdc), false));
+                    SafeERC20Upgradeable.safeTransfer(
+                        usdc,
+                        to,
+                        getAmountInCollateralDecimalsForPerp(synthCollateralBal, address(usdc), false)
+                    );
                 }
-                if (tailCollateralBal > getUSDLInTail()) { // do we have extra tail for synthUser
+                if (tailCollateralBal > getUSDLInTail()) {
+                    // do we have extra tail for synthUser
                     uint256 checkDiffInTail = ((usdcCollateralTransfer - synthCollateralBal) * 1e18) / closedPrice; // calculate the needed extra tail to transfer
                     uint256 checkTailForSynth = tailCollateralBal - getUSDLInTail(); // check how much extra tail we have for synthUser
                     if (checkTailForSynth > checkDiffInTail) {
-                        SafeERC20Upgradeable.safeTransfer(usdlCollateral, to, getAmountInCollateralDecimalsForPerp(checkDiffInTail, address(usdlCollateral), false));
+                        SafeERC20Upgradeable.safeTransfer(
+                            usdlCollateral,
+                            to,
+                            getAmountInCollateralDecimalsForPerp(checkDiffInTail, address(usdlCollateral), false)
+                        );
                     } else {
-                        SafeERC20Upgradeable.safeTransfer(usdlCollateral, to, getAmountInCollateralDecimalsForPerp(checkTailForSynth, address(usdlCollateral), false));
+                        SafeERC20Upgradeable.safeTransfer(
+                            usdlCollateral,
+                            to,
+                            getAmountInCollateralDecimalsForPerp(checkTailForSynth, address(usdlCollateral), false)
+                        );
                     }
                 }
             }
@@ -1050,6 +1088,22 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
         SafeERC20Upgradeable.safeApprove(IERC20Upgradeable(tokenIn), router, 0);
         return res;
+    }
+
+    function _min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return (a <= b) ? a : b;
+    }
+
+    function _max(int256 a, int256 b) internal pure returns (int256) {
+        return (a >= b) ? a : b;
+    }
+
+    function _max(uint256 a, uint256 b) internal pure returns (uint256) {
+        return (a >= b) ? a : b;
+    }
+
+    function _abs(int256 a) internal pure returns (uint256) {
+        return (a >= 0) ? uint256(a) : uint256(-1 * a);
     }
 
     function _msgSender()

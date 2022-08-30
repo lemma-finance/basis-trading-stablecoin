@@ -13,8 +13,8 @@
   },
   "files": {
     "contracts/LemmaSynth.sol": {
-      "lastModificationDate": 1660649644525,
-      "contentHash": "c040cef26e34edf5b586d1bc79f815bc",
+      "lastModificationDate": 1661851070310,
+      "contentHash": "55598db402659e01885b5e22c8c88f5e",
       "sourceName": "contracts/LemmaSynth.sol",
       "solcConfig": {
         "settings": {
@@ -73,8 +73,8 @@
       }
     },
     "contracts/SettlementTokenManager.sol": {
-      "lastModificationDate": 1660649644525,
-      "contentHash": "d98ef9741c57942375b61b1c1e45cba4",
+      "lastModificationDate": 1661851070310,
+      "contentHash": "20e6d8959aa3248c3256eebf88ac8325",
       "sourceName": "contracts/SettlementTokenManager.sol",
       "solcConfig": {
         "settings": {
@@ -126,8 +126,8 @@
       }
     },
     "contracts/USDLemma.sol": {
-      "lastModificationDate": 1661335859590,
-      "contentHash": "fb5ff996b09758b3dccd47cdf7cba1cf",
+      "lastModificationDate": 1661851070310,
+      "contentHash": "919488dba401c63b0034b74a4b9d82c9",
       "sourceName": "contracts/USDLemma.sol",
       "solcConfig": {
         "settings": {
@@ -234,8 +234,8 @@
       }
     },
     "contracts/interfaces/ILemmaTreasury.sol": {
-      "lastModificationDate": 1660484576098,
-      "contentHash": "a052165040242d765b9591e52801970a",
+      "lastModificationDate": 1661851070310,
+      "contentHash": "7fd6584ed043feab0d49ec316258f498",
       "sourceName": "contracts/interfaces/ILemmaTreasury.sol",
       "solcConfig": {
         "settings": {
@@ -275,8 +275,8 @@
       }
     },
     "contracts/interfaces/IPerpetualMixDEXWrapper.sol": {
-      "lastModificationDate": 1660649644525,
-      "contentHash": "6187bfe48e63c68b756acfa01b915372",
+      "lastModificationDate": 1661851070310,
+      "contentHash": "78090f66ccdb1cde82068293f7d12c68",
       "sourceName": "contracts/interfaces/IPerpetualMixDEXWrapper.sol",
       "solcConfig": {
         "settings": {
@@ -316,7 +316,7 @@
       }
     },
     "contracts/interfaces/ISettlementTokenManager.sol": {
-      "lastModificationDate": 1660649644525,
+      "lastModificationDate": 1661851056374,
       "contentHash": "c566a344e8454f8c31106a484438d554",
       "sourceName": "contracts/interfaces/ISettlementTokenManager.sol",
       "solcConfig": {
@@ -392,7 +392,7 @@
       }
     },
     "contracts/interfaces/Perpetual/IBaseToken.sol": {
-      "lastModificationDate": 1660649644525,
+      "lastModificationDate": 1661851056374,
       "contentHash": "23a2cf8db613b773f8b5bb56f26f9bbb",
       "sourceName": "contracts/interfaces/Perpetual/IBaseToken.sol",
       "solcConfig": {
@@ -544,7 +544,7 @@
       }
     },
     "contracts/interfaces/Perpetual/IIndexPrice.sol": {
-      "lastModificationDate": 1660649644525,
+      "lastModificationDate": 1661851056374,
       "contentHash": "062978cdff6f5efe875c875a591c2b8f",
       "sourceName": "contracts/interfaces/Perpetual/IIndexPrice.sol",
       "solcConfig": {
@@ -866,8 +866,8 @@
       }
     },
     "contracts/wrappers/PerpLemmaCommon.sol": {
-      "lastModificationDate": 1661335859594,
-      "contentHash": "e2cf46d1e5e2a747ca8f0ad162356760",
+      "lastModificationDate": 1661851070310,
+      "contentHash": "a6e1a413c7de13b8230db66551edc14d",
       "sourceName": "contracts/wrappers/PerpLemmaCommon.sol",
       "solcConfig": {
         "settings": {
@@ -939,7 +939,7 @@
       }
     },
     "contracts/xLemmaSynth.sol": {
-      "lastModificationDate": 1660649644529,
+      "lastModificationDate": 1661851056374,
       "contentHash": "4c57b5328587850bb99dd71291320163",
       "sourceName": "contracts/xLemmaSynth.sol",
       "solcConfig": {
@@ -993,7 +993,7 @@
       }
     },
     "contracts/xUSDL.sol": {
-      "lastModificationDate": 1661335859594,
+      "lastModificationDate": 1661851056374,
       "contentHash": "0ee0458a6fb8291e590470cdc905059c",
       "sourceName": "contracts/xUSDL.sol",
       "solcConfig": {
@@ -2416,7 +2416,7 @@
       }
     },
     "script/LemmaSynthScript.sol": {
-      "lastModificationDate": 1661517189997,
+      "lastModificationDate": 1661851056378,
       "contentHash": "efd017c70ff7092e6472749749c623ff",
       "sourceName": "script/LemmaSynthScript.sol",
       "solcConfig": {
@@ -2503,7 +2503,7 @@
       }
     },
     "script/LemmaTestnetScripts.sol": {
-      "lastModificationDate": 1661517189997,
+      "lastModificationDate": 1661851056378,
       "contentHash": "50c4e26480648e7c03eabd0efe4a8f6a",
       "sourceName": "script/LemmaTestnetScripts.sol",
       "solcConfig": {
@@ -2590,7 +2590,7 @@
       }
     },
     "script/LemmaTestnetScriptsForPerpOnly.sol": {
-      "lastModificationDate": 1661517189997,
+      "lastModificationDate": 1661851056378,
       "contentHash": "ca5d890c57abfa1ad906121a645daca6",
       "sourceName": "script/LemmaTestnetScriptsForPerpOnly.sol",
       "solcConfig": {
@@ -2677,7 +2677,7 @@
       }
     },
     "script/LemmaTestnetScriptsUsingProxies.sol": {
-      "lastModificationDate": 1661517190001,
+      "lastModificationDate": 1661851056378,
       "contentHash": "50cc3e779d073825f7a5680122a9c14d",
       "sourceName": "script/LemmaTestnetScriptsUsingProxies.sol",
       "solcConfig": {
@@ -2768,7 +2768,7 @@
       }
     },
     "script/xLemmaSynthDeploy.sol": {
-      "lastModificationDate": 1661517190001,
+      "lastModificationDate": 1661851056378,
       "contentHash": "9b4d7bf2f77f060ca6a9213b3cb1d7ae",
       "sourceName": "script/xLemmaSynthDeploy.sol",
       "solcConfig": {
@@ -2854,7 +2854,7 @@
       }
     },
     "script/xUSDLDeploy.sol": {
-      "lastModificationDate": 1661517190001,
+      "lastModificationDate": 1661851056378,
       "contentHash": "8dc616d6c5969a412fdd838868cc6934",
       "sourceName": "script/xUSDLDeploy.sol",
       "solcConfig": {
@@ -2942,7 +2942,7 @@
       }
     },
     "src/Deploy.sol": {
-      "lastModificationDate": 1660649644529,
+      "lastModificationDate": 1661851056378,
       "contentHash": "255d065484d11d1779b6cfe28e1d05f8",
       "sourceName": "src/Deploy.sol",
       "solcConfig": {
@@ -3008,8 +3008,8 @@
       }
     },
     "test/foundry/Contract.t.sol": {
-      "lastModificationDate": 1661335859598,
-      "contentHash": "f45cbbc247de7a57275fe3cc0842480a",
+      "lastModificationDate": 1661851070310,
+      "contentHash": "50d8b31837265b42287b877fcae96002",
       "sourceName": "test/foundry/Contract.t.sol",
       "solcConfig": {
         "settings": {
@@ -3070,8 +3070,8 @@
       }
     },
     "test/foundry/LemmaSynth.t.sol": {
-      "lastModificationDate": 1661514359107,
-      "contentHash": "ce96a7de04477109e67051893becf5c1",
+      "lastModificationDate": 1661851070318,
+      "contentHash": "f35910597925056245a2c5981cdeff56",
       "sourceName": "test/foundry/LemmaSynth.t.sol",
       "solcConfig": {
         "settings": {
@@ -3133,8 +3133,8 @@
       }
     },
     "test/foundry/PerpLemma.t.sol": {
-      "lastModificationDate": 1661606069708,
-      "contentHash": "47c9a12c22398b97e11514826dfabdea",
+      "lastModificationDate": 1661851249371,
+      "contentHash": "889795c6531f32e2a4cfbd6754061eed",
       "sourceName": "test/foundry/PerpLemma.t.sol",
       "solcConfig": {
         "settings": {
@@ -3195,7 +3195,7 @@
       }
     },
     "test/foundry/SettlementTokenManager.t.sol": {
-      "lastModificationDate": 1660649644529,
+      "lastModificationDate": 1661851056378,
       "contentHash": "671537ba8194f514b4cb912c34a2ff01",
       "sourceName": "test/foundry/SettlementTokenManager.t.sol",
       "solcConfig": {
@@ -3257,8 +3257,8 @@
       }
     },
     "test/foundry/USDLemma.t.sol": {
-      "lastModificationDate": 1661598615635,
-      "contentHash": "88500a9a7fbd6c7015d9c9d11ed017e5",
+      "lastModificationDate": 1661851268707,
+      "contentHash": "87aa72b159d17d2a3299df2a31839aa7",
       "sourceName": "test/foundry/USDLemma.t.sol",
       "solcConfig": {
         "settings": {
@@ -3320,7 +3320,7 @@
       }
     },
     "test/foundry/mocks/MockChainlinkAggregator.sol": {
-      "lastModificationDate": 1661420500516,
+      "lastModificationDate": 1661851065170,
       "contentHash": "166896871d5ef3055cf6168e70bf28a7",
       "sourceName": "test/foundry/mocks/MockChainlinkAggregator.sol",
       "solcConfig": {
@@ -3374,7 +3374,7 @@
       }
     },
     "test/foundry/mocks/MockPriceFeed.sol": {
-      "lastModificationDate": 1661513241212,
+      "lastModificationDate": 1661851065170,
       "contentHash": "d123a593960bcbcb71fc07f6befa1af7",
       "sourceName": "test/foundry/mocks/MockPriceFeed.sol",
       "solcConfig": {

@@ -203,7 +203,7 @@ contract LemmaSynthTest is Test {
     function testDepositToAndWithdrawToWExactCollateralForSynth() public {
         testDepositToForSynth();
         address collateral = d.getTokenAddress("USDC");
-        uint256 collateralAmount = 988635431772441083946; // ~0.9998 eth
+        uint256 collateralAmount = 300e18;
         uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("USDC"), collateralAmount, 0);
         uint256 _maxUSDCtoRedeem = _deductFees(d.getTokenAddress("USDC"), _collateralAfterMinting, 0);
         mockPriceFeed.advancePerc(8 hours, 2e3);

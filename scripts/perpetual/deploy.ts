@@ -31,21 +31,20 @@ const save = async network => {
 };
 
 async function main() {
-
-  let { chainId } = await ethers.provider.getNetwork()
-  console.log('chainId: ', chainId);
+  let { chainId } = await ethers.provider.getNetwork();
+  console.log("chainId: ", chainId);
   let perpV2Config;
 
   if (chainId == 10) {
-    perpV2Config = await fetchFromURL(mainnetAddressesURL)
+    perpV2Config = await fetchFromURL(mainnetAddressesURL);
   } else if (chainId == 69) {
-    perpV2Config = await fetchFromURL(testnetAddressesURL)
+    perpV2Config = await fetchFromURL(testnetAddressesURL);
   }
 
   const network = perpV2Config.network;
   const contracts = perpV2Config.contracts;
   const collaterals = perpV2Config.collaterals;
-  const externalContracts = perpV2Config.externalContracts;  
+  const externalContracts = perpV2Config.externalContracts;
 
   let [defaultSigner]: any = await ethers.getSigners();
   let clearingHouse = new ethers.Contract(contracts.ClearingHouse.address, ClearingHouseAbi.abi, defaultSigner);
@@ -58,10 +57,10 @@ async function main() {
   let vault = new ethers.Contract(contracts.Vault.address, VaultAbi.abi, defaultSigner);
   let exchange = new ethers.Contract(contracts.Exchange.address, ExchangeAbi.abi, defaultSigner);
   let marketRegistry = new ethers.Contract(contracts.MarketRegistry.address, MarketRegistryAbi.abi, defaultSigner);
-  let collateral = new ethers.Contract( 
-    chainId == 10 ? collaterals[0].address : collaterals[2].address, 
-    TestERC20Abi.abi, 
-    defaultSigner
+  let collateral = new ethers.Contract(
+    chainId == 10 ? collaterals[0].address : collaterals[2].address,
+    TestERC20Abi.abi,
+    defaultSigner,
   ); //WETH
   let baseToken = new ethers.Contract(contracts.vETH.address, BaseTokenAbi.abi, defaultSigner);
   let baseToken2 = new ethers.Contract(contracts.vBTC.address, TestERC20Abi.abi, defaultSigner);
@@ -73,7 +72,7 @@ async function main() {
     UniswapV3FactoryAbi.abi,
     defaultSigner,
   );
-  let pool = new ethers.Contract(perpV2Config.pools[0].address, UniswapV3PoolAbi.abi, defaultSigner); //vETH-vUSD pool
+  // let pool = new ethers.Contract(perpV2Config.pools[9].address, UniswapV3PoolAbi.abi, defaultSigner); //vETH-vUSD pool
 
   const stmRebalancer = defaultSigner.address;
   const settlementToken = await vault.getSettlementToken(); // usdc
@@ -95,20 +94,13 @@ async function main() {
     ],
     { initializer: "initialize" },
   );
-  console.log('perpLemma.address: ', perpLemma.address);
+  console.log("perpLemma.address: ", perpLemma.address);
   await delay(10000);
 
   // Deploy SettlementTokenManager
   const stmFactory = await ethers.getContractFactory("SettlementTokenManager");
-  let settlementTokenManager = await upgrades.deployProxy(
-    stmFactory, 
-    [
-      AddressZero,
-      stmRebalancer,
-      settlementToken
-    ]
-  );
-  console.log('settlementTokenManager.address: ', settlementTokenManager.address);
+  let settlementTokenManager = await upgrades.deployProxy(stmFactory, [AddressZero, stmRebalancer, settlementToken]);
+  console.log("settlementTokenManager.address: ", settlementTokenManager.address);
   await delay(10000);
 
   console.log("deploying USDLemma");
@@ -116,26 +108,24 @@ async function main() {
   const usdLemma = await upgrades.deployProxy(
     USDLemma,
     [
-        config[chainId].trustedForwarder, 
-        collateral.address, 
-        perpLemma.address, 
-        settlementTokenManager.address, 
-        settlementToken
+      config[chainId].trustedForwarder,
+      collateral.address,
+      perpLemma.address,
+      settlementTokenManager.address,
+      settlementToken,
     ],
     {
       initializer: "initialize",
     },
   );
-  console.log('usdLemma.address: ', usdLemma.address);
+  console.log("usdLemma.address: ", usdLemma.address);
   await delay(10000);
 
   // deploy LemmaTreasury
   console.log("deploying LemmaTreasury");
   const LemmaTreasury = await ethers.getContractFactory("LemmaTreasury");
-  const lemmaTreasury = await upgrades.deployProxy(
-    LemmaTreasury
-  );
-  console.log('lemmaTreasury.address: ', lemmaTreasury.address);
+  const lemmaTreasury = await upgrades.deployProxy(LemmaTreasury);
+  console.log("lemmaTreasury.address: ", lemmaTreasury.address);
   await delay(10000);
 
   //deploy stackingContract
@@ -144,34 +134,24 @@ async function main() {
   const peripheryAddress = AddressZero;
   const xUSDL = await upgrades.deployProxy(
     XUSDL,
-    [
-        config[chainId].trustedForwarder, 
-        usdLemma.address, 
-        peripheryAddress],
+    [config[chainId].trustedForwarder, usdLemma.address, peripheryAddress],
     {
       initializer: "initialize",
     },
   );
-  console.log('xUSDL.address: ', xUSDL.address);
+  console.log("xUSDL.address: ", xUSDL.address);
   await delay(10000);
 
   // Deploy lemmaSynth
   const LemmaSynth = await ethers.getContractFactory("LemmaSynth");
   const lemmaSynth = await upgrades.deployProxy(
     LemmaSynth,
-    [
-        config[chainId].trustedForwarder, 
-        perpLemma.address,
-        settlementToken,
-        collateral.address,
-        "LSynthEth",
-        "LSEth"
-    ],
+    [config[chainId].trustedForwarder, perpLemma.address, settlementToken, collateral.address, "LSynthEth", "LSEth"],
     {
       initializer: "initialize",
     },
   );
-  console.log('lemmaSynth.address: ', lemmaSynth.address);
+  console.log("lemmaSynth.address: ", lemmaSynth.address);
   await delay(10000);
 
   // Deploy xLemmaSynth
@@ -179,18 +159,12 @@ async function main() {
   const XLemmaSynth = await ethers.getContractFactory("xLemmaSynth");
   const xLemmaSynth = await upgrades.deployProxy(
     XLemmaSynth,
-    [
-        config[chainId].trustedForwarder, 
-        lemmaSynth.address, 
-        peripheryAddress,
-        "xLSynthEth",
-        "xLSEth"
-    ],
+    [config[chainId].trustedForwarder, lemmaSynth.address, peripheryAddress, "xLSynthEth", "xLSEth"],
     {
       initializer: "initialize",
     },
   );
-  console.log('xLemmaSynth.address: ', xLemmaSynth.address);
+  console.log("xLemmaSynth.address: ", xLemmaSynth.address);
   await delay(10000);
 
   console.log("configuring parameters");
