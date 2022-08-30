@@ -3133,8 +3133,8 @@
       }
     },
     "test/foundry/PerpLemma.t.sol": {
-      "lastModificationDate": 1661335859602,
-      "contentHash": "778b98a352b8aea5db643ba8df90b057",
+      "lastModificationDate": 1661606069708,
+      "contentHash": "47c9a12c22398b97e11514826dfabdea",
       "sourceName": "test/foundry/PerpLemma.t.sol",
       "solcConfig": {
         "settings": {
@@ -3257,7 +3257,7 @@
       }
     },
     "test/foundry/USDLemma.t.sol": {
-      "lastModificationDate": 1661529154243,
+      "lastModificationDate": 1661598615635,
       "contentHash": "88500a9a7fbd6c7015d9c9d11ed017e5",
       "sourceName": "test/foundry/USDLemma.t.sol",
       "solcConfig": {
