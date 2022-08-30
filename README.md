@@ -1,30 +1,16 @@
-# Test locally
-1. git submodule update --init
-2. git submodule update
-3. npm install
-4. cd mai-protocol-v3/
-5. npm install
-6. cd ..
-7. npm run compile
-7. npx hardhat node
-8. npx hardhat test --network local
+# Basis-Trading-Stablecoin
+
+capital efficient, censor proof, yield-bearing stablecoin using basis trading
+
 
 # Documentation
 https://docs.lemma.finance/smart-contracts/core-contracts
 
-## How to setup perp_lushan testcases
-
-Open perp-lushan submodule repo  
-1). cd perp-lushan  
-2). npm install  
-3). npm run build
-4). cd .. 
 
 ### Optimism-KOVAN Testnet Contract addresses
 
 ```
 SettlementTokenManager: , 0x790f5ea61193Eb680F82dE61230863c12f8AC5cC
-
 xUSDL: , 0x317c72f8509b09D9F7632761e1393e045A040f7e
 USDLemma: , 0xc34E7f18185b381d1d7aab8aeEC507e01f4276EE
 xLemmaSynthEth: 0xF8A4d59bB0DAf3B777E85696c694E3B983164d6e
@@ -38,25 +24,39 @@ PerpLemmaCommonBtc: , 0xCAA344264f1546931A37Ad09da63d3D2AceB1283
 
 1. Install Foundry following the instructions here 
 
--   https://github.com/foundry-rs/foundry
-
+```
+https://github.com/foundry-rs/foundry
+```
 
 2. Make the repo a Foundry Repo with 
 
-    ```foundryup```
+```
+foundryup
+```
 
 3. Install forge dependency
--   ```forge install  ```
+```
+forge install
+```
 
 4. Compile contract code
--   ```forge build ``` 
+```
+forge build
+``` 
 
 5. Run testcases  
--   ```forge test --fork-url https://opt-mainnet.g.alchemy.com/v2/j9pgL8KP33EnVCItge8fRMZPnikQaMBI --fork-block-number 12137998 ``` 
+```
+forge test --fork-url https://opt-mainnet.g.alchemy.com/v2/j9pgL8KP33EnVCItge8fRMZPnikQaMBI --fork-block-number 12137998
+``` 
 
 6. Run deployement scripts
-- ```source .env```
--   ```forge script script/LemmaTestnetScripts.sol:LemmaTestnetScripts --rpc-url $OPTIMISM_KOVAN_RPC_URL  --private-key $PRIVATE_KEY --broadcast --verify --etherscan-api-key $ETHERSCAN_KEY -vvvv```
+```
+source .env
+```
+
+```
+forge script script/LemmaTestnetScripts.sol:LemmaTestnetScripts --rpc-url $OPTIMISM_KOVAN_RPC_URL  --private-key $PRIVATE_KEY --broadcast --verify --etherscan-api-key $ETHERSCAN_KEY -vvvv
+```
 
 
 NOTE: In theory everything should be already set properly for the above to run but in case there are issues try to inizialize the repo as Foundry Repo 
@@ -90,6 +90,21 @@ libs = ['lib', 'node_modules']
     npx hardhat verify --network optimismKovan <Deployment Address>
 
 ## Old Running methods using JS (DEPRECATED)
+
+### Test locally - mai-protocol-v2 - OLD Method(DEPRECATED)
+1). git submodule update --init
+2). git submodule update
+3). npm install
+4). cd mai-protocol-v3/
+5). npm install
+
+### Test locally - Perp-lushan - OLD Method(DEPRECATED)
+1). cd perp-lushan  
+2). npm install  
+3). npm run build
+4). cd .. 
+
+### test(DEPRECATED)
 
 1). Go to root repo
     
