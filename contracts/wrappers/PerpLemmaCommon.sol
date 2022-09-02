@@ -17,8 +17,10 @@ import "../interfaces/Perpetual/IAccountBalance.sol";
 import "../interfaces/Perpetual/IMarketRegistry.sol";
 import "../interfaces/Perpetual/IPerpVault.sol";
 import "../interfaces/Perpetual/IBaseToken.sol";
+import "../interfaces/Perpetual/IExchange.sol";
 import "forge-std/Test.sol";
 
+// import "forge-std/console.sol";
 // import "hardhat/console.sol";
 
 /// @author Lemma Finance
@@ -96,6 +98,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
     // Has the Market Settled, If settled we can't mint new USDL or Synth
     bool public override hasSettled;
+
+    int256 public fundingPaymentsToDistribute;
+    uint256 public percFundingPaymentsToUSDLHolders;
 
     // Events
     event USDLemmaUpdated(address indexed usdlAddress);
@@ -178,6 +183,10 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
     }
 
+    function print(string memory s, int256 x) internal view {
+        console.log(s, (x < 0) ? uint256(-x) : uint256(x) );
+    }
+
     /////////////////////////////
     /// EXTERNAL VIEW METHODS ///
     /////////////////////////////
@@ -212,6 +221,50 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     function getCollateralTokens() external view override returns (address[] memory res) {
         res = new address[](1);
         res[0] = perpVault.getSettlementToken();
+    }
+
+
+
+
+    function getPendingFundingPayment() public view override returns(int256 pendingFundingPayments) {
+        // See 
+        // Interface 
+        // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/interface/IExchange.sol#L101
+        // Implementation 
+        // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/Exchange.sol#L361
+        pendingFundingPayments = IExchange(clearingHouse.getExchange()).getPendingFundingPayment(address(this), usdlBaseTokenAddress);
+    }
+
+    function settlePendingFundingPayments() public override {
+        console.log("[settlePendingFundingPayments()] freeCollateralBefore = ", getFreeCollateral());
+        print("[settlePendingFundingPayments()] pendingFundingPaymentBefore = ", getPendingFundingPayment());
+        fundingPaymentsToDistribute += getPendingFundingPayment();
+        clearingHouse.settleAllFunding(address(this));
+        console.log("[settlePendingFundingPayments()] freeCollateralAfter = ", getFreeCollateral());
+        print("[settlePendingFundingPayments()] pendingFundingPaymentAfter = ", getPendingFundingPayment());
+    }
+
+    function distributeFundingPayments() external override returns(int256 amountToXUSDL, int256 amountToXSynth) {
+        settlePendingFundingPayments();
+        amountToXUSDL = fundingPaymentsToDistribute * int256(percFundingPaymentsToUSDLHolders) / int256(1e6);
+        amountToXSynth = fundingPaymentsToDistribute - amountToXUSDL;
+        print("[distributeFundingPayments()] amountToXUSDL = ", amountToXUSDL);
+        print("[distributeFundingPayments()] amountToXSynth = ", amountToXSynth);
+
+        if(amountToXUSDL > 0) {
+            // TODO: Mint to XUSDL
+        }  
+        if(amountToXUSDL > 0) {
+            // TODO: Burn to XUSDL
+        }
+
+        if(amountToXSynth > 0) {
+            // TODO: Mint to XSynth
+        }
+
+        if(amountToXSynth < 0) {
+            // TODO: Burn to XSynth
+        }
     }
 
     /// @notice It returns the amount of USDC that are possibly needed to properly collateralize the new position on Perp

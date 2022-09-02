@@ -33,6 +33,12 @@ interface IPerpetualMixDEXWrapper {
 
     function hasSettled() external view returns (bool);
 
+    function getPendingFundingPayment() external view returns(int256);
+
+    function settlePendingFundingPayments() external;
+
+    function distributeFundingPayments() external returns(int256, int256);
+
     function getCollateralBackAfterSettlement(
         uint256 amount,
         address to,
