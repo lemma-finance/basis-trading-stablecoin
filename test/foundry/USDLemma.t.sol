@@ -41,6 +41,9 @@ contract USDLemmaTest is Test {
         }
     }
 
+    function print(string memory s, int256 x) internal view {
+        console.log(s, (x < 0) ? uint256(-x) : uint256(x) );
+    }
 
     // Source 
     // https://ethereum.stackexchange.com/questions/884/how-to-convert-an-address-to-bytes-in-solidity
@@ -784,4 +787,97 @@ contract USDLemmaTest is Test {
         uint256 _maxETHtoRedeem = _deductFees(d.getTokenAddress("USDC"), _collateralAfterMinting, 1);
         _redeemUSDLWExactCollateral(address(this), collateral, _maxETHtoRedeem, 1);
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+    function testDistributeFR_ShowPendingFR1() public {
+        console.log("T1 ", d.pl().usdlBaseTokenAddress());
+        // console.log("8 hours = ", 8 hours);
+        vm.startPrank(address(d));
+        // d.pl().setMinMarginForRecap(3e18);
+        // d.pl().setMinMarginSafeThreshold(5e18);
+        d.usdl().setLemmaTreasury(address(d.lemmaTreasury()));
+        // NOTE: Let's try to use 100% collateral ratio
+        d.pl().setCollateralRatio(1e6);
+        vm.stopPrank();
+
+        d.bank().giveMoney(d.pl().getSettlementToken(), address(d.lemmaTreasury()), 5e30);
+        console.log("[testDistributeFR1()] Start");
+        _depositSettlementToken(300000000);
+
+        address collateral = d.getTokenAddress("WETH");
+        // NOTE: Minting just a little bit of USDL to start with a net short position 
+        _mintUSDLWExactCollateralNoChecks(address(this), collateral, 1e15);
+
+        console.log("[testDistributeFR1()] Price Before = ", d.pl().getIndexPrice());
+        // NOTE: Let's move forward of 1 day with a +0.1% price change
+        _mineBlock();
+        // mockPriceFeed.advancePerc(8 hours, 1e3);
+        // _advancePerc(8 hours, 1e3);
+        print("[testDistributeFR1()] Pending Funding Payments = ", d.pl().getPendingFundingPayment());
+
+        _mineBlock();
+        // mockPriceFeed.advancePerc(8 hours, 1e3);
+        // _advancePerc(8 hours, 1e3);
+        print("[testDistributeFR1()] Pending Funding Payments = ", d.pl().getPendingFundingPayment());
+
+        _mineBlock();
+        // mockPriceFeed.advancePerc(8 hours, 1e3);
+        // _advancePerc(8 hours, 1e3);
+        print("[testDistributeFR1()] Pending Funding Payments = ", d.pl().getPendingFundingPayment());
+
+    }
+
+    function testDistributeFR_ShowPendingFRAndSettle() public {
+        console.log("T1 ", d.pl().usdlBaseTokenAddress());
+        // console.log("8 hours = ", 8 hours);
+        vm.startPrank(address(d));
+        // d.pl().setMinMarginForRecap(3e18);
+        // d.pl().setMinMarginSafeThreshold(5e18);
+        d.usdl().setLemmaTreasury(address(d.lemmaTreasury()));
+        // NOTE: Let's try to use 100% collateral ratio
+        d.pl().setCollateralRatio(1e6);
+        vm.stopPrank();
+
+        d.bank().giveMoney(d.pl().getSettlementToken(), address(d.lemmaTreasury()), 5e30);
+        console.log("[testDistributeFR1()] Start");
+        _depositSettlementToken(300000000);
+
+        address collateral = d.getTokenAddress("WETH");
+        // NOTE: Minting just a little bit of USDL to start with a net short position 
+        _mintUSDLWExactCollateralNoChecks(address(this), collateral, 1e15);
+
+        console.log("[testDistributeFR1()] Price Before = ", d.pl().getIndexPrice());
+        // NOTE: Let's move forward of 1 day with a +0.1% price change
+        _mineBlock();
+        // mockPriceFeed.advancePerc(8 hours, 1e3);
+        // _advancePerc(8 hours, 1e3);
+        print("[testDistributeFR1()] T1 Pending Funding Payments = ", d.pl().getPendingFundingPayment());
+        d.pl().settlePendingFundingPayments();
+        print("[testDistributeFR1()] T1 Pending Funding Payments = ", d.pl().getPendingFundingPayment());
+
+        _mineBlock();
+        // mockPriceFeed.advancePerc(8 hours, 1e3);
+        // _advancePerc(8 hours, 1e3);
+        print("[testDistributeFR1()] Pending Funding Payments = ", d.pl().getPendingFundingPayment());
+
+        _mineBlock();
+        // mockPriceFeed.advancePerc(8 hours, 1e3);
+        // _advancePerc(8 hours, 1e3);
+        print("[testDistributeFR1()] T3 Pending Funding Payments = ", d.pl().getPendingFundingPayment());
+        d.pl().settlePendingFundingPayments();
+        print("[testDistributeFR1()] T3 Pending Funding Payments = ", d.pl().getPendingFundingPayment());
+    }
+
+
 }
