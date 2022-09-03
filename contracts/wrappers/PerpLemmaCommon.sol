@@ -295,13 +295,14 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                 perpVault.withdraw(address(usdc), amount);
                 console.log("[distributeFundingPayments()] Withdrawn Amount = ", amount);
                 console.log("[distributeFundingPayments()] USDL Balance of xUSDL Before = ", IUSDLemma(usdLemma).balanceOf(xUsdl));
-                IUSDLemma(usdLemma).depositToWExactCollateral(
-                    xUsdl,
-                    amountToXUSDL,
-                    0,
-                    0,
-                    usdc
-                );
+                IUSDLemma(usdLemma).mintToXUSDL(amountToXUSDL);
+                // IUSDLemma(usdLemma).depositToWExactCollateral(
+                //     xUsdl,
+                //     amountToXUSDL,
+                //     0,
+                //     0,
+                //     usdc
+                // );
                 console.log("[distributeFundingPayments()] USDL Balance of xUSDL After = ", IUSDLemma(usdLemma).balanceOf(xUsdl));
             } else {
                 uint256 amount = uint256(-fundingPaymentsToDistribute) * 10**(usdc.decimals()) / 1e18;
@@ -311,9 +312,10 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                 console.log("[distributeFundingPayments()] Negative Profit amountToXUSDL = ", amountToXUSDL);
                 console.log("[distributeFundingPayments()] Negative Profit amountToXSynth = ", amountToXSynth);
 
-                // if(amountToXUSDL > usdl.balanceOf(address(xusdl))) {
-                //     // TODO: Protocol needs to take some loss Appunto 
-                // }
+                if(amountToXUSDL > IUSDLemma(usdLemma).balanceOf(address(xUsdl))) {
+                    // TODO: Protocol needs to take some loss Appunto 
+                    amountToXUSDL = IUSDLemma(usdLemma).balanceOf(address(xUsdl));
+                }
             }
         }
 

@@ -123,12 +123,20 @@ contract MockUniV3Router {
 }
 
 contract XUsdl {
-    // TODO: Replace with the real one 
+    // USDLemma public usdLemma;
+    // // TODO: Replace with the real one 
+    // constructor(USDLemma _usdLemma) {
+    //     usdLemma = _usdLemma;
+    // }
 }
 
 
 contract XSynth {
-    // TODO: Replace with the real one
+    // LemmaSynth public lemmaSynth;
+    // // TODO: Replace with the real one
+    // constructor(LemmaSynth _lemmaSynth) {
+    //     lemmaSynth = _lemmaSynth;
+    // }
 }
 
 contract Deploy {
@@ -212,13 +220,13 @@ contract Deploy {
         // console.log('price: ', price);
 
 
+        xUsdl = new XUsdl();
+        xSynth = new XSynth();
+
         usdl = new USDLemma();
         lSynth = new LemmaSynth();
         lemmaTreasury = new LemmaTreasury();
         settlementTokenManager = new SettlementTokenManager();
-
-        xUsdl = new XUsdl();
-        xSynth = new XSynth();
 
         pl = _deployPerpLemma(
                 Deploy_PerpLemma({
@@ -250,6 +258,8 @@ contract Deploy {
             address(settlementTokenManager),
             generic_chain_addresses["USDC"][chain_id]
         );
+
+        usdl.setXUsdl(address(xUsdl));
 
         lSynth.initialize(
             address(0),

@@ -10,6 +10,8 @@ import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/
 import { IPerpetualMixDEXWrapper } from "./interfaces/IPerpetualMixDEXWrapper.sol";
 import { ISettlementTokenManager } from "./interfaces/ISettlementTokenManager.sol";
 import "./interfaces/IERC20Decimals.sol";
+
+import "./interfaces/IUSDLemma.sol";
 import "./interfaces/ILemmaTreasury.sol";
 import "forge-std/Test.sol";
 
@@ -33,6 +35,8 @@ contract USDLemma is
     /// Lemma Treasury address
     address public lemmaTreasury;
     /// Settlement Manager contract address
+    address public xUsdl;
+
     address public settlementTokenManager;
     /// PerpV2 Settlement Token
     address public perpSettlementToken;
@@ -131,6 +135,10 @@ contract USDLemma is
         perpetualDEXWrappers[perpetualDEXIndex][collateralAddress] = perpetualDEXWrapperAddress;
         isSupportedPerpetualDEXWrapper[perpetualDEXWrapperAddress] = true;
         emit PerpetualDexWrapperAdded(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
+    }
+
+    function setXUsdl(address _xUsdl) external onlyRole(OWNER_ROLE) {
+        xUsdl = _xUsdl;
     }
 
     /// @notice setSettlementTokenManager is to set the address of settlementTokenManager
@@ -310,6 +318,7 @@ contract USDLemma is
         return expectedUSDCDeductedFromFreeCollateral;
     }
 
+
     function _mintToUSDLWithStable(address tokenStable, uint256 usdcAmount, address to) internal {
         if(isSupportedPerpetualDEXWrapper[msg.sender]) {
             // NOTE: No TransferFrom for USDC Required, let's leave it there 
@@ -318,6 +327,11 @@ contract USDLemma is
             // TODO: Implement
             require(false, "Unimplemented");
         }
+    }
+
+    function mintToXUSDL(uint256 amount) external {
+        require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
+        _mint(xUsdl, amount * 10**(decimals()) / 10**(IERC20Decimals(IPerpetualMixDEXWrapper(_msgSender()).getSettlementToken()).decimals()));
     }
 
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of collateral
@@ -390,6 +404,14 @@ contract USDLemma is
 
         emit DepositTo(perpetualDEXIndex, address(collateral), to, _usdlToMint, _collateralRequired);
     }
+
+
+    // function _burnToUSDLWithStable(address tokenStable, uint256 usdcAmount, address to) internal {
+    //     if(isSupportedPerpetualDEXWrapper[msg.sender]) {
+    //         // NOTE: No TransferFrom for USDC Required, let's leave it there 
+    //         _burn(to, usdcAmount * 10**(decimals()) / 10**(IERC20Decimals(tokenStable).decimals()));
+    //     } 
+    // }
 
     /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc specifying the exact amount of USDL
     /// @param to Receipent of withdrawn collateral
