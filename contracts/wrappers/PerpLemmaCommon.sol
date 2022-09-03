@@ -11,6 +11,7 @@ import { SafeMathExt } from "../libraries/SafeMathExt.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "../interfaces/IERC20Decimals.sol";
+import "../interfaces/IUSDLemma.sol";
 import "../interfaces/Perpetual/IClearingHouse.sol";
 import "../interfaces/Perpetual/IClearingHouseConfig.sol";
 import "../interfaces/Perpetual/IIndexPrice.sol";
@@ -52,6 +53,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     address public settlementTokenManager;
     /// Referrer Code use while openPosition
     bytes32 public referrerCode;
+
+    address public xUsdl;
+    address public xSynth;
 
     /// PerpV2 contract addresses
     IClearingHouse public clearingHouse;
@@ -193,6 +197,17 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         percFundingPaymentsToUSDLHolders = _percFundingPaymentsToUSDLHolder;
     }
 
+
+    function setXUsdl(address _xUsdl) external override onlyRole(OWNER_ROLE) {
+        require(_xUsdl != address(0), "Address can't be zero");
+        xUsdl = _xUsdl;
+    }
+
+    function setXSynth(address _xSynth) external override onlyRole(OWNER_ROLE) {
+        require(_xSynth != address(0), "Address can't be zero");
+        xSynth = _xSynth;
+    }
+
     /////////////////////////////
     /// EXTERNAL VIEW METHODS ///
     /////////////////////////////
@@ -261,19 +276,47 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         print("[settlePendingFundingPayments()] pendingFundingPaymentAfter = ", getPendingFundingPayment());
     }
 
-    function distributeFundingPayments() external override returns(int256 amountToXUSDL, int256 amountToXSynth) {
+    function distributeFundingPayments() external override returns(bool isProfit, uint256 amountToXUSDL, uint256 amountToXSynth) {
         settlePendingFundingPayments();
-        amountToXUSDL = fundingPaymentsToDistribute * int256(percFundingPaymentsToUSDLHolders) / int256(1e6);
-        amountToXSynth = fundingPaymentsToDistribute - amountToXUSDL;
-        print("[distributeFundingPayments()] amountToXUSDL = ", amountToXUSDL);
-        print("[distributeFundingPayments()] amountToXSynth = ", amountToXSynth);
         print("[distributeFundingPayments()] fundingPaymentsToDistribute = ", fundingPaymentsToDistribute);
 
-        fundingPaymentsToDistribute = fundingPaymentsToDistribute * int256(10**(usdc.decimals())) / int256(1e18);
-        if(fundingPaymentsToDistribute > 0) {
-            perpVault.withdraw(address(usdc), uint256(fundingPaymentsToDistribute));
-            console.log("Withdrawn Amount = ", uint256(fundingPaymentsToDistribute));
+        if(fundingPaymentsToDistribute == 0) {
+            console.log("[distributeFundingPayments()] fundingPaymentsToDistribute == 0 --> Nothing to distribute");
+        } else {
+            isProfit = fundingPaymentsToDistribute > 0;
+            
+            if(fundingPaymentsToDistribute > 0) {
+                // NOTE: Distribute profit
+                uint256 amount = uint256(fundingPaymentsToDistribute) * 10**(usdc.decimals()) / 1e18;
+                amountToXUSDL = amount * percFundingPaymentsToUSDLHolders / 1e6;
+                amountToXSynth = amount - amountToXUSDL;
+                console.log("[distributeFundingPayments()] Positive Profit amountToXUSDL = ", amountToXUSDL);
+                console.log("[distributeFundingPayments()] Positive Profit amountToXSynth = ", amountToXSynth);
+                perpVault.withdraw(address(usdc), amount);
+                console.log("[distributeFundingPayments()] Withdrawn Amount = ", amount);
+                console.log("[distributeFundingPayments()] USDL Balance of xUSDL Before = ", IUSDLemma(usdLemma).balanceOf(xUsdl));
+                IUSDLemma(usdLemma).depositToWExactCollateral(
+                    xUsdl,
+                    amountToXUSDL,
+                    0,
+                    0,
+                    usdc
+                );
+                console.log("[distributeFundingPayments()] USDL Balance of xUSDL After = ", IUSDLemma(usdLemma).balanceOf(xUsdl));
+            } else {
+                uint256 amount = uint256(-fundingPaymentsToDistribute) * 10**(usdc.decimals()) / 1e18;
+                amountToXUSDL = amount * percFundingPaymentsToUSDLHolders / 1e6;
+                amountToXSynth = amount - amountToXUSDL;
+
+                console.log("[distributeFundingPayments()] Negative Profit amountToXUSDL = ", amountToXUSDL);
+                console.log("[distributeFundingPayments()] Negative Profit amountToXSynth = ", amountToXSynth);
+
+                // if(amountToXUSDL > usdl.balanceOf(address(xusdl))) {
+                //     // TODO: Protocol needs to take some loss Appunto 
+                // }
+            }
         }
+
     }
 
     /// @notice It returns the amount of USDC that are possibly needed to properly collateralize the new position on Perp

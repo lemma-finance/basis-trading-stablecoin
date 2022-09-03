@@ -33,6 +33,10 @@ interface IPerpetualMixDEXWrapper {
 
     function setPercFundingPaymentsToUSDLHolders(uint256) external;
 
+    function setXUsdl(address _xUsdl) external;
+
+    function setXSynth(address _xSynth) external;
+
     function hasSettled() external view returns (bool);
 
     function getMarkPrice() external view returns(uint256);
@@ -41,7 +45,7 @@ interface IPerpetualMixDEXWrapper {
 
     function settlePendingFundingPayments() external;
 
-    function distributeFundingPayments() external returns(int256, int256);
+    function distributeFundingPayments() external returns(bool, uint256, uint256);
 
     function getCollateralBackAfterSettlement(
         uint256 amount,

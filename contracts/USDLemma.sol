@@ -42,6 +42,8 @@ contract USDLemma is
     bytes32 public interactionBlock;
     // Mapping for Index to perpetualDexs/PerpLemma
     mapping(uint256 => mapping(address => address)) public perpetualDEXWrappers;
+    mapping(address => bool) public isSupportedPerpetualDEXWrapper;
+    mapping(address => bool) public isSupportedStableForMinting;
 
     // Events
     event DepositTo(
@@ -101,6 +103,7 @@ contract USDLemma is
 
         if (_settlementTokenManager != address(0)) {
             settlementTokenManager = _settlementTokenManager;
+            isSupportedStableForMinting[ISettlementTokenManager(settlementTokenManager).getSettlementToken()] = true;
         }
         perpSettlementToken = _perpSettlementToken;
         addPerpetualDEXWrapper(0, _collateralAddress, _perpetualDEXWrapperAddress);
@@ -126,6 +129,7 @@ contract USDLemma is
         address perpetualDEXWrapperAddress
     ) public onlyRole(OWNER_ROLE) {
         perpetualDEXWrappers[perpetualDEXIndex][collateralAddress] = perpetualDEXWrapperAddress;
+        isSupportedPerpetualDEXWrapper[perpetualDEXWrapperAddress] = true;
         emit PerpetualDexWrapperAdded(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
     }
 
@@ -133,6 +137,9 @@ contract USDLemma is
     /// @param _settlementTokenManager address
     function setSettlementTokenManager(address _settlementTokenManager) external onlyRole(OWNER_ROLE) {
         settlementTokenManager = _settlementTokenManager;
+        if(settlementTokenManager != address(0)) {
+            isSupportedStableForMinting[ISettlementTokenManager(settlementTokenManager).getSettlementToken()] = true;
+        }
         emit SetSettlementTokenManager(settlementTokenManager);
     }
 
@@ -303,6 +310,16 @@ contract USDLemma is
         return expectedUSDCDeductedFromFreeCollateral;
     }
 
+    function _mintToUSDLWithStable(address tokenStable, uint256 usdcAmount, address to) internal {
+        if(isSupportedPerpetualDEXWrapper[msg.sender]) {
+            // NOTE: No TransferFrom for USDC Required, let's leave it there 
+            _mint(to, usdcAmount * 10**(decimals()) / 10**(IERC20Decimals(tokenStable).decimals()));
+        } else {
+            // TODO: Implement
+            require(false, "Unimplemented");
+        }
+    }
+
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of collateral
     /// @param to Receipent of minted USDL
     /// @param collateralAmount Amount of collateral to deposit in the collateral decimal format
@@ -316,6 +333,11 @@ contract USDLemma is
         uint256 minUSDLToMint,
         IERC20Upgradeable collateral
     ) external nonReentrant onlyOneFunInSameTx {
+
+        if(isSupportedStableForMinting[address(collateral)]) {
+            return _mintToUSDLWithStable(address(collateral), collateralAmount, to);
+        }
+
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );

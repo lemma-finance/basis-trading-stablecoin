@@ -73,8 +73,8 @@
       }
     },
     "contracts/SettlementTokenManager.sol": {
-      "lastModificationDate": 1661851070310,
-      "contentHash": "20e6d8959aa3248c3256eebf88ac8325",
+      "lastModificationDate": 1662214211491,
+      "contentHash": "e5552d86d9566b335b8996cf4cb69a98",
       "sourceName": "contracts/SettlementTokenManager.sol",
       "solcConfig": {
         "settings": {
@@ -105,6 +105,7 @@
       "imports": [
         "contracts/interfaces/IERC20Decimals.sol",
         "contracts/interfaces/IPerpetualMixDEXWrapper.sol",
+        "contracts/interfaces/ISettlementTokenManager.sol",
         "node_modules/@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol",
         "node_modules/@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol",
         "node_modules/@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol",
@@ -126,8 +127,8 @@
       }
     },
     "contracts/USDLemma.sol": {
-      "lastModificationDate": 1661851070310,
-      "contentHash": "919488dba401c63b0034b74a4b9d82c9",
+      "lastModificationDate": 1662215255120,
+      "contentHash": "cda012066a74761365f12e9b0d148afc",
       "sourceName": "contracts/USDLemma.sol",
       "solcConfig": {
         "settings": {
@@ -275,8 +276,8 @@
       }
     },
     "contracts/interfaces/IPerpetualMixDEXWrapper.sol": {
-      "lastModificationDate": 1662204636249,
-      "contentHash": "5b68802c64248283e9535725205a111d",
+      "lastModificationDate": 1662212045724,
+      "contentHash": "ae1ffe83aaf4e7cebcde5366c7972848",
       "sourceName": "contracts/interfaces/IPerpetualMixDEXWrapper.sol",
       "solcConfig": {
         "settings": {
@@ -316,8 +317,8 @@
       }
     },
     "contracts/interfaces/ISettlementTokenManager.sol": {
-      "lastModificationDate": 1661851056374,
-      "contentHash": "c566a344e8454f8c31106a484438d554",
+      "lastModificationDate": 1662213906362,
+      "contentHash": "2bd96cfd2e3dd13a26d74bf6dd24734c",
       "sourceName": "contracts/interfaces/ISettlementTokenManager.sol",
       "solcConfig": {
         "settings": {
@@ -350,6 +351,47 @@
       "artifacts": {
         "ISettlementTokenManager": {
           "0.8.3+commit.8d00100c.Linux.gcc": "ISettlementTokenManager.sol/ISettlementTokenManager.json"
+        }
+      }
+    },
+    "contracts/interfaces/IUSDLemma.sol": {
+      "lastModificationDate": 1662212776032,
+      "contentHash": "ac402fcaf3b65d87b6aa50cb34377797",
+      "sourceName": "contracts/interfaces/IUSDLemma.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs"
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "contracts/interfaces/IERC20Decimals.sol",
+        "node_modules/@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol"
+      ],
+      "versionRequirement": "^0.8.0",
+      "artifacts": {
+        "IUSDLemma": {
+          "0.8.3+commit.8d00100c.Linux.gcc": "IUSDLemma.sol/IUSDLemma.json"
         }
       }
     },
@@ -658,8 +700,8 @@
       }
     },
     "contracts/interfaces/Perpetual/IUSDLemma.sol": {
-      "lastModificationDate": 1652701065036,
-      "contentHash": "468412ffe2e6d742ebfc6d830280741f",
+      "lastModificationDate": 1662212690008,
+      "contentHash": "a3fa28d7cd6ae32600e9a1f224d4eb74",
       "sourceName": "contracts/interfaces/Perpetual/IUSDLemma.sol",
       "solcConfig": {
         "settings": {
@@ -866,8 +908,8 @@
       }
     },
     "contracts/wrappers/PerpLemmaCommon.sol": {
-      "lastModificationDate": 1662204631817,
-      "contentHash": "776aeec23e45b9272a351b224e93454c",
+      "lastModificationDate": 1662214635501,
+      "contentHash": "11446838326836d709c0eef6a23cba1f",
       "sourceName": "contracts/wrappers/PerpLemmaCommon.sol",
       "solcConfig": {
         "settings": {
@@ -898,6 +940,7 @@
       "imports": [
         "contracts/interfaces/IERC20Decimals.sol",
         "contracts/interfaces/IPerpetualMixDEXWrapper.sol",
+        "contracts/interfaces/IUSDLemma.sol",
         "contracts/interfaces/Perpetual/IAccountBalance.sol",
         "contracts/interfaces/Perpetual/IBaseToken.sol",
         "contracts/interfaces/Perpetual/IClearingHouse.sol",
@@ -1001,7 +1044,7 @@
       }
     },
     "contracts/xUSDL.sol": {
-      "lastModificationDate": 1661851056374,
+      "lastModificationDate": 1662209493284,
       "contentHash": "0ee0458a6fb8291e590470cdc905059c",
       "sourceName": "contracts/xUSDL.sol",
       "solcConfig": {
@@ -2571,6 +2614,7 @@
         "contracts/interfaces/ILemmaTreasury.sol",
         "contracts/interfaces/IPerpetualMixDEXWrapper.sol",
         "contracts/interfaces/ISettlementTokenManager.sol",
+        "contracts/interfaces/IUSDLemma.sol",
         "contracts/interfaces/Perpetual/IAccountBalance.sol",
         "contracts/interfaces/Perpetual/IBaseToken.sol",
         "contracts/interfaces/Perpetual/IClearingHouse.sol",
@@ -2666,6 +2710,7 @@
         "contracts/interfaces/ILemmaTreasury.sol",
         "contracts/interfaces/IPerpetualMixDEXWrapper.sol",
         "contracts/interfaces/ISettlementTokenManager.sol",
+        "contracts/interfaces/IUSDLemma.sol",
         "contracts/interfaces/Perpetual/IAccountBalance.sol",
         "contracts/interfaces/Perpetual/IBaseToken.sol",
         "contracts/interfaces/Perpetual/IClearingHouse.sol",
@@ -2761,6 +2806,7 @@
         "contracts/interfaces/ILemmaTreasury.sol",
         "contracts/interfaces/IPerpetualMixDEXWrapper.sol",
         "contracts/interfaces/ISettlementTokenManager.sol",
+        "contracts/interfaces/IUSDLemma.sol",
         "contracts/interfaces/Perpetual/IAccountBalance.sol",
         "contracts/interfaces/Perpetual/IBaseToken.sol",
         "contracts/interfaces/Perpetual/IClearingHouse.sol",
@@ -2853,6 +2899,8 @@
         "contracts/SettlementTokenManager.sol",
         "contracts/interfaces/IERC20Decimals.sol",
         "contracts/interfaces/IPerpetualMixDEXWrapper.sol",
+        "contracts/interfaces/ISettlementTokenManager.sol",
+        "contracts/interfaces/IUSDLemma.sol",
         "contracts/interfaces/Perpetual/IAccountBalance.sol",
         "contracts/interfaces/Perpetual/IBaseToken.sol",
         "contracts/interfaces/Perpetual/IClearingHouse.sol",
@@ -2949,6 +2997,7 @@
         "contracts/interfaces/ILemmaTreasury.sol",
         "contracts/interfaces/IPerpetualMixDEXWrapper.sol",
         "contracts/interfaces/ISettlementTokenManager.sol",
+        "contracts/interfaces/IUSDLemma.sol",
         "contracts/interfaces/Perpetual/IAccountBalance.sol",
         "contracts/interfaces/Perpetual/IBaseToken.sol",
         "contracts/interfaces/Perpetual/IClearingHouse.sol",
@@ -3009,8 +3058,8 @@
       }
     },
     "src/Deploy.sol": {
-      "lastModificationDate": 1661851056378,
-      "contentHash": "255d065484d11d1779b6cfe28e1d05f8",
+      "lastModificationDate": 1662211709238,
+      "contentHash": "006aab577c2a82410017a109d724585e",
       "sourceName": "src/Deploy.sol",
       "solcConfig": {
         "settings": {
@@ -3071,6 +3120,12 @@
         },
         "MockUniV3Router": {
           "0.8.3+commit.8d00100c.Linux.gcc": "Deploy.sol/MockUniV3Router.json"
+        },
+        "XSynth": {
+          "0.8.3+commit.8d00100c.Linux.gcc": "Deploy.sol/XSynth.json"
+        },
+        "XUsdl": {
+          "0.8.3+commit.8d00100c.Linux.gcc": "Deploy.sol/XUsdl.json"
         }
       }
     },
@@ -3324,8 +3379,8 @@
       }
     },
     "test/foundry/USDLemma.t.sol": {
-      "lastModificationDate": 1662204726770,
-      "contentHash": "1a893404deb665d71f3e0ed9579af981",
+      "lastModificationDate": 1662211901811,
+      "contentHash": "e2395e443562a815b88bd8129ea16200",
       "sourceName": "test/foundry/USDLemma.t.sol",
       "solcConfig": {
         "settings": {

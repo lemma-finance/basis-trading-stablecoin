@@ -122,11 +122,23 @@ contract MockUniV3Router {
 
 }
 
+contract XUsdl {
+    // TODO: Replace with the real one 
+}
+
+
+contract XSynth {
+    // TODO: Replace with the real one
+}
+
 contract Deploy {
     USDLemma public usdl;
     LemmaSynth public lSynth;
     SettlementTokenManager public settlementTokenManager;
     TestPerpLemma public pl;
+
+    XUsdl public xUsdl;
+    XSynth public xSynth;
 
     LemmaTreasury public lemmaTreasury;
     TestSetPriceFeed public testSetPriceFeed;
@@ -204,6 +216,9 @@ contract Deploy {
         lSynth = new LemmaSynth();
         lemmaTreasury = new LemmaTreasury();
         settlementTokenManager = new SettlementTokenManager();
+
+        xUsdl = new XUsdl();
+        xSynth = new XSynth();
 
         pl = _deployPerpLemma(
                 Deploy_PerpLemma({

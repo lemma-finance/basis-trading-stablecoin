@@ -30,6 +30,17 @@ contract USDLemmaTest is Test {
 
     constructor() {
         _loadTrace();
+
+        // NOTE: Address used to call the setter methods 
+        address perpOwner = address(0x76Ff908b6d43C182DAEC59b35CebC1d7A17D8086);
+        address baseTokenMarket = address(0x8C835DFaA34e2AE61775e80EE29E2c724c6AE2BB);
+        mockPriceFeed = new MockPriceFeed();
+        mockPriceFeed.setRealPriceFeed(IBaseTokenSetter(baseTokenMarket).getPriceFeed());
+        vm.startPrank(IBaseTokenSetter(baseTokenMarket).owner());
+        console.log("Trying to set Mock Oracle");
+        IBaseTokenSetter(baseTokenMarket).setPriceFeed(address(mockPriceFeed));
+        console.log("Trying to set Mock Oracle DONE");
+        vm.stopPrank();
     }
 
     function _mineBlock() internal {
@@ -62,17 +73,6 @@ contract USDLemmaTest is Test {
     }
 
     function setUp() public {
-        // NOTE: Address used to call the setter methods 
-        address perpOwner = address(0x76Ff908b6d43C182DAEC59b35CebC1d7A17D8086);
-        address baseTokenMarket = address(0x8C835DFaA34e2AE61775e80EE29E2c724c6AE2BB);
-        mockPriceFeed = new MockPriceFeed();
-        mockPriceFeed.setRealPriceFeed(IBaseTokenSetter(baseTokenMarket).getPriceFeed());
-        vm.startPrank(IBaseTokenSetter(baseTokenMarket).owner());
-        console.log("Trying to set Mock Oracle");
-        IBaseTokenSetter(baseTokenMarket).setPriceFeed(address(mockPriceFeed));
-        console.log("Trying to set Mock Oracle DONE");
-        vm.stopPrank();
-
         // _loadTrace(/*"3", "0"*/);
 
         // NOTE: The aggregator address should be in slot 0 so 
@@ -88,6 +88,8 @@ contract USDLemmaTest is Test {
         d.pl().grantRole(USDC_TREASURY, address(d.lemmaTreasury()));
         d.pl().grantRole(USDC_TREASURY, address(this));
         d.pl().setPercFundingPaymentsToUSDLHolders(0.5e6);
+        d.pl().setXUsdl(address(d.xUsdl()));
+        d.pl().setXSynth(address(d.xSynth()));
         d.usdl().grantRole(LEMMA_SWAP, address(this));
         d.usdl().addPerpetualDEXWrapper(1, d.getTokenAddress("USDC"), address(d.pl()));
         vm.stopPrank();
