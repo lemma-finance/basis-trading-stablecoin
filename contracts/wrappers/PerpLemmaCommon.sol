@@ -9,6 +9,7 @@ import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/ac
 import { IPerpetualMixDEXWrapper } from "../interfaces/IPerpetualMixDEXWrapper.sol";
 import { SafeMathExt } from "../libraries/SafeMathExt.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "../interfaces/IERC20Decimals.sol";
 import "../interfaces/Perpetual/IClearingHouse.sol";
 import "../interfaces/Perpetual/IClearingHouseConfig.sol";
@@ -187,6 +188,11 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         console.log(s, (x < 0) ? uint256(-x) : uint256(x) );
     }
 
+
+    function setPercFundingPaymentsToUSDLHolders(uint256 _percFundingPaymentsToUSDLHolder) external override onlyRole(OWNER_ROLE) {
+        percFundingPaymentsToUSDLHolders = _percFundingPaymentsToUSDLHolder;
+    }
+
     /////////////////////////////
     /// EXTERNAL VIEW METHODS ///
     /////////////////////////////
@@ -223,6 +229,17 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         res[0] = perpVault.getSettlementToken();
     }
 
+    function getIndexPrice() public view override returns (uint256 price) {
+        uint256 _twapInterval = IClearingHouseConfig(clearingHouseConfig).getTwapInterval();
+        price = IIndexPrice(usdlBaseTokenAddress).getIndexPrice(_twapInterval);
+    }
+
+    function getMarkPrice() public view override returns(uint256 token0Price) {
+        (uint160 sqrtPriceX96,,,,,,) = IUniswapV3Pool(marketRegistry.getPool(usdlBaseTokenAddress)).slot0();
+
+        token0Price = ((uint256(sqrtPriceX96) ** 2) / (2 ** 192)) * 1e18;
+    }
+
 
 
 
@@ -250,20 +267,12 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         amountToXSynth = fundingPaymentsToDistribute - amountToXUSDL;
         print("[distributeFundingPayments()] amountToXUSDL = ", amountToXUSDL);
         print("[distributeFundingPayments()] amountToXSynth = ", amountToXSynth);
+        print("[distributeFundingPayments()] fundingPaymentsToDistribute = ", fundingPaymentsToDistribute);
 
-        if(amountToXUSDL > 0) {
-            // TODO: Mint to XUSDL
-        }  
-        if(amountToXUSDL > 0) {
-            // TODO: Burn to XUSDL
-        }
-
-        if(amountToXSynth > 0) {
-            // TODO: Mint to XSynth
-        }
-
-        if(amountToXSynth < 0) {
-            // TODO: Burn to XSynth
+        fundingPaymentsToDistribute = fundingPaymentsToDistribute * int256(10**(usdc.decimals())) / int256(1e18);
+        if(fundingPaymentsToDistribute > 0) {
+            perpVault.withdraw(address(usdc), uint256(fundingPaymentsToDistribute));
+            console.log("Withdrawn Amount = ", uint256(fundingPaymentsToDistribute));
         }
     }
 
@@ -859,12 +868,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             "[getVaultSettlementTokenLimit] Unexpected"
         );
         return uint256(int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore));
-    }
-
-    function getIndexPrice() public view override returns (uint256) {
-        uint256 _twapInterval = IClearingHouseConfig(clearingHouseConfig).getTwapInterval();
-        uint256 _price = IIndexPrice(usdlBaseTokenAddress).getIndexPrice(_twapInterval);
-        return _price;
     }
 
     /// @notice getTotalPosition in terms of quoteToken(in our case vUSD)

@@ -87,6 +87,7 @@ contract USDLemmaTest is Test {
         vm.startPrank(address(d));
         d.pl().grantRole(USDC_TREASURY, address(d.lemmaTreasury()));
         d.pl().grantRole(USDC_TREASURY, address(this));
+        d.pl().setPercFundingPaymentsToUSDLHolders(0.5e6);
         d.usdl().grantRole(LEMMA_SWAP, address(this));
         d.usdl().addPerpetualDEXWrapper(1, d.getTokenAddress("USDC"), address(d.pl()));
         vm.stopPrank();
@@ -850,33 +851,44 @@ contract USDLemmaTest is Test {
         vm.stopPrank();
 
         d.bank().giveMoney(d.pl().getSettlementToken(), address(d.lemmaTreasury()), 5e30);
-        console.log("[testDistributeFR1()] Start");
+        console.log("[testDistributeFR_ShowPendingFRAndSettle()] Start");
         _depositSettlementToken(300000000);
+
+        console.log("[testDistributeFR_ShowPendingFRAndSettle()] T1 Index Price = ", d.pl().getIndexPrice());
+        console.log("[testDistributeFR_ShowPendingFRAndSettle()] T1 Mark Price = ", d.pl().getMarkPrice());
+        print("[testDistributeFR1()] T1 Pending Funding Payments = ", d.pl().getPendingFundingPayment());
 
         address collateral = d.getTokenAddress("WETH");
         // NOTE: Minting just a little bit of USDL to start with a net short position 
         _mintUSDLWExactCollateralNoChecks(address(this), collateral, 1e15);
 
-        console.log("[testDistributeFR1()] Price Before = ", d.pl().getIndexPrice());
+        console.log("[testDistributeFR_ShowPendingFRAndSettle()] Price Before = ", d.pl().getIndexPrice());
         // NOTE: Let's move forward of 1 day with a +0.1% price change
         _mineBlock();
         // mockPriceFeed.advancePerc(8 hours, 1e3);
         // _advancePerc(8 hours, 1e3);
-        print("[testDistributeFR1()] T1 Pending Funding Payments = ", d.pl().getPendingFundingPayment());
-        d.pl().settlePendingFundingPayments();
-        print("[testDistributeFR1()] T1 Pending Funding Payments = ", d.pl().getPendingFundingPayment());
+        console.log("[testDistributeFR_ShowPendingFRAndSettle()] T2 Index Price = ", d.pl().getIndexPrice());
+        console.log("[testDistributeFR_ShowPendingFRAndSettle()] T2 Mark Price = ", d.pl().getMarkPrice());
+        print("[testDistributeFR1()] T2 Pending Funding Payments = ", d.pl().getPendingFundingPayment());
+        // d.pl().settlePendingFundingPayments();
+        print("[testDistributeFR1()] T2 Pending Funding Payments = ", d.pl().getPendingFundingPayment());
+        d.pl().distributeFundingPayments();
 
         _mineBlock();
         // mockPriceFeed.advancePerc(8 hours, 1e3);
         // _advancePerc(8 hours, 1e3);
-        print("[testDistributeFR1()] Pending Funding Payments = ", d.pl().getPendingFundingPayment());
+        console.log("[testDistributeFR_ShowPendingFRAndSettle()] T3 Index Price = ", d.pl().getIndexPrice());
+        console.log("[testDistributeFR_ShowPendingFRAndSettle()] T3 Mark Price = ", d.pl().getMarkPrice());
+        print("[testDistributeFR_ShowPendingFRAndSettle()] T3 Pending Funding Payments = ", d.pl().getPendingFundingPayment());
 
         _mineBlock();
         // mockPriceFeed.advancePerc(8 hours, 1e3);
         // _advancePerc(8 hours, 1e3);
-        print("[testDistributeFR1()] T3 Pending Funding Payments = ", d.pl().getPendingFundingPayment());
+        console.log("[testDistributeFR_ShowPendingFRAndSettle()] T5 Index Price = ", d.pl().getIndexPrice());
+        console.log("[testDistributeFR_ShowPendingFRAndSettle()] T5 Mark Price = ", d.pl().getMarkPrice());
+        print("[testDistributeFR_ShowPendingFRAndSettle()] T5 Pending Funding Payments = ", d.pl().getPendingFundingPayment());
         d.pl().settlePendingFundingPayments();
-        print("[testDistributeFR1()] T3 Pending Funding Payments = ", d.pl().getPendingFundingPayment());
+        print("[testDistributeFR_ShowPendingFRAndSettle()] T5 Pending Funding Payments = ", d.pl().getPendingFundingPayment());
     }
 
 

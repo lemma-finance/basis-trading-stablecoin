@@ -31,7 +31,11 @@ interface IPerpetualMixDEXWrapper {
 
     function setCollateralRatio(uint24 _ratio) external;
 
+    function setPercFundingPaymentsToUSDLHolders(uint256) external;
+
     function hasSettled() external view returns (bool);
+
+    function getMarkPrice() external view returns(uint256);
 
     function getPendingFundingPayment() external view returns(int256);
 
