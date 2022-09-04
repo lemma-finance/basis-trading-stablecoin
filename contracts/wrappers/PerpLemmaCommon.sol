@@ -295,7 +295,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                 perpVault.withdraw(address(usdc), amount);
                 console.log("[distributeFundingPayments()] Withdrawn Amount = ", amount);
                 console.log("[distributeFundingPayments()] USDL Balance of xUSDL Before = ", IUSDLemma(usdLemma).balanceOf(xUsdl));
-                IUSDLemma(usdLemma).mintToXUSDL(amountToXUSDL);
+                IUSDLemma(usdLemma).mintToStackingContract(amountToXUSDL);
+
+                IUSDLemma(lemmaSynth).mintToStackingContract(amountToXSynth);
                 // IUSDLemma(usdLemma).depositToWExactCollateral(
                 //     xUsdl,
                 //     amountToXUSDL,
@@ -308,6 +310,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                 uint256 amount = uint256(-fundingPaymentsToDistribute) * 10**(usdc.decimals()) / 1e18;
                 amountToXUSDL = amount * percFundingPaymentsToUSDLHolders / 1e6;
                 amountToXSynth = amount - amountToXUSDL;
+
+                IUSDLemma(usdLemma).burnToStackingContract(amountToXUSDL);
+                IUSDLemma(lemmaSynth).burnToStackingContract(amountToXSynth);
 
                 console.log("[distributeFundingPayments()] Negative Profit amountToXUSDL = ", amountToXUSDL);
                 console.log("[distributeFundingPayments()] Negative Profit amountToXSynth = ", amountToXSynth);

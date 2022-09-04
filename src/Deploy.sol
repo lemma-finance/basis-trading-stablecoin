@@ -270,6 +270,8 @@ contract Deploy {
             "LSynth"
         );
 
+        lSynth.setXSynth(address(xSynth));
+
     }
 
     function getPerps() external view returns(Perp_Contracts memory) {

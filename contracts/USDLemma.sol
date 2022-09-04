@@ -44,6 +44,7 @@ contract USDLemma is
     uint256 public fees;
     /// interactionBlock will restict multiple txs in same block
     bytes32 public interactionBlock;
+
     // Mapping for Index to perpetualDexs/PerpLemma
     mapping(uint256 => mapping(address => address)) public perpetualDEXWrappers;
     mapping(address => bool) public isSupportedPerpetualDEXWrapper;
@@ -329,10 +330,16 @@ contract USDLemma is
         }
     }
 
-    function mintToXUSDL(uint256 amount) external {
+    function mintToStackingContract(uint256 amount) external {
         require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
         _mint(xUsdl, amount * 10**(decimals()) / 10**(IERC20Decimals(IPerpetualMixDEXWrapper(_msgSender()).getSettlementToken()).decimals()));
     }
+
+    function burnToStackingContract(uint256 amount) external {
+        require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
+        _burn(xUsdl, amount * 10**(decimals()) / 10**(IERC20Decimals(IPerpetualMixDEXWrapper(_msgSender()).getSettlementToken()).decimals()));
+    }
+
 
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of collateral
     /// @param to Receipent of minted USDL
@@ -348,9 +355,9 @@ contract USDLemma is
         IERC20Upgradeable collateral
     ) external nonReentrant onlyOneFunInSameTx {
 
-        if(isSupportedStableForMinting[address(collateral)]) {
-            return _mintToUSDLWithStable(address(collateral), collateralAmount, to);
-        }
+        // if(isSupportedStableForMinting[address(collateral)]) {
+        //     return _mintToUSDLWithStable(address(collateral), collateralAmount, to);
+        // }
 
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]

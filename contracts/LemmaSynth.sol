@@ -30,6 +30,9 @@ contract LemmaSynth is
     /// PerpLemma contract associated with this LemmaSynth
     address public perpLemma;
     mapping(uint256 => mapping(address => address)) public perpetualDEXWrappers;
+    mapping(address => bool) public isSupportedPerpetualDEXWrapper;
+
+    address public xSynth;
 
     /// Tail Collateral use to mint LemmaSynth
     /// Tail Collateral will not deposit into perp, It will stay in perpLemma BalanceSheet
@@ -123,7 +126,13 @@ contract LemmaSynth is
         address perpetualDEXWrapperAddress
     ) public onlyRole(OWNER_ROLE) {
         perpetualDEXWrappers[perpetualDEXIndex][collateralAddress] = perpetualDEXWrapperAddress;
+
+        isSupportedPerpetualDEXWrapper[perpetualDEXWrapperAddress] = true;
         emit PerpetualDexWrapperAdded(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
+    }
+
+    function setXSynth(address _xSynth) external onlyRole(OWNER_ROLE) {
+        xSynth = _xSynth;
     }
 
     /// @notice setTailCollateral set tail collateral, By only owner Role
@@ -203,6 +212,21 @@ contract LemmaSynth is
         _mint(to, amount);
         emit DepositTo(address(perpDEXWrapper), address(collateral), to, amount, _collateralRequired);
     }
+
+
+
+
+    function mintToStackingContract(uint256 amount) external {
+        require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
+        _mint(xSynth, amount * 10**(decimals()) / 10**(IERC20Decimals(IPerpetualMixDEXWrapper(_msgSender()).getSettlementToken()).decimals()));
+    }
+
+    function burnToStackingContract(uint256 amount) external {
+        require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
+        _burn(xSynth, amount * 10**(decimals()) / 10**(IERC20Decimals(IPerpetualMixDEXWrapper(_msgSender()).getSettlementToken()).decimals()));
+    }
+
+
 
     /// @notice Deposit collateral like USDC to mint Synth specifying the exact amount of collateral
     /// @param to Receipent of minted Synth
