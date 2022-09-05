@@ -276,6 +276,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         print("[settlePendingFundingPayments()] pendingFundingPaymentAfter = ", getPendingFundingPayment());
     }
 
+
     function distributeFundingPayments() external override returns(bool isProfit, uint256 amountToXUSDL, uint256 amountToXSynth) {
         settlePendingFundingPayments();
         print("[distributeFundingPayments()] fundingPaymentsToDistribute = ", fundingPaymentsToDistribute);
@@ -311,16 +312,27 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                 amountToXUSDL = amount * percFundingPaymentsToUSDLHolders / 1e6;
                 amountToXSynth = amount - amountToXUSDL;
 
+                if(amountToXUSDL > IUSDLemma(usdLemma).balanceOf(address(xUsdl))) {
+                    // NOTE: Losses for the protocol from XUSDL distirbution
+                    // TODO: How do we manage them?
+                    uint256 amountFromXUSDLToProtocol = amountToXUSDL - IUSDLemma(usdLemma).balanceOf(address(xUsdl));
+                    // TODO: Protocol needs to take some loss Appunto 
+                    amountToXUSDL = IUSDLemma(usdLemma).balanceOf(address(xUsdl));
+                }
+
+                if(amountToXSynth > IUSDLemma(lemmaSynth).balanceOf(address(xSynth))) {
+                    // NOTE: Losses for the protocol from XUSDL distirbution
+                    // TODO: How do we manage them?
+                    uint256 amountFromXSynthToProtocol = amountToXSynth - IUSDLemma(lemmaSynth).balanceOf(address(xSynth));
+                    // TODO: Protocol needs to take some loss Appunto 
+                    amountToXSynth = IUSDLemma(lemmaSynth).balanceOf(address(xSynth));
+                }
+
                 IUSDLemma(usdLemma).burnToStackingContract(amountToXUSDL);
                 IUSDLemma(lemmaSynth).burnToStackingContract(amountToXSynth);
 
                 console.log("[distributeFundingPayments()] Negative Profit amountToXUSDL = ", amountToXUSDL);
                 console.log("[distributeFundingPayments()] Negative Profit amountToXSynth = ", amountToXSynth);
-
-                if(amountToXUSDL > IUSDLemma(usdLemma).balanceOf(address(xUsdl))) {
-                    // TODO: Protocol needs to take some loss Appunto 
-                    amountToXUSDL = IUSDLemma(usdLemma).balanceOf(address(xUsdl));
-                }
             }
         }
 
