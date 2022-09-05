@@ -790,6 +790,10 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     ) public override onlyRole(PERPLEMMA_ROLE) returns (uint256, uint256) {
         bool _isBaseToQuote = isShorting;
         bool _isExactInput = isExactInput;
+
+        // NOTE: Funding Payments get settled anyway when the trade is executed, so we need to account them before settling them ourselves
+        settlePendingFundingPayments();
+
         IClearingHouse.OpenPositionParams memory params = IClearingHouse.OpenPositionParams({
             baseToken: usdlBaseTokenAddress,
             isBaseToQuote: _isBaseToQuote,
@@ -990,9 +994,14 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
     }
 
+
+
+
     /// @notice to withdraw collateral from vault after long or close position
     /// @dev If collateral is tail asset no need to withdraw it from Perp, it is already in this contract balance sheet
     function _withdraw(uint256 amountToWithdraw, address collateral) internal {
+        // NOTE: Funding Payments are settled anyway when withdraw happens so we need to account them before executing 
+        settlePendingFundingPayments();
         if (collateral == address(usdc)) {
             perpVault.withdraw(address(usdc), amountToWithdraw);
         } else if ((collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset)) {
@@ -1036,6 +1045,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         address to,
         bool isUsdl
     ) internal {
+        // NOTE: Funding Payments are settled anyway when settlement happens so we need to account them before executing 
+        settlePendingFundingPayments();
         uint256 tailCollateralBal = (usdlCollateral.balanceOf(address(this)) * 1e18) / (10**usdlCollateral.decimals());
         uint256 synthCollateralBal = (usdc.balanceOf(address(this)) * 1e18) / (10**usdc.decimals());
         require(tailCollateralBal > 0 || synthCollateralBal > 0, "Not Enough collateral for settle");
