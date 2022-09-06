@@ -264,6 +264,13 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/interface/IExchange.sol#L101
         // Implementation 
         // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/Exchange.sol#L361
+        // 
+        // Notation 
+        // Earning or Paying Funding
+        // - If you see a positive payment, this means you paid this amount of funding.
+        // - If you see a negative payment, this means you earned this amount of funding.
+        // Source
+        // https://support.perp.com/hc/en-us/articles/5257580412569-Funding-Payments
         pendingFundingPayments = IExchange(clearingHouse.getExchange()).getPendingFundingPayment(address(this), usdlBaseTokenAddress);
     }
 
@@ -276,6 +283,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         print("[settlePendingFundingPayments()] pendingFundingPaymentAfter = ", getPendingFundingPayment());
     }
 
+    function _convDecimals(uint256 amount, uint256 srcDecimals, uint256 dstDecimals) internal returns(uint256 res) {
+        res = amount * 10**(dstDecimals) / 10**(srcDecimals);
+    }
 
     function distributeFundingPayments() external override returns(bool isProfit, uint256 amountToXUSDL, uint256 amountToXSynth) {
         settlePendingFundingPayments();
@@ -284,21 +294,25 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         if(fundingPaymentsToDistribute == 0) {
             console.log("[distributeFundingPayments()] fundingPaymentsToDistribute == 0 --> Nothing to distribute");
         } else {
-            isProfit = fundingPaymentsToDistribute > 0;
+            isProfit = fundingPaymentsToDistribute < 0;
             
-            if(fundingPaymentsToDistribute > 0) {
+            if(isProfit) {
                 // NOTE: Distribute profit
-                uint256 amount = uint256(fundingPaymentsToDistribute) * 10**(usdc.decimals()) / 1e18;
+                uint256 amount = _convDecimals(uint256(-fundingPaymentsToDistribute), 18, usdc.decimals());
+                // uint256 amount = uint256(-fundingPaymentsToDistribute) * 10**(usdc.decimals()) / 1e18;
                 amountToXUSDL = amount * percFundingPaymentsToUSDLHolders / 1e6;
                 amountToXSynth = amount - amountToXUSDL;
-                console.log("[distributeFundingPayments()] Positive Profit amountToXUSDL = ", amountToXUSDL);
-                console.log("[distributeFundingPayments()] Positive Profit amountToXSynth = ", amountToXSynth);
+                console.log("[distributeFundingPayments()] Positive Profit amountToXUSDL (in USDC Decimals) = ", amountToXUSDL);
+                console.log("[distributeFundingPayments()] Positive Profit amountToXSynth (in USDC Decimals) = ", amountToXSynth);
                 perpVault.withdraw(address(usdc), amount);
-                console.log("[distributeFundingPayments()] Withdrawn Amount = ", amount);
-                console.log("[distributeFundingPayments()] USDL Balance of xUSDL Before = ", IUSDLemma(usdLemma).balanceOf(xUsdl));
-                IUSDLemma(usdLemma).mintToStackingContract(amountToXUSDL);
+                console.log("[distributeFundingPayments()] Withdrawn Amount (in USDC Decimals) = ", amount);
+                console.log("[distributeFundingPayments()] USDL Balance of xUSDL Before (in USDL Decimals) = ", IUSDLemma(usdLemma).balanceOf(xUsdl));
+                console.log("[distributeFundingPayments()] LemmaSynth Balance of xSynth Before (in LemmaSynth Decimals) = ", IUSDLemma(lemmaSynth).balanceOf(xSynth));
 
+                // NOTE: They both require an amount in USDC Decimals 
+                IUSDLemma(usdLemma).mintToStackingContract(amountToXUSDL);
                 IUSDLemma(lemmaSynth).mintToStackingContract(amountToXSynth);
+
                 // IUSDLemma(usdLemma).depositToWExactCollateral(
                 //     xUsdl,
                 //     amountToXUSDL,
@@ -306,33 +320,51 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                 //     0,
                 //     usdc
                 // );
-                console.log("[distributeFundingPayments()] USDL Balance of xUSDL After = ", IUSDLemma(usdLemma).balanceOf(xUsdl));
+                console.log("[distributeFundingPayments()] USDL Balance of xUSDL After (in USDL Decimals) = ", IUSDLemma(usdLemma).balanceOf(xUsdl));
+                console.log("[distributeFundingPayments()] LemmaSynth Balance of xSynth After (in LemmaSynth Decimals) = ", IUSDLemma(lemmaSynth).balanceOf(xSynth));
             } else {
-                uint256 amount = uint256(-fundingPaymentsToDistribute) * 10**(usdc.decimals()) / 1e18;
-                amountToXUSDL = amount * percFundingPaymentsToUSDLHolders / 1e6;
-                amountToXSynth = amount - amountToXUSDL;
+                amountToXUSDL = uint256(fundingPaymentsToDistribute) * percFundingPaymentsToUSDLHolders / 1e6;
+                amountToXSynth = uint256(fundingPaymentsToDistribute) - amountToXUSDL;
+
+                amountToXUSDL = _convDecimals(amountToXUSDL, 18, IUSDLemma(usdLemma).decimals());
+                amountToXSynth = _convDecimals(amountToXSynth, 18, IUSDLemma(lemmaSynth).decimals());
+
+                console.log("[distributeFundingPayments()] Tot Negative Profit amount = ", uint256(fundingPaymentsToDistribute));
+                console.log("[distributeFundingPayments()] Tot Negative Profit amountToXUSDL in USDL Decimals = ", amountToXUSDL);
+                console.log("[distributeFundingPayments()] Tot Negative Profit amountToXSynth ins USDL Decimals = ", amountToXSynth);
+
+                console.log("[distributeFundingPayments()] IUSDLemma(usdLemma).balanceOf(address(xUsdl)) = ", IUSDLemma(usdLemma).balanceOf(address(xUsdl)));
+                console.log("[distributeFundingPayments()] IUSDLemma(lemmaSynth).balanceOf(address(xSynth)) = ", IUSDLemma(lemmaSynth).balanceOf(address(xSynth)));
 
                 if(amountToXUSDL > IUSDLemma(usdLemma).balanceOf(address(xUsdl))) {
                     // NOTE: Losses for the protocol from XUSDL distirbution
                     // TODO: How do we manage them?
                     uint256 amountFromXUSDLToProtocol = amountToXUSDL - IUSDLemma(usdLemma).balanceOf(address(xUsdl));
+                    console.log("[distributeFundingPayments()] Protocol taking this loss from XUSDL (in USDC Decimals) = ", _convDecimals(amountFromXUSDLToProtocol, IUSDLemma(usdLemma).decimals(), usdc.decimals()));
                     // TODO: Protocol needs to take some loss Appunto 
-                    amountToXUSDL = IUSDLemma(usdLemma).balanceOf(address(xUsdl));
+                    amountToXUSDL = _convDecimals(IUSDLemma(usdLemma).balanceOf(address(xUsdl)), IUSDLemma(usdLemma).decimals(), usdc.decimals());
                 }
 
                 if(amountToXSynth > IUSDLemma(lemmaSynth).balanceOf(address(xSynth))) {
                     // NOTE: Losses for the protocol from XUSDL distirbution
                     // TODO: How do we manage them?
                     uint256 amountFromXSynthToProtocol = amountToXSynth - IUSDLemma(lemmaSynth).balanceOf(address(xSynth));
+                    console.log("[distributeFundingPayments()] Protocol taking this loss from XSynth (in USDC Decimals) = ", _convDecimals(amountFromXSynthToProtocol, IUSDLemma(lemmaSynth).decimals(), usdc.decimals()));
                     // TODO: Protocol needs to take some loss Appunto 
-                    amountToXSynth = IUSDLemma(lemmaSynth).balanceOf(address(xSynth));
+                    amountToXSynth = _convDecimals(IUSDLemma(lemmaSynth).balanceOf(address(xSynth)), IUSDLemma(lemmaSynth).decimals(), usdc.decimals());
                 }
+
+                console.log("[distributeFundingPayments()] Negative Profit amountToXUSDL (in USDC Decimals) = ", amountToXUSDL);
+                console.log("[distributeFundingPayments()] Negative Profit amountToXSynth (in USDC Decimals) = ", amountToXSynth);
+
+                console.log("[distributeFundingPayments()] USDL Balance of xUSDL Before (in USDL Decimals) = ", IUSDLemma(usdLemma).balanceOf(xUsdl));
+                console.log("[distributeFundingPayments()] LemmaSynth Balance of xSynth Before (in LemmaSynth Decimals) = ", IUSDLemma(lemmaSynth).balanceOf(xSynth));
 
                 IUSDLemma(usdLemma).burnToStackingContract(amountToXUSDL);
                 IUSDLemma(lemmaSynth).burnToStackingContract(amountToXSynth);
 
-                console.log("[distributeFundingPayments()] Negative Profit amountToXUSDL = ", amountToXUSDL);
-                console.log("[distributeFundingPayments()] Negative Profit amountToXSynth = ", amountToXSynth);
+                console.log("[distributeFundingPayments()] USDL Balance of xUSDL After (in USDL Decimals) = ", IUSDLemma(usdLemma).balanceOf(xUsdl));
+                console.log("[distributeFundingPayments()] LemmaSynth Balance of xSynth After (in LemmaSynth Decimals) = ", IUSDLemma(lemmaSynth).balanceOf(xSynth));
             }
         }
 

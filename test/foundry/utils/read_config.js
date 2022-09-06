@@ -2,7 +2,7 @@ const ethers = require("ethers");
 const config = require("./config.json");
 const myArgs = process.argv.slice(2);
 
-cmd = `config["traces"]["${config['config']['traceGroup']}"][${config['config']['traceIdx']}]`;
+cmd = `config["traces"]["${config['config']['traceGroup']}"][${config['config']['traceIdx']}]['data']`;
 
 // const n = myArgs[0];
 // const idx = myArgs[1];
