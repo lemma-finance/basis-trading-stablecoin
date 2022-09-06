@@ -81,6 +81,11 @@ contract USDLemma is
         _;
     }
 
+    modifier onlyPerpDEXWrapper() {
+        require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
+        _;        
+    }
+
     /// @notice Intialize method only called once while deploying contract
     /// It will setup different roles and give role access to specific addreeses
     /// @param _trustedForwarder address
@@ -330,14 +335,20 @@ contract USDLemma is
         }
     }
 
-    function mintToStackingContract(uint256 amount) external {
-        require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
+    function mintToStackingContract(uint256 amount) external onlyPerpDEXWrapper {
+        // require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
         _mint(xUsdl, amount * 10**(decimals()) / 10**(IERC20Decimals(IPerpetualMixDEXWrapper(_msgSender()).getSettlementToken()).decimals()));
     }
 
-    function burnToStackingContract(uint256 amount) external {
-        require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
+    function burnToStackingContract(uint256 amount) external onlyPerpDEXWrapper {
+        // require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
         _burn(xUsdl, amount * 10**(decimals()) / 10**(IERC20Decimals(IPerpetualMixDEXWrapper(_msgSender()).getSettlementToken()).decimals()));
+    }
+
+
+
+    function requestLossesRecap(uint256 usdcAmount) external onlyPerpDEXWrapper {
+        ISettlementTokenManager(settlementTokenManager).settlementTokenRecieve(usdcAmount, _msgSender());
     }
 
 

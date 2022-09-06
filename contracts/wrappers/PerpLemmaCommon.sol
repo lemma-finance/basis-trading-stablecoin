@@ -107,6 +107,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     int256 public fundingPaymentsToDistribute;
     uint256 public percFundingPaymentsToUSDLHolders;
 
+    uint256 accruedFPLossesFromXUSDLInUSDC;
+    uint256 accruedFPLossesFromXSynthInUSDC;
+
     // Events
     event USDLemmaUpdated(address indexed usdlAddress);
     event SetLemmaSynth(address indexed lemmaSynthAddress);
@@ -336,11 +339,15 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                 console.log("[distributeFundingPayments()] IUSDLemma(usdLemma).balanceOf(address(xUsdl)) = ", IUSDLemma(usdLemma).balanceOf(address(xUsdl)));
                 console.log("[distributeFundingPayments()] IUSDLemma(lemmaSynth).balanceOf(address(xSynth)) = ", IUSDLemma(lemmaSynth).balanceOf(address(xSynth)));
 
+                uint256 amountFromXUSDLToProtocol;
+                uint256 amountFromXSynthToProtocol;
+
                 if(amountToXUSDL > IUSDLemma(usdLemma).balanceOf(address(xUsdl))) {
                     // NOTE: Losses for the protocol from XUSDL distirbution
                     // TODO: How do we manage them?
-                    uint256 amountFromXUSDLToProtocol = amountToXUSDL - IUSDLemma(usdLemma).balanceOf(address(xUsdl));
-                    console.log("[distributeFundingPayments()] Protocol taking this loss from XUSDL (in USDC Decimals) = ", _convDecimals(amountFromXUSDLToProtocol, IUSDLemma(usdLemma).decimals(), usdc.decimals()));
+                    amountFromXUSDLToProtocol = _convDecimals(amountToXUSDL - IUSDLemma(usdLemma).balanceOf(address(xUsdl)), IUSDLemma(usdLemma).decimals(), usdc.decimals());
+                    console.log("[distributeFundingPayments()] Protocol taking this loss from XUSDL (in USDC Decimals) = ", amountFromXUSDLToProtocol);
+                    accruedFPLossesFromXUSDLInUSDC += amountFromXUSDLToProtocol;
                     // TODO: Protocol needs to take some loss Appunto 
                     amountToXUSDL = _convDecimals(IUSDLemma(usdLemma).balanceOf(address(xUsdl)), IUSDLemma(usdLemma).decimals(), usdc.decimals());
                 }
@@ -348,11 +355,18 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                 if(amountToXSynth > IUSDLemma(lemmaSynth).balanceOf(address(xSynth))) {
                     // NOTE: Losses for the protocol from XUSDL distirbution
                     // TODO: How do we manage them?
-                    uint256 amountFromXSynthToProtocol = amountToXSynth - IUSDLemma(lemmaSynth).balanceOf(address(xSynth));
-                    console.log("[distributeFundingPayments()] Protocol taking this loss from XSynth (in USDC Decimals) = ", _convDecimals(amountFromXSynthToProtocol, IUSDLemma(lemmaSynth).decimals(), usdc.decimals()));
+                    amountFromXSynthToProtocol = _convDecimals(amountToXSynth - IUSDLemma(lemmaSynth).balanceOf(address(xSynth)), IUSDLemma(lemmaSynth).decimals(), usdc.decimals());
+                    console.log("[distributeFundingPayments()] Protocol taking this loss from XSynth (in USDC Decimals) = ", amountFromXSynthToProtocol);
+                    accruedFPLossesFromXSynthInUSDC += amountFromXSynthToProtocol;
                     // TODO: Protocol needs to take some loss Appunto 
                     amountToXSynth = _convDecimals(IUSDLemma(lemmaSynth).balanceOf(address(xSynth)), IUSDLemma(lemmaSynth).decimals(), usdc.decimals());
                 }
+
+                // NOTE: The Treasury makes up for the protocol losses due to funding payments and not enough stakers 
+                if( (amountFromXUSDLToProtocol + amountFromXSynthToProtocol) > 0 ) {
+                    IUSDLemma(usdLemma).requestLossesRecap(amountFromXUSDLToProtocol + amountFromXSynthToProtocol);
+                }
+
 
                 console.log("[distributeFundingPayments()] Negative Profit amountToXUSDL (in USDC Decimals) = ", amountToXUSDL);
                 console.log("[distributeFundingPayments()] Negative Profit amountToXSynth (in USDC Decimals) = ", amountToXSynth);
@@ -588,6 +602,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param _amount USDC amount need to deposit into perp vault
     function depositSettlementToken(uint256 _amount) external override onlyRole(USDC_TREASURY) {
         require(_amount > 0, "Amount should greater than zero");
+        console.log("[depositSettlementToken()] Receiving _amount = ", _amount);
         SafeERC20Upgradeable.safeTransferFrom(usdc, msg.sender, address(this), _amount);
         perpVault.deposit(address(usdc), _amount);
     }

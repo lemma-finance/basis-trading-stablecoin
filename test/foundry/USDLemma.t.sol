@@ -96,6 +96,8 @@ contract USDLemmaTest is Test {
         d.usdl().grantRole(LEMMA_SWAP, address(this));
         d.usdl().addPerpetualDEXWrapper(1, d.getTokenAddress("USDC"), address(d.pl()));
         vm.stopPrank();
+
+        _getMoneyForTo(address(d.settlementTokenManager()), address(d.pl().usdc()), 1e18);
     }
 
     // Internal Functions
