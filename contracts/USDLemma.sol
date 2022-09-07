@@ -11,9 +11,6 @@ import { IPerpetualMixDEXWrapper } from "./interfaces/IPerpetualMixDEXWrapper.so
 import { ISettlementTokenManager } from "./interfaces/ISettlementTokenManager.sol";
 import "./interfaces/IERC20Decimals.sol";
 import "./interfaces/ILemmaTreasury.sol";
-import "forge-std/Test.sol";
-
-// import "hardhat/console.sol";
 
 /// @author Lemma Finance
 /// @notice USDLemma contract is use to mint or burn USDL Stablecoin
@@ -274,31 +271,12 @@ contract USDLemma is
         returns (uint256)
     {
         // NOTE: Estimating USDC needed
-        console.log(
-            "[_computeExpectedUSDCCollateralRequiredForTrade()] USDC Decimals = ",
-            IERC20Decimals(perpDEXWrapper.getSettlementToken()).decimals()
-        );
-        uint256 freeCollateralBefore = perpDEXWrapper.getFreeCollateral();
-        console.log("[_computeExpectedUSDCCollateralRequiredForTrade()] freeCollateralBefore = ", freeCollateralBefore);
         uint256 indexPrice = perpDEXWrapper.getIndexPrice();
-        console.log("[_computeExpectedUSDCCollateralRequiredForTrade()] IndexPrice = ", indexPrice);
-        (uint24 imRatio, uint24 mmRatio) = perpDEXWrapper.getCollateralRatios();
-        console.log("[_computeExpectedUSDCCollateralRequiredForTrade()] imRatio = ", imRatio);
-        console.log("[_computeExpectedUSDCCollateralRequiredForTrade()] mmRatio = ", mmRatio);
-        uint256 desiredCollateralRatio = uint256(imRatio);
+        (uint24 imRatio, ) = perpDEXWrapper.getCollateralRatios();
         uint256 expectedUSDCRequired = (amount * indexPrice) /
             10**(18 + 18 - IERC20Decimals(perpDEXWrapper.getSettlementToken()).decimals());
-        console.log("[_computeExpectedUSDCCollateralRequiredForTrade()] expectedUSDCRequired = ", expectedUSDCRequired);
+
         uint256 expectedUSDCDeductedFromFreeCollateral = (expectedUSDCRequired * uint256(imRatio)) / 1e6;
-        console.log(
-            "[_computeExpectedUSDCCollateralRequiredForTrade()] expectedUSDCDeductedFromFreeCollateral = ",
-            expectedUSDCDeductedFromFreeCollateral
-        );
-        uint256 expectedFinalFreeCollateral = freeCollateralBefore - expectedUSDCDeductedFromFreeCollateral;
-        console.log(
-            "[_computeExpectedUSDCCollateralRequiredForTrade()] expectedFinalFreeCollateral = ",
-            expectedFinalFreeCollateral
-        );
 
         return expectedUSDCDeductedFromFreeCollateral;
     }
