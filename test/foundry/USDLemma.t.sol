@@ -962,35 +962,6 @@ contract USDLemmaTest is Test {
         }
     }
 
-
-
-    function testDistributeFR_ShowPendingFRAndSettle_3tests1() public {
-        operations.push(Operation({
-            isMintUSDL: true,
-            collateral: d.getTokenAddress("WETH"),
-            amount: 1e15
-        }));
-
-        operations.push(Operation({
-            isMintUSDL: true, 
-            collateral: d.getTokenAddress("WETH"),
-            amount: 3e15
-        }));
-
-        operations.push(Operation({
-            isMintUSDL: true, 
-            collateral: d.getTokenAddress("WETH"),
-            amount: 30e15
-        }));
-        
-        _init1();
-        
-        for(uint256 i=0; i<operations.length; ++i) {
-            _test1(operations[i]);
-        }
-
-    }
-
     function _getAmountInDecimals(uint256 numerator, uint256 denominator, address token) internal view returns(uint256 res) {
         return numerator * 10**(IERC20Decimals(token).decimals()) / denominator;
     }
@@ -1006,10 +977,44 @@ contract USDLemmaTest is Test {
     }
 
 
+    function testDistributeFR_ShowPendingFRAndSettle_3tests1() public {
+        operations.push(_getOperation(3,1e3,d.getTokenAddress("WETH"), true));
+        operations.push(_getOperation(1,1,d.getTokenAddress("WETH"), true));
+        operations.push(_getOperation(1,1e3,d.getTokenAddress("WETH"), true));
+        
+        _init1();
+        
+        for(uint256 i=0; i<operations.length; ++i) {
+            _test1(operations[i]);
+        }
+        
+        _init1();
+        
+        for(uint256 i=0; i<operations.length; ++i) {
+            _test1(operations[i]);
+        }
+
+    }
+
+
     function testDistributeFR_ShowPendingFRAndSettle_3tests3() public {
         operations.push(_getOperation(3,1e3,d.getTokenAddress("WETH"), true));
         operations.push(_getOperation(100,1,d.getTokenAddress("USDC"), false));
         operations.push(_getOperation(1,1e3,d.getTokenAddress("WETH"), true));
+        
+        _init1();
+        
+        for(uint256 i=0; i<operations.length; ++i) {
+            _test1(operations[i]);
+        }
+
+    }
+
+
+    function testDistributeFR_ShowPendingFRAndSettle_3tests() public {
+        operations.push(_getOperation(3,1e2,d.getTokenAddress("WETH"), true));
+        operations.push(_getOperation(500,1,d.getTokenAddress("USDC"), false));
+        operations.push(_getOperation(1,1e2,d.getTokenAddress("WETH"), true));
         
         _init1();
         
