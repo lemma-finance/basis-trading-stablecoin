@@ -11,6 +11,12 @@ import "./mocks/MockPriceFeed.sol";
 import "forge-std/Test.sol";
 
 
+struct Operation {
+    bool isMintUSDL;
+    address collateral;
+    uint256 amount;
+}
+
 contract USDLemmaTest is Test {
     Deploy public d;
 
@@ -27,8 +33,10 @@ contract USDLemmaTest is Test {
     MockPriceFeed public mockPriceFeed;
 
 
+    Operation[] operations;
 
     constructor() {
+        // NOTE: Loads default trace
         _loadTrace();
 
         // NOTE: Address used to call the setter methods 
@@ -66,7 +74,7 @@ contract USDLemmaTest is Test {
     }
 
     function _loadTrace(/*string memory n, string memory id*/) internal {
-        string[] memory temp = new string[](4);
+        string[] memory temp = new string[](2);
         temp[0] = "node";
         temp[1] = "test/foundry/utils/read_config.js";
         // temp[2] = n;
@@ -85,7 +93,7 @@ contract USDLemmaTest is Test {
         // mockOracleAggregatorProxy.setRealAggregator(addrChainLinkPriceFeedForETH);
         // uint256 slotAggregatorAddress = uint256(0);
         // vm.store(addrChainLinkPriceFeedForETH, bytes32(slotAggregatorAddress), _fromAddrToBytes32(address(mockOracleAggregatorProxy)));
-
+        delete operations;
 
         d = new Deploy(10);
         vm.startPrank(address(d));
@@ -860,8 +868,9 @@ contract USDLemmaTest is Test {
         print("[_getIndexMarkStatus()] T1 Pending Funding Payments = ", d.pl().getPendingFundingPayment());
     }
 
-    function testDistributeFR_ShowPendingFRAndSettle() public {
-        console.log("T1 ", d.pl().usdlBaseTokenAddress());
+    function _init1() internal {
+        console.log("[_init1()] Start");
+        // console.log("T1 ", d.pl().usdlBaseTokenAddress());
         // console.log("8 hours = ", 8 hours);
         vm.startPrank(address(d));
         // d.pl().setMinMarginForRecap(3e18);
@@ -874,16 +883,42 @@ contract USDLemmaTest is Test {
         d.bank().giveMoney(d.pl().getSettlementToken(), address(d.lemmaTreasury()), 5e30);
         console.log("[testDistributeFR_ShowPendingFRAndSettle()] Start");
         _depositSettlementToken(300000000);
+    }
+
+
+    function _test1(Operation memory operation) internal {
+        // console.log("[_runOperation()] Start");
+        // // console.log("T1 ", d.pl().usdlBaseTokenAddress());
+        // // console.log("8 hours = ", 8 hours);
+        // vm.startPrank(address(d));
+        // // d.pl().setMinMarginForRecap(3e18);
+        // // d.pl().setMinMarginSafeThreshold(5e18);
+        // d.usdl().setLemmaTreasury(address(d.lemmaTreasury()));
+        // // NOTE: Let's try to use 100% collateral ratio
+        // d.pl().setCollateralRatio(1e6);
+        // vm.stopPrank();
+
+        // d.bank().giveMoney(d.pl().getSettlementToken(), address(d.lemmaTreasury()), 5e30);
+        // console.log("[testDistributeFR_ShowPendingFRAndSettle()] Start");
+        // _depositSettlementToken(300000000);
 
         // NOTE: Initially no net position on Perp --> Zero FPs
         assertTrue(d.pl().getPendingFundingPayment() == 0);
 
         _printIndexMarkStatus();
 
-        address collateral = d.getTokenAddress("WETH");
+        // address collateral = d.getTokenAddress("WETH");
+
+        _runOperation(operation);
+
         // NOTE: Minting just a little bit of USDL to start with a net short position 
-        _mintUSDLWExactCollateralNoChecks(address(this), collateral, 1e15);
-        console.log("[testDistributeFR_ShowPendingFRAndSettle()] Minted USDL --> Net Short");
+        // if(operation.isMintUSDL) {
+        //     _mintUSDLWExactCollateralNoChecks(address(this), operation.collateral, operation.amount);
+        // } else {
+        //     _mintSynthWExactCollateralNoChecks(address(this), operation.collateral, operation.amount, 0);
+        // }
+
+        // console.log("[testDistributeFR_ShowPendingFRAndSettle()] Minted USDL --> Net Short");
 
         // console.log("[testDistributeFR_ShowPendingFRAndSettle()] Price Before = ", d.pl().getIndexPrice());
         // NOTE: Let's move forward of 1 day with a +0.1% price change
@@ -892,13 +927,11 @@ contract USDLemmaTest is Test {
         // mockPriceFeed.advancePerc(8 hours, 1e3);
         // _advancePerc(8 hours, 1e3);
         _printIndexMarkStatus();
-        // console.log("[testDistributeFR_ShowPendingFRAndSettle()] T2 Index Price = ", d.pl().getIndexPrice());
-        // console.log("[testDistributeFR_ShowPendingFRAndSettle()] T2 Mark Price = ", d.pl().getMarkPrice());
-        // print("[testDistributeFR1()] T2 Pending Funding Payments = ", d.pl().getPendingFundingPayment());
-        // // d.pl().settlePendingFundingPayments();
-        // // print("[testDistributeFR1()] T2 Pending Funding Payments = ", d.pl().getPendingFundingPayment());
         console.log("[testDistributeFR_ShowPendingFRAndSettle()] Distributing Funding Payments");
         d.pl().distributeFundingPayments();
+
+        // NOTE: Checking Pending Funding Payment after distribution is zero 
+        assertTrue(d.pl().getPendingFundingPayment() == 0);
         print("[testDistributeFR_ShowPendingFRAndSettle()] T3 Pending Funding Payments after distribution = ", d.pl().getPendingFundingPayment());
 
         _mineBlock();
@@ -908,7 +941,7 @@ contract USDLemmaTest is Test {
         // console.log("[testDistributeFR_ShowPendingFRAndSettle()] T3 Mark Price = ", d.pl().getMarkPrice());
         // print("[testDistributeFR_ShowPendingFRAndSettle()] T3 Pending Funding Payments = ", d.pl().getPendingFundingPayment());
 
-        _mineBlock();
+        // _mineBlock();
         // mockPriceFeed.advancePerc(8 hours, 1e3);
         // _advancePerc(8 hours, 1e3);
         _printIndexMarkStatus();
@@ -916,8 +949,76 @@ contract USDLemmaTest is Test {
         // console.log("[testDistributeFR_ShowPendingFRAndSettle()] T5 Mark Price = ", d.pl().getMarkPrice());
         // print("[testDistributeFR_ShowPendingFRAndSettle()] T5 Pending Funding Payments = ", d.pl().getPendingFundingPayment());
         d.pl().distributeFundingPayments();
+        // NOTE: Checking Pending Funding Payment after distribution is zero 
+        assertTrue(d.pl().getPendingFundingPayment() == 0);
         print("[testDistributeFR_ShowPendingFRAndSettle()] T5 Pending Funding Payments after distribution = ", d.pl().getPendingFundingPayment());
     }
+
+    function _runOperation(Operation memory operation) internal {
+        if(operation.isMintUSDL) {
+            _mintUSDLWExactCollateralNoChecks(address(this), operation.collateral, operation.amount);
+        } else {
+            _mintSynthWExactCollateralNoChecks(address(this), operation.collateral, operation.amount, 0);
+        }
+    }
+
+
+
+    function testDistributeFR_ShowPendingFRAndSettle_3tests1() public {
+        operations.push(Operation({
+            isMintUSDL: true,
+            collateral: d.getTokenAddress("WETH"),
+            amount: 1e15
+        }));
+
+        operations.push(Operation({
+            isMintUSDL: true, 
+            collateral: d.getTokenAddress("WETH"),
+            amount: 3e15
+        }));
+
+        operations.push(Operation({
+            isMintUSDL: true, 
+            collateral: d.getTokenAddress("WETH"),
+            amount: 30e15
+        }));
+        
+        _init1();
+        
+        for(uint256 i=0; i<operations.length; ++i) {
+            _test1(operations[i]);
+        }
+
+    }
+
+    function _getAmountInDecimals(uint256 numerator, uint256 denominator, address token) internal view returns(uint256 res) {
+        return numerator * 10**(IERC20Decimals(token).decimals()) / denominator;
+    }
+
+
+
+    function _getOperation(uint256 num, uint256 den, address collateral, bool isMintUSDL) internal view returns(Operation memory) {
+        return Operation({
+            isMintUSDL: isMintUSDL,
+            collateral: collateral,
+            amount: _getAmountInDecimals(num, den, collateral)
+        });
+    }
+
+
+    function testDistributeFR_ShowPendingFRAndSettle_3tests3() public {
+        operations.push(_getOperation(3,1e3,d.getTokenAddress("WETH"), true));
+        operations.push(_getOperation(100,1,d.getTokenAddress("USDC"), false));
+        operations.push(_getOperation(1,1e3,d.getTokenAddress("WETH"), true));
+        
+        _init1();
+        
+        for(uint256 i=0; i<operations.length; ++i) {
+            _test1(operations[i]);
+        }
+
+    }
+
 
 
 }
