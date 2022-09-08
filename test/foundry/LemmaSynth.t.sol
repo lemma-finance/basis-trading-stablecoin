@@ -494,6 +494,9 @@ contract LemmaSynthTest is Test {
     // Tests for mint and burn lemmaSynth with TailCollateral/EthCollateral instead USDC_TREASURY
     function testDepositToUsingTailAssetForSynth() public {
         address collateral = d.getTokenAddress("WETH");
+        vm.startPrank(address(d));
+        d.lSynth().addPerpetualDEXWrapper(0, collateral, address(d.pl())); //add the perpDEXWrapper first
+        vm.stopPrank();
         uint256 synthAmount = 9e17; // USDL amount
         // uint256 usdcAmount = 1100e6; // USDL amount
         _depositSettlementTokenMax();
@@ -509,7 +512,7 @@ contract LemmaSynthTest is Test {
         // 4th param is maxCollateralAmountRequired which is need to be set using callStatic, currently set uint256 max
         // calsstatic is not possible in solidity so
         d.lSynth().depositTo(
-            to, synthAmount, 1, type(uint256).max, IERC20Upgradeable(collateral)
+            to, synthAmount, 0, type(uint256).max, IERC20Upgradeable(collateral)
         );
         uint256 afterTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
         uint256 afterBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
@@ -533,7 +536,7 @@ contract LemmaSynthTest is Test {
         // assertTrue(beforeBalanceSynth > 0, "!Synth");
         uint256 beforeTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
         d.lSynth().withdrawTo(
-            to, synthAmount, 1, 0, IERC20Upgradeable(collateral)
+            to, synthAmount, 0, 0, IERC20Upgradeable(collateral)
         );
         uint256 afterTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
         uint256 afterBalanceCollateral =
@@ -546,6 +549,9 @@ contract LemmaSynthTest is Test {
 
     function testDepositToWithExactCollateralUsingTailAssetForSynth() public {
         address collateral = d.getTokenAddress("WETH");
+        vm.startPrank(address(d));
+        d.lSynth().addPerpetualDEXWrapper(0, collateral, address(d.pl())); //add the perpDEXWrapper first
+        vm.stopPrank();
         uint256 synthAmount = 9e17; // USDL amount
         // uint256 usdcAmount = 1100e6; // USDL amount
         _depositSettlementTokenMax();
@@ -561,7 +567,7 @@ contract LemmaSynthTest is Test {
         // 4th param is maxCollateralAmountRequired which is need to be set using callStatic, currently set uint256 max
         // calsstatic is not possible in solidity so
         d.lSynth().depositToWExactCollateral(
-            to, synthAmount, 1, type(uint256).max, IERC20Upgradeable(collateral)
+            to, synthAmount, 0, type(uint256).max, IERC20Upgradeable(collateral)
         );
         uint256 afterTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
         uint256 afterBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
@@ -588,7 +594,7 @@ contract LemmaSynthTest is Test {
         // assertTrue(beforeBalanceSynth > 0, "!Synth");
         uint256 beforeTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
         d.lSynth().withdrawToWExactCollateral(
-            to, synthAmount, 1, 0, IERC20Upgradeable(collateral)
+            to, synthAmount, 0, 0, IERC20Upgradeable(collateral)
         );
         uint256 afterTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
         uint256 afterBalanceCollateral =
