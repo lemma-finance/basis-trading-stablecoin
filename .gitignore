@@ -30,4 +30,7 @@ backup
 broadcast
 
 .vscode
+.DS_Store
+
+forge-cache
 
