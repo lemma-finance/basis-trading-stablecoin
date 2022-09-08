@@ -33,7 +33,7 @@
     "chai": "^4.3.4",
     "eslint": "^8.9.0",
     "ethereum-waffle": "^3.4.0",
-    "ethers": "^5.3.1",
+    "ethers": "^5.5.0",
     "ethlint": "^1.2.5",
     "hardhat": "^2.5.0",
     "hardhat-preprocessor": "^0.1.4",
@@ -49,6 +49,8 @@
   },
   "dependencies": {
     "@mcdex/mai3.js": "^0.5.90",
+    "@perp/curie-deployments": "^2022.9.2-1662100162549",
+    "@perp/sdk-curie": "^1.12.3",
     "axios": "^0.19.2",
     "colors": "^1.4.0",
     "dotenv": "^10.0.0",

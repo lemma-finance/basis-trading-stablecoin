@@ -15,6 +15,7 @@ scripts/test.js
 .openzeppelin/kovan.json
 .openzeppelin/unknown-421611.json
 .openzeppelin/unknown-69.json
+.openzeppelin/unknown-10.json
 
 ##solidity-coverage
 coverage.json
@@ -27,4 +28,6 @@ backup
 
 ## forge-deploy-files
 broadcast
+
+.vscode
 
