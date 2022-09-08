@@ -298,6 +298,24 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return _convDecimals(amountSynth * getIndexPrice(), IUSDLemma(lemmaSynth).decimals() + 18, usdc.decimals());
     }
 
+    function _convUSDCToUSDLIndexPrice(uint256 amountUSDC) internal view returns(uint256) {
+        return _convDecimals(amountUSDC, usdc.decimals(), IUSDLemma(usdLemma).decimals());
+    }
+
+    function _convUSDLToUSDCAtIndexPrice(uint256 amountUSDL) internal view returns(uint256) {
+        return _convDecimals(amountUSDL, IUSDLemma(usdLemma).decimals(), usdc.decimals());
+    }
+
+
+    function _printBalance(string memory s, address token, address addr) internal view {
+        uint256 price = (token == usdLemma) ? 1e18 : getIndexPrice();
+        uint256 balanceInNative = IUSDLemma(token).balanceOf(addr);
+        uint256 balanceInUSDC = _convDecimals(balanceInNative * price, IUSDLemma(token).decimals() + 18, usdc.decimals());
+        console.log(s);
+        console.log("Balance in Native Decimals (", IUSDLemma(token).decimals(), ") = ", balanceInNative);
+        console.log("Balance in USDC Decimals ( ", usdc.decimals(), ") = ", balanceInUSDC);
+    }
+
     function distributeFundingPayments() external override returns(bool isProfit, uint256 amountUSDCToXUSDL, uint256 amountUSDCToXSynth) {
         console.log("[distributeFundingPayments()] USDL Decimals = ", IUSDLemma(usdLemma).decimals());
         console.log("[distributeFundingPayments()] LemmaSynth Decimals = ", IUSDLemma(lemmaSynth).decimals());
@@ -316,12 +334,14 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                 // uint256 amount = uint256(-fundingPaymentsToDistribute) * 10**(usdc.decimals()) / 1e18;
                 amountUSDCToXUSDL = amount * percFundingPaymentsToUSDLHolders / 1e6;
                 amountUSDCToXSynth = amount - amountUSDCToXUSDL;
-                console.log("[distributeFundingPayments()] Positive Profit amountToXUSDL (in USDC Decimals) = ", amountUSDCToXUSDL);
-                console.log("[distributeFundingPayments()] Positive Profit amountToXSynth (in USDC Decimals) = ", amountUSDCToXSynth);
+                console.log("[distributeFundingPayments()] Positive Profit amountToXUSDL (in USDC) = ", amountUSDCToXUSDL);
+                console.log("[distributeFundingPayments()] Positive Profit amountToXSynth (in USDC) = ", amountUSDCToXSynth);
                 perpVault.withdraw(address(usdc), amount);
-                console.log("[distributeFundingPayments()] Withdrawn Amount (in USDC Decimals) = ", amount);
-                console.log("[distributeFundingPayments()] USDL Balance of xUSDL Before (in USDL Decimals) = ", IUSDLemma(usdLemma).balanceOf(xUsdl));
-                console.log("[distributeFundingPayments()] LemmaSynth Balance of xSynth Before (in LemmaSynth Decimals) = ", IUSDLemma(lemmaSynth).balanceOf(xSynth));
+                console.log("[distributeFundingPayments()] Withdrawn Amount (in USDC) = ", amount);
+                _printBalance("[distributeFundingPayments()] xUSDL", usdLemma, xUsdl);
+                _printBalance("[distributeFundingPayments()] xSynth", lemmaSynth, xSynth);
+                // console.log("[distributeFundingPayments()] USDL Balance of xUSDL Before (in USDL) = ", IUSDLemma(usdLemma).balanceOf(xUsdl));
+                // console.log("[distributeFundingPayments()] LemmaSynth Balance of xSynth Before (in LemmaSynth Decimals) = ", IUSDLemma(lemmaSynth).balanceOf(xSynth));
 
                 // NOTE: They both require an amount in USDC Decimals 
                 console.log("[distributeFundingPayments()] Trying to mint USDC equivalent of USDL = ", amountUSDCToXUSDL);
@@ -350,7 +370,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                 console.log("[distributeFundingPayments()] Tot Negative Profit amountUSDCToXUSDL in USDL Decimals = ", amountUSDCToXUSDL);
                 console.log("[distributeFundingPayments()] Tot Negative Profit amountUSDCToXSynth ins USDL Decimals = ", amountUSDCToXSynth);
 
-                console.log("[distributeFundingPayments()] IUSDLemma(usdLemma).balanceOf(address(xUsdl)) = ", IUSDLemma(usdLemma).balanceOf(address(xUsdl)));
+                _printBalance("[distributeFundingPayments()] xUSDL", usdLemma, xUsdl);
+                _printBalance("[distributeFundingPayments()] xSynth", lemmaSynth, xSynth);
+
                 console.log("[distributeFundingPayments()] IUSDLemma(lemmaSynth).balanceOf(address(xSynth)) = ", IUSDLemma(lemmaSynth).balanceOf(address(xSynth)));
 
                 uint256 amountFromXUSDLToProtocolInUSDC;
@@ -368,14 +390,16 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                     amountUSDCToXUSDL = amountUSDLInUSDC;
                 }
 
-                if(amountUSDCToXSynth > IUSDLemma(lemmaSynth).balanceOf(address(xSynth))) {
+                uint256 amountSynthInUSDC = _convSynthToUSDCAtIndexPrice(IUSDLemma(lemmaSynth).balanceOf(address(xSynth)));
+
+                if(amountUSDCToXSynth > amountSynthInUSDC) {
                     // NOTE: Losses for the protocol from XUSDL distirbution
                     // TODO: How do we manage them?
-                    amountFromXSynthToProtocolInUSDC = _convDecimals(amountUSDCToXSynth - IUSDLemma(lemmaSynth).balanceOf(address(xSynth)), IUSDLemma(lemmaSynth).decimals(), usdc.decimals());
+                    amountFromXSynthToProtocolInUSDC = _convDecimals(amountUSDCToXSynth - amountSynthInUSDC, IUSDLemma(lemmaSynth).decimals(), usdc.decimals());
                     console.log("[distributeFundingPayments()] Protocol taking this loss from XSynth (in USDC Decimals) = ", amountFromXSynthToProtocolInUSDC);
                     accruedFPLossesFromXSynthInUSDC += amountFromXSynthToProtocolInUSDC;
                     // TODO: Protocol needs to take some loss Appunto 
-                    amountUSDCToXSynth = _convDecimals(IUSDLemma(lemmaSynth).balanceOf(address(xSynth)), IUSDLemma(lemmaSynth).decimals(), usdc.decimals());
+                    amountUSDCToXSynth = amountSynthInUSDC;
                 }
 
                 // NOTE: The Treasury makes up for the protocol losses due to funding payments and not enough stakers 

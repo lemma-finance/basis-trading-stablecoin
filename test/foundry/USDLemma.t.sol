@@ -997,6 +997,8 @@ contract USDLemmaTest is Test {
         _init1();
         
         for(uint256 i=0; i<operations.length; ++i) {
+            console.log("\n\n\n");
+            console.log("[testDistributeFR_ShowPendingFRAndSettle_3tests1] Operation Start i = ", i);
             _test1(operations[i]);
         }
         
