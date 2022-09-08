@@ -32,10 +32,10 @@ PerpLemmaCommonBtc: , 0xCAA344264f1546931A37Ad09da63d3D2AceB1283
 
 ## Deploy on Optimism using Hardhat
 1. Deploy command 
-    - Optimism:       npx hardhat run scripts/perpetual/deploy.ts --network optimism
-    - Optimism-Kovan: npx hardhat run scripts/perpetual/deploy.ts --network optimismKovan
+    - Optimism:       ```npx hardhat run scripts/perpetual/deploy.ts --network optimism```
+    - Optimism-Kovan: ```npx hardhat run scripts/perpetual/deploy.ts --network optimismKovan```
 2. Verify contract command
-    - npx hardhat verify --network optimismKovan <Deployment Address>
+    - ```npx hardhat verify --network optimismKovan <Deployment Address>```
 
 ### Test JS tests for Perpetual Integration (DEPRECATED)
 1. Go to root repo\
