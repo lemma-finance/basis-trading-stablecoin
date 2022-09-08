@@ -74,6 +74,11 @@ contract LemmaSynth is
         _;
     }
 
+    modifier onlyPerpDEXWrapper() {
+        require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
+        _;        
+    }
+
     /// @notice Intialize method only called once while deploying contract
     /// It will setup different roles and give role access to specific addreeses
     /// @param _trustedForwarder address
@@ -216,14 +221,17 @@ contract LemmaSynth is
 
 
 
-    function mintToStackingContract(uint256 amount) external {
-        require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
-        _mint(xSynth, amount * 10**(decimals()) / 10**(IERC20Decimals(IPerpetualMixDEXWrapper(_msgSender()).getSettlementToken()).decimals()));
+
+    function mintToStackingContract(uint256 amount) external onlyPerpDEXWrapper {
+        // require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
+        _mint(xSynth, amount);
+        // _mint(xSynth, amountInUSDC * 10**(decimals()) / 10**(IERC20Decimals(IPerpetualMixDEXWrapper(_msgSender()).getSettlementToken()).decimals()));
     }
 
-    function burnToStackingContract(uint256 amount) external {
-        require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
-        _burn(xSynth, amount * 10**(decimals()) / 10**(IERC20Decimals(IPerpetualMixDEXWrapper(_msgSender()).getSettlementToken()).decimals()));
+    function burnToStackingContract(uint256 amount) external onlyPerpDEXWrapper {
+        // require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
+        _burn(xSynth, amount);
+        // _burn(xSynth, amountInUSDC * 10**(decimals()) / 10**(IERC20Decimals(IPerpetualMixDEXWrapper(_msgSender()).getSettlementToken()).decimals()));
     }
 
 

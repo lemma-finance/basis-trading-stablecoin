@@ -337,12 +337,14 @@ contract USDLemma is
 
     function mintToStackingContract(uint256 amount) external onlyPerpDEXWrapper {
         // require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
-        _mint(xUsdl, amount * 10**(decimals()) / 10**(IERC20Decimals(IPerpetualMixDEXWrapper(_msgSender()).getSettlementToken()).decimals()));
+        _mint(xUsdl, amount);
+        // _mint(xUsdl, amountInUSDC * 10**(decimals()) / 10**(IERC20Decimals(IPerpetualMixDEXWrapper(_msgSender()).getSettlementToken()).decimals()));
     }
 
     function burnToStackingContract(uint256 amount) external onlyPerpDEXWrapper {
         // require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
-        _burn(xUsdl, amount * 10**(decimals()) / 10**(IERC20Decimals(IPerpetualMixDEXWrapper(_msgSender()).getSettlementToken()).decimals()));
+        _burn(xUsdl, amount);
+        // _burn(xUsdl, amountInUSDC * 10**(decimals()) / 10**(IERC20Decimals(IPerpetualMixDEXWrapper(_msgSender()).getSettlementToken()).decimals()));
     }
 
 

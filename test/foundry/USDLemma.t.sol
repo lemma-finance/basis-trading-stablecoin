@@ -977,6 +977,18 @@ contract USDLemmaTest is Test {
     }
 
 
+    function testDistributeFR_mintUSDLAndShowPendingFRAndSettle_1tests1() public {
+        operations.push(_getOperation(1,1,d.getTokenAddress("WETH"), true));
+        
+        _init1();
+        
+        for(uint256 i=0; i<operations.length; ++i) {
+            _test1(operations[i]);
+        }
+        
+    }
+
+
     function testDistributeFR_ShowPendingFRAndSettle_3tests1() public {
         operations.push(_getOperation(3,1e3,d.getTokenAddress("WETH"), true));
         operations.push(_getOperation(1,1,d.getTokenAddress("WETH"), true));
@@ -988,13 +1000,10 @@ contract USDLemmaTest is Test {
             _test1(operations[i]);
         }
         
-        _init1();
-        
-        for(uint256 i=0; i<operations.length; ++i) {
-            _test1(operations[i]);
-        }
-
     }
+
+
+
 
 
     function testDistributeFR_ShowPendingFRAndSettle_3tests3() public {
@@ -1024,7 +1033,33 @@ contract USDLemmaTest is Test {
 
     }
 
+    // NOTE: This fails with EX_OPLAS 
+    function testFailDistributeFR_mintUSDL_EX_OPLAS() public {
+        operations.push(_getOperation(30,1e2,d.getTokenAddress("WETH"), true));
+        operations.push(_getOperation(5000,1,d.getTokenAddress("WETH"), true));
+        operations.push(_getOperation(100,1e2,d.getTokenAddress("WETH"), true));
+        
+        _init1();
+        
+        for(uint256 i=0; i<operations.length; ++i) {
+            _test1(operations[i]);
+        }
 
+    }
+
+
+    function testFailDistributeFR_mintSynth_EX_OPLAS() public {
+        operations.push(_getOperation(500000,1,d.getTokenAddress("USDC"), false));
+        // operations.push(_getOperation(3000,1,d.getTokenAddress("USDC"), false));
+        // operations.push(_getOperation(10000,1e2,d.getTokenAddress("USDC"), false));
+        
+        _init1();
+        
+        for(uint256 i=0; i<operations.length; ++i) {
+            _test1(operations[i]);
+        }
+
+    }
 
 
 
