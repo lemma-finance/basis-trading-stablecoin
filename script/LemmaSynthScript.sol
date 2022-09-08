@@ -8,7 +8,6 @@ import "../contracts/SettlementTokenManager.sol";
 import "../contracts/wrappers/PerpLemmaCommon.sol";
 
 contract LemmaSynthScript is Script {
-
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant ONLY_OWNER = keccak256("ONLY_OWNER");
     bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
@@ -31,7 +30,8 @@ contract LemmaSynthScript is Script {
     string LemmaSynthTokenSymbol = "LSynth";
 
     address usdLemmaAddress = 0x77D4D37338d52585499Af540F1592361Ba647aB2;
-    address settlementTokenManagerAddress = 0x839fB84c290511ef3a20B24E5654504831dB4448;
+    address settlementTokenManagerAddress =
+        0x839fB84c290511ef3a20B24E5654504831dB4448;
 
     USDLemma usdLemma;
     LemmaSynth lemmaSynth;
@@ -41,18 +41,19 @@ contract LemmaSynthScript is Script {
     function run() external {
         vm.startBroadcast(tx.origin);
 
-        console.log('msg.sender: ', msg.sender, address(this));
-        console.log('tx.origin: ', tx.origin);
+        console.log("msg.sender: ", msg.sender, address(this));
+        console.log("tx.origin: ", tx.origin);
 
         usdLemma = USDLemma(usdLemmaAddress);
-        settlementTokenManager = SettlementTokenManager(settlementTokenManagerAddress);
+        settlementTokenManager =
+            SettlementTokenManager(settlementTokenManagerAddress);
         lemmaSynth = new LemmaSynth();
         perpLemma = new PerpLemmaCommon();
 
         perpLemma.initialize(
             msg.sender,
             usdlCollateral,
-            baseToken,          // NOTE: At some point, we will need to remove these ones as they regard Synth but it is the same as USDL Collateral
+            baseToken, // NOTE: At some point, we will need to remove these ones as they regard Synth but it is the same as USDL Collateral
             clearingHouse,
             marketRegistery,
             address(usdLemma),
@@ -67,7 +68,9 @@ contract LemmaSynthScript is Script {
         perpLemma.grantRole(ONLY_OWNER, only_owner_role_address);
         perpLemma.setSettlementTokenManager(address(settlementTokenManager));
 
-        usdLemma.addPerpetualDEXWrapper(perpIndex, usdlCollateral, address(perpLemma));
+        usdLemma.addPerpetualDEXWrapper(
+            perpIndex, usdlCollateral, address(perpLemma)
+        );
 
         lemmaSynth.initialize(
             lemmaSynth_trustedForwarder,
@@ -80,10 +83,10 @@ contract LemmaSynthScript is Script {
         lemmaSynth.setFees(1000);
         lemmaSynth.grantRole(ONLY_OWNER, only_owner_role_address);
 
-        console.log('OldUSDLemma: ', address(usdLemma));
-        console.log('NewLemmaSynth: ', address(lemmaSynth));
-        console.log('SettlementTokenManager: ', address(settlementTokenManager));
-        console.log('PerpLemmaCommon: ', address(perpLemma));
+        console.log("OldUSDLemma: ", address(usdLemma));
+        console.log("NewLemmaSynth: ", address(lemmaSynth));
+        console.log("SettlementTokenManager: ", address(settlementTokenManager));
+        console.log("PerpLemmaCommon: ", address(perpLemma));
         vm.stopBroadcast();
     }
 }

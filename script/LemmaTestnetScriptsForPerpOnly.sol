@@ -8,7 +8,6 @@ import "../contracts/SettlementTokenManager.sol";
 import "../contracts/wrappers/PerpLemmaCommon.sol";
 
 contract LemmaTestnetScriptsForPerpOnly is Script {
-
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant ONLY_OWNER = keccak256("ONLY_OWNER");
     bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
@@ -31,7 +30,8 @@ contract LemmaTestnetScriptsForPerpOnly is Script {
     string LemmaSynthTokenSymbol = "LSynth";
 
     address public _usdLemmaAddress = 0xc34E7f18185b381d1d7aab8aeEC507e01f4276EE;
-    address public settlementTokenManager = 0x790f5ea61193Eb680F82dE61230863c12f8AC5cC;
+    address public settlementTokenManager =
+        0x790f5ea61193Eb680F82dE61230863c12f8AC5cC;
 
     USDLemma usdLemma;
     LemmaSynth lemmaSynth;
@@ -46,7 +46,7 @@ contract LemmaTestnetScriptsForPerpOnly is Script {
         perpLemma.initialize(
             msg.sender,
             usdlCollateralWbtc,
-            vBtcBaseToken,          // NOTE: At some point, we will need to remove these ones as they regard Synth but it is the same as USDL Collateral
+            vBtcBaseToken, // NOTE: At some point, we will need to remove these ones as they regard Synth but it is the same as USDL Collateral
             clearingHouse,
             marketRegistery,
             address(usdLemma),
@@ -61,7 +61,9 @@ contract LemmaTestnetScriptsForPerpOnly is Script {
         perpLemma.grantRole(ONLY_OWNER, only_owner_role_address);
         perpLemma.setSettlementTokenManager(settlementTokenManager);
 
-        usdLemma.addPerpetualDEXWrapper(1, usdlCollateralWbtc, address(perpLemma));
+        usdLemma.addPerpetualDEXWrapper(
+            1, usdlCollateralWbtc, address(perpLemma)
+        );
 
         lemmaSynth.initialize(
             lemmaSynth_trustedForwarder,
@@ -74,10 +76,10 @@ contract LemmaTestnetScriptsForPerpOnly is Script {
         lemmaSynth.setFees(1000);
         lemmaSynth.grantRole(ONLY_OWNER, only_owner_role_address);
 
-        console.log('USDLemma: ', address(usdLemma));
-        console.log('LemmaSynth: ', address(lemmaSynth));
-        console.log('SettlementTokenManager: ', address(settlementTokenManager));
-        console.log('PerpLemmaCommon: ', address(perpLemma));
+        console.log("USDLemma: ", address(usdLemma));
+        console.log("LemmaSynth: ", address(lemmaSynth));
+        console.log("SettlementTokenManager: ", address(settlementTokenManager));
+        console.log("PerpLemmaCommon: ", address(perpLemma));
         vm.stopBroadcast();
     }
 }

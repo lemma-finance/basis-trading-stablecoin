@@ -8,7 +8,7 @@
     "compile": "npx hardhat compile",
     "test": "npm run compile && cd mai-protocol-v3/ && cd ../ && npx hardhat test --network local",
     "prettier": "yarn run prettier:solidity && yarn run prettier:ts",
-    "prettier:solidity": "prettier --write 'contracts/**/*.sol'",
+    "prettier:solidity": "forge fmt",
     "prettier:ts": "prettier --write './**/*.{js,ts}'"
   },
   "keywords": [],

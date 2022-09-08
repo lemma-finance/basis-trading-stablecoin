@@ -16,13 +16,9 @@ contract xLemmaSynthDeploy is Script {
         vm.startBroadcast();
         xLSynth = new xLemmaSynth();
         xLSynth.initialize(
-            msg.sender,
-            lemmaSynthAddress,
-            address(0),
-            "xLemmaSynth",
-            "xLSynth"
+            msg.sender, lemmaSynthAddress, address(0), "xLemmaSynth", "xLSynth"
         );
-        console.log('xLSynth: ', address(xLSynth));
+        console.log("xLSynth: ", address(xLSynth));
         vm.stopBroadcast();
     }
 }

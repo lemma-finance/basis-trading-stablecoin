@@ -14,15 +14,11 @@ contract xUSDLDeploy is Script {
 
     function run() external {
         vm.startBroadcast();
-        console.log('msg.sender-xUSDLDeploy', msg.sender);
-        console.log('address(this)-xUSDLDeploy', address(this));
+        console.log("msg.sender-xUSDLDeploy", msg.sender);
+        console.log("address(this)-xUSDLDeploy", address(this));
         xusdl = new xUSDL();
-        xusdl.initialize(
-            msg.sender,
-            usdLemmaAddress,
-            address(0)
-        );
-        console.log('xUSDL: ', address(xusdl));
+        xusdl.initialize(msg.sender, usdLemmaAddress, address(0));
+        console.log("xUSDL: ", address(xusdl));
         vm.stopBroadcast();
     }
 }
