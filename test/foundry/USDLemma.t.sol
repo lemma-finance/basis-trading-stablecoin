@@ -1011,10 +1011,10 @@ contract USDLemmaTest is Test {
     }
 
 
-    function testDistributeFR_ShowPendingFRAndSettle_3tests() public {
-        operations.push(_getOperation(3,1e2,d.getTokenAddress("WETH"), true));
-        operations.push(_getOperation(500,1,d.getTokenAddress("USDC"), false));
-        operations.push(_getOperation(1,1e2,d.getTokenAddress("WETH"), true));
+    function testDistributeFR_ShowPendingFRAndSettle_3tests5() public {
+        operations.push(_getOperation(30,1e2,d.getTokenAddress("WETH"), true));
+        operations.push(_getOperation(5000,1,d.getTokenAddress("USDC"), false));
+        operations.push(_getOperation(100,1e2,d.getTokenAddress("WETH"), true));
         
         _init1();
         
@@ -1023,6 +1023,8 @@ contract USDLemmaTest is Test {
         }
 
     }
+
+
 
 
 
