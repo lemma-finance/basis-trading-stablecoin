@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 // pragma solidity ^0.8.13;
+// pragma solidity ^0.7.0;
 
 import "forge-std/Script.sol";
 import "forge-std/Test.sol";
@@ -9,7 +10,7 @@ import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "../contracts/interfaces/IERC20Decimals.sol";
 import "contracts/interfaces/IPerpetualMixDEXWrapper.sol";
-
+// import "@openzeppelin/contracts/utils/Strings.sol";
 
 // struct ExternalContracts {
 //     address uniV3Router;
@@ -26,6 +27,41 @@ import "contracts/interfaces/IPerpetualMixDEXWrapper.sol";
 
 
 
+library Strings {
+    /**
+     * @dev Converts a `uint256` to its ASCII `string` representation.
+     */
+    function toString(uint256 value) internal returns (string memory) {
+        // Inspired by OraclizeAPI's implementation - MIT licence
+        // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
+
+        if (value == 0) {
+            return "0";
+        }
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        bytes memory buffer = new bytes(digits);
+        uint256 index = digits - 1;
+        temp = value;
+        // console.log("Value = ", value);
+        // console.log("temp = ", temp);
+        // console.log("index = ", index);
+        while (temp != 0) {
+            buffer[index] = bytes1(uint8(48 + temp % 10));
+            temp /= 10;
+            // console.log("temp1 = ", temp);
+            if(index > 0) {
+                index--;
+            }
+        }
+        return string(buffer);
+    }
+}
+
 
 contract MyScript is Script, Test {
 
@@ -33,8 +69,10 @@ contract MyScript is Script, Test {
     Deploy d;
 
     function setUp() internal {
-        d = new Deploy(10);
+        //d = new Deploy(10);
     }
+
+
 
     function _loadConfig() internal {
         string[] memory temp = new string[](2);
@@ -47,9 +85,24 @@ contract MyScript is Script, Test {
     }
 
 
+    function _writeArb(uint256 isFound, uint256 direction, uint256 amount) internal returns(uint256 res) {
+        string[] memory temp = new string[](5);
+        temp[0] = "node";
+        temp[1] = "bot/write_arb.js";
+        temp[2] = Strings.toString(isFound);
+        temp[3] = Strings.toString(direction);
+        temp[4] = Strings.toString(amount);
+        vm.ffi(temp);
+        //res = abi.decode(vm.ffi(temp), (uint256));
+        //console.log("[_writeArb()] amount = ", amount);
+    }
+
+
     function run() external {
         console.log("Test");
         _loadConfig();
+        //console.log(Strings.toString(10));
+        _writeArb(1, 2, 100);
     }
 
     // Deploy public d;
@@ -282,6 +335,7 @@ contract MyScript is Script, Test {
     //     // vm.stopBroadcast();
     // }
 }
+
 
 
 
