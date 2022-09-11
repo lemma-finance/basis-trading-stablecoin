@@ -100,7 +100,6 @@ contract LemmaSynth is
         usdc = _usdc;
         tailCollateral = _tailCollateral;
         addPerpetualDEXWrapper(0, _usdc, _perpLemma);
-        addPerpetualDEXWrapper(1, _tailCollateral, _perpLemma);
     }
 
     /// @notice changeAdmin is to change address of admin role

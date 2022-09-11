@@ -15,6 +15,7 @@ scripts/test.js
 .openzeppelin/kovan.json
 .openzeppelin/unknown-421611.json
 .openzeppelin/unknown-69.json
+.openzeppelin/unknown-10.json
 
 ##solidity-coverage
 coverage.json
@@ -28,5 +29,13 @@ backup
 ## forge-deploy-files
 broadcast
 
+<<<<<<< HEAD
 out
+=======
+.vscode
+.DS_Store
+contracts/.DS_Store
+
+forge-cache
+>>>>>>> ba5104cfc3dd114fbf3940371f6fdfdaf1846c42
 

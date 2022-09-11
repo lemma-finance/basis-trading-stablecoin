@@ -5,18 +5,18 @@ const { AddressZero } = constants;
 import { fetchFromURL, delay } from "../../test/shared/utils";
 import config from "./constants.json";
 import fs from "fs";
-import ClearingHouseAbi from "../../perp-lushan/artifacts/contracts/test/TestClearingHouse.sol/TestClearingHouse.json";
-import OrderBookAbi from "../../perp-lushan/artifacts/contracts/OrderBook.sol/OrderBook.json";
-import ClearingHouseConfigAbi from "../../perp-lushan/artifacts/contracts/ClearingHouseConfig.sol/ClearingHouseConfig.json";
-import VaultAbi from "../../perp-lushan/artifacts/contracts/Vault.sol/Vault.json";
-import ExchangeAbi from "../../perp-lushan/artifacts/contracts/Exchange.sol/Exchange.json";
-import MarketRegistryAbi from "../../perp-lushan/artifacts/contracts/MarketRegistry.sol/MarketRegistry.json";
-import TestERC20Abi from "../../perp-lushan/artifacts/contracts/test/TestERC20.sol/TestERC20.json";
-import BaseTokenAbi from "../../perp-lushan/artifacts/contracts/BaseToken.sol/BaseToken.json";
-import QuoteTokenAbi from "../../perp-lushan/artifacts/contracts/QuoteToken.sol/QuoteToken.json";
-import AccountBalanceAbi from "../../perp-lushan/artifacts/contracts/AccountBalance.sol/AccountBalance.json";
-import UniswapV3PoolAbi from "../../perp-lushan/artifacts/@uniswap/v3-core/contracts/UniswapV3Pool.sol/UniswapV3Pool.json";
-import UniswapV3FactoryAbi from "../../perp-lushan/artifacts/@uniswap/v3-core/contracts/UniswapV3Factory.sol/UniswapV3Factory.json";
+import ClearingHouseAbi from "@perp/curie-deployments/optimism/core/artifacts/contracts/ClearingHouse.sol/ClearingHouse.json";
+import OrderBookAbi from "@perp/curie-deployments/optimism/core/artifacts/contracts/OrderBook.sol/OrderBook.json";
+import ClearingHouseConfigAbi from "@perp/curie-deployments/optimism/core/artifacts/contracts/ClearingHouseConfig.sol/ClearingHouseConfig.json";
+import VaultAbi from "@perp/curie-deployments/optimism/core/artifacts/contracts/Vault.sol/Vault.json";
+import ExchangeAbi from "@perp/curie-deployments/optimism/core/artifacts/contracts/Exchange.sol/Exchange.json";
+import MarketRegistryAbi from "@perp/curie-deployments/optimism/core/artifacts/contracts/MarketRegistry.sol/MarketRegistry.json";
+import TestERC20Abi from "@perp/curie-deployments/optimism/core/artifacts/contracts/interface/IERC20Metadata.sol/IERC20Metadata.json";
+import BaseTokenAbi from "@perp/curie-deployments/optimism/core/artifacts/contracts/BaseToken.sol/BaseToken.json";
+import QuoteTokenAbi from "@perp/curie-deployments/optimism/core/artifacts/contracts/QuoteToken.sol/QuoteToken.json";
+import AccountBalanceAbi from "@perp/curie-deployments/optimism/core/artifacts/contracts/AccountBalance.sol/AccountBalance.json";
+import UniswapV3PoolAbi from "@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json";
+import UniswapV3FactoryAbi from "@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json";
 import bn from "bignumber.js";
 bn.config({ EXPONENTIAL_AT: 999999, DECIMAL_PLACES: 40 });
 
@@ -76,6 +76,9 @@ async function main() {
 
   const stmRebalancer = defaultSigner.address;
   const settlementToken = await vault.getSettlementToken(); // usdc
+
+  const etherBalanceBefore = await ethers.provider.getBalance(defaultSigner.address);
+  console.log("etherBalanceBefore", etherBalanceBefore.toString());
 
   console.log("deploying perpLemma");
   const maxPosition = ethers.constants.MaxUint256;
@@ -236,6 +239,11 @@ async function main() {
   };
   deployedContracts = Object.assign(contracts, deployedContracts);
   await save(network);
+
+  const etherBalanceAfter = await ethers.provider.getBalance(defaultSigner.address);
+  console.log("etherBalanceAfter", etherBalanceAfter.toString());
+
+  console.log("cost", etherBalanceBefore.sub(etherBalanceAfter).toString()); //26725501000000000 cost on optimism Kovan with 1 wei
 }
 main()
   .then(() => process.exit(0))
