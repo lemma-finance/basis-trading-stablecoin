@@ -101,6 +101,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     event RebalancerUpdated(address indexed rebalancerAddress);
     event MaxPositionUpdated(uint256 indexed maxPos);
     event SetSettlementTokenManager(address indexed _settlementTokenManager);
+    event SetMinFreeCollateral(uint256 indexed _minFreeCollateral);
+    event SetCollateralRatio(uint256 indexed _collateralRatio);
+    event SetMinMarginSafeThreshold(uint256 indexed _minMarginSafeThreshold);
 
     //////////////////////////////////
     /// Initialize External METHOD ///
@@ -328,20 +331,20 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     ////////////////////////
 
     function setMinFreeCollateral(uint256 _minFreeCollateral) external override onlyRole(OWNER_ROLE) {
-        // TODO: Emit Event
         minFreeCollateral = _minFreeCollateral;
+        emit SetMinFreeCollateral(minFreeCollateral);
     }
 
     function setMinMarginSafeThreshold(uint256 _margin) external override onlyRole(OWNER_ROLE) {
-        // TODO: Add Emit Event
         require(_margin > minFreeCollateral, "Needs to be > minFreeCollateral");
         minMarginSafeThreshold = _margin;
+        emit SetMinMarginSafeThreshold(minMarginSafeThreshold);
     }
 
     function setCollateralRatio(uint24 _collateralRatio) external override onlyRole(OWNER_ROLE) {
-        // TODO: Add Emit Event
         // NOTE: This one should always be >= imRatio or >= mmRatio but not sure if a require is needed
         collateralRatio = _collateralRatio;
+        emit SetCollateralRatio(collateralRatio);
     }
 
     /// @notice Defines the USDL Collateral as a tail asset by only owner role
