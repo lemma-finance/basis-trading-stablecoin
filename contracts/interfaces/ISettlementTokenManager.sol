@@ -11,4 +11,7 @@ interface ISettlementTokenManager {
         address perpDexWrapperFrom,
         address perpDexWrapperTo
     ) external;
+
+    function getSettlementToken() external view returns(address);
 }
+

@@ -19,9 +19,6 @@ contract LemmaSynth is
     ERC2771ContextUpgradeable,
     AccessControlUpgradeable
 {
-    // using SafeMathExt for int256;
-    // using SafeMathExt for uint256;
-
     /// Different Roles to perform restricted tx
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant LEMMA_SWAP = keccak256("LEMMA_SWAP");
@@ -30,6 +27,9 @@ contract LemmaSynth is
     /// PerpLemma contract associated with this LemmaSynth
     address public perpLemma;
     mapping(uint256 => mapping(address => address)) public perpetualDEXWrappers;
+    mapping(address => bool) public isSupportedPerpetualDEXWrapper;
+
+    address public xSynth;
 
     /// Tail Collateral use to mint LemmaSynth
     /// Tail Collateral will not deposit into perp, It will stay in perpLemma BalanceSheet
@@ -71,6 +71,11 @@ contract LemmaSynth is
         _;
     }
 
+    modifier onlyPerpDEXWrapper() {
+        require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
+        _;        
+    }
+
     /// @notice Intialize method only called once while deploying contract
     /// It will setup different roles and give role access to specific addreeses
     /// @param _trustedForwarder address
@@ -102,16 +107,6 @@ contract LemmaSynth is
         addPerpetualDEXWrapper(0, _usdc, _perpLemma);
     }
 
-    /// @notice changeAdmin is to change address of admin role
-    /// Only current admin can change admin and after new admin current admin address will be no more admin
-    /// @param newAdmin new admin address
-    function changeAdmin(address newAdmin) external onlyRole(ADMIN_ROLE) {
-        require(newAdmin != address(0), "NewAdmin should not ZERO address");
-        require(newAdmin != msg.sender, "Admin Addresses should not be same");
-        _setupRole(ADMIN_ROLE, newAdmin);
-        renounceRole(ADMIN_ROLE, msg.sender);
-    }
-
     /// @notice Add address for perpetual dex wrapper for perpetual index and collateral - can only be called by owner
     /// @param perpetualDEXIndex, index of perpetual dex
     /// @param collateralAddress, address of collateral to be used in the dex
@@ -122,14 +117,8 @@ contract LemmaSynth is
         address perpetualDEXWrapperAddress
     ) public onlyRole(OWNER_ROLE) {
         perpetualDEXWrappers[perpetualDEXIndex][collateralAddress] = perpetualDEXWrapperAddress;
+        isSupportedPerpetualDEXWrapper[perpetualDEXWrapperAddress] = true;
         emit PerpetualDexWrapperAdded(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
-    }
-
-    /// @notice setTailCollateral set tail collateral, By only owner Role
-    /// @param _tailCollateral which collateral address is use to mint LemmaSynth
-    function setTailCollateral(address _tailCollateral) external onlyRole(OWNER_ROLE) {
-        tailCollateral = _tailCollateral;
-        emit SetTailCollateral(_tailCollateral);
     }
 
     /// @notice Returns the fees of the underlying Perp DEX Wrapper
@@ -157,11 +146,40 @@ contract LemmaSynth is
         return perpDEXWrapper.getTotalPosition();
     }
 
+    /// @notice changeAdmin is to change address of admin role
+    /// Only current admin can change admin and after new admin current admin address will be no more admin
+    /// @param newAdmin new admin address
+    function changeAdmin(address newAdmin) external onlyRole(ADMIN_ROLE) {
+        require(newAdmin != address(0), "NewAdmin should not ZERO address");
+        require(newAdmin != msg.sender, "Admin Addresses should not be same");
+        _setupRole(ADMIN_ROLE, newAdmin);
+        renounceRole(ADMIN_ROLE, msg.sender);
+    }
+
+    function setXSynth(address _xSynth) external onlyRole(OWNER_ROLE) {
+        xSynth = _xSynth;
+    }
+
+    /// @notice setTailCollateral set tail collateral, By only owner Role
+    /// @param _tailCollateral which collateral address is use to mint LemmaSynth
+    function setTailCollateral(address _tailCollateral) external onlyRole(OWNER_ROLE) {
+        tailCollateral = _tailCollateral;
+        emit SetTailCollateral(_tailCollateral);
+    }
+
     /// @notice Set Fees, can only be called by owner
     /// @param _fees Fees taken by the Lemma protocol
     function setFees(uint256 _fees) external onlyRole(OWNER_ROLE) {
         fees = _fees;
         emit FeesUpdated(fees);
+    }
+
+    function mintToStackingContract(uint256 amount) external onlyPerpDEXWrapper {
+        _mint(xSynth, amount);
+    }
+
+    function burnToStackingContract(uint256 amount) external onlyPerpDEXWrapper {
+        _burn(xSynth, amount);
     }
 
     /// @notice Deposit collateral like USDC. to mint Synth specifying the exact amount of Synth
@@ -175,7 +193,7 @@ contract LemmaSynth is
         uint256 perpetualDEXIndex,
         uint256 maxCollateralAmountRequired,
         IERC20Upgradeable collateral
-    ) public nonReentrant onlyOneFunInSameTx {
+    ) external nonReentrant onlyOneFunInSameTx {
         // first trade and then deposit
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
@@ -250,7 +268,7 @@ contract LemmaSynth is
         uint256 perpetualDEXIndex,
         uint256 minCollateralAmountToGetBack,
         IERC20Upgradeable collateral
-    ) public nonReentrant onlyOneFunInSameTx {
+    ) external nonReentrant onlyOneFunInSameTx {
         _burn(_msgSender(), amount);
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
@@ -327,8 +345,10 @@ contract LemmaSynth is
         }
     }
 
-    /// @notice Internal Methods
-
+    ////////////////////////
+    /// INTERNAL METHODS ///
+    ////////////////////////
+    
     /// @notice _perpDeposit to deposit collateral into perp Vault
     function _perpDeposit(
         IPerpetualMixDEXWrapper perpDEXWrapper,

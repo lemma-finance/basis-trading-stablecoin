@@ -822,13 +822,10 @@ contract ContractTest is Test {
         d.getPerps().ib.close(); // Close market after 5 days
         vm.stopPrank();
         d.pl().settle(); // PerpLemma settle call
-
-        uint256 aliceBeforeBal =
-            IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(alice);
-        uint256 bobBeforeBal =
-            IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(bob);
-        uint256 perpLemmaBeforeBal =
-            IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
+        
+        uint256 aliceBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(alice);
+        uint256 bobBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(bob);
+        uint256 perpLemmaBeforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
 
         uint256 aliceUsdlToRedeem = d.usdl().balanceOf(alice);
         uint256 bobUsdlToRedeem = d.usdl().balanceOf(bob);
@@ -851,8 +848,7 @@ contract ContractTest is Test {
         assertGt(bobAfterBal - bobBeforeBal, 9e17);
         vm.stopPrank();
 
-        uint256 perpLemmaAfterBal =
-            IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
+        uint256 perpLemmaAfterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
         assertLt(perpLemmaAfterBal, 2e16);
     }
 }

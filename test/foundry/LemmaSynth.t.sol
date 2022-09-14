@@ -6,6 +6,9 @@ import {IPerpetualMixDEXWrapper} from
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "../../contracts/interfaces/IERC20Decimals.sol";
 import "../../src/Deploy.sol";
+
+
+import "./mocks/MockPriceFeed.sol";
 import "forge-std/Test.sol";
 
 contract LemmaSynthTest is Test {
@@ -15,7 +18,20 @@ contract LemmaSynthTest is Test {
     bytes32 public constant LEMMA_SWAP = keccak256("LEMMA_SWAP");
     bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
 
+
+    MockPriceFeed public mockPriceFeed;
+
     function setUp() public {
+        address perpOwner = address(0x76Ff908b6d43C182DAEC59b35CebC1d7A17D8086);
+        address baseTokenMarket = address(0x8C835DFaA34e2AE61775e80EE29E2c724c6AE2BB);
+        mockPriceFeed = new MockPriceFeed();
+        mockPriceFeed.setRealPriceFeed(IBaseTokenSetter(baseTokenMarket).getPriceFeed());
+        vm.startPrank(IBaseTokenSetter(baseTokenMarket).owner());
+        console.log("Trying to set Mock Oracle");
+        IBaseTokenSetter(baseTokenMarket).setPriceFeed(address(mockPriceFeed));
+        console.log("Trying to set Mock Oracle DONE");
+        vm.stopPrank();
+
         d = new Deploy(10);
         vm.startPrank(address(d));
         d.pl().setUSDLemma(address(d.usdl()));
@@ -211,6 +227,7 @@ contract LemmaSynthTest is Test {
         address collateral = d.getTokenAddress("USDC");
         uint256 usdcAmount = 1100e6; // USDL amount
         _depositSettlementTokenMax();
+        mockPriceFeed.advancePerc(8 hours, 1e3);
         _mintSynthWExactCollateral(address(this), collateral, usdcAmount);
     }
 
@@ -219,6 +236,7 @@ contract LemmaSynthTest is Test {
         testDepositToForSynth();
         address collateral = d.getTokenAddress("USDC");
         uint256 synthAmount = d.lSynth().balanceOf(address(this));
+        mockPriceFeed.advancePerc(8 hours, -1e3);
         _redeemSynthWExactSynth(address(this), collateral, synthAmount);
     }
 
@@ -227,6 +245,7 @@ contract LemmaSynthTest is Test {
         testDepositToWExactCollateralForSynth();
         address collateral = d.getTokenAddress("USDC");
         uint256 synthAmount = d.lSynth().balanceOf(address(this));
+        mockPriceFeed.advancePerc(8 hours, 3e3);
         _redeemSynthWExactSynth(address(this), collateral, synthAmount);
     }
 
@@ -237,14 +256,11 @@ contract LemmaSynthTest is Test {
     {
         testDepositToWExactCollateralForSynth();
         address collateral = d.getTokenAddress("USDC");
-        uint256 collateralAmount = 1100e18; // USDC
-        uint256 _collateralAfterMinting =
-            _deductFees(d.getTokenAddress("USDC"), collateralAmount, 0);
-        uint256 _maxUSDCtoRedeem =
-            _deductFees(d.getTokenAddress("USDC"), _collateralAfterMinting, 0);
-        _redeemSynthWExactCollateral(
-            address(this), collateral, _maxUSDCtoRedeem
-        );
+        uint256 collateralAmount = 1100e18; // USDC 
+        uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("USDC"), collateralAmount, 0);
+        uint256 _maxUSDCtoRedeem = _deductFees(d.getTokenAddress("USDC"), _collateralAfterMinting, 0);
+        mockPriceFeed.advancePerc(8 hours, -2e3);
+        _redeemSynthWExactCollateral(address(this), collateral, _maxUSDCtoRedeem);
     }
 
     // test depositTo and withdrawToWExactCollateral
@@ -252,14 +268,12 @@ contract LemmaSynthTest is Test {
         testDepositToForSynth();
         address collateral = d.getTokenAddress("USDC");
         uint256 collateralAmount = 300e18;
-        uint256 _collateralAfterMinting =
-            _deductFees(d.getTokenAddress("USDC"), collateralAmount, 0);
-        uint256 _maxUSDCtoRedeem =
-            _deductFees(d.getTokenAddress("USDC"), _collateralAfterMinting, 0);
-        _redeemSynthWExactCollateral(
-            address(this), collateral, _maxUSDCtoRedeem
-        );
+        uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("USDC"), collateralAmount, 0);
+        uint256 _maxUSDCtoRedeem = _deductFees(d.getTokenAddress("USDC"), _collateralAfterMinting, 0);
+        mockPriceFeed.advancePerc(8 hours, 2e3);
+        _redeemSynthWExactCollateral(address(this), collateral, _maxUSDCtoRedeem);
     }
+
 
     // Should Fail tests
     // REVERT REASON: only lemmaswap is allowed
@@ -275,10 +289,9 @@ contract LemmaSynthTest is Test {
         uint256 synthAmount = 9e17; // USDL amount
         uint256 usdcAmount = 1100e6; // USDL amount
         _depositSettlementTokenMax();
-        _mintSynthWExactSynth(
-            address(this), collateral, synthAmount, usdcAmount
-        );
-
+        mockPriceFeed.advancePerc(8 hours, 1e3);
+        _mintSynthWExactSynth(address(this), collateral, synthAmount, usdcAmount);
+        mockPriceFeed.advancePerc(8 hours, -1e3);
         uint256 collateralAmount = 988635431772441083946; // ~0.9998 eth
         uint256 _collateralAfterMinting =
             _deductFees(d.getTokenAddress("USDC"), collateralAmount, 0);
@@ -302,6 +315,7 @@ contract LemmaSynthTest is Test {
         d.lSynth().revokeRole(LEMMA_SWAP, address(this));
         vm.stopPrank();
         testDepositToWExactCollateralForSynth();
+        mockPriceFeed.advancePerc(8 hours, 1e3);
         address collateral = d.getTokenAddress("USDC");
         uint256 collateralAmount = 1100e18; // USDC
         uint256 _collateralAfterMinting =
@@ -463,14 +477,11 @@ contract LemmaSynthTest is Test {
         vm.stopPrank();
 
         d.pl().settle(); // PerpLemma settle call
-        uint256 beforeBalance =
-            IERC20Decimals(collateral).balanceOf(address(this));
-        d.lSynth().withdrawToWExactCollateral(
-            address(this), 100e6, 0, type(uint256).max, IERC20Decimals(collateral)
-        );
-        uint256 afterBalance =
-            IERC20Decimals(collateral).balanceOf(address(this));
-        assertGe(afterBalance - beforeBalance, 0);
+        uint256 beforeBalance = IERC20Decimals(collateral).balanceOf(address(this));
+        mockPriceFeed.advancePerc(8 hours, 5e3);
+        d.lSynth().withdrawToWExactCollateral(address(this), 100e6, 0, type(uint256).max, IERC20Decimals(collateral));
+        uint256 afterBalance = IERC20Decimals(collateral).balanceOf(address(this));
+        assertGe(afterBalance-beforeBalance, 0);
     }
 
     // reason: Settled vUSD position amount should not ZERO
@@ -484,11 +495,12 @@ contract LemmaSynthTest is Test {
         d.getPerps().ib.close(); // Close market after 5 days
         vm.stopPrank();
 
+        mockPriceFeed.advancePerc(8 hours, 2e3);
         d.pl().settle(); // PerpLemma settle call
+        mockPriceFeed.advancePerc(8 hours, -5e3);
         d.pl().setMintedPositionSynthForThisWrapper(0);
-        d.lSynth().withdrawToWExactCollateral(
-            address(this), 100e18, 0, 0, IERC20Decimals(collateral)
-        );
+        mockPriceFeed.advancePerc(8 hours, 10e3);
+        d.lSynth().withdrawToWExactCollateral(address(this), 100e18, 0, 0, IERC20Decimals(collateral));
     }
 
     // Tests for mint and burn lemmaSynth with TailCollateral/EthCollateral instead USDC_TREASURY

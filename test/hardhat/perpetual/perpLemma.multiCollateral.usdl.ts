@@ -25,7 +25,7 @@ import {
 } from "../../perp-lushan/typechain";
 import { QuoteToken } from "../../perp-lushan/typechain/QuoteToken";
 import { createClearingHouseFixture } from "../shared/perpFixture/fixtures_local";
-import { PerpLemmaCommon, TestPerpLemma } from "../../types";
+import { PerpLemmaCommon, TestPerpLemma } from "../../../types";
 
 use(solidity);
 
