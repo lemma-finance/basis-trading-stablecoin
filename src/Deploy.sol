@@ -155,11 +155,31 @@ contract MockUniV3Router {
     }
 }
 
+contract XUsdl {
+    // USDLemma public usdLemma;
+    // // TODO: Replace with the real one 
+    // constructor(USDLemma _usdLemma) {
+    //     usdLemma = _usdLemma;
+    // }
+}
+
+
+contract XSynth {
+    // LemmaSynth public lemmaSynth;
+    // // TODO: Replace with the real one
+    // constructor(LemmaSynth _lemmaSynth) {
+    //     lemmaSynth = _lemmaSynth;
+    // }
+}
+
 contract Deploy {
     USDLemma public usdl;
     LemmaSynth public lSynth;
     SettlementTokenManager public settlementTokenManager;
     TestPerpLemma public pl;
+
+    XUsdl public xUsdl;
+    XSynth public xSynth;
 
     LemmaTreasury public lemmaTreasury;
     TestSetPriceFeed public testSetPriceFeed;
@@ -240,6 +260,9 @@ contract Deploy {
         // uint256 price = pc.ib.getIndexPrice(15 minutes);
         // console.log('price: ', price);
 
+        xUsdl = new XUsdl();
+        xSynth = new XSynth();
+
         usdl = new USDLemma();
         lSynth = new LemmaSynth();
         lemmaTreasury = new LemmaTreasury();
@@ -274,6 +297,8 @@ contract Deploy {
             generic_chain_addresses["USDC"][chain_id]
         );
 
+        usdl.setXUsdl(address(xUsdl));
+
         lSynth.initialize(
             address(0),
             address(pl),
@@ -282,6 +307,7 @@ contract Deploy {
             "LemmaSynth",
             "LSynth"
         );
+        lSynth.setXSynth(address(xSynth));
     }
 
     function getPerps() external view returns (Perp_Contracts memory) {

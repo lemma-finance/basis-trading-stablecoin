@@ -7,13 +7,14 @@ import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/ac
 import { IPerpetualMixDEXWrapper } from "./interfaces/IPerpetualMixDEXWrapper.sol";
 import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "./interfaces/IERC20Decimals.sol";
+import "./interfaces/ISettlementTokenManager.sol";
 
 /// @author Lemma Finance
 /// @notice SettlementTokenManager contract will manage the SettlementToken(USDC in perpV2) of perpV2
 /// When user deposit or withdraw in PerpLemma using SettlementToken from USDLemma contract it will handle by this contract
 /// So it will intermediary between USDLemma and PerpLemma contracts
 /// Also settlement contract will perform rebalance between perpLemmaContracts
-contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgradeable {
+contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgradeable, ISettlementTokenManager {
     /// USDLemma contract address
     address public usdLemma;
     /// Rebalancer Address EOA or bot address
@@ -108,6 +109,10 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
         emit SetRebalancer(reBalancer);
     }
 
+    function getSettlementToken() external view override returns(address) {
+        return address(usdc);
+    }
+
     /// @notice settlementTokenRecieve is called when mint USDL using USDC on USDLemma cntract
     /// USDLemma transfer USDC in this contract and then from here it will send to perpLemma contract
     /// depositTo method of USDLemma contract will use to mint USDL using USDC
@@ -116,7 +121,7 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
     /// @param settlementTokenAmount Amount of USDC need to transfer to perpLemma from USDLemma
     /// @param perpDexWrapper on this perpLemma contract the amount will be transfer
     function settlementTokenRecieve(uint256 settlementTokenAmount, address perpDexWrapper)
-        external
+        external override
         onlyRole(USDLEMMA_ROLE)
     {
         require(isSettlementAllowed, "Settlement Token is not allowed");
@@ -135,7 +140,7 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
     /// @param settlementTokenAmount Amount of USDC need to transfer to USDLemma from PerpLemma
     /// @param perpDexWrapper amount will be withdraw from this perpLemma contract
     function settlementTokenRequested(uint256 settlementTokenAmount, address perpDexWrapper)
-        external
+        external override
         onlyRole(USDLEMMA_ROLE)
     {
         require(isSettlementAllowed, "Settlement Token is not allowed");
@@ -157,7 +162,7 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
         uint256 settlementTokenAmount,
         address perpDexWrapperFrom,
         address perpDexWrapperTo
-    ) external onlyRole(REBALANCER_ROLE) {
+    ) external override onlyRole(REBALANCER_ROLE) {
         require(usdc.balanceOf(address(this)) >= settlementTokenAmount, "STM: Not enought balance");
         require(perpDexWrapperFrom != address(0), "perpDexWrapperFrom should not ZERO address");
         require(perpDexWrapperTo != address(0), "perpDexWrapperTo should not ZERO address");
