@@ -30,8 +30,7 @@ contract LemmaTestnetScriptsForPerpOnly is Script {
     string LemmaSynthTokenSymbol = "LSynth";
 
     address public _usdLemmaAddress = 0xc34E7f18185b381d1d7aab8aeEC507e01f4276EE;
-    address public settlementTokenManager =
-        0x790f5ea61193Eb680F82dE61230863c12f8AC5cC;
+    address public settlementTokenManager = 0x790f5ea61193Eb680F82dE61230863c12f8AC5cC;
 
     USDLemma usdLemma;
     LemmaSynth lemmaSynth;
@@ -61,9 +60,7 @@ contract LemmaTestnetScriptsForPerpOnly is Script {
         perpLemma.grantRole(ONLY_OWNER, only_owner_role_address);
         perpLemma.setSettlementTokenManager(settlementTokenManager);
 
-        usdLemma.addPerpetualDEXWrapper(
-            1, usdlCollateralWbtc, address(perpLemma)
-        );
+        usdLemma.addPerpetualDEXWrapper(1, usdlCollateralWbtc, address(perpLemma));
 
         lemmaSynth.initialize(
             lemmaSynth_trustedForwarder,
