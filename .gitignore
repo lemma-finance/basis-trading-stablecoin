@@ -29,6 +29,7 @@ backup
 ## forge-deploy-files
 broadcast
 
+out
 .vscode
 .DS_Store
 contracts/.DS_Store
