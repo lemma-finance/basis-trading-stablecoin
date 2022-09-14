@@ -2,9 +2,18 @@
     "config": {
         "comments": 
             [
-                "Supported deployments: 0=Deploy nothing, 1=Deploy USDL Contracts Suite"
+                "Supported deployments: 0=Forked Optimism, 1=Optimism"
             ],
-        "deployment": 0
+        "use": 0,
+        "deployments": 
+        {
+            "optimism": {
+                "uniV3Factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984"
+            },
+            "forked": {
+                "perpLemmaCommon": "0x00000000000000000"
+            }
+        }
     }
 }
 

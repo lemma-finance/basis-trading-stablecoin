@@ -10,6 +10,8 @@ import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "../contracts/interfaces/IERC20Decimals.sol";
 import "contracts/interfaces/IPerpetualMixDEXWrapper.sol";
+
+import "../contracts/interfaces/IERC20Decimals.sol";
 // import "@openzeppelin/contracts/utils/Strings.sol";
 
 // struct ExternalContracts {
@@ -26,6 +28,20 @@ import "contracts/interfaces/IPerpetualMixDEXWrapper.sol";
 // }
 
 
+
+interface IRebalancer {
+    function rebalance(
+        address router,
+        uint256 routerType,
+        int256 amountBaseToRebalance,
+        bool isCheckProfit
+    ) external returns (uint256, uint256);
+    
+    function getMarkPrice() external view returns(uint256);
+
+    function usdlCollateral() external returns(IERC20Decimals);
+    function usdc() external returns(IERC20Decimals);
+}
 
 library Strings {
     /**
@@ -68,6 +84,14 @@ contract MyScript is Script, Test {
     uint256 configType;
     Deploy d;
 
+
+    address perpLemmaCommon;
+    address usdlCollateral;
+    address usdc;
+
+    address uniV3Factory;
+    address pool;
+
     function setUp() internal {
         //d = new Deploy(10);
     }
@@ -75,13 +99,67 @@ contract MyScript is Script, Test {
 
 
     function _loadConfig() internal {
-        string[] memory temp = new string[](2);
+        string[] memory temp = new string[](3);
         temp[0] = "node";
         temp[1] = "bot/read_config.js";
-        // temp[2] = n;
+        temp[2] = "config[\"config\"][\"use\"]";
         // temp[3] = id;
+        console.log("Trying to execute");
+        console.log(temp[2]);
         configType = abi.decode(vm.ffi(temp), (uint256));
         console.log("[_loadConfig()] configType = ", configType);
+
+        temp[0] = "node";
+        temp[1] = "bot/read_config.js";
+        temp[2] = "config[\"config\"][\"deployments\"][\"optimism\"][\"uniV3Factory\"]";
+        // temp[3] = id;
+        uniV3Factory = abi.decode(vm.ffi(temp), (address));
+        console.log("[_loadConfig()] uniV3Factory = ", uniV3Factory);
+
+        if(configType == 0) {
+            // TODO: Get it from Deploy
+            d = new Deploy(10);
+            perpLemmaCommon = address(d.pl());
+        } else {
+            temp[0] = "node";
+            temp[1] = "bot/read_config.js";
+            temp[2] = "config[\"config\"][\"deployments\"][\"forked\"][\"perpLemmaCommon\"]";
+            // temp[3] = id;
+            perpLemmaCommon = abi.decode(vm.ffi(temp), (address));
+            console.log("[_loadConfig()] perpLemmaCommon = ", perpLemmaCommon);
+        } 
+
+        usdlCollateral = address(IRebalancer(perpLemmaCommon).usdlCollateral());
+        usdc = address(IRebalancer(perpLemmaCommon).usdc());
+
+        console.log("[_loadConfig()] USDL Collateral = ", usdlCollateral);
+        console.log("[_loadConfig()] USDC Collateral = ", usdc);
+
+        pool = IUniswapV3Factory(uniV3Factory).getPool(usdlCollateral, usdc, 3000);
+        console.log("[_loadConfig()] Pool = ", pool);
+        console.log("[_loadConfig()] Pool Token0 = ", IUniswapV3Pool(pool).token0());
+        console.log("[_loadConfig()] Pool Token1 = ", IUniswapV3Pool(pool).token1());
+
+    }
+
+    function _getSpotPrice() internal returns(uint256 token0Price) {
+        (uint160 sqrtPriceX96,,,,,,) = IUniswapV3Pool(pool).slot0();
+        token0Price = ((uint256(sqrtPriceX96) ** 2) * 1e12 / (2 ** 192)) * 1e18;
+        console.log("[_getSpotPrice()] sqrtPriceX96 = ", uint256(sqrtPriceX96));
+    }
+
+    function _testArb() internal returns(uint256 amount) {
+        uint256 markPrice = IRebalancer(perpLemmaCommon).getMarkPrice();
+        uint256 spotPrice = _getSpotPrice();
+
+        console.log("[_testArb()] markPrice = ", markPrice);
+        console.log("[_testArb()] spotPrice = ", spotPrice);
+
+        if(spotPrice > markPrice) {
+            console.log("Sell on Spot");
+        } else {
+            console.log("Sell on Mark");
+        }
     }
 
 
@@ -101,7 +179,7 @@ contract MyScript is Script, Test {
     function run() external {
         console.log("Test");
         _loadConfig();
-        //console.log(Strings.toString(10));
+        _testArb();
         _writeArb(1, 2, 100);
     }
 
