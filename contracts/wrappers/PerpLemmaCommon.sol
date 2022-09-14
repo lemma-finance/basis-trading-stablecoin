@@ -22,9 +22,6 @@ import "../interfaces/Perpetual/IBaseToken.sol";
 import "../interfaces/Perpetual/IExchange.sol";
 import "forge-std/Test.sol";
 
-// import "forge-std/console.sol";
-// import "hardhat/console.sol";
-
 /// @author Lemma Finance
 /// @notice PerpLemmaCommon contract will use to open short and long position with no-leverage
 /// USDLemma and LemmaSynth will consime the methods to open short or long on derivative dex
@@ -191,26 +188,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
     }
 
-    function print(string memory s, int256 x) internal view {
-        console.log(s, (x < 0) ? uint256(-x) : uint256(x) );
-    }
-
-
-    function setPercFundingPaymentsToUSDLHolders(uint256 _percFundingPaymentsToUSDLHolder) external override onlyRole(OWNER_ROLE) {
-        percFundingPaymentsToUSDLHolders = _percFundingPaymentsToUSDLHolder;
-    }
-
-
-    function setXUsdl(address _xUsdl) external override onlyRole(OWNER_ROLE) {
-        require(_xUsdl != address(0), "Address can't be zero");
-        xUsdl = _xUsdl;
-    }
-
-    function setXSynth(address _xSynth) external override onlyRole(OWNER_ROLE) {
-        require(_xSynth != address(0), "Address can't be zero");
-        xSynth = _xSynth;
-    }
-
     /////////////////////////////
     /// EXTERNAL VIEW METHODS ///
     /////////////////////////////
@@ -247,183 +224,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         res[0] = perpVault.getSettlementToken();
     }
 
-    function getIndexPrice() public view override returns (uint256 price) {
-        uint256 _twapInterval = IClearingHouseConfig(clearingHouseConfig).getTwapInterval();
-        price = IIndexPrice(usdlBaseTokenAddress).getIndexPrice(_twapInterval);
-    }
-
-    function getMarkPrice() public view override returns(uint256 token0Price) {
-        (uint160 sqrtPriceX96,,,,,,) = IUniswapV3Pool(marketRegistry.getPool(usdlBaseTokenAddress)).slot0();
-
-        token0Price = ((uint256(sqrtPriceX96) ** 2) / (2 ** 192)) * 1e18;
-    }
-
-
-
-
-    function getPendingFundingPayment() public view override returns(int256 pendingFundingPayments) {
-        // See 
-        // Interface 
-        // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/interface/IExchange.sol#L101
-        // Implementation 
-        // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/Exchange.sol#L361
-        // 
-        // Notation 
-        // Earning or Paying Funding
-        // - If you see a positive payment, this means you paid this amount of funding.
-        // - If you see a negative payment, this means you earned this amount of funding.
-        // Source
-        // https://support.perp.com/hc/en-us/articles/5257580412569-Funding-Payments
-        pendingFundingPayments = IExchange(clearingHouse.getExchange()).getPendingFundingPayment(address(this), usdlBaseTokenAddress);
-    }
-
     function settlePendingFundingPayments() public override {
-        console.log("[settlePendingFundingPayments()] freeCollateralBefore = ", getFreeCollateral());
-        print("[settlePendingFundingPayments()] pendingFundingPaymentBefore = ", getPendingFundingPayment());
         fundingPaymentsToDistribute += getPendingFundingPayment();
         clearingHouse.settleAllFunding(address(this));
-        console.log("[settlePendingFundingPayments()] freeCollateralAfter = ", getFreeCollateral());
-        print("[settlePendingFundingPayments()] pendingFundingPaymentAfter = ", getPendingFundingPayment());
-    }
-
-    function _convDecimals(uint256 amount, uint256 srcDecimals, uint256 dstDecimals) internal pure returns(uint256 res) {
-        res = amount * 10**(dstDecimals) / 10**(srcDecimals);
-    }
-
-    function _convUSDCToSynthAtIndexPrice(uint256 amountUSDC) internal view returns(uint256) {
-        return _convDecimals(amountUSDC, usdc.decimals(), 18 + IUSDLemma(lemmaSynth).decimals()) / getIndexPrice();
-    }
-
-    function _convSynthToUSDCAtIndexPrice(uint256 amountSynth) internal view returns(uint256) {
-        return _convDecimals(amountSynth * getIndexPrice(), IUSDLemma(lemmaSynth).decimals() + 18, usdc.decimals());
-    }
-
-    function _convUSDCToUSDLIndexPrice(uint256 amountUSDC) internal view returns(uint256) {
-        return _convDecimals(amountUSDC, usdc.decimals(), IUSDLemma(usdLemma).decimals());
-    }
-
-    function _convUSDLToUSDCAtIndexPrice(uint256 amountUSDL) internal view returns(uint256) {
-        return _convDecimals(amountUSDL, IUSDLemma(usdLemma).decimals(), usdc.decimals());
-    }
-
-
-    function _printBalance(string memory s, address token, address addr) internal view {
-        uint256 price = (token == usdLemma) ? 1e18 : getIndexPrice();
-        uint256 balanceInNative = IUSDLemma(token).balanceOf(addr);
-        uint256 balanceInUSDC = _convDecimals(balanceInNative * price, IUSDLemma(token).decimals() + 18, usdc.decimals());
-        console.log(s);
-        console.log("Balance in Native Decimals (", IUSDLemma(token).decimals(), ") = ", balanceInNative);
-        console.log("Balance in USDC Decimals ( ", usdc.decimals(), ") = ", balanceInUSDC);
-    }
-
-    function distributeFundingPayments() external override returns(bool isProfit, uint256 amountUSDCToXUSDL, uint256 amountUSDCToXSynth) {
-        console.log("[distributeFundingPayments()] USDL Decimals = ", IUSDLemma(usdLemma).decimals());
-        console.log("[distributeFundingPayments()] LemmaSynth Decimals = ", IUSDLemma(lemmaSynth).decimals());
-        console.log("[distributeFundingPayments()] IndexPrice = ", getIndexPrice());
-        settlePendingFundingPayments();
-        print("[distributeFundingPayments()] fundingPaymentsToDistribute = ", fundingPaymentsToDistribute);
-
-        if(fundingPaymentsToDistribute == 0) {
-            console.log("[distributeFundingPayments()] fundingPaymentsToDistribute == 0 --> Nothing to distribute");
-        } else {
-            isProfit = fundingPaymentsToDistribute < 0;
-            
-            if(isProfit) {
-                // NOTE: Distribute profit
-                uint256 amount = _convDecimals(uint256(-fundingPaymentsToDistribute), 18, usdc.decimals());
-                // uint256 amount = uint256(-fundingPaymentsToDistribute) * 10**(usdc.decimals()) / 1e18;
-                amountUSDCToXUSDL = amount * percFundingPaymentsToUSDLHolders / 1e6;
-                amountUSDCToXSynth = amount - amountUSDCToXUSDL;
-                console.log("[distributeFundingPayments()] Positive Profit amountToXUSDL (in USDC) = ", amountUSDCToXUSDL);
-                console.log("[distributeFundingPayments()] Positive Profit amountToXSynth (in USDC) = ", amountUSDCToXSynth);
-                perpVault.withdraw(address(usdc), amount);
-                console.log("[distributeFundingPayments()] Withdrawn Amount (in USDC) = ", amount);
-                _printBalance("[distributeFundingPayments()] xUSDL", usdLemma, xUsdl);
-                _printBalance("[distributeFundingPayments()] xSynth", lemmaSynth, xSynth);
-                // console.log("[distributeFundingPayments()] USDL Balance of xUSDL Before (in USDL) = ", IUSDLemma(usdLemma).balanceOf(xUsdl));
-                // console.log("[distributeFundingPayments()] LemmaSynth Balance of xSynth Before (in LemmaSynth Decimals) = ", IUSDLemma(lemmaSynth).balanceOf(xSynth));
-
-                // NOTE: They both require an amount in USDC Decimals 
-                console.log("[distributeFundingPayments()] Trying to mint USDC equivalent of USDL = ", amountUSDCToXUSDL);
-                IUSDLemma(usdLemma).mintToStackingContract(_convDecimals(amountUSDCToXUSDL, usdc.decimals(), IUSDLemma(usdLemma).decimals()));
-                console.log("[distributeFundingPayments()] Trying to mint USDC equivalent of LemmaSynth = ", amountUSDCToXSynth);
-                // IUSDLemma(lemmaSynth).depositToWExactCollateral(xSynth, amountUSDCToXSynth, 0, 0, usdc);
-                IUSDLemma(lemmaSynth).mintToStackingContract(_convUSDCToSynthAtIndexPrice(amountUSDCToXSynth));
-
-                // IUSDLemma(usdLemma).depositToWExactCollateral(
-                //     xUsdl,
-                //     amountToXUSDL,
-                //     0,
-                //     0,
-                //     usdc
-                // );
-                console.log("[distributeFundingPayments()] USDL Balance of xUSDL After (in USDL Decimals) = ", IUSDLemma(usdLemma).balanceOf(xUsdl));
-                console.log("[distributeFundingPayments()] LemmaSynth Balance of xSynth After (in LemmaSynth Decimals) = ", IUSDLemma(lemmaSynth).balanceOf(xSynth));
-            } else {
-                amountUSDCToXUSDL = uint256(fundingPaymentsToDistribute) * percFundingPaymentsToUSDLHolders / 1e6;
-                amountUSDCToXSynth = uint256(fundingPaymentsToDistribute) - amountUSDCToXUSDL;
-
-                amountUSDCToXUSDL = _convDecimals(amountUSDCToXUSDL, 18, usdc.decimals());
-                amountUSDCToXSynth = _convDecimals(amountUSDCToXSynth, 18, usdc.decimals());
-
-                console.log("[distributeFundingPayments()] Tot Negative Profit amount = ", uint256(fundingPaymentsToDistribute));
-                console.log("[distributeFundingPayments()] Tot Negative Profit amountUSDCToXUSDL in USDL Decimals = ", amountUSDCToXUSDL);
-                console.log("[distributeFundingPayments()] Tot Negative Profit amountUSDCToXSynth ins USDL Decimals = ", amountUSDCToXSynth);
-
-                _printBalance("[distributeFundingPayments()] xUSDL", usdLemma, xUsdl);
-                _printBalance("[distributeFundingPayments()] xSynth", lemmaSynth, xSynth);
-
-                console.log("[distributeFundingPayments()] IUSDLemma(lemmaSynth).balanceOf(address(xSynth)) = ", IUSDLemma(lemmaSynth).balanceOf(address(xSynth)));
-
-                uint256 amountFromXUSDLToProtocolInUSDC;
-                uint256 amountFromXSynthToProtocolInUSDC;
-
-                uint256 amountUSDLInUSDC = _convDecimals(IUSDLemma(usdLemma).balanceOf(address(xUsdl)), IUSDLemma(usdLemma).decimals(), usdc.decimals());
-
-                if(amountUSDCToXUSDL > amountUSDLInUSDC) {
-                    // NOTE: Losses for the protocol from XUSDL distirbution
-                    // TODO: How do we manage them?
-                    amountFromXUSDLToProtocolInUSDC = amountUSDCToXUSDL - amountUSDLInUSDC;
-                    console.log("[distributeFundingPayments()] Protocol taking this loss from XUSDL (in USDC Decimals) = ", amountFromXUSDLToProtocolInUSDC);
-                    accruedFPLossesFromXUSDLInUSDC += amountFromXUSDLToProtocolInUSDC;
-                    // TODO: Protocol needs to take some loss Appunto 
-                    amountUSDCToXUSDL = amountUSDLInUSDC;
-                }
-
-                uint256 amountSynthInUSDC = _convSynthToUSDCAtIndexPrice(IUSDLemma(lemmaSynth).balanceOf(address(xSynth)));
-
-                if(amountUSDCToXSynth > amountSynthInUSDC) {
-                    // NOTE: Losses for the protocol from XUSDL distirbution
-                    // TODO: How do we manage them?
-                    amountFromXSynthToProtocolInUSDC = _convDecimals(amountUSDCToXSynth - amountSynthInUSDC, IUSDLemma(lemmaSynth).decimals(), usdc.decimals());
-                    console.log("[distributeFundingPayments()] Protocol taking this loss from XSynth (in USDC Decimals) = ", amountFromXSynthToProtocolInUSDC);
-                    accruedFPLossesFromXSynthInUSDC += amountFromXSynthToProtocolInUSDC;
-                    // TODO: Protocol needs to take some loss Appunto 
-                    amountUSDCToXSynth = amountSynthInUSDC;
-                }
-
-                // NOTE: The Treasury makes up for the protocol losses due to funding payments and not enough stakers 
-                if( (amountFromXUSDLToProtocolInUSDC + amountFromXSynthToProtocolInUSDC) > 0 ) {
-                    IUSDLemma(usdLemma).requestLossesRecap(amountFromXUSDLToProtocolInUSDC + amountFromXSynthToProtocolInUSDC);
-                }
-
-
-                console.log("[distributeFundingPayments()] Negative Profit amountUSDCToXUSDL (in USDC Decimals) = ", amountUSDCToXUSDL);
-                console.log("[distributeFundingPayments()] Negative Profit amountUSDCToXSynth (in USDC Decimals) = ", amountUSDCToXSynth);
-
-                console.log("[distributeFundingPayments()] USDL Balance of xUSDL Before (in USDC Decimals) = ", amountUSDLInUSDC);
-                console.log("[distributeFundingPayments()] LemmaSynth Balance of xSynth Before (in LemmaSynth Decimals) = ", IUSDLemma(lemmaSynth).balanceOf(xSynth));
-
-                IUSDLemma(usdLemma).burnToStackingContract(_convDecimals(amountUSDCToXUSDL, usdc.decimals(), IUSDLemma(usdLemma).decimals()));
-                IUSDLemma(lemmaSynth).burnToStackingContract(_convUSDCToSynthAtIndexPrice(amountUSDCToXSynth));
-
-                console.log("[distributeFundingPayments()] USDL Balance of xUSDL After (in USDL Decimals) = ", IUSDLemma(usdLemma).balanceOf(xUsdl));
-                console.log("[distributeFundingPayments()] LemmaSynth Balance of xSynth After (in LemmaSynth Decimals) = ", IUSDLemma(lemmaSynth).balanceOf(xSynth));
-            }
-        }
-
-        // NOTE: Reset the funding payment to distribute 
-        fundingPaymentsToDistribute = 0;
     }
 
     /// @notice It returns the amount of USDC that are possibly needed to properly collateralize the new position on Perp
@@ -462,21 +265,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         } else {
             isAcceptable = true;
         }
-    }
-
-    function getFreeCollateral() public view override returns (uint256) {
-        return perpVault.getFreeCollateral(address(this));
-    }
-
-    function getCollateralRatios() public view override returns (uint24 imRatio, uint24 mmRatio) {
-        imRatio = clearingHouseConfig.getImRatio();
-        mmRatio = clearingHouseConfig.getMmRatio();
-    }
-
-    /// @notice Returns the current amount of collateral value (in USDC) after the PnL in 1e18 format
-    /// TODO: Take into account tail assets
-    function getAccountValue() public view override returns (int256 value_1e18) {
-        value_1e18 = clearingHouse.getAccountValue(address(this));
     }
 
     // Returns the margin
@@ -534,13 +322,105 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @notice Returns the margin
     function getMargin() external view override returns (int256) {
         int256 _margin = accountBalance.getMarginRequirementForLiquidation(address(this));
-        // print("[PerpLemmaCommon getMargin()] _margin = ", _margin);
         return _margin;
+    }
+
+    function isAdditionalUSDCAcceptable(uint256 amount) external view override returns (bool) {
+        uint256 vaultSettlementTokenBalance = usdc.balanceOf(address(perpVault));
+        uint256 vaultSettlementTokenBalanceCap = clearingHouseConfig.getSettlementTokenBalanceCap();
+        require(
+            vaultSettlementTokenBalanceCap >= vaultSettlementTokenBalance,
+            "isAdditionalUSDCAcceptable Cap needs to be >= Current"
+        );
+        uint256 maxAcceptableToken = uint256(
+            int256(vaultSettlementTokenBalanceCap) - int256(vaultSettlementTokenBalance)
+        );
+        return amount <= maxAcceptableToken;
+    }
+
+    function computeRequiredUSDCForTrade(uint256 amount, bool isShort)
+        external
+        view
+        override
+        returns (uint256 requiredUSDC)
+    {
+        // NOTE: Estimating USDC needed
+        console.log("\n[computeRequiredUSDCForTrade()] USDC Decimals = ", usdc.decimals());
+
+        console.log("[computeRequiredUSDCForTrade()] amount = ", amount);
+        // print("[computeRequiredUSDCForTrade()] amountBase = ", amountBase);
+        console.log("[computeRequiredUSDCForTrade()] collateralRatio = ", collateralRatio);
+
+        uint256 freeCollateralBefore = getFreeCollateral();
+        uint256 indexPrice = getIndexPrice();
+        (uint24 imRatio, uint24 mmRatio) = getCollateralRatios();
+        uint256 deltaAmount = amount;
+
+        if (
+            ((isShort) && (amountBase > 0)) || ((!isShort) && (amountBase < 0)) // NOTE Decrease Long // NOTE Decrease Short
+        ) {
+            // NOTE: amountBase is in vToken amount so 1e18
+            uint256 amountBaseInCollateralDecimals = (_abs(amountBase) * 10**(usdlCollateral.decimals())) / 1e18;
+            console.log("[computeRequiredUSDCForTrade()] Flipping Case");
+            if (isShort) console.log("[computeRequiredUSDCForTrade()] isShort = true");
+            else console.log("[computeRequiredUSDCForTrade()] isShort = false");
+            // print("[computeRequiredUSDCForTrade()] amountbase = ", amountBase);
+            console.log(
+                "[computeRequiredUSDCForTrade()] amountBaseInCollateralDecimals = ",
+                amountBaseInCollateralDecimals
+            );
+            if (amount <= amountBaseInCollateralDecimals) {
+                console.log(
+                    "[computeRequiredUSDCForTrade()] Position Decreases but does not flip, so it just frees up collateral"
+                );
+                return 0;
+            }
+
+            if (amount <= 2 * amountBaseInCollateralDecimals) {
+                console.log(
+                    "[computeRequiredUSDCForTrade()] Position has flipped but the final position is <= the original one so it just frees up collateral"
+                );
+                return 0;
+            }
+            console.log(
+                "[computeRequiredUSDCForTrade()] Position has flipped and the final position is > the original"
+            );
+            deltaAmount = amount - 2 * amountBaseInCollateralDecimals;
+        }
+
+        console.log("[computeRequiredUSDCForTrade()] deltaAmount = ", deltaAmount);
+
+        uint256 expectedDeltaQuote = (deltaAmount * indexPrice) / 10**(18 + 18 - usdc.decimals());
+        console.log("[computeRequiredUSDCForTrade()] expectedDeltaQuote = ", expectedDeltaQuote);
+
+        uint256 expectedUSDCDeductedFromFreeCollateral = (expectedDeltaQuote * uint256(collateralRatio)) / 1e6;
+        console.log(
+            "[computeRequiredUSDCForTrade()] expectedUSDCDeductedFromFreeCollateral = ",
+            expectedUSDCDeductedFromFreeCollateral
+        );
+
+        if (expectedUSDCDeductedFromFreeCollateral > freeCollateralBefore) {
+            requiredUSDC = expectedUSDCDeductedFromFreeCollateral - freeCollateralBefore;
+        }
     }
 
     ////////////////////////
     /// EXTERNAL METHODS ///
     ////////////////////////
+
+    function setPercFundingPaymentsToUSDLHolders(uint256 _percFundingPaymentsToUSDLHolder) external override onlyRole(OWNER_ROLE) {
+        percFundingPaymentsToUSDLHolders = _percFundingPaymentsToUSDLHolder;
+    }
+
+    function setXUsdl(address _xUsdl) external override onlyRole(OWNER_ROLE) {
+        require(_xUsdl != address(0), "Address can't be zero");
+        xUsdl = _xUsdl;
+    }
+
+    function setXSynth(address _xSynth) external override onlyRole(OWNER_ROLE) {
+        require(_xSynth != address(0), "Address can't be zero");
+        xSynth = _xSynth;
+    }
 
     function setMinFreeCollateral(uint256 _minFreeCollateral) external override onlyRole(OWNER_ROLE) {
         // TODO: Emit Event
@@ -711,85 +591,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return settleCollateral(amount, to, isUsdl);
     }
 
-    function computeRequiredUSDCForTrade(uint256 amount, bool isShort)
-        external
-        view
-        override
-        returns (uint256 requiredUSDC)
-    {
-        // NOTE: Estimating USDC needed
-        console.log("\n[computeRequiredUSDCForTrade()] USDC Decimals = ", usdc.decimals());
-
-        console.log("[computeRequiredUSDCForTrade()] amount = ", amount);
-        // print("[computeRequiredUSDCForTrade()] amountBase = ", amountBase);
-        console.log("[computeRequiredUSDCForTrade()] collateralRatio = ", collateralRatio);
-
-        uint256 freeCollateralBefore = getFreeCollateral();
-        uint256 indexPrice = getIndexPrice();
-        (uint24 imRatio, uint24 mmRatio) = getCollateralRatios();
-        uint256 deltaAmount = amount;
-
-        if (
-            ((isShort) && (amountBase > 0)) || ((!isShort) && (amountBase < 0)) // NOTE Decrease Long // NOTE Decrease Short
-        ) {
-            // NOTE: amountBase is in vToken amount so 1e18
-            uint256 amountBaseInCollateralDecimals = (_abs(amountBase) * 10**(usdlCollateral.decimals())) / 1e18;
-            console.log("[computeRequiredUSDCForTrade()] Flipping Case");
-            if (isShort) console.log("[computeRequiredUSDCForTrade()] isShort = true");
-            else console.log("[computeRequiredUSDCForTrade()] isShort = false");
-            // print("[computeRequiredUSDCForTrade()] amountbase = ", amountBase);
-            console.log(
-                "[computeRequiredUSDCForTrade()] amountBaseInCollateralDecimals = ",
-                amountBaseInCollateralDecimals
-            );
-            if (amount <= amountBaseInCollateralDecimals) {
-                console.log(
-                    "[computeRequiredUSDCForTrade()] Position Decreases but does not flip, so it just frees up collateral"
-                );
-                return 0;
-            }
-
-            if (amount <= 2 * amountBaseInCollateralDecimals) {
-                console.log(
-                    "[computeRequiredUSDCForTrade()] Position has flipped but the final position is <= the original one so it just frees up collateral"
-                );
-                return 0;
-            }
-            console.log(
-                "[computeRequiredUSDCForTrade()] Position has flipped and the final position is > the original"
-            );
-            deltaAmount = amount - 2 * amountBaseInCollateralDecimals;
-        }
-
-        console.log("[computeRequiredUSDCForTrade()] deltaAmount = ", deltaAmount);
-
-        uint256 expectedDeltaQuote = (deltaAmount * indexPrice) / 10**(18 + 18 - usdc.decimals());
-        console.log("[computeRequiredUSDCForTrade()] expectedDeltaQuote = ", expectedDeltaQuote);
-
-        uint256 expectedUSDCDeductedFromFreeCollateral = (expectedDeltaQuote * uint256(collateralRatio)) / 1e6;
-        console.log(
-            "[computeRequiredUSDCForTrade()] expectedUSDCDeductedFromFreeCollateral = ",
-            expectedUSDCDeductedFromFreeCollateral
-        );
-
-        if (expectedUSDCDeductedFromFreeCollateral > freeCollateralBefore) {
-            requiredUSDC = expectedUSDCDeductedFromFreeCollateral - freeCollateralBefore;
-        }
-    }
-
-    function isAdditionalUSDCAcceptable(uint256 amount) external view override returns (bool) {
-        uint256 vaultSettlementTokenBalance = usdc.balanceOf(address(perpVault));
-        uint256 vaultSettlementTokenBalanceCap = clearingHouseConfig.getSettlementTokenBalanceCap();
-        require(
-            vaultSettlementTokenBalanceCap >= vaultSettlementTokenBalance,
-            "isAdditionalUSDCAcceptable Cap needs to be >= Current"
-        );
-        uint256 maxAcceptableToken = uint256(
-            int256(vaultSettlementTokenBalanceCap) - int256(vaultSettlementTokenBalance)
-        );
-        return amount <= maxAcceptableToken;
-    }
-
     /// @notice Rebalances USDL or Synth emission swapping by Perp backed to Token backed
     /// @dev USDL can be backed by both: 1) Floating Collateral + Perp Short of the same Floating Collateral or 2) USDC
     /// @dev LemmaX (where X can be ETH, ...) can be backed by both: 1) USDC collateralized Perp Long or 2) X token itself
@@ -861,6 +662,69 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         _calculateMintingAsset(amount, basis, isOpenShort);
     }
 
+    function distributeFundingPayments() 
+        external 
+        override 
+        returns
+        (bool isProfit, uint256 amountUSDCToXUSDL, uint256 amountUSDCToXSynth) 
+    {
+        settlePendingFundingPayments();
+        if(fundingPaymentsToDistribute == 0) {
+            console.log("[distributeFundingPayments()] fundingPaymentsToDistribute == 0 --> Nothing to distribute");
+        } else {
+            isProfit = fundingPaymentsToDistribute < 0;
+            
+            if(isProfit) {
+                // NOTE: Distribute profit
+                uint256 amount = _convDecimals(uint256(-fundingPaymentsToDistribute), 18, usdc.decimals());
+                // uint256 amount = uint256(-fundingPaymentsToDistribute) * 10**(usdc.decimals()) / 1e18;
+                amountUSDCToXUSDL = amount * percFundingPaymentsToUSDLHolders / 1e6;
+                amountUSDCToXSynth = amount - amountUSDCToXUSDL;
+                perpVault.withdraw(address(usdc), amount);
+                // NOTE: They both require an amount in USDC Decimals 
+                IUSDLemma(usdLemma).mintToStackingContract(_convDecimals(amountUSDCToXUSDL, usdc.decimals(), IUSDLemma(usdLemma).decimals()));
+                IUSDLemma(lemmaSynth).mintToStackingContract(_convUSDCToSynthAtIndexPrice(amountUSDCToXSynth));
+            } else {
+                amountUSDCToXUSDL = uint256(fundingPaymentsToDistribute) * percFundingPaymentsToUSDLHolders / 1e6;
+                amountUSDCToXSynth = uint256(fundingPaymentsToDistribute) - amountUSDCToXUSDL;
+
+                amountUSDCToXUSDL = _convDecimals(amountUSDCToXUSDL, 18, usdc.decimals());
+                amountUSDCToXSynth = _convDecimals(amountUSDCToXSynth, 18, usdc.decimals());
+                uint256 amountFromXUSDLToProtocolInUSDC;
+                uint256 amountFromXSynthToProtocolInUSDC;
+                uint256 amountUSDLInUSDC = _convDecimals(IUSDLemma(usdLemma).balanceOf(address(xUsdl)), IUSDLemma(usdLemma).decimals(), usdc.decimals());
+                if(amountUSDCToXUSDL > amountUSDLInUSDC) {
+                    // NOTE: Losses for the protocol from XUSDL distirbution
+                    // TODO: How do we manage them?
+                    amountFromXUSDLToProtocolInUSDC = amountUSDCToXUSDL - amountUSDLInUSDC;
+                    accruedFPLossesFromXUSDLInUSDC += amountFromXUSDLToProtocolInUSDC;
+                    // TODO: Protocol needs to take some loss Appunto 
+                    amountUSDCToXUSDL = amountUSDLInUSDC;
+                }
+
+                uint256 amountSynthInUSDC = _convSynthToUSDCAtIndexPrice(IUSDLemma(lemmaSynth).balanceOf(address(xSynth)));
+
+                if(amountUSDCToXSynth > amountSynthInUSDC) {
+                    // NOTE: Losses for the protocol from XUSDL distirbution
+                    // TODO: How do we manage them?
+                    amountFromXSynthToProtocolInUSDC = _convDecimals(amountUSDCToXSynth - amountSynthInUSDC, IUSDLemma(lemmaSynth).decimals(), usdc.decimals());
+                    accruedFPLossesFromXSynthInUSDC += amountFromXSynthToProtocolInUSDC;
+                    // TODO: Protocol needs to take some loss Appunto 
+                    amountUSDCToXSynth = amountSynthInUSDC;
+                }
+
+                // NOTE: The Treasury makes up for the protocol losses due to funding payments and not enough stakers 
+                if( (amountFromXUSDLToProtocolInUSDC + amountFromXSynthToProtocolInUSDC) > 0 ) {
+                    IUSDLemma(usdLemma).requestLossesRecap(amountFromXUSDLToProtocolInUSDC + amountFromXSynthToProtocolInUSDC);
+                }
+                IUSDLemma(usdLemma).burnToStackingContract(_convDecimals(amountUSDCToXUSDL, usdc.decimals(), IUSDLemma(usdLemma).decimals()));
+                IUSDLemma(lemmaSynth).burnToStackingContract(_convUSDCToSynthAtIndexPrice(amountUSDCToXSynth));
+            }
+        }
+        // NOTE: Reset the funding payment to distribute 
+        fundingPaymentsToDistribute = 0;
+    }
+
     //////////////////////
     /// PUBLIC METHODS ///
     //////////////////////
@@ -914,7 +778,12 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// 2). openLongWithExactQuote => depositToWExactCollateral
     /// 3). closeLongWithExactBase => withdrawTo
     /// 4). closeLongWithExactQuote => withdrawToWExactCollateral
-    function openLongWithExactBase(uint256 amount) public override onlyRole(PERPLEMMA_ROLE) returns (uint256, uint256) {
+    function openLongWithExactBase(uint256 amount) 
+        public 
+        override 
+        onlyRole(PERPLEMMA_ROLE) 
+        returns (uint256, uint256) 
+    {
         (uint256 base, uint256 quote) = trade(amount, false, false);
         return (base, quote);
     }
@@ -999,6 +868,47 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// PUBLIC VIEW METHODS ///
     ///////////////////////////
 
+    function getFreeCollateral() public view override returns (uint256) {
+        return perpVault.getFreeCollateral(address(this));
+    }
+
+    function getCollateralRatios() public view override returns (uint24 imRatio, uint24 mmRatio) {
+        imRatio = clearingHouseConfig.getImRatio();
+        mmRatio = clearingHouseConfig.getMmRatio();
+    }
+
+    /// @notice Returns the current amount of collateral value (in USDC) after the PnL in 1e18 format
+    /// TODO: Take into account tail assets
+    function getAccountValue() public view override returns (int256 value_1e18) {
+        value_1e18 = clearingHouse.getAccountValue(address(this));
+    }
+
+    function getIndexPrice() public view override returns (uint256 price) {
+        uint256 _twapInterval = IClearingHouseConfig(clearingHouseConfig).getTwapInterval();
+        price = IIndexPrice(usdlBaseTokenAddress).getIndexPrice(_twapInterval);
+    }
+
+    function getMarkPrice() public view override returns(uint256 token0Price) {
+        (uint160 sqrtPriceX96,,,,,,) = IUniswapV3Pool(marketRegistry.getPool(usdlBaseTokenAddress)).slot0();
+        token0Price = ((uint256(sqrtPriceX96) ** 2) / (2 ** 192)) * 1e18;
+    }
+
+    function getPendingFundingPayment() public view override returns(int256 pendingFundingPayments) {
+        // See 
+        // Interface 
+        // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/interface/IExchange.sol#L101
+        // Implementation 
+        // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/Exchange.sol#L361
+        // 
+        // Notation 
+        // Earning or Paying Funding
+        // - If you see a positive payment, this means you paid this amount of funding.
+        // - If you see a negative payment, this means you earned this amount of funding.
+        // Source
+        // https://support.perp.com/hc/en-us/articles/5257580412569-Funding-Payments
+        pendingFundingPayments = IExchange(clearingHouse.getExchange()).getPendingFundingPayment(address(this), usdlBaseTokenAddress);
+    }
+
     /// @notice getAmountInCollateralDecimalsForPerp is use to convert amount in collateral decimals
     function getAmountInCollateralDecimalsForPerp(
         uint256 amount,
@@ -1060,18 +970,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// INTERNAL METHODS ///
     ////////////////////////
 
-    /// @notice getRoudDown is use to roundDown by amount = amount-1
-    /// because perpV2 gives 1 wei increase in vaule for base and quote so we have to roundDown that 1 wei
-    /// Otherwise it can give arithmetic error in calculateMintingAsset() function
-    /// if the amount is less than collateral decimals value(like 1e18, 1e6) then it will compulsary roundDown 1 wei
-    /// closeShortWithExactQuote, closeLongWithExactQuote are using getRoudDown method
-    /// @param amount needs to roundDown
-    /// @param collateral address, if the amount is base then it will be usdlCollateral otherwise synthCollateral
-    function getRoudDown(uint256 amount, address collateral) internal view returns (uint256 roundDownAmount) {
-        uint256 collateralDecimals = IERC20Decimals(collateral).decimals();
-        roundDownAmount = (amount % (uint256(10**(collateralDecimals))) != 0) ? amount - 1 : amount;
-    }
-
     /// @notice to deposit collateral in vault for short or open position
     /// @dev If collateral is tail asset no need to deposit it in Perp, it has to stay in this contract balance sheet
     function _deposit(uint256 collateralAmount, address collateral) internal {
@@ -1082,9 +980,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             amountUsdlCollateralDeposited += collateralAmount;
         }
     }
-
-
-
 
     /// @notice to withdraw collateral from vault after long or close position
     /// @dev If collateral is tail asset no need to withdraw it from Perp, it is already in this contract balance sheet
@@ -1219,16 +1114,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
     }
 
-    /// @notice getSynthInDollar will give lemmaSynth in dollar price, for e.g 1 LemmaSynthETH => 1000 USDC
-    function getSynthInDollar() internal view returns (uint256) {
-        return (mintedPositionSynthForThisWrapper * closedPrice) / 1e18;
-    }
-
-    /// @notice getUSDLInTail will give USDL in eth/tail collateral price, for e.g 1000 USDL => 1 ETH
-    function getUSDLInTail() internal view returns (uint256) {
-        return (mintedPositionUsdlForThisWrapper * 1e18) / closedPrice;
-    }
-
     /// @notice swap USDC -> USDLCollateral
     function _USDCToCollateral(
         address router,
@@ -1306,6 +1191,48 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
         SafeERC20Upgradeable.safeApprove(IERC20Upgradeable(tokenIn), router, 0);
         return res;
+    }
+
+    /// @notice getSynthInDollar will give lemmaSynth in dollar price, for e.g 1 LemmaSynthETH => 1000 USDC
+    function getSynthInDollar() internal view returns (uint256) {
+        return (mintedPositionSynthForThisWrapper * closedPrice) / 1e18;
+    }
+
+    /// @notice getUSDLInTail will give USDL in eth/tail collateral price, for e.g 1000 USDL => 1 ETH
+    function getUSDLInTail() internal view returns (uint256) {
+        return (mintedPositionUsdlForThisWrapper * 1e18) / closedPrice;
+    }
+        
+    /// @notice getRoudDown is use to roundDown by amount = amount-1
+    /// because perpV2 gives 1 wei increase in vaule for base and quote so we have to roundDown that 1 wei
+    /// Otherwise it can give arithmetic error in calculateMintingAsset() function
+    /// if the amount is less than collateral decimals value(like 1e18, 1e6) then it will compulsary roundDown 1 wei
+    /// closeShortWithExactQuote, closeLongWithExactQuote are using getRoudDown method
+    /// @param amount needs to roundDown
+    /// @param collateral address, if the amount is base then it will be usdlCollateral otherwise synthCollateral
+    function getRoudDown(uint256 amount, address collateral) internal view returns (uint256 roundDownAmount) {
+        uint256 collateralDecimals = IERC20Decimals(collateral).decimals();
+        roundDownAmount = (amount % (uint256(10**(collateralDecimals))) != 0) ? amount - 1 : amount;
+    }
+
+    function _convDecimals(uint256 amount, uint256 srcDecimals, uint256 dstDecimals) internal pure returns(uint256 res) {
+        res = amount * 10**(dstDecimals) / 10**(srcDecimals);
+    }
+
+    function _convUSDCToSynthAtIndexPrice(uint256 amountUSDC) internal view returns(uint256) {
+        return _convDecimals(amountUSDC, usdc.decimals(), 18 + IUSDLemma(lemmaSynth).decimals()) / getIndexPrice();
+    }
+
+    function _convSynthToUSDCAtIndexPrice(uint256 amountSynth) internal view returns(uint256) {
+        return _convDecimals(amountSynth * getIndexPrice(), IUSDLemma(lemmaSynth).decimals() + 18, usdc.decimals());
+    }
+
+    function _convUSDCToUSDLIndexPrice(uint256 amountUSDC) internal view returns(uint256) {
+        return _convDecimals(amountUSDC, usdc.decimals(), IUSDLemma(usdLemma).decimals());
+    }
+
+    function _convUSDLToUSDCAtIndexPrice(uint256 amountUSDL) internal view returns(uint256) {
+        return _convDecimals(amountUSDL, IUSDLemma(usdLemma).decimals(), usdc.decimals());
     }
 
     function _min(uint256 a, uint256 b) internal pure returns (uint256) {

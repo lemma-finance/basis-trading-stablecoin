@@ -1,6 +1,6 @@
 {
     "config": {
-        "comments": 
+        "comments":
             [
                 "Supported deployments: 0=Deploy nothing, 1=Deploy USDL Contracts Suite"
             ],

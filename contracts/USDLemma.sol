@@ -10,12 +10,9 @@ import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/
 import { IPerpetualMixDEXWrapper } from "./interfaces/IPerpetualMixDEXWrapper.sol";
 import { ISettlementTokenManager } from "./interfaces/ISettlementTokenManager.sol";
 import "./interfaces/IERC20Decimals.sol";
-
 import "./interfaces/IUSDLemma.sol";
 import "./interfaces/ILemmaTreasury.sol";
 import "forge-std/Test.sol";
-
-// import "hardhat/console.sol";
 
 /// @author Lemma Finance
 /// @notice USDLemma contract is use to mint or burn USDL Stablecoin
@@ -119,16 +116,6 @@ contract USDLemma is
         addPerpetualDEXWrapper(0, _collateralAddress, _perpetualDEXWrapperAddress);
     }
 
-    /// @notice changeAdmin is to change address of admin role
-    /// Only current admin can change admin and after new admin current admin address will be no more admin
-    /// @param newAdmin new admin address
-    function changeAdmin(address newAdmin) external onlyRole(ADMIN_ROLE) {
-        require(newAdmin != address(0), "NewAdmin should not ZERO address");
-        require(newAdmin != msg.sender, "Admin Addresses should not be same");
-        _setupRole(ADMIN_ROLE, newAdmin);
-        renounceRole(ADMIN_ROLE, msg.sender);
-    }
-
     /// @notice Add address for perpetual dex wrapper for perpetual index and collateral - can only be called by owner
     /// @param perpetualDEXIndex, index of perpetual dex
     /// @param collateralAddress, address of collateral to be used in the dex
@@ -141,20 +128,6 @@ contract USDLemma is
         perpetualDEXWrappers[perpetualDEXIndex][collateralAddress] = perpetualDEXWrapperAddress;
         isSupportedPerpetualDEXWrapper[perpetualDEXWrapperAddress] = true;
         emit PerpetualDexWrapperAdded(perpetualDEXIndex, collateralAddress, perpetualDEXWrapperAddress);
-    }
-
-    function setXUsdl(address _xUsdl) external onlyRole(OWNER_ROLE) {
-        xUsdl = _xUsdl;
-    }
-
-    /// @notice setSettlementTokenManager is to set the address of settlementTokenManager
-    /// @param _settlementTokenManager address
-    function setSettlementTokenManager(address _settlementTokenManager) external onlyRole(OWNER_ROLE) {
-        settlementTokenManager = _settlementTokenManager;
-        if(settlementTokenManager != address(0)) {
-            isSupportedStableForMinting[ISettlementTokenManager(settlementTokenManager).getSettlementToken()] = true;
-        }
-        emit SetSettlementTokenManager(settlementTokenManager);
     }
 
     /// @notice Returns the fees of the underlying Perp DEX Wrapper
@@ -182,21 +155,6 @@ contract USDLemma is
         return perpDEXWrapper.getTotalPosition();
     }
 
-    /// @notice Set Lemma treasury, can only be called by owner
-    /// @param _lemmaTreasury Address of Lemma Treasury
-    function setLemmaTreasury(address _lemmaTreasury) external onlyRole(OWNER_ROLE) {
-        require(_lemmaTreasury != address(0), "LemmaTreasury should not ZERO address");
-        lemmaTreasury = _lemmaTreasury;
-        emit LemmaTreasuryUpdated(lemmaTreasury);
-    }
-
-    /// @notice Set Fees, can only be called by owner
-    /// @param _fees Fees taken by the Lemma protocol
-    function setFees(uint256 _fees) external onlyRole(OWNER_ROLE) {
-        fees = _fees;
-        emit FeesUpdated(fees);
-    }
-
     /// @notice getAvailableSettlementToken will use to check the available settlement token in treasury
     function getAvailableSettlementToken(uint256 perpetualDEXIndex, address collateral)
         external
@@ -213,6 +171,57 @@ contract USDLemma is
         res = IERC20Upgradeable(settlementToken).balanceOf(lemmaTreasury);
     }
 
+    /// @notice changeAdmin is to change address of admin role
+    /// Only current admin can change admin and after new admin current admin address will be no more admin
+    /// @param newAdmin new admin address
+    function changeAdmin(address newAdmin) external onlyRole(ADMIN_ROLE) {
+        require(newAdmin != address(0), "NewAdmin should not ZERO address");
+        require(newAdmin != msg.sender, "Admin Addresses should not be same");
+        _setupRole(ADMIN_ROLE, newAdmin);
+        renounceRole(ADMIN_ROLE, msg.sender);
+    }
+
+    function setXUsdl(address _xUsdl) external onlyRole(OWNER_ROLE) {
+        xUsdl = _xUsdl;
+    }
+
+    /// @notice setSettlementTokenManager is to set the address of settlementTokenManager
+    /// @param _settlementTokenManager address
+    function setSettlementTokenManager(address _settlementTokenManager) external onlyRole(OWNER_ROLE) {
+        settlementTokenManager = _settlementTokenManager;
+        if(settlementTokenManager != address(0)) {
+            isSupportedStableForMinting[ISettlementTokenManager(settlementTokenManager).getSettlementToken()] = true;
+        }
+        emit SetSettlementTokenManager(settlementTokenManager);
+    }
+
+    /// @notice Set Lemma treasury, can only be called by owner
+    /// @param _lemmaTreasury Address of Lemma Treasury
+    function setLemmaTreasury(address _lemmaTreasury) external onlyRole(OWNER_ROLE) {
+        require(_lemmaTreasury != address(0), "LemmaTreasury should not ZERO address");
+        lemmaTreasury = _lemmaTreasury;
+        emit LemmaTreasuryUpdated(lemmaTreasury);
+    }
+
+    /// @notice Set Fees, can only be called by owner
+    /// @param _fees Fees taken by the Lemma protocol
+    function setFees(uint256 _fees) external onlyRole(OWNER_ROLE) {
+        fees = _fees;
+        emit FeesUpdated(fees);
+    }
+
+    function mintToStackingContract(uint256 amount) external onlyPerpDEXWrapper {
+        _mint(xUsdl, amount);
+    }
+
+    function burnToStackingContract(uint256 amount) external onlyPerpDEXWrapper {
+        _burn(xUsdl, amount);
+    }
+
+    function requestLossesRecap(uint256 usdcAmount) external onlyPerpDEXWrapper {
+        ISettlementTokenManager(settlementTokenManager).settlementTokenRecieve(usdcAmount, _msgSender());
+    }
+
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of USDL
     /// @param to Receipent of minted USDL
     /// @param amount Amount of USDL to mint
@@ -225,7 +234,7 @@ contract USDLemma is
         uint256 perpetualDEXIndex,
         uint256 maxCollateralAmountRequired,
         IERC20Upgradeable collateral
-    ) public nonReentrant onlyOneFunInSameTx {
+    ) external nonReentrant onlyOneFunInSameTx {
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
@@ -263,96 +272,6 @@ contract USDLemma is
         _mint(to, amount);
         emit DepositTo(perpetualDEXIndex, address(collateral), to, amount, _collateralRequired);
     }
-
-    // function _recapIfNeeded(IPerpetualMixDEXWrapper perpDEXWrapper) internal {
-    //     int256 margin = perpDEXWrapper.getMargin();
-    //     print("[_recapIfNeeded()] margin = ", margin);
-    //     console.log("[_recapIfNeeded()] perpDEXWrapper.getMinMarginForRecap() = ", perpDEXWrapper.getMinMarginForRecap());
-
-    //     if (margin <= int256(perpDEXWrapper.getMinMarginForRecap())) {
-    //         uint256 requiredUSDC = uint256(int256(perpDEXWrapper.getMinMarginSafeThreshold()) - margin);
-    //         console.log("[_recapIfNeeded()] requiredUSDC = ", requiredUSDC);
-
-    //         uint256 maxSettlementTokenAcceptableFromPerpVault = perpDEXWrapper.getMaxSettlementTokenAcceptableByVault();
-    //         console.log("[_recapIfNeeded()] maxSettlementTokenAcceptableFromPerpVault = ", maxSettlementTokenAcceptableFromPerpVault);
-
-    //         // TODO: Check this as it can make TXs fail if we are too conservative with `perpDEXWrapper.minMarginSafeThreshold`
-    //         require(requiredUSDC <= maxSettlementTokenAcceptableFromPerpVault, "Vault can't accept as many USDC");
-    //         uint256 maxSettlementTokenReserves = IERC20Upgradeable(perpDEXWrapper.getSettlementToken()).balanceOf(lemmaTreasury);
-    //         console.log("[_recapIfNeeded()] maxSettlementTokenReserves = ", maxSettlementTokenReserves);
-    //         require(requiredUSDC <= maxSettlementTokenReserves, "In Treasury not enough Settlement Token");
-
-    //         // TODO: Add SafeTransferFrom the Treasury to this contract or add a method to the trasury that allows to directly deposit settlementToken and prior makes some checks
-    //     }
-    // }
-
-    function _max(int256 a, int256 b) internal pure returns (int256) {
-        return (a >= b) ? a : b;
-    }
-
-    function _computeExpectedUSDCCollateralRequiredForTrade(IPerpetualMixDEXWrapper perpDEXWrapper, uint256 amount)
-        internal
-        returns (uint256)
-    {
-        // NOTE: Estimating USDC needed
-        console.log(
-            "[_computeExpectedUSDCCollateralRequiredForTrade()] USDC Decimals = ",
-            IERC20Decimals(perpDEXWrapper.getSettlementToken()).decimals()
-        );
-        uint256 freeCollateralBefore = perpDEXWrapper.getFreeCollateral();
-        console.log("[_computeExpectedUSDCCollateralRequiredForTrade()] freeCollateralBefore = ", freeCollateralBefore);
-        uint256 indexPrice = perpDEXWrapper.getIndexPrice();
-        console.log("[_computeExpectedUSDCCollateralRequiredForTrade()] IndexPrice = ", indexPrice);
-        (uint24 imRatio, uint24 mmRatio) = perpDEXWrapper.getCollateralRatios();
-        console.log("[_computeExpectedUSDCCollateralRequiredForTrade()] imRatio = ", imRatio);
-        console.log("[_computeExpectedUSDCCollateralRequiredForTrade()] mmRatio = ", mmRatio);
-        uint256 desiredCollateralRatio = uint256(imRatio);
-        uint256 expectedUSDCRequired = (amount * indexPrice) /
-            10**(18 + 18 - IERC20Decimals(perpDEXWrapper.getSettlementToken()).decimals());
-        console.log("[_computeExpectedUSDCCollateralRequiredForTrade()] expectedUSDCRequired = ", expectedUSDCRequired);
-        uint256 expectedUSDCDeductedFromFreeCollateral = (expectedUSDCRequired * uint256(imRatio)) / 1e6;
-        console.log(
-            "[_computeExpectedUSDCCollateralRequiredForTrade()] expectedUSDCDeductedFromFreeCollateral = ",
-            expectedUSDCDeductedFromFreeCollateral
-        );
-        uint256 expectedFinalFreeCollateral = freeCollateralBefore - expectedUSDCDeductedFromFreeCollateral;
-        console.log(
-            "[_computeExpectedUSDCCollateralRequiredForTrade()] expectedFinalFreeCollateral = ",
-            expectedFinalFreeCollateral
-        );
-
-        return expectedUSDCDeductedFromFreeCollateral;
-    }
-
-
-    function _mintToUSDLWithStable(address tokenStable, uint256 usdcAmount, address to) internal {
-        if(isSupportedPerpetualDEXWrapper[msg.sender]) {
-            // NOTE: No TransferFrom for USDC Required, let's leave it there 
-            _mint(to, usdcAmount * 10**(decimals()) / 10**(IERC20Decimals(tokenStable).decimals()));
-        } else {
-            // TODO: Implement
-            require(false, "Unimplemented");
-        }
-    }
-
-    function mintToStackingContract(uint256 amount) external onlyPerpDEXWrapper {
-        // require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
-        _mint(xUsdl, amount);
-        // _mint(xUsdl, amountInUSDC * 10**(decimals()) / 10**(IERC20Decimals(IPerpetualMixDEXWrapper(_msgSender()).getSettlementToken()).decimals()));
-    }
-
-    function burnToStackingContract(uint256 amount) external onlyPerpDEXWrapper {
-        // require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
-        _burn(xUsdl, amount);
-        // _burn(xUsdl, amountInUSDC * 10**(decimals()) / 10**(IERC20Decimals(IPerpetualMixDEXWrapper(_msgSender()).getSettlementToken()).decimals()));
-    }
-
-
-
-    function requestLossesRecap(uint256 usdcAmount) external onlyPerpDEXWrapper {
-        ISettlementTokenManager(settlementTokenManager).settlementTokenRecieve(usdcAmount, _msgSender());
-    }
-
 
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of collateral
     /// @param to Receipent of minted USDL
@@ -425,14 +344,6 @@ contract USDLemma is
         emit DepositTo(perpetualDEXIndex, address(collateral), to, _usdlToMint, _collateralRequired);
     }
 
-
-    // function _burnToUSDLWithStable(address tokenStable, uint256 usdcAmount, address to) internal {
-    //     if(isSupportedPerpetualDEXWrapper[msg.sender]) {
-    //         // NOTE: No TransferFrom for USDC Required, let's leave it there 
-    //         _burn(to, usdcAmount * 10**(decimals()) / 10**(IERC20Decimals(tokenStable).decimals()));
-    //     } 
-    // }
-
     /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc specifying the exact amount of USDL
     /// @param to Receipent of withdrawn collateral
     /// @param amount Amount of USDL to redeem
@@ -445,7 +356,7 @@ contract USDLemma is
         uint256 perpetualDEXIndex,
         uint256 minCollateralAmountToGetBack,
         IERC20Upgradeable collateral
-    ) public nonReentrant onlyOneFunInSameTx {
+    ) external nonReentrant onlyOneFunInSameTx {
         _burn(_msgSender(), amount);
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
@@ -527,36 +438,10 @@ contract USDLemma is
         _burn(_msgSender(), _usdlToBurn);
         emit WithdrawTo(perpetualDEXIndex, address(collateral), to, _usdlToBurn, _collateralAmountToWithdraw);
     }
-
-    /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL
-    /// @param amount Amount of USDL to mint
-    /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
-    /// @param maxCollateralAmountRequired Maximum amount of collateral to be used to mint given USDL
-    /// @param collateral Collateral to be used to mint USDL
-    function deposit(
-        uint256 amount,
-        uint256 perpetualDEXIndex,
-        uint256 maxCollateralAmountRequired,
-        IERC20Upgradeable collateral
-    ) external onlyOneFunInSameTx {
-        depositTo(_msgSender(), amount, perpetualDEXIndex, maxCollateralAmountRequired, collateral);
-    }
-
-    /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc
-    /// @param amount Amount of USDL to redeem
-    /// @param perpetualDEXIndex Index of perpetual dex, where position will be closed
-    /// @param minCollateralAmountToGetBack Minimum amount of collateral to get back on redeeming given USDL
-    /// @param collateral Collateral to be used to redeem USDL
-    function withdraw(
-        uint256 amount,
-        uint256 perpetualDEXIndex,
-        uint256 minCollateralAmountToGetBack,
-        IERC20Upgradeable collateral
-    ) external onlyOneFunInSameTx {
-        withdrawTo(_msgSender(), amount, perpetualDEXIndex, minCollateralAmountToGetBack, collateral);
-    }
-
-    /// @notice Internal Methods
+    
+    ////////////////////////
+    /// INTERNAL METHODS ///
+    ////////////////////////
 
     /// @notice _perpDeposit to deposit collateral into perp Vault
     function _perpDeposit(
@@ -583,6 +468,58 @@ contract USDLemma is
         perpDEXWrapper.withdraw(amount, collateral);
         SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), address(perpDEXWrapper), to, amount);
     }
+
+    function _computeExpectedUSDCCollateralRequiredForTrade(IPerpetualMixDEXWrapper perpDEXWrapper, uint256 amount)
+        internal
+        returns (uint256)
+    {
+        // NOTE: Estimating USDC needed
+        uint256 indexPrice = perpDEXWrapper.getIndexPrice();
+        (uint24 imRatio, ) = perpDEXWrapper.getCollateralRatios();
+        uint256 expectedUSDCRequired = (amount * indexPrice) /
+            10**(18 + 18 - IERC20Decimals(perpDEXWrapper.getSettlementToken()).decimals());
+        uint256 expectedUSDCDeductedFromFreeCollateral = (expectedUSDCRequired * uint256(imRatio)) / 1e6;
+        return expectedUSDCDeductedFromFreeCollateral;
+    }
+
+    function _mintToUSDLWithStable(address tokenStable, uint256 usdcAmount, address to) internal {
+        if(isSupportedPerpetualDEXWrapper[msg.sender]) {
+            // NOTE: No TransferFrom for USDC Required, let's leave it there 
+            _mint(to, usdcAmount * 10**(decimals()) / 10**(IERC20Decimals(tokenStable).decimals()));
+        } else {
+            // TODO: Implement
+            require(false, "Unimplemented");
+        }
+    }
+
+    // function _recapIfNeeded(IPerpetualMixDEXWrapper perpDEXWrapper) internal {
+    //     int256 margin = perpDEXWrapper.getMargin();
+    //     print("[_recapIfNeeded()] margin = ", margin);
+    //     console.log("[_recapIfNeeded()] perpDEXWrapper.getMinMarginForRecap() = ", perpDEXWrapper.getMinMarginForRecap());
+
+    //     if (margin <= int256(perpDEXWrapper.getMinMarginForRecap())) {
+    //         uint256 requiredUSDC = uint256(int256(perpDEXWrapper.getMinMarginSafeThreshold()) - margin);
+    //         console.log("[_recapIfNeeded()] requiredUSDC = ", requiredUSDC);
+
+    //         uint256 maxSettlementTokenAcceptableFromPerpVault = perpDEXWrapper.getMaxSettlementTokenAcceptableByVault();
+    //         console.log("[_recapIfNeeded()] maxSettlementTokenAcceptableFromPerpVault = ", maxSettlementTokenAcceptableFromPerpVault);
+
+    //         // TODO: Check this as it can make TXs fail if we are too conservative with `perpDEXWrapper.minMarginSafeThreshold`
+    //         require(requiredUSDC <= maxSettlementTokenAcceptableFromPerpVault, "Vault can't accept as many USDC");
+    //         uint256 maxSettlementTokenReserves = IERC20Upgradeable(perpDEXWrapper.getSettlementToken()).balanceOf(lemmaTreasury);
+    //         console.log("[_recapIfNeeded()] maxSettlementTokenReserves = ", maxSettlementTokenReserves);
+    //         require(requiredUSDC <= maxSettlementTokenReserves, "In Treasury not enough Settlement Token");
+
+    //         // TODO: Add SafeTransferFrom the Treasury to this contract or add a method to the trasury that allows to directly deposit settlementToken and prior makes some checks
+    //     }
+    // }
+
+    // function _burnToUSDLWithStable(address tokenStable, uint256 usdcAmount, address to) internal {
+    //     if(isSupportedPerpetualDEXWrapper[msg.sender]) {
+    //         // NOTE: No TransferFrom for USDC Required, let's leave it there 
+    //         _burn(to, usdcAmount * 10**(decimals()) / 10**(IERC20Decimals(tokenStable).decimals()));
+    //     } 
+    // }
 
     function _msgSender()
         internal
