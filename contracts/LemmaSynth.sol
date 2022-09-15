@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.3;
 
 import { IERC20Decimals, IERC20Upgradeable } from "./interfaces/IERC20Decimals.sol";

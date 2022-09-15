@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT License
-pragma solidity >=0.6.0 <0.9.0;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity =0.8.3;
 
 contract TestSetPriceFeed {
     function decimals() external view returns (uint8) {
