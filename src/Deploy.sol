@@ -221,6 +221,7 @@ contract Deploy {
         usdl = new USDLemma();
         lSynth = new LemmaSynth();
         lemmaTreasury = new LemmaTreasury();
+        lemmaTreasury.initialize();
         settlementTokenManager = new SettlementTokenManager();
 
         pl = _deployPerpLemma(

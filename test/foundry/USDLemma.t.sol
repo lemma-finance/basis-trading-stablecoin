@@ -22,6 +22,7 @@ contract USDLemmaTest is Test {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant LEMMA_SWAP = keccak256("LEMMA_SWAP");
     bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
+    bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
 
     address public addrChainLinkPriceFeedForETH;
 
@@ -71,7 +72,7 @@ contract USDLemmaTest is Test {
         return bytes32(uint256(uint160(addr)) << 96);
     }
 
-    function _loadTrace() /*string memory n, string memory id*/ internal {
+    function _loadTrace() internal /*string memory n, string memory id*/ {
         string[] memory temp = new string[](2);
         temp[0] = "node";
         temp[1] = "test/foundry/utils/read_config.js";
@@ -102,6 +103,7 @@ contract USDLemmaTest is Test {
         d.pl().setXSynth(address(d.xSynth()));
         d.usdl().grantRole(LEMMA_SWAP, address(this));
         d.usdl().addPerpetualDEXWrapper(1, d.getTokenAddress("USDC"), address(d.pl()));
+        d.lemmaTreasury().grantRole(OWNER_ROLE, address(d.usdl()));
         vm.stopPrank();
 
         _getMoneyForTo(address(d.settlementTokenManager()), address(d.pl().usdc()), 1e18);
@@ -113,7 +115,7 @@ contract USDLemmaTest is Test {
         view
         returns (uint256 total)
     {
-        uint256 _fees = collateralAmount * d.usdl().getFees(dexIndex, collateral) / 1e6;
+        uint256 _fees = (collateralAmount * d.usdl().getFees(dexIndex, collateral)) / 1e6;
         total = uint256(int256(collateralAmount) - int256(_fees));
     }
 
@@ -137,7 +139,7 @@ contract USDLemmaTest is Test {
             IClearingHouseConfig(d.pl().clearingHouse().getClearingHouseConfig()).getSettlementTokenBalanceCap();
         uint256 maxUSDCToDeposit =
             uint256(int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore));
-        uint256 usdcToDeposit = maxUSDCToDeposit * perc1e6 / 1e6;
+        uint256 usdcToDeposit = (maxUSDCToDeposit * perc1e6) / 1e6;
         console.log("[_depositSettlementTokenPerc()] maxUSDCToDeposit = ", maxUSDCToDeposit);
         console.log("[_depositSettlementTokenPerc()] usdcToDeposit = ", usdcToDeposit);
         console.log(
@@ -967,7 +969,7 @@ contract USDLemmaTest is Test {
         view
         returns (uint256 res)
     {
-        return numerator * 10 ** (IERC20Decimals(token).decimals()) / denominator;
+        return (numerator * 10 ** (IERC20Decimals(token).decimals())) / denominator;
     }
 
     function _getOperation(uint256 num, uint256 den, address collateral, bool isMintUSDL)
