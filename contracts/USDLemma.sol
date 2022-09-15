@@ -444,19 +444,6 @@ contract USDLemma is
         SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), address(perpDEXWrapper), to, amount);
     }
 
-    function _computeExpectedUSDCCollateralRequiredForTrade(IPerpetualMixDEXWrapper perpDEXWrapper, uint256 amount)
-        internal
-        returns (uint256)
-    {
-        // NOTE: Estimating USDC needed
-        uint256 indexPrice = perpDEXWrapper.getIndexPrice();
-        (uint24 imRatio, ) = perpDEXWrapper.getCollateralRatios();
-        uint256 expectedUSDCRequired = (amount * indexPrice) /
-            10**(18 + 18 - IERC20Decimals(perpDEXWrapper.getSettlementToken()).decimals());
-        uint256 expectedUSDCDeductedFromFreeCollateral = (expectedUSDCRequired * uint256(imRatio)) / 1e6;
-        return expectedUSDCDeductedFromFreeCollateral;
-    }
-
     function _msgSender()
         internal
         view

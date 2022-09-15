@@ -202,7 +202,7 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
         return msg.sender;
     }
 
-    function _msgData() internal view override(ContextUpgradeable, ERC2771ContextUpgradeable) returns (bytes calldata) {
+    function _msgData() internal pure override(ContextUpgradeable, ERC2771ContextUpgradeable) returns (bytes calldata) {
         return msg.data;
     }
 

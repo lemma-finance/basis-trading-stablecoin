@@ -204,7 +204,7 @@ contract xLemmaSynth is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ER
         return msg.sender;
     }
 
-    function _msgData() internal view override(ContextUpgradeable, ERC2771ContextUpgradeable) returns (bytes calldata) {
+    function _msgData() internal pure override(ContextUpgradeable, ERC2771ContextUpgradeable) returns (bytes calldata) {
         return msg.data;
     }
 
