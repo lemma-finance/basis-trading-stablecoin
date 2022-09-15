@@ -10,6 +10,7 @@ import { IPerpetualMixDEXWrapper } from "../interfaces/IPerpetualMixDEXWrapper.s
 import { SafeMathExt } from "../libraries/SafeMathExt.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+
 import "../interfaces/IERC20Decimals.sol";
 import "../interfaces/IUSDLemma.sol";
 import "../interfaces/Perpetual/IClearingHouse.sol";
@@ -806,7 +807,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         uint256 routerType,
         int256 amountBaseToRebalance,
         bool isCheckProfit
-    ) external override onlyRole(REBALANCER_ROLE) returns (uint256, uint256) {
+    ) external override /*onlyRole(REBALANCER_ROLE)*/ returns (uint256, uint256) {
         // uint256 usdlCollateralAmountPerp;
         // uint256 usdlCollateralAmountDex;
         uint256 amountUSDCPlus;
@@ -1275,6 +1276,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         address tokenIn = (isUSDLCollateralToUSDC) ? address(usdlCollateral) : address(usdc);
         address tokenOut = (isUSDLCollateralToUSDC) ? address(usdc) : address(usdlCollateral);
 
+        console.log("[_swapOnUniV3()] tokenIn = ", tokenIn);
+        console.log("[_swapOnUniV3()] tokenOut = ", tokenOut);
+
         SafeERC20Upgradeable.safeApprove(IERC20Upgradeable(tokenIn), router, MAX_UINT256);
         if (isExactInput) {
             ISwapRouter.ExactInputSingleParams memory temp = ISwapRouter.ExactInputSingleParams({
@@ -1304,7 +1308,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             });
             res = ISwapRouter(router).exactOutputSingle(temp);
         }
-        SafeERC20Upgradeable.safeApprove(IERC20Upgradeable(tokenIn), router, 0);
+        //SafeERC20Upgradeable.safeApprove(IERC20Upgradeable(tokenIn), router, 0);
         return res;
     }
 

@@ -90,10 +90,21 @@ contract MyScript is Script, Test {
     address usdc;
 
     address uniV3Factory;
-    address pool;
+    address uniV3Pool;
+    address uniV3Router;
+
+    function _getMoney(address token, uint256 amount) internal {
+        d.bank().giveMoney(token, address(this), amount);
+        // assertTrue(IERC20Decimals(token).balanceOf(address(this)) >= amount);
+    }
 
     function setUp() internal {
         //d = new Deploy(10);
+    }
+
+    function _testSetup(uint256 amountETH, uint256 amountUSDC) internal {
+        d.bank().giveMoney(address(d.pl().usdc()), address(d.pl()), amountUSDC);
+        d.bank().giveMoney(address(d.getTokenAddress("WETH")), address(d.pl()), amountETH);
     }
 
 
@@ -116,6 +127,13 @@ contract MyScript is Script, Test {
         uniV3Factory = abi.decode(vm.ffi(temp), (address));
         console.log("[_loadConfig()] uniV3Factory = ", uniV3Factory);
 
+        temp[0] = "node";
+        temp[1] = "bot/read_config.js";
+        temp[2] = "config[\"config\"][\"deployments\"][\"optimism\"][\"uniV3Router\"]";
+        // temp[3] = id;
+        uniV3Router = abi.decode(vm.ffi(temp), (address));
+        console.log("[_loadConfig()] uniV3Router = ", uniV3Router);
+
         if(configType == 0) {
             // TODO: Get it from Deploy
             d = new Deploy(10);
@@ -135,17 +153,39 @@ contract MyScript is Script, Test {
         console.log("[_loadConfig()] USDL Collateral = ", usdlCollateral);
         console.log("[_loadConfig()] USDC Collateral = ", usdc);
 
-        pool = IUniswapV3Factory(uniV3Factory).getPool(usdlCollateral, usdc, 3000);
-        console.log("[_loadConfig()] Pool = ", pool);
-        console.log("[_loadConfig()] Pool Token0 = ", IUniswapV3Pool(pool).token0());
-        console.log("[_loadConfig()] Pool Token1 = ", IUniswapV3Pool(pool).token1());
+        uniV3Pool = IUniswapV3Factory(uniV3Factory).getPool(usdlCollateral, usdc, 3000);
+        console.log("[_loadConfig()] Pool = ", uniV3Pool);
+        console.log("[_loadConfig()] Pool Token0 = ", IUniswapV3Pool(uniV3Pool).token0());
+        console.log("[_loadConfig()] Pool Token1 = ", IUniswapV3Pool(uniV3Pool).token1());
 
     }
 
     function _getSpotPrice() internal returns(uint256 token0Price) {
-        (uint160 sqrtPriceX96,,,,,,) = IUniswapV3Pool(pool).slot0();
+        (uint160 sqrtPriceX96,,,,,,) = IUniswapV3Pool(uniV3Pool).slot0();
         token0Price = ((uint256(sqrtPriceX96) ** 2) * 1e12 / (2 ** 192)) * 1e18;
         console.log("[_getSpotPrice()] sqrtPriceX96 = ", uint256(sqrtPriceX96));
+    }
+
+
+    function _iterateAmount(uint256 startAmount, uint256 maxTimes) internal returns(uint256) {
+        uint256 maxAmount = startAmount;
+        uint256 minAmount = 0;
+        uint256 amount = maxAmount;
+        for(uint256 i=0; i<maxTimes; i++) {
+            console.log("[_iterateAmount()] Iteration = ", i);
+            (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = IRebalancer(perpLemmaCommon).rebalance(uniV3Router, 0, int256(amount), false); 
+            console.log("[_iterateAmount()] amountUSDCPlus = ", amountUSDCPlus);
+            console.log("[_iterateAmount()] amountUSDCMinus = ", amountUSDCMinus);
+            if(amountUSDCPlus > amountUSDCMinus) {
+                if(amount == maxAmount) {return amount;} 
+                minAmount = amount;
+            } else {
+                maxAmount = amount;
+            }
+            amount = (minAmount + maxAmount) / 2;
+        }
+
+        return minAmount;
     }
 
     function _testArb() internal returns(uint256 amount) {
@@ -157,8 +197,17 @@ contract MyScript is Script, Test {
 
         if(spotPrice > markPrice) {
             console.log("Sell on Spot");
+            uint256 amount = IERC20Decimals(usdlCollateral).balanceOf(perpLemmaCommon);
+            console.log("Max Amount = ", amount);
+            if(amount > 0) {
+                IRebalancer(perpLemmaCommon).rebalance(uniV3Router, 0, 1e1, false);
+            } else {
+                console.log("No Collateral to sell on spot");
+            }
         } else {
             console.log("Sell on Mark");
+            // TODO: Implement
+            // IRebalancer(perpLemmaCommon).rebalance(uniV3Router, 0, -1e1, false);
         }
     }
 
@@ -179,6 +228,7 @@ contract MyScript is Script, Test {
     function run() external {
         console.log("Test");
         _loadConfig();
+        _testSetup(1e20, 1e20);
         _testArb();
         _writeArb(1, 2, 100);
     }
