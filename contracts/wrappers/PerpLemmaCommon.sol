@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity ^0.8.3;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity =0.8.3;
 
 import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
@@ -226,11 +226,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         res[0] = perpVault.getSettlementToken();
     }
 
-    function settlePendingFundingPayments() public override {
-        fundingPaymentsToDistribute += getPendingFundingPayment();
-        clearingHouse.settleAllFunding(address(this));
-    }
-
     /// @notice It returns the amount of USDC that are possibly needed to properly collateralize the new position on Perp
     /// @dev When the position is reduced in absolute terms, then there is no need for additional collateral while when it increases in absolute terms then we need to add more
     /// @param amount The amount of the new position
@@ -379,6 +374,16 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// EXTERNAL METHODS ///
     ////////////////////////
 
+    /// @notice changeAdmin is to change address of admin role
+    /// Only current admin can change admin and after new admin current admin address will be no more admin
+    /// @param newAdmin new admin address
+    function changeAdmin(address newAdmin) external onlyRole(ADMIN_ROLE) {
+        require(newAdmin != address(0), "NewAdmin should not ZERO address");
+        require(newAdmin != msg.sender, "Admin Addresses should not be same");
+        _setupRole(ADMIN_ROLE, newAdmin);
+        renounceRole(ADMIN_ROLE, msg.sender);
+    }
+
     function setPercFundingPaymentsToUSDLHolders(uint256 _percFundingPaymentsToUSDLHolder)
         external
         override
@@ -466,16 +471,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         settlementTokenManager = _settlementTokenManager;
         grantRole(USDC_TREASURY, settlementTokenManager);
         emit SetSettlementTokenManager(settlementTokenManager);
-    }
-
-    /// @notice changeAdmin is to change address of admin role
-    /// Only current admin can change admin and after new admin current admin address will be no more admin
-    /// @param newAdmin new admin address
-    function changeAdmin(address newAdmin) external onlyRole(ADMIN_ROLE) {
-        require(newAdmin != address(0), "NewAdmin should not ZERO address");
-        require(newAdmin != msg.sender, "Admin Addresses should not be same");
-        _setupRole(ADMIN_ROLE, newAdmin);
-        renounceRole(ADMIN_ROLE, msg.sender);
     }
 
     ///@notice sets reBalncer address - only owner can set
@@ -721,6 +716,11 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     //////////////////////
     /// PUBLIC METHODS ///
     //////////////////////
+
+    function settlePendingFundingPayments() public override {
+        fundingPaymentsToDistribute += getPendingFundingPayment();
+        clearingHouse.settleAllFunding(address(this));
+    }
 
     /// @notice trade method is to open short or long position
     /// if isShorting true then base -> quote otherwise quote -> base

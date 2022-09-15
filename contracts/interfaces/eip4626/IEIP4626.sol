@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.3;
 
 import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
@@ -8,7 +9,7 @@ interface IEIP4626 {
 
     function asset() external view returns (address assetTokenAddress);
 
-    function totalAssets() external view returns (uint256 totalAssets);
+    function totalAssets() external view returns (uint256 _totalAssets);
 
     function assetsPerShare() external view returns (uint256 assetsPerUnitShare);
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.3;
 
 import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
@@ -203,7 +204,7 @@ contract xLemmaSynth is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ER
         return msg.sender;
     }
 
-    function _msgData() internal view override(ContextUpgradeable, ERC2771ContextUpgradeable) returns (bytes calldata) {
+    function _msgData() internal pure override(ContextUpgradeable, ERC2771ContextUpgradeable) returns (bytes calldata) {
         return msg.data;
     }
 

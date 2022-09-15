@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.6.0 <0.9.0;
+pragma solidity =0.8.3;
 
 import {SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
@@ -18,7 +18,6 @@ import "../contracts/interfaces/Perpetual/IAccountBalance.sol";
 import "../contracts/interfaces/Perpetual/IMarketRegistry.sol";
 import "../contracts/interfaces/Perpetual/IExchange.sol";
 import "../contracts/interfaces/Perpetual/IPerpVault.sol";
-import "../contracts/interfaces/Perpetual/IUSDLemma.sol";
 import "../contracts/interfaces/Perpetual/IBaseToken.sol";
 import "forge-std/Test.sol";
 
