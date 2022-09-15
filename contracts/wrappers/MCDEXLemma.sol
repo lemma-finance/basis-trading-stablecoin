@@ -15,6 +15,7 @@ interface IUSDLemma {
 }
 
 /// @author Lemma Finance
+/// @custom:deprecated
 contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualDEXWrapper {
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
