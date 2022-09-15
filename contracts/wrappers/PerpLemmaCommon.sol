@@ -103,8 +103,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     int256 public fundingPaymentsToDistribute;
     uint256 public percFundingPaymentsToUSDLHolders;
 
-    uint256 accruedFPLossesFromXUSDLInUSDC;
-    uint256 accruedFPLossesFromXSynthInUSDC;
+    uint256 public accruedFPLossesFromXUSDLInUSDC;
+    uint256 public accruedFPLossesFromXSynthInUSDC;
 
     // Events
     event USDLemmaUpdated(address indexed usdlAddress);
@@ -648,14 +648,13 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         settlePendingFundingPayments();
         if (fundingPaymentsToDistribute != 0) {
             isProfit = fundingPaymentsToDistribute < 0;
-
             if (isProfit) {
                 // NOTE: Distribute profit
                 uint256 amount = _convDecimals(uint256(-fundingPaymentsToDistribute), 18, usdc.decimals());
                 // uint256 amount = uint256(-fundingPaymentsToDistribute) * 10**(usdc.decimals()) / 1e18;
                 amountUSDCToXUSDL = (amount * percFundingPaymentsToUSDLHolders) / 1e6;
                 amountUSDCToXSynth = amount - amountUSDCToXUSDL;
-                perpVault.withdraw(address(usdc), amount);
+                // perpVault.withdraw(address(usdc), amount);
                 // NOTE: They both require an amount in USDC Decimals
                 IUSDLemma(usdLemma).mintToStackingContract(
                     _convDecimals(amountUSDCToXUSDL, usdc.decimals(), IUSDLemma(usdLemma).decimals())
@@ -674,42 +673,45 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                     IUSDLemma(usdLemma).decimals(),
                     usdc.decimals()
                 );
-                if (amountUSDCToXUSDL > amountUSDLInUSDC) {
-                    // NOTE: Losses for the protocol from XUSDL distirbution
-                    // TODO: How do we manage them?
-                    amountFromXUSDLToProtocolInUSDC = amountUSDCToXUSDL - amountUSDLInUSDC;
-                    accruedFPLossesFromXUSDLInUSDC += amountFromXUSDLToProtocolInUSDC;
-                    // TODO: Protocol needs to take some loss Appunto
-                    amountUSDCToXUSDL = amountUSDLInUSDC;
-                }
-
                 uint256 amountSynthInUSDC = _convSynthToUSDCAtIndexPrice(
                     IUSDLemma(lemmaSynth).balanceOf(address(xSynth))
                 );
-
-                if (amountUSDCToXSynth > amountSynthInUSDC) {
-                    // NOTE: Losses for the protocol from XUSDL distirbution
-                    // TODO: How do we manage them?
-                    amountFromXSynthToProtocolInUSDC = _convDecimals(
-                        amountUSDCToXSynth - amountSynthInUSDC,
-                        IUSDLemma(lemmaSynth).decimals(),
-                        usdc.decimals()
-                    );
-                    accruedFPLossesFromXSynthInUSDC += amountFromXSynthToProtocolInUSDC;
-                    // TODO: Protocol needs to take some loss Appunto
-                    amountUSDCToXSynth = amountSynthInUSDC;
-                }
-
-                // NOTE: The Treasury makes up for the protocol losses due to funding payments and not enough stakers
-                if ((amountFromXUSDLToProtocolInUSDC + amountFromXSynthToProtocolInUSDC) > 0) {
-                    IUSDLemma(usdLemma).requestLossesRecap(
-                        amountFromXUSDLToProtocolInUSDC + amountFromXSynthToProtocolInUSDC
-                    );
+                //we consider the past payment that was not paid as well
+                uint256 USDCToPayFromXUSDL = accruedFPLossesFromXUSDLInUSDC + amountUSDCToXUSDL;
+                uint256 USDLToBurn = USDCToPayFromXUSDL;
+                if (USDCToPayFromXUSDL > amountUSDLInUSDC) {
+                    USDLToBurn = amountUSDLInUSDC;
+                    //the rest we try to take from the settlmentTokenManager
+                    uint256 settlmentTokenManagerBalance = usdc.balanceOf(settlementTokenManager);
+                    uint256 amountFromSettlmentTokenManager = USDCToPayFromXUSDL - amountUSDLInUSDC;
+                    if (amountFromSettlmentTokenManager > settlmentTokenManagerBalance) {
+                        amountFromSettlmentTokenManager = settlmentTokenManagerBalance;
+                        //this is the amount that couldn't be paid from neither xUSDL nor settlmentTokenManager
+                        accruedFPLossesFromXUSDLInUSDC = amountFromSettlmentTokenManager - settlmentTokenManagerBalance;
+                    }
+                    IUSDLemma(usdLemma).requestLossesRecap(amountFromSettlmentTokenManager);
                 }
                 IUSDLemma(usdLemma).burnToStackingContract(
-                    _convDecimals(amountUSDCToXUSDL, usdc.decimals(), IUSDLemma(usdLemma).decimals())
+                    _convDecimals(USDLToBurn, usdc.decimals(), IUSDLemma(usdLemma).decimals())
                 );
-                IUSDLemma(lemmaSynth).burnToStackingContract(_convUSDCToSynthAtIndexPrice(amountUSDCToXSynth));
+
+                uint256 USDCToPayFromXLemmaSynth = accruedFPLossesFromXSynthInUSDC + amountUSDCToXSynth;
+                uint256 lemmaSynthToBurn = USDCToPayFromXLemmaSynth;
+                if (USDCToPayFromXLemmaSynth > amountSynthInUSDC) {
+                    lemmaSynthToBurn = amountSynthInUSDC;
+                    //the rest we try to take from the settlmentTokenManager
+                    uint256 settlmentTokenManagerBalance = usdc.balanceOf(settlementTokenManager);
+                    uint256 amountFromSettlmentTokenManager = USDCToPayFromXLemmaSynth - amountSynthInUSDC;
+                    if (amountFromSettlmentTokenManager > settlmentTokenManagerBalance) {
+                        amountFromSettlmentTokenManager = settlmentTokenManagerBalance;
+                        //this is the amount that couldn't be paid from neither xLemmaSynth nor settlmentTokenManager
+                        accruedFPLossesFromXSynthInUSDC =
+                            amountFromSettlmentTokenManager -
+                            settlmentTokenManagerBalance;
+                    }
+                    IUSDLemma(usdLemma).requestLossesRecap(amountFromSettlmentTokenManager);
+                }
+                IUSDLemma(lemmaSynth).burnToStackingContract(_convUSDCToSynthAtIndexPrice(lemmaSynthToBurn));
             }
         }
         // NOTE: Reset the funding payment to distribute
