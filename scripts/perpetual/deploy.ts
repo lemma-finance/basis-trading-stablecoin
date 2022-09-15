@@ -2,7 +2,7 @@ import hre from "hardhat";
 const { ethers, upgrades } = hre;
 const { constants } = ethers;
 const { AddressZero } = constants;
-import { fetchFromURL, delay } from "../../test/shared/utils";
+import { fetchFromURL, delay } from "../../test/hardhat/shared/utils";
 import config from "./constants.json";
 import fs from "fs";
 import ClearingHouseAbi from "@perp/curie-deployments/optimism/core/artifacts/contracts/ClearingHouse.sol/ClearingHouse.json";
