@@ -30,8 +30,7 @@ contract LemmaSynthScript is Script {
     string LemmaSynthTokenSymbol = "LSynth";
 
     address usdLemmaAddress = 0x77D4D37338d52585499Af540F1592361Ba647aB2;
-    address settlementTokenManagerAddress =
-        0x839fB84c290511ef3a20B24E5654504831dB4448;
+    address settlementTokenManagerAddress = 0x839fB84c290511ef3a20B24E5654504831dB4448;
 
     USDLemma usdLemma;
     LemmaSynth lemmaSynth;
@@ -45,8 +44,7 @@ contract LemmaSynthScript is Script {
         console.log("tx.origin: ", tx.origin);
 
         usdLemma = USDLemma(usdLemmaAddress);
-        settlementTokenManager =
-            SettlementTokenManager(settlementTokenManagerAddress);
+        settlementTokenManager = SettlementTokenManager(settlementTokenManagerAddress);
         lemmaSynth = new LemmaSynth();
         perpLemma = new PerpLemmaCommon();
 
@@ -68,9 +66,7 @@ contract LemmaSynthScript is Script {
         perpLemma.grantRole(ONLY_OWNER, only_owner_role_address);
         perpLemma.setSettlementTokenManager(address(settlementTokenManager));
 
-        usdLemma.addPerpetualDEXWrapper(
-            perpIndex, usdlCollateral, address(perpLemma)
-        );
+        usdLemma.addPerpetualDEXWrapper(perpIndex, usdlCollateral, address(perpLemma));
 
         lemmaSynth.initialize(
             lemmaSynth_trustedForwarder,

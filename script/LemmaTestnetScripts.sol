@@ -63,18 +63,12 @@ contract LemmaTestnetScripts is Script {
         perpLemma.grantRole(ONLY_OWNER, only_owner_role_address);
         perpLemma.setSettlementTokenManager(address(settlementTokenManager));
 
-        settlementTokenManager.initialize(
-            address(usdLemma), stm_rebelancer, usdc
-        );
+        settlementTokenManager.initialize(address(usdLemma), stm_rebelancer, usdc);
         settlementTokenManager.grantRole(ONLY_OWNER, only_owner_role_address);
         settlementTokenManager.setIsSettlementAllowed(true);
 
         usdLemma.initialize(
-            usdLemma_trustedForwarder,
-            usdlCollateralWeth,
-            address(perpLemma),
-            address(settlementTokenManager),
-            usdc
+            usdLemma_trustedForwarder, usdlCollateralWeth, address(perpLemma), address(settlementTokenManager), usdc
         );
         usdLemma.setLemmaTreasury(msg.sender);
         usdLemma.setFees(1000);

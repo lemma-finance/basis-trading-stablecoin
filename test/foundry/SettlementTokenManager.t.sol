@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.6.0 <0.9.0;
 
-import {IPerpetualMixDEXWrapper} from
-    "../../contracts/interfaces/IPerpetualMixDEXWrapper.sol";
+import {IPerpetualMixDEXWrapper} from "../../contracts/interfaces/IPerpetualMixDEXWrapper.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "../../contracts/interfaces/IERC20Decimals.sol";
 import "../../src/Deploy.sol";
@@ -20,24 +19,17 @@ contract SettlementTokenManagerTest is Test {
         vm.startPrank(address(d));
         d.pl().grantRole(USDC_TREASURY, address(this));
         d.usdl().grantRole(LEMMA_SWAP, address(this));
-        d.usdl().addPerpetualDEXWrapper(
-            1, d.getTokenAddress("USDC"), address(d.pl())
-        );
+        d.usdl().addPerpetualDEXWrapper(1, d.getTokenAddress("USDC"), address(d.pl()));
         vm.stopPrank();
     }
 
     // Internal Functions
-    function _deductFees(
-        address collateral,
-        uint256 collateralAmount,
-        uint256 dexIndex
-    )
+    function _deductFees(address collateral, uint256 collateralAmount, uint256 dexIndex)
         internal
         view
         returns (uint256 total)
     {
-        uint256 _fees =
-            collateralAmount * d.usdl().getFees(dexIndex, collateral) / 1e6;
+        uint256 _fees = collateralAmount * d.usdl().getFees(dexIndex, collateral) / 1e6;
         total = uint256(int256(collateralAmount) - int256(_fees));
     }
 
@@ -46,9 +38,7 @@ contract SettlementTokenManagerTest is Test {
         assertTrue(IERC20Decimals(token).balanceOf(address(this)) >= amount);
     }
 
-    function _getMoneyForTo(address to, address token, uint256 amount)
-        internal
-    {
+    function _getMoneyForTo(address to, address token, uint256 amount) internal {
         d.bank().giveMoney(token, to, amount);
         assertTrue(IERC20Decimals(token).balanceOf(to) >= amount);
     }
@@ -58,17 +48,12 @@ contract SettlementTokenManagerTest is Test {
     }
 
     function _depositSettlementTokenMax() internal {
-        IERC20Decimals settlementToken =
-            IERC20Decimals(d.pl().perpVault().getSettlementToken());
-        uint256 perpVaultSettlementTokenBalanceBefore =
-            settlementToken.balanceOf(address(d.pl().perpVault()));
-        uint256 settlementTokenBalanceCap = IClearingHouseConfig(
-            d.pl().clearingHouse().getClearingHouseConfig()
-        ).getSettlementTokenBalanceCap();
-        uint256 usdcToDeposit = uint256(
-            int256(settlementTokenBalanceCap)
-                - int256(perpVaultSettlementTokenBalanceBefore)
-        );
+        IERC20Decimals settlementToken = IERC20Decimals(d.pl().perpVault().getSettlementToken());
+        uint256 perpVaultSettlementTokenBalanceBefore = settlementToken.balanceOf(address(d.pl().perpVault()));
+        uint256 settlementTokenBalanceCap =
+            IClearingHouseConfig(d.pl().clearingHouse().getClearingHouseConfig()).getSettlementTokenBalanceCap();
+        uint256 usdcToDeposit =
+            uint256(int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore));
         // uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
         // NOTE: Unclear why I need to use 1/10 of the cap
         // NOTE: If I do not limit this amount I get
@@ -78,45 +63,31 @@ contract SettlementTokenManagerTest is Test {
         d.pl().depositSettlementToken(usdcToDeposit / 2);
     }
 
-    function _mintUSDLWExactUSDL(address to, address collateral, uint256 amount)
-        internal
-    {
+    function _mintUSDLWExactUSDL(address to, address collateral, uint256 amount) internal {
         address usdl = d.pl().usdLemma();
         _getMoneyForTo(to, collateral, 1000e6);
         uint256 beforeBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
-        uint256 beforeBalanceCollateral =
-            IERC20Decimals(collateral).balanceOf(to);
+        uint256 beforeBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         IERC20Decimals(collateral).approve(usdl, type(uint256).max);
         uint256 beforeTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
-        d.usdl().depositTo(
-            to, amount, 1, type(uint256).max, IERC20Upgradeable(collateral)
-        );
+        d.usdl().depositTo(to, amount, 1, type(uint256).max, IERC20Upgradeable(collateral));
         uint256 afterTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
         uint256 afterBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
-        uint256 afterBalanceCollateral =
-            IERC20Decimals(collateral).balanceOf(to);
+        uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         assertEq(afterTotalUsdl - beforeTotalUsdl, afterBalanceUSDL);
         assertTrue(afterBalanceUSDL > beforeBalanceUSDL);
         assertTrue(afterBalanceCollateral < beforeBalanceCollateral);
     }
 
-    function _redeemUSDLWExactUsdl(
-        address to,
-        address collateral,
-        uint256 amount
-    )
-        internal
-    {
+    function _redeemUSDLWExactUsdl(address to, address collateral, uint256 amount) internal {
         address usdl = d.pl().usdLemma();
-        uint256 beforeBalanceCollateral =
-            IERC20Decimals(collateral).balanceOf(to);
+        uint256 beforeBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 beforeBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
         assertTrue(beforeBalanceUSDL > 0, "!USDL");
         // uint256 beforeTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
         d.usdl().withdrawTo(to, amount, 1, 0, IERC20Upgradeable(collateral));
         // uint256 afterTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
-        uint256 afterBalanceCollateral =
-            IERC20Decimals(collateral).balanceOf(to);
+        uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 afterBalanceUSDL = d.usdl().balanceOf(to);
         assertTrue(afterBalanceCollateral > beforeBalanceCollateral);
         assertTrue(afterBalanceUSDL < beforeBalanceUSDL);
