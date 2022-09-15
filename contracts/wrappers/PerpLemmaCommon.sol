@@ -245,7 +245,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         // NOTE: According to Perp, this is defined as accountValue = totalCollateralValue + totalUnrealizedPnl, in 18 decimals
         int256 currentAccountValue = getAccountValue();
         uint256 currentPrice = getIndexPrice();
-        uint256 oracleDecimals = 18;
 
         // NOTE: Computing the absolute delta in terms of quote token for the new position
         // NOTE: Need an amount in 1e18 to be compared with account value which I think is in 1e18
@@ -350,7 +349,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         // NOTE: Estimating USDC needed
         uint256 freeCollateralBefore = getFreeCollateral();
         uint256 indexPrice = getIndexPrice();
-        (uint24 imRatio, uint24 mmRatio) = getCollateralRatios();
+        (, uint24 mmRatio) = getCollateralRatios();
         uint256 deltaAmount = amount;
 
         if (
@@ -382,7 +381,11 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// EXTERNAL METHODS ///
     ////////////////////////
 
-    function setPercFundingPaymentsToUSDLHolders(uint256 _percFundingPaymentsToUSDLHolder) external override onlyRole(OWNER_ROLE) {
+    function setPercFundingPaymentsToUSDLHolders(uint256 _percFundingPaymentsToUSDLHolder)
+        external
+        override
+        onlyRole(OWNER_ROLE)
+    {
         percFundingPaymentsToUSDLHolders = _percFundingPaymentsToUSDLHolder;
     }
 
@@ -397,7 +400,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
     function setMinFreeCollateral(uint256 _minFreeCollateral) external override onlyRole(OWNER_ROLE) {
-        // TODO: Emit Event
         minFreeCollateral = _minFreeCollateral;
         emit SetMinFreeCollateral(minFreeCollateral);
     }
@@ -565,7 +567,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     ) external override onlyRole(PERPLEMMA_ROLE) {
         return settleCollateral(amount, to, isUsdl);
     }
-    
+
     /// @notice Rebalances USDL or Synth emission swapping by Perp backed to Token backed
     /// @dev USDL can be backed by both: 1) Floating Collateral + Perp Short of the same Floating Collateral or 2) USDC
     /// @dev LemmaX (where X can be ETH, ...) can be backed by both: 1) USDC collateralized Perp Long or 2) X token itself
@@ -637,66 +639,85 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         _calculateMintingAsset(amount, basis, isOpenShort);
     }
 
-    function distributeFundingPayments() 
-        external 
-        override 
-        returns
-        (bool isProfit, uint256 amountUSDCToXUSDL, uint256 amountUSDCToXSynth) 
+    function distributeFundingPayments()
+        external
+        override
+        returns (
+            bool isProfit,
+            uint256 amountUSDCToXUSDL,
+            uint256 amountUSDCToXSynth
+        )
     {
         settlePendingFundingPayments();
-        if(fundingPaymentsToDistribute == 0) {
+        if (fundingPaymentsToDistribute == 0) {
             console.log("[distributeFundingPayments()] fundingPaymentsToDistribute == 0 --> Nothing to distribute");
         } else {
             isProfit = fundingPaymentsToDistribute < 0;
-            
-            if(isProfit) {
+
+            if (isProfit) {
                 // NOTE: Distribute profit
                 uint256 amount = _convDecimals(uint256(-fundingPaymentsToDistribute), 18, usdc.decimals());
                 // uint256 amount = uint256(-fundingPaymentsToDistribute) * 10**(usdc.decimals()) / 1e18;
-                amountUSDCToXUSDL = amount * percFundingPaymentsToUSDLHolders / 1e6;
+                amountUSDCToXUSDL = (amount * percFundingPaymentsToUSDLHolders) / 1e6;
                 amountUSDCToXSynth = amount - amountUSDCToXUSDL;
                 perpVault.withdraw(address(usdc), amount);
-                // NOTE: They both require an amount in USDC Decimals 
-                IUSDLemma(usdLemma).mintToStackingContract(_convDecimals(amountUSDCToXUSDL, usdc.decimals(), IUSDLemma(usdLemma).decimals()));
+                // NOTE: They both require an amount in USDC Decimals
+                IUSDLemma(usdLemma).mintToStackingContract(
+                    _convDecimals(amountUSDCToXUSDL, usdc.decimals(), IUSDLemma(usdLemma).decimals())
+                );
                 IUSDLemma(lemmaSynth).mintToStackingContract(_convUSDCToSynthAtIndexPrice(amountUSDCToXSynth));
             } else {
-                amountUSDCToXUSDL = uint256(fundingPaymentsToDistribute) * percFundingPaymentsToUSDLHolders / 1e6;
+                amountUSDCToXUSDL = (uint256(fundingPaymentsToDistribute) * percFundingPaymentsToUSDLHolders) / 1e6;
                 amountUSDCToXSynth = uint256(fundingPaymentsToDistribute) - amountUSDCToXUSDL;
 
                 amountUSDCToXUSDL = _convDecimals(amountUSDCToXUSDL, 18, usdc.decimals());
                 amountUSDCToXSynth = _convDecimals(amountUSDCToXSynth, 18, usdc.decimals());
                 uint256 amountFromXUSDLToProtocolInUSDC;
                 uint256 amountFromXSynthToProtocolInUSDC;
-                uint256 amountUSDLInUSDC = _convDecimals(IUSDLemma(usdLemma).balanceOf(address(xUsdl)), IUSDLemma(usdLemma).decimals(), usdc.decimals());
-                if(amountUSDCToXUSDL > amountUSDLInUSDC) {
+                uint256 amountUSDLInUSDC = _convDecimals(
+                    IUSDLemma(usdLemma).balanceOf(address(xUsdl)),
+                    IUSDLemma(usdLemma).decimals(),
+                    usdc.decimals()
+                );
+                if (amountUSDCToXUSDL > amountUSDLInUSDC) {
                     // NOTE: Losses for the protocol from XUSDL distirbution
                     // TODO: How do we manage them?
                     amountFromXUSDLToProtocolInUSDC = amountUSDCToXUSDL - amountUSDLInUSDC;
                     accruedFPLossesFromXUSDLInUSDC += amountFromXUSDLToProtocolInUSDC;
-                    // TODO: Protocol needs to take some loss Appunto 
+                    // TODO: Protocol needs to take some loss Appunto
                     amountUSDCToXUSDL = amountUSDLInUSDC;
                 }
 
-                uint256 amountSynthInUSDC = _convSynthToUSDCAtIndexPrice(IUSDLemma(lemmaSynth).balanceOf(address(xSynth)));
+                uint256 amountSynthInUSDC = _convSynthToUSDCAtIndexPrice(
+                    IUSDLemma(lemmaSynth).balanceOf(address(xSynth))
+                );
 
-                if(amountUSDCToXSynth > amountSynthInUSDC) {
+                if (amountUSDCToXSynth > amountSynthInUSDC) {
                     // NOTE: Losses for the protocol from XUSDL distirbution
                     // TODO: How do we manage them?
-                    amountFromXSynthToProtocolInUSDC = _convDecimals(amountUSDCToXSynth - amountSynthInUSDC, IUSDLemma(lemmaSynth).decimals(), usdc.decimals());
+                    amountFromXSynthToProtocolInUSDC = _convDecimals(
+                        amountUSDCToXSynth - amountSynthInUSDC,
+                        IUSDLemma(lemmaSynth).decimals(),
+                        usdc.decimals()
+                    );
                     accruedFPLossesFromXSynthInUSDC += amountFromXSynthToProtocolInUSDC;
-                    // TODO: Protocol needs to take some loss Appunto 
+                    // TODO: Protocol needs to take some loss Appunto
                     amountUSDCToXSynth = amountSynthInUSDC;
                 }
 
-                // NOTE: The Treasury makes up for the protocol losses due to funding payments and not enough stakers 
-                if( (amountFromXUSDLToProtocolInUSDC + amountFromXSynthToProtocolInUSDC) > 0 ) {
-                    IUSDLemma(usdLemma).requestLossesRecap(amountFromXUSDLToProtocolInUSDC + amountFromXSynthToProtocolInUSDC);
+                // NOTE: The Treasury makes up for the protocol losses due to funding payments and not enough stakers
+                if ((amountFromXUSDLToProtocolInUSDC + amountFromXSynthToProtocolInUSDC) > 0) {
+                    IUSDLemma(usdLemma).requestLossesRecap(
+                        amountFromXUSDLToProtocolInUSDC + amountFromXSynthToProtocolInUSDC
+                    );
                 }
-                IUSDLemma(usdLemma).burnToStackingContract(_convDecimals(amountUSDCToXUSDL, usdc.decimals(), IUSDLemma(usdLemma).decimals()));
+                IUSDLemma(usdLemma).burnToStackingContract(
+                    _convDecimals(amountUSDCToXUSDL, usdc.decimals(), IUSDLemma(usdLemma).decimals())
+                );
                 IUSDLemma(lemmaSynth).burnToStackingContract(_convUSDCToSynthAtIndexPrice(amountUSDCToXSynth));
             }
         }
-        // NOTE: Reset the funding payment to distribute 
+        // NOTE: Reset the funding payment to distribute
         fundingPaymentsToDistribute = 0;
     }
 
@@ -753,12 +774,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// 2). openLongWithExactQuote => depositToWExactCollateral
     /// 3). closeLongWithExactBase => withdrawTo
     /// 4). closeLongWithExactQuote => withdrawToWExactCollateral
-    function openLongWithExactBase(uint256 amount) 
-        public 
-        override 
-        onlyRole(PERPLEMMA_ROLE) 
-        returns (uint256, uint256) 
-    {
+    function openLongWithExactBase(uint256 amount) public override onlyRole(PERPLEMMA_ROLE) returns (uint256, uint256) {
         (uint256 base, uint256 quote) = trade(amount, false, false);
         return (base, quote);
     }
@@ -863,25 +879,28 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         price = IIndexPrice(usdlBaseTokenAddress).getIndexPrice(_twapInterval);
     }
 
-    function getMarkPrice() public view override returns(uint256 token0Price) {
-        (uint160 sqrtPriceX96,,,,,,) = IUniswapV3Pool(marketRegistry.getPool(usdlBaseTokenAddress)).slot0();
-        token0Price = ((uint256(sqrtPriceX96) ** 2) / (2 ** 192)) * 1e18;
+    function getMarkPrice() public view override returns (uint256 token0Price) {
+        (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(marketRegistry.getPool(usdlBaseTokenAddress)).slot0();
+        token0Price = ((uint256(sqrtPriceX96)**2) / (2**192)) * 1e18;
     }
 
-    function getPendingFundingPayment() public view override returns(int256 pendingFundingPayments) {
-        // See 
-        // Interface 
+    function getPendingFundingPayment() public view override returns (int256 pendingFundingPayments) {
+        // See
+        // Interface
         // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/interface/IExchange.sol#L101
-        // Implementation 
+        // Implementation
         // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/Exchange.sol#L361
-        // 
-        // Notation 
+        //
+        // Notation
         // Earning or Paying Funding
         // - If you see a positive payment, this means you paid this amount of funding.
         // - If you see a negative payment, this means you earned this amount of funding.
         // Source
         // https://support.perp.com/hc/en-us/articles/5257580412569-Funding-Payments
-        pendingFundingPayments = IExchange(clearingHouse.getExchange()).getPendingFundingPayment(address(this), usdlBaseTokenAddress);
+        pendingFundingPayments = IExchange(clearingHouse.getExchange()).getPendingFundingPayment(
+            address(this),
+            usdlBaseTokenAddress
+        );
     }
 
     /// @notice getAmountInCollateralDecimalsForPerp is use to convert amount in collateral decimals
@@ -959,7 +978,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @notice to withdraw collateral from vault after long or close position
     /// @dev If collateral is tail asset no need to withdraw it from Perp, it is already in this contract balance sheet
     function _withdraw(uint256 amountToWithdraw, address collateral) internal {
-        // NOTE: Funding Payments are settled anyway when withdraw happens so we need to account them before executing 
+        // NOTE: Funding Payments are settled anyway when withdraw happens so we need to account them before executing
         settlePendingFundingPayments();
         if (collateral == address(usdc)) {
             perpVault.withdraw(address(usdc), amountToWithdraw);
@@ -1004,7 +1023,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         address to,
         bool isUsdl
     ) internal {
-        // NOTE: Funding Payments are settled anyway when settlement happens so we need to account them before executing 
+        // NOTE: Funding Payments are settled anyway when settlement happens so we need to account them before executing
         settlePendingFundingPayments();
         uint256 tailCollateralBal = (usdlCollateral.balanceOf(address(this)) * 1e18) / (10**usdlCollateral.decimals());
         uint256 synthCollateralBal = (usdc.balanceOf(address(this)) * 1e18) / (10**usdc.decimals());
@@ -1177,7 +1196,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     function getUSDLInTail() internal view returns (uint256) {
         return (mintedPositionUsdlForThisWrapper * 1e18) / closedPrice;
     }
-        
+
     /// @notice getRoudDown is use to roundDown by amount = amount-1
     /// because perpV2 gives 1 wei increase in vaule for base and quote so we have to roundDown that 1 wei
     /// Otherwise it can give arithmetic error in calculateMintingAsset() function
@@ -1190,23 +1209,27 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         roundDownAmount = (amount % (uint256(10**(collateralDecimals))) != 0) ? amount - 1 : amount;
     }
 
-    function _convDecimals(uint256 amount, uint256 srcDecimals, uint256 dstDecimals) internal pure returns(uint256 res) {
-        res = amount * 10**(dstDecimals) / 10**(srcDecimals);
+    function _convDecimals(
+        uint256 amount,
+        uint256 srcDecimals,
+        uint256 dstDecimals
+    ) internal pure returns (uint256 res) {
+        res = (amount * 10**(dstDecimals)) / 10**(srcDecimals);
     }
 
-    function _convUSDCToSynthAtIndexPrice(uint256 amountUSDC) internal view returns(uint256) {
+    function _convUSDCToSynthAtIndexPrice(uint256 amountUSDC) internal view returns (uint256) {
         return _convDecimals(amountUSDC, usdc.decimals(), 18 + IUSDLemma(lemmaSynth).decimals()) / getIndexPrice();
     }
 
-    function _convSynthToUSDCAtIndexPrice(uint256 amountSynth) internal view returns(uint256) {
+    function _convSynthToUSDCAtIndexPrice(uint256 amountSynth) internal view returns (uint256) {
         return _convDecimals(amountSynth * getIndexPrice(), IUSDLemma(lemmaSynth).decimals() + 18, usdc.decimals());
     }
 
-    function _convUSDCToUSDLIndexPrice(uint256 amountUSDC) internal view returns(uint256) {
+    function _convUSDCToUSDLIndexPrice(uint256 amountUSDC) internal view returns (uint256) {
         return _convDecimals(amountUSDC, usdc.decimals(), IUSDLemma(usdLemma).decimals());
     }
 
-    function _convUSDLToUSDCAtIndexPrice(uint256 amountUSDL) internal view returns(uint256) {
+    function _convUSDLToUSDCAtIndexPrice(uint256 amountUSDL) internal view returns (uint256) {
         return _convDecimals(amountUSDL, IUSDLemma(usdLemma).decimals(), usdc.decimals());
     }
 

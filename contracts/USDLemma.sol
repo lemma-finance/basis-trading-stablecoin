@@ -79,7 +79,7 @@ contract USDLemma is
 
     modifier onlyPerpDEXWrapper() {
         require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
-        _;        
+        _;
     }
 
     /// @notice Intialize method only called once while deploying contract
@@ -188,7 +188,7 @@ contract USDLemma is
     /// @param _settlementTokenManager address
     function setSettlementTokenManager(address _settlementTokenManager) external onlyRole(OWNER_ROLE) {
         settlementTokenManager = _settlementTokenManager;
-        if(settlementTokenManager != address(0)) {
+        if (settlementTokenManager != address(0)) {
             isSupportedStableForMinting[ISettlementTokenManager(settlementTokenManager).getSettlementToken()] = true;
         }
         emit SetSettlementTokenManager(settlementTokenManager);
@@ -285,11 +285,6 @@ contract USDLemma is
         uint256 minUSDLToMint,
         IERC20Upgradeable collateral
     ) external nonReentrant onlyOneFunInSameTx {
-
-        // if(isSupportedStableForMinting[address(collateral)]) {
-        //     return _mintToUSDLWithStable(address(collateral), collateralAmount, to);
-        // }
-
         IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
             perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
         );
@@ -299,16 +294,6 @@ contract USDLemma is
             address(collateral),
             false
         );
-        int256 initialMargin = perpDEXWrapper.getMargin();
-        // print("[depositToWExactCollateral()] initialMargin = ", initialMargin);
-
-        // NOTE: Replacing this with `getMarginRequirementForLiquidation()` call
-        // (bool isAcceptable, uint256 extraUSDC) = perpDEXWrapper.getRequiredUSDCToBackMinting(_collateralRequired, true);
-        // // TODO: Add check and decide where to take it
-        // require(isAcceptable, "Can't deposit enough collateral in Perp");
-        // uint256 availableCollateral = getAvailableSettlementToken(perpetualDEXIndex, address(collateral));
-        // require(availableCollateral >= extraUSDC, "Not enough collateral in Treasury to back the position");
-        // NOTE: User the default collateral ratio used by Perp at this time
         uint256 expectedRequiredUSDC = perpDEXWrapper.computeRequiredUSDCForTrade(collateralAmount, true);
         if (expectedRequiredUSDC > 0) {
             require(
@@ -328,18 +313,8 @@ contract USDLemma is
             require(_usdlToMint >= minUSDLToMint, "USDL minted too low");
         }
 
-        // uint256 freeCollateralAfter = perpDEXWrapper.getFreeCollateral();
-        // console.log("[depositToWExactCollateral()] freeCollateralAfter = ", freeCollateralAfter);
-        // _recapIfNeeded(perpDEXWrapper);
-        // int256 newMargin = perpDEXWrapper.getMargin();
-        // print("[depositToWExactCollateral()] newMargin = ", newMargin);
-        // require(newMargin > 0, "Marging too low");
-
         perpDEXWrapper.calculateMintingAsset(_usdlToMint, IPerpetualMixDEXWrapper.Basis.IsUsdl, true);
         _mint(to, _usdlToMint);
-
-        // TODO: Check Free Collateral After to see if it needs recapitalization
-
         emit DepositTo(perpetualDEXIndex, address(collateral), to, _usdlToMint, _collateralRequired);
     }
 
@@ -437,7 +412,7 @@ contract USDLemma is
         _burn(_msgSender(), _usdlToBurn);
         emit WithdrawTo(perpetualDEXIndex, address(collateral), to, _usdlToBurn, _collateralAmountToWithdraw);
     }
-    
+
     ////////////////////////
     /// INTERNAL METHODS ///
     ////////////////////////
@@ -480,45 +455,6 @@ contract USDLemma is
         uint256 expectedUSDCDeductedFromFreeCollateral = (expectedUSDCRequired * uint256(imRatio)) / 1e6;
         return expectedUSDCDeductedFromFreeCollateral;
     }
-
-    function _mintToUSDLWithStable(address tokenStable, uint256 usdcAmount, address to) internal {
-        if(isSupportedPerpetualDEXWrapper[msg.sender]) {
-            // NOTE: No TransferFrom for USDC Required, let's leave it there 
-            _mint(to, usdcAmount * 10**(decimals()) / 10**(IERC20Decimals(tokenStable).decimals()));
-        } else {
-            // TODO: Implement
-            require(false, "Unimplemented");
-        }
-    }
-
-    // function _recapIfNeeded(IPerpetualMixDEXWrapper perpDEXWrapper) internal {
-    //     int256 margin = perpDEXWrapper.getMargin();
-    //     print("[_recapIfNeeded()] margin = ", margin);
-    //     console.log("[_recapIfNeeded()] perpDEXWrapper.getMinMarginForRecap() = ", perpDEXWrapper.getMinMarginForRecap());
-
-    //     if (margin <= int256(perpDEXWrapper.getMinMarginForRecap())) {
-    //         uint256 requiredUSDC = uint256(int256(perpDEXWrapper.getMinMarginSafeThreshold()) - margin);
-    //         console.log("[_recapIfNeeded()] requiredUSDC = ", requiredUSDC);
-
-    //         uint256 maxSettlementTokenAcceptableFromPerpVault = perpDEXWrapper.getMaxSettlementTokenAcceptableByVault();
-    //         console.log("[_recapIfNeeded()] maxSettlementTokenAcceptableFromPerpVault = ", maxSettlementTokenAcceptableFromPerpVault);
-
-    //         // TODO: Check this as it can make TXs fail if we are too conservative with `perpDEXWrapper.minMarginSafeThreshold`
-    //         require(requiredUSDC <= maxSettlementTokenAcceptableFromPerpVault, "Vault can't accept as many USDC");
-    //         uint256 maxSettlementTokenReserves = IERC20Upgradeable(perpDEXWrapper.getSettlementToken()).balanceOf(lemmaTreasury);
-    //         console.log("[_recapIfNeeded()] maxSettlementTokenReserves = ", maxSettlementTokenReserves);
-    //         require(requiredUSDC <= maxSettlementTokenReserves, "In Treasury not enough Settlement Token");
-
-    //         // TODO: Add SafeTransferFrom the Treasury to this contract or add a method to the trasury that allows to directly deposit settlementToken and prior makes some checks
-    //     }
-    // }
-
-    // function _burnToUSDLWithStable(address tokenStable, uint256 usdcAmount, address to) internal {
-    //     if(isSupportedPerpetualDEXWrapper[msg.sender]) {
-    //         // NOTE: No TransferFrom for USDC Required, let's leave it there 
-    //         _burn(to, usdcAmount * 10**(decimals()) / 10**(IERC20Decimals(tokenStable).decimals()));
-    //     } 
-    // }
 
     function _msgSender()
         internal
