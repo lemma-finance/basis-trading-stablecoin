@@ -6,10 +6,12 @@ artifacts
 types
 
 package-lock.json
+yarn.lock
 
 .env
 scripts/test.js
 
+##testnet/local deployments
 .openzeppelin/unknown-1337.json
 .openzeppelin/unknown-31337.json
 .openzeppelin/kovan.json
