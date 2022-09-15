@@ -20,7 +20,6 @@ import "../interfaces/Perpetual/IMarketRegistry.sol";
 import "../interfaces/Perpetual/IPerpVault.sol";
 import "../interfaces/Perpetual/IBaseToken.sol";
 import "../interfaces/Perpetual/IExchange.sol";
-import "forge-std/Test.sol";
 
 /// @author Lemma Finance
 /// @notice PerpLemmaCommon contract will use to open short and long position with no-leverage
@@ -349,7 +348,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         // NOTE: Estimating USDC needed
         uint256 freeCollateralBefore = getFreeCollateral();
         uint256 indexPrice = getIndexPrice();
-        (, uint24 mmRatio) = getCollateralRatios();
         uint256 deltaAmount = amount;
 
         if (
@@ -501,7 +499,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param _amount USDC amount need to deposit into perp vault
     function depositSettlementToken(uint256 _amount) external override onlyRole(USDC_TREASURY) {
         require(_amount > 0, "Amount should greater than zero");
-        console.log("[depositSettlementToken()] Receiving _amount = ", _amount);
         SafeERC20Upgradeable.safeTransferFrom(usdc, msg.sender, address(this), _amount);
         perpVault.deposit(address(usdc), _amount);
     }
@@ -649,9 +646,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         )
     {
         settlePendingFundingPayments();
-        if (fundingPaymentsToDistribute == 0) {
-            console.log("[distributeFundingPayments()] fundingPaymentsToDistribute == 0 --> Nothing to distribute");
-        } else {
+        if (fundingPaymentsToDistribute != 0) {
             isProfit = fundingPaymentsToDistribute < 0;
 
             if (isProfit) {
