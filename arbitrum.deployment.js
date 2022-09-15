@@ -1,3 +1,4 @@
+//arbitrum mainnet (deprecated)
 {
   "USDLemma": {
     "name": "USDLemma",
