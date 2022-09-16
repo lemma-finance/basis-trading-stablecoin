@@ -646,10 +646,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             if (isProfit) {
                 // NOTE: Distribute profit
                 uint256 amount = _convDecimals(uint256(-fundingPaymentsToDistribute), 18, usdc.decimals());
-                // uint256 amount = uint256(-fundingPaymentsToDistribute) * 10**(usdc.decimals()) / 1e18;
                 amountUSDCToXUSDL = (amount * percFundingPaymentsToUSDLHolders) / 1e6;
                 amountUSDCToXSynth = amount - amountUSDCToXUSDL;
-                // perpVault.withdraw(address(usdc), amount);
                 // NOTE: They both require an amount in USDC Decimals
                 IUSDLemma(usdLemma).mintToStackingContract(
                     _convDecimals(amountUSDCToXUSDL, usdc.decimals(), IUSDLemma(usdLemma).decimals())
@@ -661,8 +659,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
                 amountUSDCToXUSDL = _convDecimals(amountUSDCToXUSDL, 18, usdc.decimals());
                 amountUSDCToXSynth = _convDecimals(amountUSDCToXSynth, 18, usdc.decimals());
-                uint256 amountFromXUSDLToProtocolInUSDC;
-                uint256 amountFromXSynthToProtocolInUSDC;
                 uint256 amountUSDLInUSDC = _convDecimals(
                     IUSDLemma(usdLemma).balanceOf(address(xUsdl)),
                     IUSDLemma(usdLemma).decimals(),
