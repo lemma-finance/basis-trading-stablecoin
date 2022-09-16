@@ -3,6 +3,7 @@ node_modules
 #Hardhat files
 cache
 artifacts
+types
 
 package-lock.json
 yarn.lock
@@ -10,10 +11,13 @@ yarn.lock
 .env
 scripts/test.js
 
+##testnet/local deployments
 .openzeppelin/unknown-1337.json
 .openzeppelin/unknown-31337.json
 .openzeppelin/kovan.json
 .openzeppelin/unknown-421611.json
+.openzeppelin/unknown-69.json
+.openzeppelin/unknown-10.json
 
 ##solidity-coverage
 coverage.json
@@ -22,8 +26,15 @@ coverage
 ##hardhat-deploy (dependency for solidity-test)
 deployments
 
-test2
-types
-2.js
-test/mcdexLemma-demo.ts
-test/usdLemma-demo.ts
+backup
+
+## forge-deploy-files
+broadcast
+
+out
+.vscode
+.DS_Store
+contracts/.DS_Store
+
+forge-cache
+

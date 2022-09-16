@@ -3,4 +3,10 @@ artifacts/
 build/
 cache/
 
+perp-lushan/
+mai-protocol-v3/
+
+deployments/
+*.deployment.js
+
 # files

@@ -1,10 +1,8 @@
 [submodule "mai-protocol-v3"]
 	path = mai-protocol-v3
-	url = https://github.com/yashnaman/mai-protocol-v3.git
-[submodule "perp-lushan"]
-	path = perp-lushan
-	url = https://github.com/yashnaman/perp-lushan.git
-[submodule "squeeth-monorepo"]
-	path = squeeth-monorepo
-	url = https://github.com/opynfinance/squeeth-monorepo
+	url = git@github.com:yashnaman/mai-protocol-v3.git
+	branch = 72d510e29134a73651e6325ca85f59245eef4713
 
+[submodule "lib/forge-std"]
+	path = lib/forge-std
+	url = https://github.com/foundry-rs/forge-std

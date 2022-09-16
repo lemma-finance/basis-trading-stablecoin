@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.3;
 
 import { ILiquidityPool, PerpetualState } from "../interfaces/MCDEX/ILiquidityPool.sol";
@@ -15,6 +16,7 @@ interface IUSDLemma {
 }
 
 /// @author Lemma Finance
+/// @custom:deprecated
 contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetualDEXWrapper {
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
@@ -77,6 +79,10 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
         SafeERC20Upgradeable.safeApprove(collateral, address(liquidityPool), MAX_UINT256);
         //target leverage = 1
         liquidityPool.setTargetLeverage(perpetualIndex, address(this), 1 ether); //1
+    }
+
+    function getFees() external view override returns (uint256) {
+        require(false, "!unimplemented");
     }
 
     ///@notice sets USDLemma address - only owner can set
@@ -146,8 +152,20 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
         (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
 
         require(position.abs().toUint256() + amount <= maxPosition, "max position reached");
-        liquidityPool.trade(perpetualIndex, address(this), amount.toInt256(), MAX_INT256, MAX_UINT256, referrer, 0);
-        updateEntryFunding(position, amount.toInt256());
+        int256 updatedPosition = liquidityPool.trade(
+            perpetualIndex,
+            address(this),
+            amount.toInt256(),
+            MAX_INT256,
+            MAX_UINT256,
+            referrer,
+            0
+        );
+        updateEntryFunding(updatedPosition, amount.toInt256());
+    }
+
+    function openWExactCollateral(uint256) external override returns (uint256) {
+        revert("not supported");
     }
 
     //go long and withdraw collateral
@@ -181,8 +199,12 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
         );
     }
 
+    function closeWExactCollateral(uint256) external override returns (uint256) {
+        revert("not supported");
+    }
+
     //// @notice when perpetual is in CLEARED state, withdraw the collateral
-    function settle() public {
+    function settle() public override {
         (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
         positionAtSettlement = position.abs().toUint256();
         liquidityPool.settle(perpetualIndex, address(this));
@@ -273,9 +295,10 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
         int256 difference = fundingPNL - realizedFundingPNL;
         //error +-10**12 is allowed in calculation
         require(difference.abs() <= 10**12, "not allowed");
-
+        // (, int256 position, , , , , , , ) = liquidityPool.getMarginAccount(perpetualIndex, address(this));
         liquidityPool.trade(perpetualIndex, address(this), amount, limitPrice, deadline, referrer, 0);
-
+        // need to upadteEntryFunding here as well as the position is changing here as well
+        // updateEntryFunding(position, amount);
         return true;
     }
 
@@ -321,6 +344,10 @@ contract MCDEXLemma is OwnableUpgradeable, ERC2771ContextUpgradeable, IPerpetual
         }
 
         return amount / uint256(10**(18 - collateralDecimals));
+    }
+
+    function getTotalPosition() external view override returns (int256) {
+        require(false, "Unimplemented");
     }
 
     ///@notice send MCB tokens that we may get to lemmaTreasury
