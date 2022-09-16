@@ -9,7 +9,8 @@
         {
             "optimism": {
                 "uniV3Factory": "0x1F98431c8aD98523631AE4a59f267346ea31F984",
-                "uniV3Router": "0xE592427A0AEce92De3Edee1F18E0157C05861564"
+                "uniV3Router": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+                "uniV3Quoter": "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6"
             },
             "forked": {
                 "perpLemmaCommon": "0x00000000000000000"

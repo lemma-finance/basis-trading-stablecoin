@@ -23,11 +23,13 @@ fbn = "" if config["fork"]["block_number"] == "" else f"--fork-block-number {con
 
 cmd = f"forge script bot/rebalancer-bot.sol:MyScript --fork-url {config['secrets']['alchemy_key']} {fbn} --ffi"
 
+n = config['tentatives']
+
 print(f"cmd = {cmd}")
 
 deltaT = 1
 
-for i in range(3):
+for i in range(n):
     print(f"Start")
     main_loop(cmd)
     print(f"Sleep {deltaT} seconds")

@@ -92,6 +92,7 @@ contract MyScript is Script, Test {
     address uniV3Factory;
     address uniV3Pool;
     address uniV3Router;
+    address uniV3Quoter;
 
     function _getMoney(address token, uint256 amount) internal {
         d.bank().giveMoney(token, address(this), amount);
@@ -134,10 +135,21 @@ contract MyScript is Script, Test {
         uniV3Router = abi.decode(vm.ffi(temp), (address));
         console.log("[_loadConfig()] uniV3Router = ", uniV3Router);
 
+        temp[0] = "node";
+        temp[1] = "bot/read_config.js";
+        temp[2] = "config[\"config\"][\"deployments\"][\"optimism\"][\"uniV3Quoter\"]";
+        // temp[3] = id;
+        uniV3Quoter = abi.decode(vm.ffi(temp), (address));
+        console.log("[_loadConfig()] uniV3Router = ", uniV3Quoter);
+
+
         if(configType == 0) {
             // TODO: Get it from Deploy
             d = new Deploy(10);
             perpLemmaCommon = address(d.pl());
+            vm.startPrank(d.pl().owner());
+            d.pl().setReBalancer(address(this));
+            vm.stopPrank();
         } else {
             temp[0] = "node";
             temp[1] = "bot/read_config.js";
@@ -171,9 +183,14 @@ contract MyScript is Script, Test {
         uint256 maxAmount = startAmount;
         uint256 minAmount = 0;
         uint256 amount = maxAmount;
-        for(uint256 i=0; i<maxTimes; i++) {
+        for(uint256 i=0; (i<maxTimes) && (amount > 0); i++) {
+            console.log("[_iterateAmount()] IERC20Decimals(usdlCollateral).balanceOf(perpLemmaCommon) = ", IERC20Decimals(usdlCollateral).balanceOf(perpLemmaCommon));
             console.log("[_iterateAmount()] Iteration = ", i);
-            (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = IRebalancer(perpLemmaCommon).rebalance(uniV3Router, 0, int256(amount), false); 
+            console.log("[_iterateAmount()] minAmount = ", minAmount);
+            console.log("[_iterateAmount()] maxAmount = ", maxAmount);
+            console.log("[_iterateAmount()] amount = ", amount);
+            (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = IRebalancer(perpLemmaCommon).rebalance(uniV3Quoter, 1, int256(amount), false); 
+            // (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = IRebalancer(perpLemmaCommon).rebalance(uniV3Router, 0, int256(amount), false); 
             console.log("[_iterateAmount()] amountUSDCPlus = ", amountUSDCPlus);
             console.log("[_iterateAmount()] amountUSDCMinus = ", amountUSDCMinus);
             if(amountUSDCPlus > amountUSDCMinus) {
@@ -185,10 +202,12 @@ contract MyScript is Script, Test {
             amount = (minAmount + maxAmount) / 2;
         }
 
+        console.log("[_iterateAmount()] res = ", minAmount);
+
         return minAmount;
     }
 
-    function _testArb() internal returns(uint256 amount) {
+    function _testArb() internal returns(uint256 isFound, uint256 direction, uint256 amount) {
         uint256 markPrice = IRebalancer(perpLemmaCommon).getMarkPrice();
         uint256 spotPrice = _getSpotPrice();
 
@@ -197,23 +216,33 @@ contract MyScript is Script, Test {
 
         if(spotPrice > markPrice) {
             console.log("Sell on Spot");
-            uint256 amount = IERC20Decimals(usdlCollateral).balanceOf(perpLemmaCommon);
-            console.log("Max Amount = ", amount);
-            if(amount > 0) {
-                IRebalancer(perpLemmaCommon).rebalance(uniV3Router, 0, 1e1, false);
+            uint256 startAmount = IERC20Decimals(usdlCollateral).balanceOf(perpLemmaCommon);
+            console.log("Max Amount = ", startAmount);
+            if(startAmount > 0) {
+                amount = _iterateAmount(startAmount, 3);
+                // IRebalancer(perpLemmaCommon).rebalance(uniV3Router, 0, 1e6, false);
+                if(amount > 0) {
+                    return (1,0,amount);
+                }
             } else {
                 console.log("No Collateral to sell on spot");
+                return (0,0,0);
             }
         } else {
             console.log("Sell on Mark");
             // TODO: Implement
             // IRebalancer(perpLemmaCommon).rebalance(uniV3Router, 0, -1e1, false);
+            return (0,0,0);
         }
+        return (0,0,0);
     }
 
 
     function _writeArb(uint256 isFound, uint256 direction, uint256 amount) internal returns(uint256 res) {
         string[] memory temp = new string[](5);
+        console.log("[_writeArb()] isFound = ", isFound);
+        console.log("[_writeArb()] direction = ", direction);
+        console.log("[_writeArb()] amount = ", amount);
         temp[0] = "node";
         temp[1] = "bot/write_arb.js";
         temp[2] = Strings.toString(isFound);
@@ -229,8 +258,8 @@ contract MyScript is Script, Test {
         console.log("Test");
         _loadConfig();
         _testSetup(1e20, 1e20);
-        _testArb();
-        _writeArb(1, 2, 100);
+        (uint256 isFound, uint256 direction, uint256 amount) = _testArb();
+        _writeArb(isFound, direction, amount);
     }
 
     // Deploy public d;

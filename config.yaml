@@ -1,5 +1,6 @@
 fork:
-  block_number: ""
+  # Here there is a sell on spot
+  block_number: "23301893"
 secrets:
   alchemy_key: https://opt-mainnet.g.alchemy.com/v2/j9pgL8KP33EnVCItge8fRMZPnikQaMBI
-
+tentatives: 1
