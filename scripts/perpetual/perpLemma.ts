@@ -48,7 +48,7 @@ async function main() {
 
   const peripheryAddress = AddressZero;
   const wbtcCollateral = "0xf69460072321ed663Ad8E69Bc15771A57D18522d";
-  const USDLemmaAddress = "0x3e193e134eF0f9187b07cbD6d0DBaD56E1B5542B";
+  const USDLemmaAddress = "0x12A126e11a63694023B59fc02f4e7A8a6f252Cc5";
   const SettlementTokenManagerAddress = "0xCE7808D62FCC4B9cc4A2e661273d61C1a66fcFa0";
   const perpIndex = "0";
 
@@ -73,13 +73,13 @@ async function main() {
   let settlementTokenManager = new ethers.Contract(
     SettlementTokenManagerAddress,
     SettlementTokenManager__factory.abi,
-    defaultSigner,
+    defaultSigner
   );
 
   let uniswapV3Factory = new ethers.Contract(
     externalContracts.UniswapV3Factory,
     UniswapV3FactoryAbi.abi,
-    defaultSigner,
+    defaultSigner
   );
   // let pool = new ethers.Contract(perpV2Config.pools[4].address, UniswapV3PoolAbi.abi, defaultSigner);
   // console.log(pool.address)
@@ -111,7 +111,7 @@ async function main() {
   const LemmaSynth = await ethers.getContractFactory("LemmaSynth");
   const lemmaSynth = await upgrades.deployProxy(
     LemmaSynth,
-    [config[chainId].trustedForwarder, perpLemma.address, settlementToken, wbtcCollateral, "LSynthWbtc", "LSWbtc"],
+    [config[chainId].trustedForwarder, perpLemma.address, settlementToken, wbtcCollateral, "LemmaWBTC", "lWBTC"],
     {
       initializer: "initialize",
     },
@@ -124,7 +124,7 @@ async function main() {
   const XLemmaSynth = await ethers.getContractFactory("xLemmaSynth");
   const xLemmaSynth = await upgrades.deployProxy(
     XLemmaSynth,
-    [config[chainId].trustedForwarder, lemmaSynth.address, peripheryAddress, "xLSynthWbtc", "xLSWbtc"],
+    [config[chainId].trustedForwarder, lemmaSynth.address, peripheryAddress, "xLemmaWBTC", "xlWBTC"],
     {
       initializer: "initialize",
     },
