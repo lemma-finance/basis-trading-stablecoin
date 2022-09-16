@@ -831,7 +831,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                 (, uint256 amountUSDCMinus_1e18) = _closeShortWithExactBase(_amountBaseToRebalance);
                 amountUSDCMinus = (amountUSDCMinus_1e18 * (10**usdc.decimals())) / 1e18;
                 _withdraw(_amountBaseToRebalance, address(usdlCollateral));
-                require(usdlCollateral.balanceOf(address(this)) > _amountBaseToRebalance, "T1");
+                console.log("[rebalance()] usdlCollateral.balanceOf(address(this)) = ", usdlCollateral.balanceOf(address(this)));
+                console.log("[rebalance()] _amountBaseToRebalance = ", _amountBaseToRebalance);
+                require(usdlCollateral.balanceOf(address(this)) >= _amountBaseToRebalance, "[rebalance()] Not enough collateral");
                 amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
                 console.log("[rebalance()] isIncreaseBase=true, amountBase < 0, amountUSDCPlus = ", amountUSDCPlus);
             } else {
@@ -1379,6 +1381,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         console.log("[_swapOnUniV3()] tokenIn = ", tokenIn);
         console.log("[_swapOnUniV3()] tokenOut = ", tokenOut);
         console.log("[_swapOnUniV3()] isQuote = ", (isQuote) ? 1 : 0);
+        console.log("[_swapOnUniV3()] amount = ", amount);
 
         SafeERC20Upgradeable.safeApprove(IERC20Upgradeable(tokenIn), router, MAX_UINT256);
         if (isExactInput) {
@@ -1392,6 +1395,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                     amount,
                     0
                 );
+                console.log("[_swapOnUniV3()] res = ", res);
                 // IQuoterV2.QuoteExactInputSingleParams memory temp = IQuoterV2.QuoteExactInputSingleParams({
                 //     tokenIn: tokenIn,
                 //     tokenOut: tokenOut,

@@ -94,6 +94,15 @@ contract MyScript is Script, Test {
     address uniV3Router;
     address uniV3Quoter;
 
+    uint256 sellOnSpotNumMaxIters;
+
+
+    uint256 initialAmountETH;
+    uint256 initialAmountUSDC;
+    uint256 initialDepositSettlementToken;
+    uint256 initialMintUSDLWithExactETH;
+    uint256 initialMintUSDCWithExactUSDC;
+
     function _getMoney(address token, uint256 amount) internal {
         d.bank().giveMoney(token, address(this), amount);
         // assertTrue(IERC20Decimals(token).balanceOf(address(this)) >= amount);
@@ -103,44 +112,189 @@ contract MyScript is Script, Test {
         //d = new Deploy(10);
     }
 
+    function _mintUSDLWExactCollateralNoChecks(address to, address collateral, uint256 amount) internal {
+        console.log("[_mintUSDLWExactCollateralNoChecks()] Start");
+        address usdl = d.pl().usdLemma();
+        // _getMoneyForTo(to, collateral, amount);
+        uint256 beforeBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
+        uint256 beforeBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
+        IERC20Decimals(collateral).approve(usdl, 0);
+        IERC20Decimals(collateral).approve(usdl, type(uint256).max);
+        uint256 beforeTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
+        // 4th param is minUSDLToMint which is need to be set using callStatic, currently set 0 for not breaking revert
+        // calsstatic is not possible in solidity so
+        d.usdl().depositToWExactCollateral(to, amount, 0, 0, IERC20Upgradeable(collateral)); 
+        console.log("[_mintUSDLWExactCollateralNoChecks()] End");
+        // uint256 afterTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
+        // uint256 afterBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
+        // uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);    
+    }
+
     function _testSetup(uint256 amountETH, uint256 amountUSDC) internal {
-        d.bank().giveMoney(address(d.pl().usdc()), address(d.pl()), amountUSDC);
-        d.bank().giveMoney(address(d.getTokenAddress("WETH")), address(d.pl()), amountETH);
+        d.bank().giveMoney(address(d.pl().usdc()), address(this), amountUSDC);
+        d.bank().giveMoney(address(d.getTokenAddress("WETH")), address(this), amountETH);
+        // d.bank().giveMoney(address(d.pl().usdc()), address(d.pl()), amountUSDC);
+        // d.bank().giveMoney(address(d.getTokenAddress("WETH")), address(d.pl()), amountETH);
+    }
+
+    function _depositSettlementToken(uint256 amount) internal {
+        d.pl().usdc().approve(address(d.pl()), 0);
+        d.pl().usdc().approve(address(d.pl()), amount);
+        d.pl().depositSettlementToken(amount);
+    }
+
+
+    function _testMint(uint256 amountMintUSDLWithExactETH, uint256 amountMintSynthWithExactUSDC) internal {
+        _mintUSDLWExactCollateralNoChecks(address(this), d.getTokenAddress("WETH"), amountMintUSDLWithExactETH);
+    }
+
+    function _readConfigNumber(string memory s) internal returns(uint256 res) {
+        string[] memory temp = new string[](4);
+        temp[0] = "node";
+        temp[1] = "bot/read_config.js";
+        temp[2] = s;
+        temp[3] = "number";
+        console.log("Trying to execute");
+        console.log(temp[2]);
+        res = abi.decode(vm.ffi(temp), (uint256));
+        console.log("[_readConfigNumber()] res = ", res);
+    }
+
+    function _readConfigAddress(string memory s) internal returns(address res) {
+        string[] memory temp = new string[](4);
+        temp[0] = "node";
+        temp[1] = "bot/read_config.js";
+        temp[2] = s;
+        temp[3] = "address";
+        console.log("Trying to execute");
+        console.log(temp[2]);
+        res = abi.decode(vm.ffi(temp), (address));
+        console.log("[_readConfigAddress()] res = ", res);
+    }
+
+    function _readConfigAmount(string memory s) internal returns(uint256 res) {
+        string[] memory temp = new string[](4);
+        temp[0] = "node";
+        temp[1] = "bot/read_config.js";
+        temp[2] = s;
+        temp[3] = "amount";
+        console.log("Trying to execute");
+        console.log(temp[2]);
+        (uint256 b, uint256 e) = abi.decode(vm.ffi(temp), (uint256, uint256));
+        res = b * 10**(e);
+        console.log("[_loadConfig()] res = ", res);
     }
 
 
 
+
+
     function _loadConfig() internal {
-        string[] memory temp = new string[](3);
-        temp[0] = "node";
-        temp[1] = "bot/read_config.js";
-        temp[2] = "config[\"config\"][\"use\"]";
-        // temp[3] = id;
-        console.log("Trying to execute");
-        console.log(temp[2]);
-        configType = abi.decode(vm.ffi(temp), (uint256));
-        console.log("[_loadConfig()] configType = ", configType);
+        string[] memory temp = new string[](4);
 
-        temp[0] = "node";
-        temp[1] = "bot/read_config.js";
-        temp[2] = "config[\"config\"][\"deployments\"][\"optimism\"][\"uniV3Factory\"]";
-        // temp[3] = id;
-        uniV3Factory = abi.decode(vm.ffi(temp), (address));
-        console.log("[_loadConfig()] uniV3Factory = ", uniV3Factory);
+        configType = _readConfigNumber("config[\"config\"][\"use\"]");
 
-        temp[0] = "node";
-        temp[1] = "bot/read_config.js";
-        temp[2] = "config[\"config\"][\"deployments\"][\"optimism\"][\"uniV3Router\"]";
-        // temp[3] = id;
-        uniV3Router = abi.decode(vm.ffi(temp), (address));
-        console.log("[_loadConfig()] uniV3Router = ", uniV3Router);
+        // temp[0] = "node";
+        // temp[1] = "bot/read_config.js";
+        // temp[2] = "config[\"config\"][\"use\"]";
+        // temp[3] = "number";
+        // console.log("Trying to execute");
+        // console.log(temp[2]);
+        // configType = abi.decode(vm.ffi(temp), (uint256));
+        // console.log("[_loadConfig()] configType = ", configType);
 
-        temp[0] = "node";
-        temp[1] = "bot/read_config.js";
-        temp[2] = "config[\"config\"][\"deployments\"][\"optimism\"][\"uniV3Quoter\"]";
-        // temp[3] = id;
-        uniV3Quoter = abi.decode(vm.ffi(temp), (address));
-        console.log("[_loadConfig()] uniV3Router = ", uniV3Quoter);
+        uniV3Factory = _readConfigAddress("config[\"config\"][\"deployments\"][\"optimism\"][\"uniV3Factory\"]");
+
+        // temp[0] = "node";
+        // temp[1] = "bot/read_config.js";
+        // temp[2] = "config[\"config\"][\"deployments\"][\"optimism\"][\"uniV3Factory\"]";
+        // temp[3] = "address";
+        // uniV3Factory = abi.decode(vm.ffi(temp), (address));
+        // console.log("[_loadConfig()] uniV3Factory = ", uniV3Factory);
+
+
+
+
+        uniV3Router = _readConfigAddress("config[\"config\"][\"deployments\"][\"optimism\"][\"uniV3Router\"]");
+
+        // temp[0] = "node";
+        // temp[1] = "bot/read_config.js";
+        // temp[2] = "config[\"config\"][\"deployments\"][\"optimism\"][\"uniV3Router\"]";
+        // temp[3] = "address";
+        // uniV3Router = abi.decode(vm.ffi(temp), (address));
+        // console.log("[_loadConfig()] uniV3Router = ", uniV3Router);
+
+
+        uniV3Quoter = _readConfigAddress("config[\"config\"][\"deployments\"][\"optimism\"][\"uniV3Quoter\"]");
+
+        // temp[0] = "node";
+        // temp[1] = "bot/read_config.js";
+        // temp[2] = "config[\"config\"][\"deployments\"][\"optimism\"][\"uniV3Quoter\"]";
+        // temp[3] = "address";
+        // uniV3Quoter = abi.decode(vm.ffi(temp), (address));
+        // console.log("[_loadConfig()] uniV3Router = ", uniV3Quoter);
+
+
+        sellOnSpotNumMaxIters = _readConfigNumber("config[\"config\"][\"ArbSearch\"][\"SellOnSpot\"][\"NumMaxIters\"]");
+
+        // temp[0] = "node";
+        // temp[1] = "bot/read_config.js";
+        // temp[2] = "config[\"config\"][\"ArbSearch\"][\"SellOnSpot\"][\"NumMaxIters\"]";
+        // temp[3] = "number";
+        // sellOnSpotNumMaxIters = abi.decode(vm.ffi(temp), (uint256));
+        // console.log("[_loadConfig()] sellOnSpotNumMaxIters = ", sellOnSpotNumMaxIters);
+
+
+        initialAmountETH = _readConfigAmount("config[\"config\"][\"setup\"][\"amountETH\"]");
+
+        // temp[0] = "node";
+        // temp[1] = "bot/read_config.js";
+        // temp[2] = "config[\"config\"][\"setup\"][\"amountETH\"]";
+        // temp[3] = "amount";
+        // (uint256 b, uint256 e) = abi.decode(vm.ffi(temp), (uint256, uint256));
+        // initialAmountETH = b * 10**(e);
+        // console.log("[_loadConfig()] initialAmountETH = ", initialAmountETH);
+
+
+
+        initialAmountUSDC = _readConfigAmount("config[\"config\"][\"setup\"][\"amountUSDC\"]");
+
+        // temp[0] = "node";
+        // temp[1] = "bot/read_config.js";
+        // temp[2] = "config[\"config\"][\"setup\"][\"amountUSDC\"]";
+        // // temp[3] = id;
+        // initialAmountUSDC = abi.decode(vm.ffi(temp), (uint256));
+        // console.log("[_loadConfig()] initialAmountUSDC = ", initialAmountUSDC);
+
+
+        initialMintUSDLWithExactETH = _readConfigAmount("config[\"config\"][\"setup\"][\"mintUSDLWithExactETH\"]");
+
+        // temp[0] = "node";
+        // temp[1] = "bot/read_config.js";
+        // temp[2] = "config[\"config\"][\"setup\"][\"mintUSDLWithExactETH\"]";
+        // // temp[3] = id;
+        // initialMintUSDLWithExactETH = abi.decode(vm.ffi(temp), (uint256));
+        // console.log("[_loadConfig()] initialMintUSDLWithExactETH = ", initialMintUSDLWithExactETH);
+
+
+        initialMintUSDCWithExactUSDC = _readConfigAmount("config[\"config\"][\"setup\"][\"mintSynthWithExactUSDC\"]");
+
+        // temp[0] = "node";
+        // temp[1] = "bot/read_config.js";
+        // temp[2] = "config[\"config\"][\"setup\"][\"mintSynthWithExactUSDC\"]";
+        // // temp[3] = id;
+        // initialMintUSDCWithExactUSDC = abi.decode(vm.ffi(temp), (uint256));
+        // console.log("[_loadConfig()] initialMintUSDCWithExactUSDC = ", initialMintUSDCWithExactUSDC);
+
+
+        initialDepositSettlementToken = _readConfigAmount("config[\"config\"][\"setup\"][\"depositSettlementToken\"]");
+
+        // temp[0] = "node";
+        // temp[1] = "bot/read_config.js";
+        // temp[2] = "config[\"config\"][\"setup\"][\"depositSettlementToken\"]";
+        // // temp[3] = id;
+        // initialDepositSettlementToken = abi.decode(vm.ffi(temp), (uint256));
+        // console.log("[_loadConfig()] initialDepositSettlementToken = ", initialDepositSettlementToken);
 
 
         if(configType == 0) {
@@ -149,6 +303,7 @@ contract MyScript is Script, Test {
             perpLemmaCommon = address(d.pl());
             vm.startPrank(d.pl().owner());
             d.pl().setReBalancer(address(this));
+            d.pl().setSettlementTokenManager(address(this));
             vm.stopPrank();
         } else {
             temp[0] = "node";
@@ -219,7 +374,7 @@ contract MyScript is Script, Test {
             uint256 startAmount = IERC20Decimals(usdlCollateral).balanceOf(perpLemmaCommon);
             console.log("Max Amount = ", startAmount);
             if(startAmount > 0) {
-                amount = _iterateAmount(startAmount, 3);
+                amount = _iterateAmount(startAmount, sellOnSpotNumMaxIters);
                 // IRebalancer(perpLemmaCommon).rebalance(uniV3Router, 0, 1e6, false);
                 if(amount > 0) {
                     return (1,0,amount);
@@ -257,7 +412,9 @@ contract MyScript is Script, Test {
     function run() external {
         console.log("Test");
         _loadConfig();
-        _testSetup(1e20, 1e20);
+        _testSetup(initialAmountETH, initialAmountUSDC);
+        _depositSettlementToken(initialDepositSettlementToken);
+        _testMint(initialMintUSDLWithExactETH, initialMintUSDCWithExactUSDC);
         (uint256 isFound, uint256 direction, uint256 amount) = _testArb();
         _writeArb(isFound, direction, amount);
     }

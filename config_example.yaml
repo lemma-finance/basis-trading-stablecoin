@@ -1,6 +1,7 @@
 fork:
   # If empty, the most recent block is used
-  block_number: ""
+  # At this block number, with the standard LemmaSwapConfig described in config.js there seems to be an arb found 
+  block_number: "23201893"
 secrets:
   # Put your alchemy key here
   alchemy_key: ""

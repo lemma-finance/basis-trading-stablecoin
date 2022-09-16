@@ -4,7 +4,34 @@
             [
                 "Supported deployments: 0=Forked Optimism, 1=Optimism"
             ],
+        "ArbSearch": {
+            "SellOnSpot": {
+                "NumMaxIters": 3
+            }
+        },
         "use": 0,
+        "setup": {
+            "amountETH": {
+                "base": 1,
+                "exp": 20
+            },
+            "amountUSDC": {
+                "base": 1,
+                "exp": 15
+            },
+            "depositSettlementToken": {
+                "base": 1,
+                "exp": 12
+            },
+            "mintUSDLWithExactETH": {
+                "base": 1,
+                "exp": 12
+            },
+            "mintSynthWithExactUSDC": {
+                "base": 0,
+                "exp": 0
+            }
+        },
         "deployments": 
         {
             "optimism": {
