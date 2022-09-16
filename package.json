@@ -51,7 +51,7 @@
     "@mcdex/mai3.js": "^0.5.90",
     "@perp/curie-deployments": "^2022.9.2-1662100162549",
     "@perp/sdk-curie": "^1.12.3",
-    "axios": "^0.19.2",
+    "axios": ">=0.21.2",
     "colors": "^1.4.0",
     "dotenv": "^10.0.0",
     "node-notifier": "^10.0.0",
