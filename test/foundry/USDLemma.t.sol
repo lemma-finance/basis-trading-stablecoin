@@ -226,7 +226,7 @@ contract USDLemmaTest is Test {
         uint256 afterBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         assertEq(afterTotalUsdl - beforeTotalUsdl, afterBalanceUSDL);
-        assertTrue(afterBalanceUSDL > beforeBalanceUSDL);
+        assertEq(afterBalanceUSDL, beforeBalanceUSDL + amount);
         assertTrue(afterBalanceCollateral < beforeBalanceCollateral);
     }
 
@@ -245,7 +245,10 @@ contract USDLemmaTest is Test {
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         assertEq(afterTotalUsdl - beforeTotalUsdl, afterBalanceUSDL);
         assertTrue(afterBalanceUSDL > beforeBalanceUSDL);
-        assertTrue(afterBalanceCollateral < beforeBalanceCollateral);
+        assertEq(
+            afterBalanceCollateral,
+            beforeBalanceCollateral - d.pl().getAmountInCollateralDecimalsForPerp(amount, collateral, false)
+        );
     }
 
     function _mintUSDLWExactCollateralNoChecks(address to, address collateral, uint256 amount) internal {
@@ -277,7 +280,7 @@ contract USDLemmaTest is Test {
         uint256 afterBalanceUSDL = d.usdl().balanceOf(to);
         assertEq(beforeTotalUsdl - afterTotalUsdl, amount);
         assertTrue(afterBalanceCollateral > beforeBalanceCollateral);
-        assertTrue(afterBalanceUSDL < beforeBalanceUSDL);
+        assertEq(afterBalanceUSDL, beforeBalanceUSDL - amount);
     }
 
     function _redeemUSDLWExactCollateral(address to, address collateral, uint256 collateralAmount, uint256 dexIndex)
@@ -295,7 +298,10 @@ contract USDLemmaTest is Test {
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 afterBalanceUSDL = d.usdl().balanceOf(to);
         assertEq(beforeTotalUsdl - afterTotalUsdl, beforeBalanceUSDL - afterBalanceUSDL);
-        assertTrue(afterBalanceCollateral > beforeBalanceCollateral);
+        assertEq(
+            afterBalanceCollateral,
+            beforeBalanceCollateral + d.pl().getAmountInCollateralDecimalsForPerp(collateralAmount, collateral, false)
+        );
         assertTrue(afterBalanceUSDL < beforeBalanceUSDL);
     }
 

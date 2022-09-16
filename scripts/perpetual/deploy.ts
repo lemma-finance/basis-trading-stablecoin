@@ -149,7 +149,7 @@ async function main() {
   const LemmaSynth = await ethers.getContractFactory("LemmaSynth");
   const lemmaSynth = await upgrades.deployProxy(
     LemmaSynth,
-    [config[chainId].trustedForwarder, perpLemma.address, settlementToken, collateral.address, "LSynthEth", "LSEth"],
+    [config[chainId].trustedForwarder, perpLemma.address, settlementToken, collateral.address, "LemmaETH", "lETH"],
     {
       initializer: "initialize",
     },
@@ -162,7 +162,7 @@ async function main() {
   const XLemmaSynth = await ethers.getContractFactory("xLemmaSynth");
   const xLemmaSynth = await upgrades.deployProxy(
     XLemmaSynth,
-    [config[chainId].trustedForwarder, lemmaSynth.address, peripheryAddress, "xLSynthEth", "xLSEth"],
+    [config[chainId].trustedForwarder, lemmaSynth.address, peripheryAddress, "xLemmaETH", "xlETH"],
     {
       initializer: "initialize",
     },
