@@ -275,7 +275,7 @@ contract USDLemma is
 
     /// @notice Deposit collateral like WETH, WBTC, etc. to mint USDL specifying the exact amount of collateral
     /// @param to Receipent of minted USDL
-    /// @param collateralAmount Amount of collateral to deposit in the collateral decimal format
+    /// @param collateralAmount Amount of collateral to deposit in the 18 decimals
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be opened
     /// @param minUSDLToMint Minimum USDL to mint
     /// @param collateral Collateral to be used to mint USDL
@@ -376,7 +376,7 @@ contract USDLemma is
 
     /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc specifying the exact amount of collateral
     /// @param to Receipent of withdrawn collateral
-    /// @param collateralAmount Amount of collateral to withdraw
+    /// @param collateralAmount Amount of collateral to withdraw in 18 decimls
     /// @param perpetualDEXIndex Index of perpetual dex, where position will be closed
     /// @param maxUSDLToBurn Max USDL to burn in the process
     /// @param collateral Collateral to be used to redeem USDL

@@ -93,7 +93,7 @@ contract LemmaSynthTest is Test {
         uint256 afterBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         assertEq(afterTotalSynth - beforeTotalSynth, afterBalanceSynth);
-        assertTrue(afterBalanceSynth > beforeBalanceSynth);
+        assertEq(afterBalanceSynth, beforeBalanceSynth + synthAmount);
         assertTrue(afterBalanceCollateral < beforeBalanceCollateral);
     }
 
@@ -114,7 +114,10 @@ contract LemmaSynthTest is Test {
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         assertEq(afterTotalSynth - beforeTotalSynth, afterBalanceSynth);
         assertTrue(afterBalanceSynth > beforeBalanceSynth);
-        assertTrue(afterBalanceCollateral < beforeBalanceCollateral);
+        assertEq(
+            afterBalanceCollateral,
+            beforeBalanceCollateral - d.pl().getAmountInCollateralDecimalsForPerp(usdcAmount, collateral, false) //because this is already converted in USDC decimals above
+        );
     }
 
     function _redeemSynthWExactSynth(address to, address collateral, uint256 synthAmount) internal {
@@ -129,7 +132,7 @@ contract LemmaSynthTest is Test {
         uint256 afterBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
         assertEq(beforeTotalSynth - synthAmount, afterTotalSynth);
         assertTrue(afterBalanceCollateral > beforeBalanceCollateral);
-        assertTrue(afterBalanceSynth < beforeBalanceSynth);
+        assertEq(afterBalanceSynth, beforeBalanceSynth - synthAmount);
     }
 
     function _redeemSynthWExactCollateral(address to, address collateral, uint256 usdcAmount) internal {
@@ -142,16 +145,12 @@ contract LemmaSynthTest is Test {
         uint256 afterTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 afterBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
-        // console.log('beforeBalanceSynth: ', beforeBalanceSynth);
-        // console.log('afterBalanceSynth: ', afterBalanceSynth);
-        // console.log('beforeTotalSynth: ', beforeTotalSynth);
-        // console.log('afterTotalSynth: ', afterTotalSynth);
-        // console.log('beforeBalanceCollateral: ', beforeBalanceCollateral);
-        // console.log('afterBalanceCollateral: ', afterBalanceCollateral);
-        // console.log('beforeTotalSynth-afterTotalSynth: ', beforeTotalSynth-afterTotalSynth);
-        // console.log('beforeBalanceSynth-afterBalanceSynth: ', beforeBalanceSynth-afterBalanceSynth);
         assertEq(beforeTotalSynth - afterTotalSynth, beforeBalanceSynth - afterBalanceSynth);
-        assertTrue(afterBalanceCollateral > beforeBalanceCollateral);
+        assertEq(
+            afterBalanceCollateral,
+            //usdcAmount was in 18 decimals that needs to be comverted in 6 decimals to be be compared with other token balance
+            beforeBalanceCollateral + d.pl().getAmountInCollateralDecimalsForPerp(usdcAmount, collateral, false)
+        );
         assertTrue(afterBalanceSynth < beforeBalanceSynth);
     }
 

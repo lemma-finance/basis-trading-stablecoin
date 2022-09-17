@@ -102,7 +102,7 @@ async function main() {
   const LemmaSynth = await ethers.getContractFactory("LemmaSynth");
   const lemmaSynth = await upgrades.deployProxy(
     LemmaSynth,
-    [trustedForwarder, perpLemma.address, settlementToken, wbtcCollateral, "LSynthWbtc", "LSWbtc"],
+    [trustedForwarder, perpLemma.address, settlementToken, wbtcCollateral, "LemmaWBTC", "lWBTC"],
     {
       initializer: "initialize",
     },
@@ -115,7 +115,7 @@ async function main() {
   const XLemmaSynth = await ethers.getContractFactory("xLemmaSynth");
   const xLemmaSynth = await upgrades.deployProxy(
     XLemmaSynth,
-    [trustedForwarder, lemmaSynth.address, peripheryAddress, "xLSynthWbtc", "xLSWbtc"],
+    [trustedForwarder, lemmaSynth.address, peripheryAddress, "xLemmaWBTC", "xlWBTC"],
     {
       initializer: "initialize",
     },
