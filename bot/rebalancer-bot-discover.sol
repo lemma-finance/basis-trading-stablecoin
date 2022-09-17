@@ -11,9 +11,6 @@ import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "../contracts/interfaces/IERC20Decimals.sol";
 import "contracts/interfaces/IPerpetualMixDEXWrapper.sol";
 
-import "../contracts/interfaces/IERC20Decimals.sol";
-// import "@openzeppelin/contracts/utils/Strings.sol";
-
 // struct ExternalContracts {
 //     address uniV3Router;
 //     IUniswapV3Factory uniV3Factory;
@@ -27,6 +24,7 @@ import "../contracts/interfaces/IERC20Decimals.sol";
 //     uint256 chainId;
 // }
 
+error rebalanceResult (uint256 amountUSDCPlus, uint256 amountUSDCMinus);
 
 
 interface IRebalancer {
@@ -78,16 +76,36 @@ library Strings {
     }
 }
 
+contract SimRebalance {
+    address uniV3Router;
+    address perpLemmaCommon;
+
+    constructor(address _uniV3Router, address _perpLemmaCommon) {
+        uniV3Router = _uniV3Router;
+        perpLemmaCommon = _perpLemmaCommon;
+    }
+
+    function run(int256 amount) external {
+        (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = IRebalancer(perpLemmaCommon).rebalance(uniV3Router, 0, amount, false);
+        revert rebalanceResult(amountUSDCPlus, amountUSDCMinus);
+    }
+}
+
 
 contract MyScript is Script, Test {
 
     uint256 configType;
     Deploy d;
+    SimRebalance simRebalance;
 
 
     address perpLemmaCommon;
     address usdlCollateral;
     address usdc;
+
+    // NOTE: If the discovered arb needs to be tested 
+    uint256 testRunArb;
+    uint256 minProfit;
 
     address uniV3Factory;
     address uniV3Pool;
@@ -193,6 +211,10 @@ contract MyScript is Script, Test {
         string[] memory temp = new string[](4);
 
         configType = _readConfigNumber("config[\"config\"][\"use\"]");
+
+        testRunArb = _readConfigNumber("config[\"config\"][\"test-arb\"]");
+
+        minProfit = _readConfigNumber("config[\"config\"][\"min-profit\"]");
 
         // temp[0] = "node";
         // temp[1] = "bot/read_config.js";
@@ -325,6 +347,7 @@ contract MyScript is Script, Test {
         console.log("[_loadConfig()] Pool Token0 = ", IUniswapV3Pool(uniV3Pool).token0());
         console.log("[_loadConfig()] Pool Token1 = ", IUniswapV3Pool(uniV3Pool).token1());
 
+        simRebalance = new SimRebalance(uniV3Router, perpLemmaCommon);
     }
 
     function _getSpotPrice() internal returns(uint256 token0Price) {
@@ -333,8 +356,22 @@ contract MyScript is Script, Test {
         console.log("[_getSpotPrice()] sqrtPriceX96 = ", uint256(sqrtPriceX96));
     }
 
+    function _runArb(int256 amount) internal returns(uint256 profit) {
+        (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = IRebalancer(perpLemmaCommon).rebalance(uniV3Router, 0, amount, false);
+        require(amountUSDCPlus > amountUSDCMinus, "No Arb");
+        profit = amountUSDCPlus - amountUSDCMinus;
+        console.log("[_runArb()] Profit = ", profit);
+    }
 
-    function _iterateAmount(uint256 startAmount, uint256 maxTimes) internal returns(uint256) {
+
+    function _simulateRebalance(int256 amount) internal returns(uint256 amountUSDCPlus, uint256 amountUSDCMinus) {
+        try simRebalance.run(amount) {} 
+         catch (bytes memory reason) {
+            (amountUSDCPlus, amountUSDCMinus) = abi.decode(reason, (uint256, uint256));
+        }
+    }
+
+    function _iterateAmount(uint256 startAmount, uint256 maxTimes) internal returns(uint256 bestAmount, uint256 bestProfit) {
         uint256 maxAmount = startAmount;
         uint256 minAmount = 0;
         uint256 amount = maxAmount;
@@ -344,12 +381,19 @@ contract MyScript is Script, Test {
             console.log("[_iterateAmount()] minAmount = ", minAmount);
             console.log("[_iterateAmount()] maxAmount = ", maxAmount);
             console.log("[_iterateAmount()] amount = ", amount);
-            (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = IRebalancer(perpLemmaCommon).rebalance(uniV3Quoter, 1, int256(amount), false); 
+
+            (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = _simulateRebalance(int256(amount));
+            // (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = IRebalancer(perpLemmaCommon).rebalance(uniV3Quoter, 1, int256(amount), false); 
             // (uint256 amountUSDCPlus, uint256 amountUSDCMinus) = IRebalancer(perpLemmaCommon).rebalance(uniV3Router, 0, int256(amount), false); 
             console.log("[_iterateAmount()] amountUSDCPlus = ", amountUSDCPlus);
             console.log("[_iterateAmount()] amountUSDCMinus = ", amountUSDCMinus);
             if(amountUSDCPlus > amountUSDCMinus) {
-                if(amount == maxAmount) {return amount;} 
+                uint256 currentProfit = amountUSDCPlus - amountUSDCMinus;
+                if(currentProfit > bestProfit) {
+                    bestAmount = amount;
+                    bestProfit = currentProfit;
+                }
+                // if(amount == maxAmount) {return amount;} 
                 minAmount = amount;
             } else {
                 maxAmount = amount;
@@ -357,39 +401,46 @@ contract MyScript is Script, Test {
             amount = (minAmount + maxAmount) / 2;
         }
 
-        console.log("[_iterateAmount()] res = ", minAmount);
-
-        return minAmount;
+        console.log("[_iterateAmount()] bestAmount = ", bestAmount);
+        console.log("[_iterateAmount()] bestProfit = ", bestProfit);
     }
 
-    function _testArb() internal returns(uint256 isFound, uint256 direction, uint256 amount) {
+    function _searchArb() internal returns(uint256 isFound, uint256 direction, uint256 amount, uint256 profit) {
         uint256 markPrice = IRebalancer(perpLemmaCommon).getMarkPrice();
         uint256 spotPrice = _getSpotPrice();
 
-        console.log("[_testArb()] markPrice = ", markPrice);
-        console.log("[_testArb()] spotPrice = ", spotPrice);
+        console.log("[_searchArb()] markPrice = ", markPrice);
+        console.log("[_searchArb()] spotPrice = ", spotPrice);
 
         if(spotPrice > markPrice) {
             console.log("Sell on Spot");
             uint256 startAmount = IERC20Decimals(usdlCollateral).balanceOf(perpLemmaCommon);
             console.log("Max Amount = ", startAmount);
             if(startAmount > 0) {
-                amount = _iterateAmount(startAmount, sellOnSpotNumMaxIters);
+                (amount, profit) = _iterateAmount(startAmount, sellOnSpotNumMaxIters);
                 // IRebalancer(perpLemmaCommon).rebalance(uniV3Router, 0, 1e6, false);
                 if(amount > 0) {
-                    return (1,0,amount);
+
+                    if(profit >= minProfit) {
+                        // NOTE: Good Arb Found
+                        return (1,0,amount, profit);
+                    } else {
+                        // NOTE: Arb Found but probably unprofitable
+                        return (2,0,amount, profit);
+                    }
+
                 }
             } else {
                 console.log("No Collateral to sell on spot");
-                return (0,0,0);
+                return (0,0,0,0);
             }
         } else {
             console.log("Sell on Mark");
             // TODO: Implement
             // IRebalancer(perpLemmaCommon).rebalance(uniV3Router, 0, -1e1, false);
-            return (0,0,0);
+            return (0,0,0,0);
         }
-        return (0,0,0);
+        return (0,0,0,0);
     }
 
 
@@ -415,7 +466,10 @@ contract MyScript is Script, Test {
         _testSetup(initialAmountETH, initialAmountUSDC);
         _depositSettlementToken(initialDepositSettlementToken);
         _testMint(initialMintUSDLWithExactETH, initialMintUSDCWithExactUSDC);
-        (uint256 isFound, uint256 direction, uint256 amount) = _testArb();
+        (uint256 isFound, uint256 direction, uint256 amount, uint256 profit) = _searchArb();
+        if( (isFound > 0) && (testRunArb > 0) ) {
+            _runArb( int256(amount) *  ((direction == 0) ? int256(1) : int256(-1)) );
+        }
         _writeArb(isFound, direction, amount);
     }
 

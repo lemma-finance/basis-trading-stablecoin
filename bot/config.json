@@ -10,6 +10,8 @@
             }
         },
         "use": 0,
+        "test-arb": 0,
+        "min-profit": 0,
         "setup": {
             "amountETH": {
                 "base": 1,
