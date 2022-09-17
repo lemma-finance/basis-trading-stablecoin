@@ -3,7 +3,7 @@ const { ethers, upgrades } = hre;
 const { constants } = ethers;
 const { AddressZero } = constants;
 import { fetchFromURL, delay } from "../../test/hardhat/shared/utils";
-import config from "./constants.json";
+import config from "./config/config_deploy.json";
 import fs from "fs";
 import ClearingHouseAbi from "@perp/curie-deployments/optimism/core/artifacts/contracts/ClearingHouse.sol/ClearingHouse.json";
 import OrderBookAbi from "@perp/curie-deployments/optimism/core/artifacts/contracts/OrderBook.sol/OrderBook.json";
@@ -46,6 +46,16 @@ async function main() {
   const collaterals = perpV2Config.collaterals;
   const externalContracts = perpV2Config.externalContracts;
 
+  const trustedForwarder = config[chainId].trustedForwarder;
+  const reBalancer = config[chainId].reBalancer;
+  const maxPosition = config[chainId].maxPosition;
+  const percFundingPaymentsToUSDLHolder = config[chainId].percFundingPaymentsToUSDLHolder;
+  const minFreeCollateral = config[chainId].minFreeCollateral;
+  const minMarginSafeThreshold = config[chainId].minMarginSafeThreshold;
+  const collateralRatio = config[chainId].collateralRatio;
+  const usdLemmaSetFees = config[chainId].usdLemmaSetFees;
+  const lemmaSynthSetFees = config[chainId].lemmaSynthSetFees;
+
   let [defaultSigner]: any = await ethers.getSigners();
   let clearingHouse = new ethers.Contract(contracts.ClearingHouse.address, ClearingHouseAbi.abi, defaultSigner);
   let orderBook = new ethers.Contract(contracts.OrderBook.address, OrderBookAbi.abi, defaultSigner);
@@ -61,7 +71,7 @@ async function main() {
     chainId == 10 ? collaterals[0].address : collaterals[2].address,
     TestERC20Abi.abi,
     defaultSigner,
-  ); //WETH
+  ); // WETH
   let baseToken = new ethers.Contract(contracts.vETH.address, BaseTokenAbi.abi, defaultSigner);
   let baseToken2 = new ethers.Contract(contracts.vBTC.address, TestERC20Abi.abi, defaultSigner);
   let quoteToken = new ethers.Contract(contracts.QuoteToken.address, QuoteTokenAbi.abi, defaultSigner);
@@ -81,12 +91,11 @@ async function main() {
   console.log("etherBalanceBefore", etherBalanceBefore.toString());
 
   console.log("deploying perpLemma");
-  const maxPosition = ethers.constants.MaxUint256;
   const perpLemmaFactory = await ethers.getContractFactory("PerpLemmaCommon");
   let perpLemma = await upgrades.deployProxy(
     perpLemmaFactory,
     [
-      config[chainId].trustedForwarder,
+      trustedForwarder,
       collateral.address,
       baseToken.address,
       clearingHouse.address,
@@ -111,7 +120,7 @@ async function main() {
   const usdLemma = await upgrades.deployProxy(
     USDLemma,
     [
-      config[chainId].trustedForwarder,
+      trustedForwarder,
       collateral.address,
       perpLemma.address,
       settlementTokenManager.address,
@@ -137,7 +146,7 @@ async function main() {
   const peripheryAddress = AddressZero;
   const xUSDL = await upgrades.deployProxy(
     XUSDL,
-    [config[chainId].trustedForwarder, usdLemma.address, peripheryAddress],
+    [trustedForwarder, usdLemma.address, peripheryAddress],
     {
       initializer: "initialize",
     },
@@ -149,7 +158,7 @@ async function main() {
   const LemmaSynth = await ethers.getContractFactory("LemmaSynth");
   const lemmaSynth = await upgrades.deployProxy(
     LemmaSynth,
-    [config[chainId].trustedForwarder, perpLemma.address, settlementToken, collateral.address, "LSynthEth", "LSEth"],
+    [trustedForwarder, perpLemma.address, settlementToken, collateral.address, "LSynthEth", "LSEth"],
     {
       initializer: "initialize",
     },
@@ -162,7 +171,7 @@ async function main() {
   const XLemmaSynth = await ethers.getContractFactory("xLemmaSynth");
   const xLemmaSynth = await upgrades.deployProxy(
     XLemmaSynth,
-    [config[chainId].trustedForwarder, lemmaSynth.address, peripheryAddress, "xLSynthEth", "xLSEth"],
+    [trustedForwarder, lemmaSynth.address, peripheryAddress, "xLSynthEth", "xLSEth"],
     {
       initializer: "initialize",
     },
@@ -175,7 +184,7 @@ async function main() {
   await perpLemma.connect(defaultSigner).setSettlementTokenManager(settlementTokenManager.address);
   await delay(10000);
 
-  await perpLemma.connect(defaultSigner).setReBalancer(config[chainId].reBalancer);
+  await perpLemma.connect(defaultSigner).setReBalancer(reBalancer);
   await delay(10000);
 
   await perpLemma.setUSDLemma(usdLemma.address);
@@ -184,14 +193,31 @@ async function main() {
   await perpLemma.setLemmaSynth(lemmaSynth.address);
   await delay(10000);
 
+  await perpLemma.setXUsdl(xUSDL.address);
+  await delay(10000);
+
+  await perpLemma.setXSynth(xLemmaSynth.address);
+  await delay(10000);
+
+  await perpLemma.setPercFundingPaymentsToUSDLHolders(percFundingPaymentsToUSDLHolder);
+  await delay(10000);
+
+  await perpLemma.setMinFreeCollateral(minFreeCollateral);
+  await delay(10000);
+
+  await perpLemma.setMinMarginSafeThreshold(minMarginSafeThreshold);
+  await delay(10000);
+
+  await perpLemma.setCollateralRatio(collateralRatio);
+  await delay(10000);
+
   await settlementTokenManager.setIsSettlementAllowed(true);
   await delay(10000);
 
   await settlementTokenManager.setUSDLemma(usdLemma.address);
   await delay(10000);
 
-  const fees = 3000; //30%
-  await usdLemma.setFees(fees);
+  await usdLemma.setFees(usdLemmaSetFees);
   await delay(10000);
 
   //set lemma treasury address
@@ -199,6 +225,15 @@ async function main() {
   await delay(10000);
 
   await usdLemma.connect(defaultSigner).setSettlementTokenManager(settlementTokenManager.address);
+  await delay(10000);
+
+  await usdLemma.setXUsdl(xUSDL.address);
+  await delay(10000);
+
+  await lemmaSynth.setXSynth(xLemmaSynth.address);
+  await delay(10000);
+
+  await lemmaSynth.setFees(lemmaSynthSetFees);
   await delay(10000);
 
   //set minimum lock

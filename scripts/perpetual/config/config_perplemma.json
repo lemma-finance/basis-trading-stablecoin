@@ -1,0 +1,35 @@
+{
+    "10": {
+        "USDLemmaAddress": "0x10F6770CCEb39620FeA7a0f47287376a0AA39302",
+        "xUSDL": "0x2862631B28603750B8c2496C7aAB14C2Fc58F321",
+        "SettlementTokenManagerAddress": "0x3487F2f00F42cA63CDBD9De56905eb4d83167c7b",
+        "wbtcCollateral": "0xf69460072321ed663Ad8E69Bc15771A57D18522d",
+        "trustedForwarder": "0x70Be17A1D2C66071c5ff4D31CF5e513E985aBcEE",
+        "reBalancer": "0x70Be17A1D2C66071c5ff4D31CF5e513E985aBcEE",
+        "perpIndex": 0,
+        "maxPosition": "100000000000000000000000000",
+        "percFundingPaymentsToUSDLHolder": "0",
+        "minFreeCollateral": "0",
+        "minMarginSafeThreshold": "1",
+        "collateralRatio": "0",
+        "usdLemmaSetFees": "3000",
+        "lemmaSynthSetFees": "3000"
+    },
+    "69": {
+        "USDLemmaAddress": "0x10F6770CCEb39620FeA7a0f47287376a0AA39302",
+        "xUSDL": "0x2862631B28603750B8c2496C7aAB14C2Fc58F321",
+        "SettlementTokenManagerAddress": "0x3487F2f00F42cA63CDBD9De56905eb4d83167c7b",
+        "wbtcCollateral": "0xf69460072321ed663Ad8E69Bc15771A57D18522d",
+        "trustedForwarder": "0x70Be17A1D2C66071c5ff4D31CF5e513E985aBcEE",
+        "reBalancer": "0x70Be17A1D2C66071c5ff4D31CF5e513E985aBcEE",
+        "perpIndex": 0,
+        "maxPosition": "100000000000000000000000000",
+        "percFundingPaymentsToUSDLHolder": "0",
+        "minFreeCollateral": "0",
+        "minMarginSafeThreshold": "1",
+        "collateralRatio": "0",
+        "usdLemmaSetFees": "3000",
+        "lemmaSynthSetFees": "3000"
+    }
+
+}
