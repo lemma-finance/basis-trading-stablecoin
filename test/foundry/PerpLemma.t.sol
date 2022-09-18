@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.3;
 
-import {IPerpetualMixDEXWrapper} from "../../contracts/interfaces/IPerpetualMixDEXWrapper.sol";
+import { IPerpetualMixDEXWrapper } from "../../contracts/interfaces/IPerpetualMixDEXWrapper.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "../../contracts/interfaces/IERC20Decimals.sol";
 import "../../src/Deploy.sol";
@@ -49,12 +49,12 @@ contract PerpLemmaCommonTest is Test {
 
     // Internal
 
-    function _deductFees(address collateral, uint256 collateralAmount, uint256 dexIndex)
-        internal
-        view
-        returns (uint256 total)
-    {
-        uint256 _fees = collateralAmount * d.usdl().getFees(dexIndex, collateral) / 1e6;
+    function _deductFees(
+        address collateral,
+        uint256 collateralAmount,
+        uint256 dexIndex
+    ) internal view returns (uint256 total) {
+        uint256 _fees = (collateralAmount * d.usdl().getFees(dexIndex, collateral)) / 1e6;
         total = uint256(int256(collateralAmount) - int256(_fees));
     }
 
@@ -63,7 +63,11 @@ contract PerpLemmaCommonTest is Test {
         assertTrue(IERC20Decimals(token).balanceOf(address(this)) >= amount);
     }
 
-    function _getMoneyForTo(address to, address token, uint256 amount) internal {
+    function _getMoneyForTo(
+        address to,
+        address token,
+        uint256 amount
+    ) internal {
         d.bank().giveMoney(token, to, amount);
         assertTrue(IERC20Decimals(token).balanceOf(to) >= amount);
     }
@@ -74,8 +78,8 @@ contract PerpLemmaCommonTest is Test {
 
     function _depositSettlementTokenMax() internal returns (uint256) {
         _getMoney(address(d.pl().usdc()), 1e40);
-        uint256 settlementTokenBalanceCap =
-            IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
+        uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig())
+            .getSettlementTokenBalanceCap();
         // NOTE: Unclear why I need to use 1/10 of the cap
         // NOTE: If I do not limit this amount I get
         // V_GTSTBC: greater than settlement token balance cap
@@ -89,8 +93,8 @@ contract PerpLemmaCommonTest is Test {
 
     function _depositSettlementToken(uint256 usdcAmount) internal {
         _getMoney(address(d.pl().usdc()), 1e40);
-        uint256 settlementTokenBalanceCap =
-            IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
+        uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig())
+            .getSettlementTokenBalanceCap();
         // NOTE: Unclear why I need to use 1/10 of the cap
         // NOTE: If I do not limit this amount I get
         // V_GTSTBC: greater than settlement token balance cap
@@ -119,7 +123,11 @@ contract PerpLemmaCommonTest is Test {
         assertEq(afterUserBalance - beforeUserBalance, amount);
     }
 
-    function _depositUsdlCollateral(uint256 amount, address collateral, address to) internal {
+    function _depositUsdlCollateral(
+        uint256 amount,
+        address collateral,
+        address to
+    ) internal {
         _getMoneyForTo(to, collateral, amount);
         uint256 beforeUserBalance = checkBalance(to, collateral);
         IERC20Decimals(collateral).approve(address(d.pl()), amount);
@@ -129,7 +137,11 @@ contract PerpLemmaCommonTest is Test {
         assertEq(beforeUserBalance - afterUserBalance, amount);
     }
 
-    function _withdrawUsdlCollateral(uint256 amount, address collateral, address to) internal {
+    function _withdrawUsdlCollateral(
+        uint256 amount,
+        address collateral,
+        address to
+    ) internal {
         uint256 beforeWethBalance = checkBalance(to, collateral);
         d.pl().withdraw(amount, collateral);
         vm.startPrank(d.pl().usdLemma());
@@ -185,17 +197,18 @@ contract PerpLemmaCommonTest is Test {
         collateralToGetBack = base;
     }
 
-    function openLongWithExactBase(uint256 synthAmount, uint256 usdcAmount, address collateral)
-        internal
-        returns (uint256 base, uint256 quote)
-    {
+    function openLongWithExactBase(
+        uint256 synthAmount,
+        uint256 usdcAmount,
+        address collateral
+    ) internal returns (uint256 base, uint256 quote) {
         uint256 beforeMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
         (base, quote) = d.pl().openLongWithExactBase(synthAmount);
         d.pl().calculateMintingAsset(base, IPerpetualMixDEXWrapper.Basis.IsSynth, false);
         uint256 afterMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
         assertEq(afterMintedPositionSynthForThisWrapper - beforeMintedPositionSynthForThisWrapper, base);
         uint256 decimal = IERC20Decimals(collateral).decimals();
-        usdcAmount = (usdcAmount * 1e18) / 10 ** decimal;
+        usdcAmount = (usdcAmount * 1e18) / 10**decimal;
     }
 
     function openLongWithExactQuote(uint256 usdcAmount, address collateral)
@@ -203,7 +216,7 @@ contract PerpLemmaCommonTest is Test {
         returns (uint256 base, uint256 quote)
     {
         uint256 decimal = IERC20Decimals(collateral).decimals();
-        usdcAmount = (usdcAmount * 1e18) / 10 ** decimal;
+        usdcAmount = (usdcAmount * 1e18) / 10**decimal;
         uint256 beforeMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
         (base, quote) = d.pl().openLongWithExactQuote(usdcAmount);
         d.pl().calculateMintingAsset(base, IPerpetualMixDEXWrapper.Basis.IsSynth, false);
@@ -212,17 +225,18 @@ contract PerpLemmaCommonTest is Test {
         assertGe(quote, usdcAmount);
     }
 
-    function closeLongWithExactBase(uint256 synthAmount, uint256 usdcAmount, address collateral)
-        internal
-        returns (uint256 usdcAmountToWithdraw)
-    {
+    function closeLongWithExactBase(
+        uint256 synthAmount,
+        uint256 usdcAmount,
+        address collateral
+    ) internal returns (uint256 usdcAmountToWithdraw) {
         uint256 beforeMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
         (uint256 base, uint256 quote) = d.pl().closeLongWithExactBase(synthAmount);
         d.pl().calculateMintingAsset(base, IPerpetualMixDEXWrapper.Basis.IsSynth, true);
         uint256 afterMintedPositionSynthForThisWrapper = d.pl().mintedPositionSynthForThisWrapper();
         assertEq(beforeMintedPositionSynthForThisWrapper - afterMintedPositionSynthForThisWrapper, base);
         uint256 decimal = IERC20Decimals(collateral).decimals();
-        usdcAmount = (usdcAmount * 1e18) / 10 ** decimal;
+        usdcAmount = (usdcAmount * 1e18) / 10**decimal;
         usdcAmountToWithdraw = quote;
         // uint256 _collateralAfterMinting = _deductFees(d.getTokenAddress("WETH"), usdcAmount, 0);
         // uint256 _minUSDCtoRedeem = _deductFees(d.getTokenAddress("WETH"), _collateralAfterMinting, 0);
@@ -863,6 +877,15 @@ contract PerpLemmaCommonTest is Test {
         vm.stopPrank();
         assertEq(d.pl().hasRole(ADMIN_ROLE, vm.addr(1)), true);
         assertEq(d.pl().hasRole(ADMIN_ROLE, address(d)), false);
+    }
+
+    function testInitialization() public {
+        assertEq(d.pl().usdcDecimals(), 6); //only mainnet
+        assertEq(address(d.pl().usdc()), address(d.pl().perpVault().getSettlementToken()));
+        assertEq(d.pl().usdlCollateral().decimals(), d.pl().usdlCollateralDecimals());
+        assertTrue(d.pl().hasRole(PERPLEMMA_ROLE, address(d.usdl())));
+        assertTrue(d.pl().hasRole(PERPLEMMA_ROLE, address(d.lSynth())));
+        assertTrue(d.pl().hasRole(OWNER_ROLE, address(d)));
     }
 
     // Admin Addresses should not be same

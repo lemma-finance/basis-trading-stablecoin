@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.3;
 
-import {IPerpetualMixDEXWrapper} from "../../contracts/interfaces/IPerpetualMixDEXWrapper.sol";
+import { IPerpetualMixDEXWrapper } from "../../contracts/interfaces/IPerpetualMixDEXWrapper.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "../../contracts/interfaces/IERC20Decimals.sol";
 import "../../src/Deploy.sol";
@@ -72,7 +72,8 @@ contract USDLemmaTest is Test {
         return bytes32(uint256(uint160(addr)) << 96);
     }
 
-    function _loadTrace() internal /*string memory n, string memory id*/ {
+    function _loadTrace() internal /*string memory n, string memory id*/
+    {
         string[] memory temp = new string[](2);
         temp[0] = "node";
         temp[1] = "test/foundry/utils/read_config.js";
@@ -110,11 +111,11 @@ contract USDLemmaTest is Test {
     }
 
     // Internal Functions
-    function _deductFees(address collateral, uint256 collateralAmount, uint256 dexIndex)
-        internal
-        view
-        returns (uint256 total)
-    {
+    function _deductFees(
+        address collateral,
+        uint256 collateralAmount,
+        uint256 dexIndex
+    ) internal view returns (uint256 total) {
         uint256 _fees = (collateralAmount * d.usdl().getFees(dexIndex, collateral)) / 1e6;
         total = uint256(int256(collateralAmount) - int256(_fees));
     }
@@ -124,7 +125,11 @@ contract USDLemmaTest is Test {
         assertTrue(IERC20Decimals(token).balanceOf(address(this)) >= amount);
     }
 
-    function _getMoneyForTo(address to, address token, uint256 amount) internal {
+    function _getMoneyForTo(
+        address to,
+        address token,
+        uint256 amount
+    ) internal {
         d.bank().giveMoney(token, to, amount);
         assertTrue(IERC20Decimals(token).balanceOf(to) >= amount);
     }
@@ -135,10 +140,11 @@ contract USDLemmaTest is Test {
 
         IERC20Decimals settlementToken = IERC20Decimals(d.pl().perpVault().getSettlementToken());
         uint256 perpVaultSettlementTokenBalanceBefore = settlementToken.balanceOf(address(d.pl().perpVault()));
-        uint256 settlementTokenBalanceCap =
-            IClearingHouseConfig(d.pl().clearingHouse().getClearingHouseConfig()).getSettlementTokenBalanceCap();
-        uint256 maxUSDCToDeposit =
-            uint256(int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore));
+        uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.pl().clearingHouse().getClearingHouseConfig())
+            .getSettlementTokenBalanceCap();
+        uint256 maxUSDCToDeposit = uint256(
+            int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore)
+        );
         uint256 usdcToDeposit = (maxUSDCToDeposit * perc1e6) / 1e6;
         console.log("[_depositSettlementTokenPerc()] maxUSDCToDeposit = ", maxUSDCToDeposit);
         console.log("[_depositSettlementTokenPerc()] usdcToDeposit = ", usdcToDeposit);
@@ -192,10 +198,11 @@ contract USDLemmaTest is Test {
         _getMoney(address(d.pl().usdc()), 1e40);
         IERC20Decimals settlementToken = IERC20Decimals(d.pl().perpVault().getSettlementToken());
         uint256 perpVaultSettlementTokenBalanceBefore = settlementToken.balanceOf(address(d.pl().perpVault()));
-        uint256 settlementTokenBalanceCap =
-            IClearingHouseConfig(d.pl().clearingHouse().getClearingHouseConfig()).getSettlementTokenBalanceCap();
-        uint256 usdcToDeposit =
-            uint256(int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore));
+        uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.pl().clearingHouse().getClearingHouseConfig())
+            .getSettlementTokenBalanceCap();
+        uint256 usdcToDeposit = uint256(
+            int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore)
+        );
         // uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
         // NOTE: Unclear why I need to use 1/10 of the cap
         // NOTE: If I do not limit this amount I get
@@ -212,7 +219,12 @@ contract USDLemmaTest is Test {
         d.getPerps().pv.deposit(address(d.pl().usdc()), amount);
     }
 
-    function _mintUSDLWExactUSDL(address to, address collateral, uint256 amount, uint256 dexIndex) internal {
+    function _mintUSDLWExactUSDL(
+        address to,
+        address collateral,
+        uint256 amount,
+        uint256 dexIndex
+    ) internal {
         address usdl = d.pl().usdLemma();
         _getMoneyForTo(to, collateral, amount);
         uint256 beforeBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
@@ -230,7 +242,12 @@ contract USDLemmaTest is Test {
         assertTrue(afterBalanceCollateral < beforeBalanceCollateral);
     }
 
-    function _mintUSDLWExactCollateral(address to, address collateral, uint256 amount, uint256 dexIndex) internal {
+    function _mintUSDLWExactCollateral(
+        address to,
+        address collateral,
+        uint256 amount,
+        uint256 dexIndex
+    ) internal {
         address usdl = d.pl().usdLemma();
         _getMoneyForTo(to, collateral, amount);
         uint256 beforeBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
@@ -251,7 +268,11 @@ contract USDLemmaTest is Test {
         );
     }
 
-    function _mintUSDLWExactCollateralNoChecks(address to, address collateral, uint256 amount) internal {
+    function _mintUSDLWExactCollateralNoChecks(
+        address to,
+        address collateral,
+        uint256 amount
+    ) internal {
         console.log("[_mintUSDLWExactCollateralNoChecks()] Start");
         address usdl = d.pl().usdLemma();
         _getMoneyForTo(to, collateral, amount);
@@ -268,7 +289,12 @@ contract USDLemmaTest is Test {
         // uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
     }
 
-    function _redeemUSDLWExactUsdl(address to, address collateral, uint256 amount, uint256 dexIndex) internal {
+    function _redeemUSDLWExactUsdl(
+        address to,
+        address collateral,
+        uint256 amount,
+        uint256 dexIndex
+    ) internal {
         address usdl = d.pl().usdLemma();
         uint256 beforeBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 beforeBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
@@ -283,16 +309,23 @@ contract USDLemmaTest is Test {
         assertEq(afterBalanceUSDL, beforeBalanceUSDL - amount);
     }
 
-    function _redeemUSDLWExactCollateral(address to, address collateral, uint256 collateralAmount, uint256 dexIndex)
-        internal
-    {
+    function _redeemUSDLWExactCollateral(
+        address to,
+        address collateral,
+        uint256 collateralAmount,
+        uint256 dexIndex
+    ) internal {
         address usdl = d.pl().usdLemma();
         uint256 beforeBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 beforeBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
         assertTrue(beforeBalanceUSDL > 0, "!USDL");
         uint256 beforeTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
         d.usdl().withdrawToWExactCollateral(
-            to, collateralAmount, dexIndex, type(uint256).max, IERC20Upgradeable(collateral)
+            to,
+            collateralAmount,
+            dexIndex,
+            type(uint256).max,
+            IERC20Upgradeable(collateral)
         );
         uint256 afterTotalUsdl = d.pl().mintedPositionUsdlForThisWrapper();
         uint256 afterBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
@@ -305,9 +338,12 @@ contract USDLemmaTest is Test {
         assertTrue(afterBalanceUSDL < beforeBalanceUSDL);
     }
 
-    function _mintSynthWExactCollateralNoChecks(address to, address collateral, uint256 amount, uint256 dexIndex)
-        internal
-    {
+    function _mintSynthWExactCollateralNoChecks(
+        address to,
+        address collateral,
+        uint256 amount,
+        uint256 dexIndex
+    ) internal {
         address lemmaSynth = d.pl().lemmaSynth();
         _getMoneyForTo(to, collateral, amount);
         uint256 beforeBalanceSynth = IERC20Decimals(lemmaSynth).balanceOf(to);
@@ -315,7 +351,7 @@ contract USDLemmaTest is Test {
         IERC20Decimals(collateral).approve(lemmaSynth, type(uint256).max);
         uint256 beforeTotalSynth = d.pl().mintedPositionSynthForThisWrapper();
         uint256 decimal = IERC20Decimals(collateral).decimals();
-        amount = (amount * 1e18) / 10 ** decimal;
+        amount = (amount * 1e18) / 10**decimal;
         // 4th param is minSynthToMint which is need to be set using callStatic, currently set 0 for not breaking revert
         // calsstatic is not possible in solidity so
         d.lSynth().depositToWExactCollateral(to, amount, dexIndex, 0, IERC20Upgradeable(collateral));
@@ -683,6 +719,10 @@ contract USDLemmaTest is Test {
         vm.stopPrank();
     }
 
+    function testInitialization() public {
+        assertEq(d.usdl().perpetualDEXWrappers(0, address(d.pl().usdlCollateral())), address(d.pl()));
+    }
+
     function testAddWrapper() public {
         vm.startPrank(address(d));
         d.usdl().addPerpetualDEXWrapper(1, d.getTokenAddress("USDC"), vm.addr(1));
@@ -970,24 +1010,26 @@ contract USDLemmaTest is Test {
         }
     }
 
-    function _getAmountInDecimals(uint256 numerator, uint256 denominator, address token)
-        internal
-        view
-        returns (uint256 res)
-    {
-        return (numerator * 10 ** (IERC20Decimals(token).decimals())) / denominator;
+    function _getAmountInDecimals(
+        uint256 numerator,
+        uint256 denominator,
+        address token
+    ) internal view returns (uint256 res) {
+        return (numerator * 10**(IERC20Decimals(token).decimals())) / denominator;
     }
 
-    function _getOperation(uint256 num, uint256 den, address collateral, bool isMintUSDL)
-        internal
-        view
-        returns (Operation memory)
-    {
-        return Operation({
-            isMintUSDL: isMintUSDL,
-            collateral: collateral,
-            amount: _getAmountInDecimals(num, den, collateral)
-        });
+    function _getOperation(
+        uint256 num,
+        uint256 den,
+        address collateral,
+        bool isMintUSDL
+    ) internal view returns (Operation memory) {
+        return
+            Operation({
+                isMintUSDL: isMintUSDL,
+                collateral: collateral,
+                amount: _getAmountInDecimals(num, den, collateral)
+            });
     }
 
     function testDistributeFR_mintUSDLAndShowPendingFRAndSettle_1tests1() public {

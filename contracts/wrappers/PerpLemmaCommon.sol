@@ -66,6 +66,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     IERC20Decimals public usdlCollateral;
     /// USDC ERC20 contract
     IERC20Decimals public override usdc;
+    uint256 public usdcDecimals;
 
     /// MAX Uint256
     uint256 public constant MAX_UINT256 = type(uint256).max;
@@ -161,6 +162,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         accountBalance = IAccountBalance(clearingHouse.getAccountBalance());
         marketRegistry = IMarketRegistry(_marketRegistry);
         usdc = IERC20Decimals(perpVault.getSettlementToken());
+        usdcDecimals = usdc.decimals();
 
         collateralRatio = clearingHouseConfig.getImRatio();
 
@@ -361,7 +363,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             deltaAmount = amount - 2 * amountBaseInCollateralDecimals;
         }
 
-        uint256 expectedDeltaQuote = (deltaAmount * indexPrice) / 10**(18 + 18 - usdc.decimals());
+        uint256 expectedDeltaQuote = (deltaAmount * indexPrice) / 10**(18 + 18 - usdcDecimals);
 
         uint256 expectedUSDCDeductedFromFreeCollateral = (expectedDeltaQuote * uint256(collateralRatio)) / 1e6;
 
@@ -592,7 +594,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         if (isIncreaseBase) {
             if (amountBase < 0) {
                 (, uint256 amountUSDCMinus_1e18) = closeShortWithExactBase(_amountBaseToRebalance);
-                amountUSDCMinus = (amountUSDCMinus_1e18 * (10**usdc.decimals())) / 1e18;
+                amountUSDCMinus = (amountUSDCMinus_1e18 * (10**usdcDecimals)) / 1e18;
                 _withdraw(_amountBaseToRebalance, address(usdlCollateral));
                 require(usdlCollateral.balanceOf(address(this)) > _amountBaseToRebalance, "T1");
                 amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
@@ -600,17 +602,17 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                 amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
                 _deposit(amountUSDCPlus, address(usdc));
                 (, uint256 amountUSDCMinus_1e18) = openLongWithExactBase(_amountBaseToRebalance);
-                amountUSDCMinus = (amountUSDCMinus_1e18 * (10**usdc.decimals())) / 1e18;
+                amountUSDCMinus = (amountUSDCMinus_1e18 * (10**usdcDecimals)) / 1e18;
             }
         } else {
             if (amountBase <= 0) {
                 amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
                 _deposit(_amountBaseToRebalance, address(usdlCollateral));
                 (, uint256 amountUSDCPlus_1e18) = openShortWithExactBase(_amountBaseToRebalance);
-                amountUSDCPlus = (amountUSDCPlus_1e18 * (10**usdc.decimals())) / 1e18;
+                amountUSDCPlus = (amountUSDCPlus_1e18 * (10**usdcDecimals)) / 1e18;
             } else {
                 (, uint256 amountUSDCPlus_1e18) = closeLongWithExactBase(_amountBaseToRebalance);
-                amountUSDCPlus = (amountUSDCPlus_1e18 * (10**usdc.decimals())) / 1e18;
+                amountUSDCPlus = (amountUSDCPlus_1e18 * (10**usdcDecimals)) / 1e18;
                 _withdraw(amountUSDCPlus, address(usdc));
                 amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
             }
@@ -645,24 +647,22 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             isProfit = fundingPaymentsToDistribute < 0;
             if (isProfit) {
                 // NOTE: Distribute profit
-                uint256 amount = _convDecimals(uint256(-fundingPaymentsToDistribute), 18, usdc.decimals());
+                uint256 amount = _convDecimals(uint256(-fundingPaymentsToDistribute), 18, usdcDecimals);
                 amountUSDCToXUSDL = (amount * percFundingPaymentsToUSDLHolders) / 1e6;
                 amountUSDCToXSynth = amount - amountUSDCToXUSDL;
                 // NOTE: They both require an amount in USDC Decimals
-                IUSDLemma(usdLemma).mintToStackingContract(
-                    _convDecimals(amountUSDCToXUSDL, usdc.decimals(), IUSDLemma(usdLemma).decimals())
-                );
+                IUSDLemma(usdLemma).mintToStackingContract(_convDecimals(amountUSDCToXUSDL, usdcDecimals, 18));
                 IUSDLemma(lemmaSynth).mintToStackingContract(_convUSDCToSynthAtIndexPrice(amountUSDCToXSynth));
             } else {
                 amountUSDCToXUSDL = (uint256(fundingPaymentsToDistribute) * percFundingPaymentsToUSDLHolders) / 1e6;
                 amountUSDCToXSynth = uint256(fundingPaymentsToDistribute) - amountUSDCToXUSDL;
 
-                amountUSDCToXUSDL = _convDecimals(amountUSDCToXUSDL, 18, usdc.decimals());
-                amountUSDCToXSynth = _convDecimals(amountUSDCToXSynth, 18, usdc.decimals());
+                amountUSDCToXUSDL = _convDecimals(amountUSDCToXUSDL, 18, usdcDecimals);
+                amountUSDCToXSynth = _convDecimals(amountUSDCToXSynth, 18, usdcDecimals);
                 uint256 amountUSDLInUSDC = _convDecimals(
                     IUSDLemma(usdLemma).balanceOf(address(xUsdl)),
-                    IUSDLemma(usdLemma).decimals(),
-                    usdc.decimals()
+                    18,
+                    usdcDecimals
                 );
                 uint256 amountSynthInUSDC = _convSynthToUSDCAtIndexPrice(
                     IUSDLemma(lemmaSynth).balanceOf(address(xSynth))
@@ -682,9 +682,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                     }
                     IUSDLemma(usdLemma).requestLossesRecap(amountFromSettlmentTokenManager);
                 }
-                IUSDLemma(usdLemma).burnToStackingContract(
-                    _convDecimals(USDLToBurn, usdc.decimals(), IUSDLemma(usdLemma).decimals())
-                );
+                IUSDLemma(usdLemma).burnToStackingContract(_convDecimals(USDLToBurn, usdcDecimals, 18));
 
                 uint256 USDCToPayFromXLemmaSynth = accruedFPLossesFromXSynthInUSDC + amountUSDCToXSynth;
                 uint256 lemmaSynthToBurn = USDCToPayFromXLemmaSynth;
@@ -1019,7 +1017,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         // NOTE: Funding Payments are settled anyway when settlement happens so we need to account them before executing
         settlePendingFundingPayments();
         uint256 tailCollateralBal = (usdlCollateral.balanceOf(address(this)) * 1e18) / (10**usdlCollateral.decimals());
-        uint256 synthCollateralBal = (usdc.balanceOf(address(this)) * 1e18) / (10**usdc.decimals());
+        uint256 synthCollateralBal = (usdc.balanceOf(address(this)) * 1e18) / (10**usdcDecimals);
         require(tailCollateralBal > 0 || synthCollateralBal > 0, "Not Enough collateral for settle");
 
         if (isUsdl) {
@@ -1211,19 +1209,19 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
     function _convUSDCToSynthAtIndexPrice(uint256 amountUSDC) internal view returns (uint256) {
-        return _convDecimals(amountUSDC, usdc.decimals(), 18 + IUSDLemma(lemmaSynth).decimals()) / getIndexPrice();
+        return _convDecimals(amountUSDC, usdcDecimals, 18 + IUSDLemma(lemmaSynth).decimals()) / getIndexPrice();
     }
 
     function _convSynthToUSDCAtIndexPrice(uint256 amountSynth) internal view returns (uint256) {
-        return _convDecimals(amountSynth * getIndexPrice(), IUSDLemma(lemmaSynth).decimals() + 18, usdc.decimals());
+        return _convDecimals(amountSynth * getIndexPrice(), IUSDLemma(lemmaSynth).decimals() + 18, usdcDecimals);
     }
 
     function _convUSDCToUSDLIndexPrice(uint256 amountUSDC) internal view returns (uint256) {
-        return _convDecimals(amountUSDC, usdc.decimals(), IUSDLemma(usdLemma).decimals());
+        return _convDecimals(amountUSDC, usdcDecimals, 18);
     }
 
     function _convUSDLToUSDCAtIndexPrice(uint256 amountUSDL) internal view returns (uint256) {
-        return _convDecimals(amountUSDL, IUSDLemma(usdLemma).decimals(), usdc.decimals());
+        return _convDecimals(amountUSDL, 18, usdcDecimals);
     }
 
     function _min(uint256 a, uint256 b) internal pure returns (uint256) {
