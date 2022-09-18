@@ -64,7 +64,11 @@ async function main() {
   let [defaultSigner]: any = await ethers.getSigners();
   let clearingHouse = new ethers.Contract(contracts.ClearingHouse.address, ClearingHouseAbi.abi, defaultSigner);
   let orderBook = new ethers.Contract(contracts.OrderBook.address, OrderBookAbi.abi, defaultSigner);
-  let clearingHouseConfig = new ethers.Contract(contracts.ClearingHouseConfig.address, ClearingHouseConfigAbi.abi, defaultSigner,);
+  let clearingHouseConfig = new ethers.Contract(
+    contracts.ClearingHouseConfig.address,
+    ClearingHouseConfigAbi.abi,
+    defaultSigner,
+  );
   let vault = new ethers.Contract(contracts.Vault.address, VaultAbi.abi, defaultSigner);
   let exchange = new ethers.Contract(contracts.Exchange.address, ExchangeAbi.abi, defaultSigner);
   let marketRegistry = new ethers.Contract(contracts.MarketRegistry.address, MarketRegistryAbi.abi, defaultSigner);
@@ -73,8 +77,16 @@ async function main() {
   let quoteToken = new ethers.Contract(contracts.QuoteToken.address, QuoteTokenAbi.abi, defaultSigner);
   let accountBalance = new ethers.Contract(contracts.AccountBalance.address, AccountBalanceAbi.abi, defaultSigner);
   let usdLemma = new ethers.Contract(USDLemmaAddress, USDLemma__factory.abi, defaultSigner);
-  let settlementTokenManager = new ethers.Contract(SettlementTokenManagerAddress, SettlementTokenManager__factory.abi, defaultSigner,);
-  let uniswapV3Factory = new ethers.Contract(externalContracts.UniswapV3Factory, UniswapV3FactoryAbi.abi, defaultSigner,);
+  let settlementTokenManager = new ethers.Contract(
+    SettlementTokenManagerAddress,
+    SettlementTokenManager__factory.abi,
+    defaultSigner,
+  );
+  let uniswapV3Factory = new ethers.Contract(
+    externalContracts.UniswapV3Factory,
+    UniswapV3FactoryAbi.abi,
+    defaultSigner,
+  );
 
   const stmRebalancer = defaultSigner.address;
   const settlementToken = await vault.getSettlementToken(); // usdc

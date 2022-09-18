@@ -23,8 +23,8 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       forking: {
-        url: "https://mainnet.optimism.io",
-        // url: "https://mainnet.infura.io/v3/" + process.env.INFURA_KEY,
+        // url: "https://mainnet.optimism.io",
+        url: "https://optimism-mainnet.infura.io/v3/" + process.env.INFURA_KEY,
       },
       // accounts: {
       //   mnemonic: process.env.MNEMONIC

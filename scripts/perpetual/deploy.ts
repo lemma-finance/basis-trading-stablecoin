@@ -119,13 +119,7 @@ async function main() {
   const USDLemma = await ethers.getContractFactory("USDLemma");
   const usdLemma = await upgrades.deployProxy(
     USDLemma,
-    [
-      trustedForwarder,
-      collateral.address,
-      perpLemma.address,
-      settlementTokenManager.address,
-      settlementToken,
-    ],
+    [trustedForwarder, collateral.address, perpLemma.address, settlementTokenManager.address, settlementToken],
     {
       initializer: "initialize",
     },
@@ -144,13 +138,9 @@ async function main() {
   console.log("deploying xUSDL");
   const XUSDL = await ethers.getContractFactory("xUSDL");
   const peripheryAddress = AddressZero;
-  const xUSDL = await upgrades.deployProxy(
-    XUSDL,
-    [trustedForwarder, usdLemma.address, peripheryAddress],
-    {
-      initializer: "initialize",
-    },
-  );
+  const xUSDL = await upgrades.deployProxy(XUSDL, [trustedForwarder, usdLemma.address, peripheryAddress], {
+    initializer: "initialize",
+  });
   console.log("xUSDL.address: ", xUSDL.address);
   await delay(10000);
 
@@ -202,11 +192,11 @@ async function main() {
   await perpLemma.setPercFundingPaymentsToUSDLHolders(percFundingPaymentsToUSDLHolder);
   await delay(10000);
 
-  await perpLemma.setMinFreeCollateral(minFreeCollateral);
-  await delay(10000);
+  // await perpLemma.setMinFreeCollateral(minFreeCollateral);
+  // await delay(10000);
 
-  await perpLemma.setMinMarginSafeThreshold(minMarginSafeThreshold);
-  await delay(10000);
+  // await perpLemma.setMinMarginSafeThreshold(minMarginSafeThreshold);
+  // await delay(10000);
 
   await perpLemma.setCollateralRatio(collateralRatio);
   await delay(10000);
@@ -217,8 +207,8 @@ async function main() {
   await settlementTokenManager.setUSDLemma(usdLemma.address);
   await delay(10000);
 
-  await usdLemma.setFees(usdLemmaSetFees);
-  await delay(10000);
+  // await usdLemma.setFees(usdLemmaSetFees);
+  // await delay(10000);
 
   //set lemma treasury address
   await usdLemma.setLemmaTreasury(lemmaTreasury.address);
@@ -233,8 +223,8 @@ async function main() {
   await lemmaSynth.setXSynth(xLemmaSynth.address);
   await delay(10000);
 
-  await lemmaSynth.setFees(lemmaSynthSetFees);
-  await delay(10000);
+  // await lemmaSynth.setFees(lemmaSynthSetFees);
+  // await delay(10000);
 
   //set minimum lock
   await xUSDL.setMinimumLock("100");
