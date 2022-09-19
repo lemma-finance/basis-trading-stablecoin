@@ -155,11 +155,11 @@ async function main() {
   await perpLemma.setPercFundingPaymentsToUSDLHolders(percFundingPaymentsToUSDLHolder);
   await delay(10000);
 
-  await perpLemma.setMinFreeCollateral(minFreeCollateral);
-  await delay(10000);
+  // await perpLemma.setMinFreeCollateral(minFreeCollateral);
+  // await delay(10000);
 
-  await perpLemma.setMinMarginSafeThreshold(minMarginSafeThreshold);
-  await delay(10000);
+  // await perpLemma.setMinMarginSafeThreshold(minMarginSafeThreshold);
+  // await delay(10000);
 
   await perpLemma.setCollateralRatio(collateralRatio);
   await delay(10000);

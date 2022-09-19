@@ -31,7 +31,7 @@ const config: HardhatUserConfig = {
       // },
       chainId: 10,
       allowUnlimitedContractSize: true,
-      gasPrice: 10000000, //0.001 gwei
+      // gasPrice: 10000000, //0.001 gwei
     },
     local: {
       url: "http://localhost:8545",
