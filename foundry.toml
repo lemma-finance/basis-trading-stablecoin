@@ -1,7 +1,7 @@
 [default]
 src = 'src'
 out = 'out'
-solc = '0.8.3'
+solc = '0.8.4'
 test = 'test/foundry'
 cache_path  = 'forge-cache'
 libs = ['lib','node_modules']
