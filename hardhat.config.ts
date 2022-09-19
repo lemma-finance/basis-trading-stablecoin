@@ -26,9 +26,9 @@ const config: HardhatUserConfig = {
         // url: "https://mainnet.optimism.io",
         url: "https://optimism-mainnet.infura.io/v3/" + process.env.INFURA_KEY,
       },
-      // accounts: {
-      //   mnemonic: process.env.MNEMONIC
-      // },
+      accounts: {
+        mnemonic: process.env.MNEMONIC
+      },
       chainId: 10,
       allowUnlimitedContractSize: true,
       // gasPrice: 10000000, //0.001 gwei
