@@ -1356,14 +1356,14 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     ) internal returns (uint256) {
         if (routerType == 0) {
             // NOTE: UniV3
-            return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn, false);
+            return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn);
         }
-        if (routerType == 1) {
-            // NOTE: UniV3
-            return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn, true);
-        }
+        // if (routerType == 1) {
+        //     // NOTE: UniV3
+        //     return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn, true);
+        // }
         // NOTE: Unsupported Router --> Using UniV3 as default
-        return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn, false);
+        return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn);
     }
 
     /// @dev Helper function to swap on UniV3
@@ -1371,8 +1371,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         address router,
         bool isUSDLCollateralToUSDC,
         bool isExactInput,
-        uint256 amount, 
-        bool isQuote
+        uint256 amount
+        // bool isQuote
     ) internal returns (uint256) {
         uint256 res;
         address tokenIn = (isUSDLCollateralToUSDC) ? address(usdlCollateral) : address(usdc);
@@ -1380,33 +1380,13 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
         console.log("[_swapOnUniV3()] tokenIn = ", tokenIn);
         console.log("[_swapOnUniV3()] tokenOut = ", tokenOut);
-        console.log("[_swapOnUniV3()] isQuote = ", (isQuote) ? 1 : 0);
+        // console.log("[_swapOnUniV3()] isQuote = ", (isQuote) ? 1 : 0);
         console.log("[_swapOnUniV3()] amount = ", amount);
 
         SafeERC20Upgradeable.safeApprove(IERC20Upgradeable(tokenIn), router, MAX_UINT256);
         if (isExactInput) {
             console.log("[_swapOnUniV3()] ExactInputSingle");
-            if(isQuote) {
-                // TODO: Implement
-                res = IQuoter(router).quoteExactInputSingle(
-                    tokenIn,
-                    tokenOut,
-                    3000,
-                    amount,
-                    0
-                );
-                console.log("[_swapOnUniV3()] res = ", res);
-                // IQuoterV2.QuoteExactInputSingleParams memory temp = IQuoterV2.QuoteExactInputSingleParams({
-                //     tokenIn: tokenIn,
-                //     tokenOut: tokenOut,
-                //     amountIn: amount,
-                //     fee: 3000,
-                //     sqrtPriceLimitX96: 0
-                // });
 
-                // (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksCrossed, uint256 gasEstimate) = IQuoterV2(router).quoteExactInputSingle(temp);
-                // res = amountOut;
-            } else {
                 ISwapRouter.ExactInputSingleParams memory temp = ISwapRouter.ExactInputSingleParams({
                     tokenIn: tokenIn,
                     tokenOut: tokenOut,
@@ -1421,18 +1401,46 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                 res = ISwapRouter(router).exactInputSingle(temp);
                 uint256 balanceAfter = IERC20Decimals(tokenOut).balanceOf(address(this));
                 res = uint256(int256(balanceAfter) - int256(balanceBefore));
-            }
+
+
+            // if(isQuote) {
+            //     // TODO: Implement
+            //     res = IQuoter(router).quoteExactInputSingle(
+            //         tokenIn,
+            //         tokenOut,
+            //         3000,
+            //         amount,
+            //         0
+            //     );
+            //     console.log("[_swapOnUniV3()] res = ", res);
+            //     // IQuoterV2.QuoteExactInputSingleParams memory temp = IQuoterV2.QuoteExactInputSingleParams({
+            //     //     tokenIn: tokenIn,
+            //     //     tokenOut: tokenOut,
+            //     //     amountIn: amount,
+            //     //     fee: 3000,
+            //     //     sqrtPriceLimitX96: 0
+            //     // });
+
+            //     // (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksCrossed, uint256 gasEstimate) = IQuoterV2(router).quoteExactInputSingle(temp);
+            //     // res = amountOut;
+            // } else {
+            //     ISwapRouter.ExactInputSingleParams memory temp = ISwapRouter.ExactInputSingleParams({
+            //         tokenIn: tokenIn,
+            //         tokenOut: tokenOut,
+            //         fee: 3000,
+            //         recipient: address(this),
+            //         deadline: MAX_UINT256,
+            //         amountIn: amount,
+            //         amountOutMinimum: 0,
+            //         sqrtPriceLimitX96: 0
+            //     });
+            //     uint256 balanceBefore = IERC20Decimals(tokenOut).balanceOf(address(this));
+            //     res = ISwapRouter(router).exactInputSingle(temp);
+            //     uint256 balanceAfter = IERC20Decimals(tokenOut).balanceOf(address(this));
+            //     res = uint256(int256(balanceAfter) - int256(balanceBefore));
+            // }
 
         } else {
-            if(isQuote) {
-                res = IQuoter(router).quoteExactOutputSingle(
-                    tokenIn,
-                    tokenOut,
-                    3000,
-                    amount,
-                    0
-                );
-            } else {
                 console.log("[_swapOnUniV3()] ExactOutputSingle");
                 ISwapRouter.ExactOutputSingleParams memory temp = ISwapRouter.ExactOutputSingleParams({
                     tokenIn: tokenIn,
@@ -1445,7 +1453,29 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                     sqrtPriceLimitX96: 0
                 });
                 res = ISwapRouter(router).exactOutputSingle(temp);
-            }
+
+            // if(isQuote) {
+            //     res = IQuoter(router).quoteExactOutputSingle(
+            //         tokenIn,
+            //         tokenOut,
+            //         3000,
+            //         amount,
+            //         0
+            //     );
+            // } else {
+            //     console.log("[_swapOnUniV3()] ExactOutputSingle");
+            //     ISwapRouter.ExactOutputSingleParams memory temp = ISwapRouter.ExactOutputSingleParams({
+            //         tokenIn: tokenIn,
+            //         tokenOut: tokenOut,
+            //         fee: 3000,
+            //         recipient: address(this),
+            //         deadline: MAX_UINT256,
+            //         amountOut: amount,
+            //         amountInMaximum: MAX_UINT256,
+            //         sqrtPriceLimitX96: 0
+            //     });
+            //     res = ISwapRouter(router).exactOutputSingle(temp);
+            // }
 
         }
         SafeERC20Upgradeable.safeApprove(IERC20Upgradeable(tokenIn), router, 0);
