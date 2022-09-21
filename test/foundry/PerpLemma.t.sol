@@ -54,7 +54,7 @@ contract PerpLemmaCommonTest is Test {
         view
         returns (uint256 total)
     {
-        uint256 _fees = collateralAmount * d.usdl().getFees(dexIndex, collateral) / 1e6;
+        uint256 _fees = (collateralAmount * d.usdl().getFees(dexIndex, collateral)) / 1e6;
         total = uint256(int256(collateralAmount) - int256(_fees));
     }
 
@@ -863,6 +863,15 @@ contract PerpLemmaCommonTest is Test {
         vm.stopPrank();
         assertEq(d.pl().hasRole(ADMIN_ROLE, vm.addr(1)), true);
         assertEq(d.pl().hasRole(ADMIN_ROLE, address(d)), false);
+    }
+
+    function testInitialization() public {
+        assertEq(d.pl().usdcDecimals(), 6); //only mainnet
+        assertEq(address(d.pl().usdc()), address(d.pl().perpVault().getSettlementToken()));
+        assertEq(d.pl().usdlCollateral().decimals(), d.pl().usdlCollateralDecimals());
+        assertTrue(d.pl().hasRole(PERPLEMMA_ROLE, address(d.usdl())));
+        assertTrue(d.pl().hasRole(PERPLEMMA_ROLE, address(d.lSynth())));
+        assertTrue(d.pl().hasRole(OWNER_ROLE, address(d)));
     }
 
     // Admin Addresses should not be same

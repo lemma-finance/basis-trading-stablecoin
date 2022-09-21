@@ -23,15 +23,15 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       forking: {
-        url: "https://mainnet.optimism.io",
-        // url: "https://mainnet.infura.io/v3/" + process.env.INFURA_KEY,
+        // url: "https://mainnet.optimism.io",
+        url: "https://optimism-mainnet.infura.io/v3/" + process.env.INFURA_KEY,
       },
-      // accounts: {
-      //   mnemonic: process.env.MNEMONIC
-      // },
+      accounts: {
+        mnemonic: process.env.MNEMONIC
+      },
       chainId: 10,
       allowUnlimitedContractSize: true,
-      gasPrice: 1e9, //1 wei
+      // gasPrice: 10000000, //0.001 gwei
     },
     local: {
       url: "http://localhost:8545",

@@ -683,6 +683,10 @@ contract USDLemmaTest is Test {
         vm.stopPrank();
     }
 
+    function testInitialization() public {
+        assertEq(d.usdl().perpetualDEXWrappers(0, address(d.pl().usdlCollateral())), address(d.pl()));
+    }
+
     function testAddWrapper() public {
         vm.startPrank(address(d));
         d.usdl().addPerpetualDEXWrapper(1, d.getTokenAddress("USDC"), vm.addr(1));

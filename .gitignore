@@ -17,14 +17,14 @@ scripts/test.js
 .openzeppelin/kovan.json
 .openzeppelin/unknown-421611.json
 .openzeppelin/unknown-69.json
-.openzeppelin/unknown-10.json
 
 ##solidity-coverage
 coverage.json
 coverage
 
 ##hardhat-deploy (dependency for solidity-test)
-deployments
+deployments/local.deployment.js
+deployments/optimism-kovan.deployment.perp.js
 
 backup
 

@@ -1,0 +1,24 @@
+{
+    "10": {
+        "trustedForwarder": "0xefba8a2a82ec1fb1273806174f5e28fbb917cf95",
+        "reBalancer": "0x0f3BF5c241B6625C0fA781ED137fDe6786b2e66f",
+        "maxPosition": "1000000000000000000000",
+        "percFundingPaymentsToUSDLHolder": "500000",
+        "minFreeCollateral": "0",
+        "minMarginSafeThreshold": "1",
+        "collateralRatio": "1000000",
+        "usdLemmaSetFees": "0",
+        "lemmaSynthSetFees": "0"
+    },
+    "69": {
+        "trustedForwarder": "0x0f3BF5c241B6625C0fA781ED137fDe6786b2e66f",
+        "reBalancer": "0x0f3BF5c241B6625C0fA781ED137fDe6786b2e66f",
+        "maxPosition": "100000000000000000000000000",
+        "percFundingPaymentsToUSDLHolder": "0",
+        "minFreeCollateral": "0",
+        "minMarginSafeThreshold": "1",
+        "collateralRatio": "0",
+        "usdLemmaSetFees": "3000",
+        "lemmaSynthSetFees": "3000"
+    }
+}
