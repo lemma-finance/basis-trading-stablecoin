@@ -286,17 +286,26 @@
   },
   "XLemmaETH": {
     "name": "xLemmaETH",
-      "address": "0x89c4e9a23Db43641e1B3C5E0691b100E64b50E32";
-    "PerpLemmaWbtc": {
-      "name": "PerpLemmaWbtc",
-        "address": "0xe161C6c9F2fC74AC97300e6f00648284d83cBd19";
+      "address": "0x89c4e9a23Db43641e1B3C5E0691b100E64b50E32"
     },
-    "LemmaWBTC": {
-      "name": "LemmaWBTC",
-        "address": "0x8A641696Caf0f59bB7a53CF8D2dc943ED95229A6";
-    },
-    "XLemmaWBTC": {
-      "name": "XLemmaWBTC",
-        "address": "0x7D39583e262CBe75a1D698A6D79cd5a2958cb61d";
-    }
+  "PerpLemmaWbtc": {
+    "name": "PerpLemmaWbtc",
+      "address": "0xe161C6c9F2fC74AC97300e6f00648284d83cBd19";
+  },
+  "LemmaWBTC": {
+    "name": "LemmaWBTC",
+      "address": "0x8A641696Caf0f59bB7a53CF8D2dc943ED95229A6";
+  },
+  "XLemmaWBTC": {
+    "name": "XLemmaWBTC",
+      "address": "0x7D39583e262CBe75a1D698A6D79cd5a2958cb61d";
+  },
+  "LemmaSwap":{
+    "name":"LemmaSwap",
+      "address":"0x5c1E8d96A1B2CB9b4Bb5A57262dc175a4B10C9A5"
+  },
+  "FeesAccumulator":{
+    "name":"FeesAccumulator",
+      "address":"0x8c7c645d4e6810dece35b55e59b020af4fc90dff"
+  }
   }
