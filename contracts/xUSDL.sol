@@ -95,37 +95,37 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
     /// @notice Redeems shares from owner and sends assets of underlying tokens to receiver.
     /// @param assets Amount of USDL withdrawn
     /// @param receiver address of user to transfer USDL
-    /// @param owner of xUSDL to burn
+    /// @param _owner of xUSDL to burn
     /// @return shares total xUsdl share burned
     function withdraw(
         uint256 assets,
         address receiver,
-        address owner
+        address _owner
     ) external override returns (uint256 shares) {
-        require(owner == _msgSender(), "xUSDL: Invalid Owner");
+        require(_owner == _msgSender(), "xUSDL: Invalid Owner");
         require(block.number >= userUnlockBlock[_msgSender()], "xUSDL: Locked tokens");
         require((shares = previewWithdraw(assets)) != 0, "ZERO_SHARES");
-        _burn(owner, shares);
+        _burn(_owner, shares);
         SafeERC20Upgradeable.safeTransfer(usdl, receiver, assets);
-        emit Withdraw(owner, receiver, assets, shares);
+        emit Withdraw(_owner, receiver, assets, shares);
     }
 
     /// @notice Redeems shares from owner and sends assets of underlying tokens to receiver.
     /// @param shares of xUSDL should redeem
     /// @param receiver address of user to transfer USDL
-    /// @param owner of xUSDL to burn
+    /// @param _owner of xUSDL to burn
     /// @return assets total Usdl need to withdraw
     function redeem(
         uint256 shares,
         address receiver,
-        address owner
+        address _owner
     ) external override returns (uint256 assets) {
-        require(owner == _msgSender(), "xUSDL: Invalid Owner");
+        require(_owner == _msgSender(), "xUSDL: Invalid Owner");
         require(block.number >= userUnlockBlock[_msgSender()], "xUSDL: Locked tokens");
         require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
-        _burn(owner, shares);
+        _burn(_owner, shares);
         SafeERC20Upgradeable.safeTransfer(usdl, receiver, assets);
-        emit Withdraw(owner, receiver, assets, shares);
+        emit Withdraw(_owner, receiver, assets, shares);
     }
 
     /// @notice Total number of underlying assets that depositor’s shares represent.

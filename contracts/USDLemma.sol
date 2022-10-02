@@ -78,6 +78,8 @@ contract USDLemma is
         _;
     }
 
+    /// @notice onlyPerpDEXWrapper checks that perpLemmaDex is supported to this contract,
+    /// Otherwise it will revert
     modifier onlyPerpDEXWrapper() {
         require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
         _;
@@ -181,12 +183,14 @@ contract USDLemma is
         renounceRole(ADMIN_ROLE, msg.sender);
     }
 
+    /// @notice setXUsdl will set xusdl contract address by owner role address
+    /// @param _xUsdl contract address
     function setXUsdl(address _xUsdl) external onlyRole(OWNER_ROLE) {
         xUsdl = _xUsdl;
     }
 
     /// @notice setSettlementTokenManager is to set the address of settlementTokenManager
-    /// @param _settlementTokenManager address
+    /// @param _settlementTokenManager contract address
     function setSettlementTokenManager(address _settlementTokenManager) external onlyRole(OWNER_ROLE) {
         settlementTokenManager = _settlementTokenManager;
         if (settlementTokenManager != address(0)) {
@@ -210,14 +214,21 @@ contract USDLemma is
         emit FeesUpdated(fees);
     }
 
+    /// @notice mintToStackingContract will be call by perpLemma while distributingFR
+    /// If the FR will be in profit, so usdLemma mint new usdl and deposit to xusdl contract,
+    /// To incentive all users
     function mintToStackingContract(uint256 amount) external onlyPerpDEXWrapper {
         _mint(xUsdl, amount);
     }
 
+    /// @notice burnToStackingContract will be call by perpLemma while distributingFR
+    /// If the FR will not be in profit, so usdLemma burn usdl from xusdl contract,
     function burnToStackingContract(uint256 amount) external onlyPerpDEXWrapper {
         _burn(xUsdl, amount);
     }
 
+    /// @notice requestLossesRecap will be call by perpLemma while distributingFR
+    /// If the FR will not be in profit, so usdLemma request settlementToken from STM contract
     function requestLossesRecap(uint256 usdcAmount) external onlyPerpDEXWrapper {
         ISettlementTokenManager(settlementTokenManager).settlementTokenRecieve(usdcAmount, _msgSender());
     }
@@ -372,8 +383,6 @@ contract USDLemma is
             perpDEXWrapper.calculateMintingAsset(amount, IPerpetualMixDEXWrapper.Basis.IsUsdl, false);
             emit WithdrawTo(perpetualDEXIndex, address(collateral), to, amount, _collateralAmountToWithdraw);
         }
-
-        emit Rebalance(perpetualDEXIndex, address(collateral), amount);
     }
 
     /// @notice Redeem USDL and withdraw collateral like WETH, WBTC, etc specifying the exact amount of collateral
