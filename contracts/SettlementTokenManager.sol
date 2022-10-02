@@ -73,6 +73,11 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
         isSettlementAllowed = true;
     }
 
+    /// @notice getSettlementToken will return USDC contract address
+    function getSettlementToken() external view override returns(address) {
+        return address(usdc);
+    }
+
     /// @notice changeAdmin is to change address of admin role
     /// Only current admin can change admin and after new admin current admin address will be no more admin
     /// @param newAdmin new admin address
@@ -108,10 +113,6 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
         reBalancer = _reBalancer;
         grantRole(REBALANCER_ROLE, reBalancer);
         emit SetRebalancer(reBalancer);
-    }
-
-    function getSettlementToken() external view override returns(address) {
-        return address(usdc);
     }
 
     /// @notice settlementTokenRecieve is called when mint USDL using USDC on USDLemma cntract

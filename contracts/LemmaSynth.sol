@@ -71,7 +71,9 @@ contract LemmaSynth is
         }
         _;
     }
-
+     
+    /// @notice onlyPerpDEXWrapper checks that perpLemmaDex is supported to this contract,
+    /// Otherwise it will revert
     modifier onlyPerpDEXWrapper() {
         require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
         _;        
@@ -157,6 +159,9 @@ contract LemmaSynth is
         renounceRole(ADMIN_ROLE, msg.sender);
     }
 
+    /// @notice setXSynth will set xLemmSynth contract address by owner role address
+    /// for e.g. if LemmaSynthWETH => XLemmaSynthWETH, LemmaSynthWBTC => XLemmaSynthWBTC
+    /// @param _xSynth contract address
     function setXSynth(address _xSynth) external onlyRole(OWNER_ROLE) {
         xSynth = _xSynth;
     }
@@ -175,10 +180,15 @@ contract LemmaSynth is
         emit FeesUpdated(fees);
     }
 
+    /// @notice mintToStackingContract will be call by perpLemma while distributingFR
+    /// If the FR will be in profit, so lemmaSynth mint new synth and deposit to xSynth contract,
+    /// To incentive all users
     function mintToStackingContract(uint256 amount) external onlyPerpDEXWrapper {
         _mint(xSynth, amount);
     }
 
+    /// @notice burnToStackingContract will be call by perpLemma while distributingFR
+    /// If the FR will not be in profit, so lemmaSynth burn synth from xSynth contract,
     function burnToStackingContract(uint256 amount) external onlyPerpDEXWrapper {
         _burn(xSynth, amount);
     }

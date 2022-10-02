@@ -97,37 +97,37 @@ contract xLemmaSynth is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ER
     /// @notice Redeems shares from owner and sends assets of underlying tokens to receiver.
     /// @param assets Amount of lSynth withdrawn
     /// @param receiver address of user to transfer lSynth
-    /// @param owner of xLemmaSynth to burn
+    /// @param _owner of xLemmaSynth to burn
     /// @return shares total xLemmaSynth share burned
     function withdraw(
         uint256 assets,
         address receiver,
-        address owner
+        address _owner
     ) external override returns (uint256 shares) {
-        require(owner == _msgSender(), "xLemmaSynth: Invalid Owner");
+        require(_owner == _msgSender(), "xLemmaSynth: Invalid Owner");
         require(block.number >= userUnlockBlock[_msgSender()], "xLemmaSynth: Locked tokens");
         require((shares = previewWithdraw(assets)) != 0, "ZERO_SHARES");
-        _burn(owner, shares);
+        _burn(_owner, shares);
         SafeERC20Upgradeable.safeTransfer(lSynth, receiver, assets);
-        emit Withdraw(owner, receiver, assets, shares);
+        emit Withdraw(_owner, receiver, assets, shares);
     }
 
     /// @notice Redeems shares from owner and sends assets of underlying tokens to receiver.
     /// @param shares of xLemmaSynth should redeem
     /// @param receiver address of user to transfer lSynth
-    /// @param owner of xLemmaSynth to burn
+    /// @param _owner of xLemmaSynth to burn
     /// @return assets total lSynth need to withdraw
     function redeem(
         uint256 shares,
         address receiver,
-        address owner
+        address _owner
     ) external override returns (uint256 assets) {
-        require(owner == _msgSender(), "xLemmaSynth: Invalid Owner");
+        require(_owner == _msgSender(), "xLemmaSynth: Invalid Owner");
         require(block.number >= userUnlockBlock[_msgSender()], "xLemmaSynth: Locked tokens");
         require((assets = previewRedeem(shares)) != 0, "ZERO_ASSETS");
-        _burn(owner, shares);
+        _burn(_owner, shares);
         SafeERC20Upgradeable.safeTransfer(lSynth, receiver, assets);
-        emit Withdraw(owner, receiver, assets, shares);
+        emit Withdraw(_owner, receiver, assets, shares);
     }
 
     /// @notice Total number of underlying assets that depositor’s shares represent.

@@ -201,22 +201,23 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return usdlCollateralDecimals;
     }
 
-    // NOTE: Abstraction Layer
+    /// @notice getSettlementToken will return USDC contract address
     function getSettlementToken() external view override returns (address) {
         return perpVault.getSettlementToken();
     }
 
+    /// @notice getMinFreeCollateral will return minFreeCollateral set by owner
     function getMinFreeCollateral() external view override returns (uint256) {
         return minFreeCollateral;
     }
 
+    /// @notice getMinMarginSafeThreshold will return minMarginSafeThreshold set by owner
     function getMinMarginSafeThreshold() external view override returns (uint256) {
         return minMarginSafeThreshold;
     }
 
     /// @notice getFees fees charge by perpV2 protocol for each trade
     function getFees() external view override returns (uint256) {
-        // NOTE: Removed prev arg address baseTokenAddress
         IMarketRegistry.MarketInfo memory marketInfo = marketRegistry.getMarketInfo(usdlBaseTokenAddress);
         return marketInfo.exchangeFeeRatio;
     }
@@ -250,7 +251,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         int256 futureTotalPositionValue = currentAccountValue + ((isShort) ? int256(-1) : int256(1)) * deltaPosition;
         // int256 futureTotalPositionValue = currentTotalPositionValue + ((isShort) ? int256(-1) : int256(1)) * deltaPosition;
         // int256 futureAccountValue = futureTotalPositionValue + currentAccountValue;
-        // print("[getRequiredUSDCToBackMinting()] futureAccountValue = ", futureAccountValue);
 
         uint256 extraUSDC_1e18 = (futureTotalPositionValue >= 0) ? 0 : uint256(-futureTotalPositionValue);
         // uint256 extraUSDC_1e18 = (futureAccountValue >= 0) ? 0 : uint256(-futureAccountValue);
@@ -323,6 +323,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return _margin;
     }
 
+    /// @notice isAdditionalUSDCAcceptable methods to that perpVault is ready to accept more USDC 
+    /// perpVault has global cap to deposit, if it exceeds it will not accept new USDC as collateral
     function isAdditionalUSDCAcceptable(uint256 amount) external view override returns (bool) {
         uint256 vaultSettlementTokenBalance = usdc.balanceOf(address(perpVault));
         uint256 vaultSettlementTokenBalanceCap = clearingHouseConfig.getSettlementTokenBalanceCap();
@@ -336,6 +338,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return amount <= maxAcceptableToken;
     }
 
+    /// @notice computeRequiredUSDCForTrade methods
+    /// it will calculate the amount usdc require to deposit to recap the leverage at 1x.
+    /// It will call by usdLemma contract only.
     function computeRequiredUSDCForTrade(uint256 amount, bool isShort)
         external
         view
@@ -386,6 +391,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         renounceRole(ADMIN_ROLE, msg.sender);
     }
 
+    /// @notice setPercFundingPaymentsToUSDLHolders will set _percFundingPaymentsToUSDLHolder
     function setPercFundingPaymentsToUSDLHolders(uint256 _percFundingPaymentsToUSDLHolder)
         external
         override
@@ -394,27 +400,38 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         percFundingPaymentsToUSDLHolders = _percFundingPaymentsToUSDLHolder;
     }
 
+    /// @notice setXUsdl will set xusdl contract address by owner role address
+    /// @param _xUsdl contract address
     function setXUsdl(address _xUsdl) external override onlyRole(OWNER_ROLE) {
         require(_xUsdl != address(0), "Address can't be zero");
         xUsdl = _xUsdl;
     }
 
+    /// @notice setXSynth will set xLemmSynth contract address by owner role address
+    /// for e.g. if LemmaSynthWETH => XLemmaSynthWETH, LemmaSynthWBTC => XLemmaSynthWBTC
+    /// @param _xSynth contract address
     function setXSynth(address _xSynth) external override onlyRole(OWNER_ROLE) {
         require(_xSynth != address(0), "Address can't be zero");
         xSynth = _xSynth;
     }
 
+    /// @notice setMinFreeCollateral will set _minFreeCollateral by owner role address
+    /// @param _minFreeCollateral contract address
     function setMinFreeCollateral(uint256 _minFreeCollateral) external override onlyRole(OWNER_ROLE) {
         minFreeCollateral = _minFreeCollateral;
         emit SetMinFreeCollateral(minFreeCollateral);
     }
 
+    /// @notice setMinMarginSafeThreshold will set _margin by owner role address
+    /// @param _margin contract address
     function setMinMarginSafeThreshold(uint256 _margin) external override onlyRole(OWNER_ROLE) {
         require(_margin > minFreeCollateral, "Needs to be > minFreeCollateral");
         minMarginSafeThreshold = _margin;
         emit SetMinMarginSafeThreshold(minMarginSafeThreshold);
     }
 
+    /// @notice setCollateralRatio will set _collateralRatio by owner role address
+    /// @param _collateralRatio contract address
     function setCollateralRatio(uint24 _collateralRatio) external override onlyRole(OWNER_ROLE) {
         // NOTE: This one should always be >= imRatio or >= mmRatio but not sure if a require is needed
         collateralRatio = _collateralRatio;
@@ -711,6 +728,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// PUBLIC METHODS ///
     //////////////////////
 
+    /// @notice settlePendingFundingPayments will accumlate all the pendingFR and settle it on perpContract
     function settlePendingFundingPayments() public override {
         fundingPaymentsToDistribute += getPendingFundingPayment();
         clearingHouse.settleAllFunding(address(this));
@@ -850,31 +868,45 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// PUBLIC VIEW METHODS ///
     ///////////////////////////
 
+    /// @notice Get the free collateral value denominated in the settlement token of the specified trader
+    /// @return freeCollateral the value (in settlement token's decimals) of free collateral available
+    ///         for withdraw or opening new positions or orders)
     function getFreeCollateral() public view override returns (uint256) {
         return perpVault.getFreeCollateral(address(this));
     }
 
+    /// @notice getCollateralRatios will get,
+    /// @return imRatio Initial margin ratio
+    /// @return mmRatio Maintenance margin requirement ratio
     function getCollateralRatios() public view override returns (uint24 imRatio, uint24 mmRatio) {
         imRatio = clearingHouseConfig.getImRatio();
         mmRatio = clearingHouseConfig.getMmRatio();
     }
 
-    /// @notice Returns the current amount of collateral value (in USDC) after the PnL in 1e18 format
-    /// TODO: Take into account tail assets
+    /// @notice Get account value of the specified trader
+    /// @return value_1e18 account value (in settlement token's decimals)
     function getAccountValue() public view override returns (int256 value_1e18) {
         value_1e18 = clearingHouse.getAccountValue(address(this));
     }
 
-    function getIndexPrice() public view override returns (uint256 price) {
+    /// @notice Returns the index price of the token.
+    /// interval The interval represents twap interval.
+    /// @return indexPrice Twap price with interval
+    function getIndexPrice() public view override returns (uint256 indexPrice) {
         uint256 _twapInterval = IClearingHouseConfig(clearingHouseConfig).getTwapInterval();
-        price = IIndexPrice(usdlBaseTokenAddress).getIndexPrice(_twapInterval);
+        indexPrice = IIndexPrice(usdlBaseTokenAddress).getIndexPrice(_twapInterval);
     }
 
+    /// @notice Returns the price of th UniV3Pool.
     function getMarkPrice() public view override returns (uint256 token0Price) {
         (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(marketRegistry.getPool(usdlBaseTokenAddress)).slot0();
         token0Price = ((uint256(sqrtPriceX96)**2) / (2**192)) * 1e18;
     }
 
+    /// @notice Get the pending funding payment for a trader in a given market
+    /// @return pendingFundingPayments The pending funding payment of a trader in one market,
+    /// including liquidity & balance coefficients. Positive value means the trader pays funding,
+    /// negative value means the trader receives funding.
     function getPendingFundingPayment() public view override returns (int256 pendingFundingPayments) {
         // See
         // Interface
@@ -921,10 +953,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
     /// @notice getTotalPosition in terms of quoteToken(in our case vUSD)
-    /// https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/AccountBalance.sol#L339
-    /// https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/interface/IAccountBalance.sol#L218
-    /// https://github.com/yashnaman/perp-lushan/blob/main/contracts/interface/IAccountBalance.sol#L224
-    /// https://github.com/yashnaman/perp-lushan/blob/main/contracts/AccountBalance.sol#L320
+    /// @notice Get total position value of trader's baseToken market
+    /// @return Total position value of trader's baseToken market
     function getTotalPosition() public view override returns (int256) {
         return accountBalance.getTotalPositionValue(address(this), usdlBaseTokenAddress);
     }
@@ -1119,6 +1149,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return _swapOnDEXSpot(router, routerType, true, isExactInput, amountCollateral);
     }
 
+    /// @notice will route the tx to specific exchange router
     function _swapOnDEXSpot(
         address router,
         uint256 routerType,
@@ -1200,6 +1231,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         roundDownAmount = (amount % (uint256(10**(collateralDecimals))) != 0) ? amount - 1 : amount;
     }
 
+    /// @notice will convert amount to source to dest decimals
     function _convDecimals(
         uint256 amount,
         uint256 srcDecimals,
@@ -1208,34 +1240,42 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         res = (amount * 10**(dstDecimals)) / 10**(srcDecimals);
     }
 
+    /// @notice _convUSDCToSynthAtIndexPrice will convert amount from USDC to Synth token at index price
     function _convUSDCToSynthAtIndexPrice(uint256 amountUSDC) internal view returns (uint256) {
         return _convDecimals(amountUSDC, usdcDecimals, 18 + IUSDLemma(lemmaSynth).decimals()) / getIndexPrice();
     }
 
+    /// @notice _convSynthToUSDCAtIndexPrice will convert amount from Synth to USDC token at index price
     function _convSynthToUSDCAtIndexPrice(uint256 amountSynth) internal view returns (uint256) {
         return _convDecimals(amountSynth * getIndexPrice(), IUSDLemma(lemmaSynth).decimals() + 18, usdcDecimals);
     }
 
+    /// @notice _convUSDCToUSDLIndexPrice will convert amount from USDC to USDL token.
     function _convUSDCToUSDLIndexPrice(uint256 amountUSDC) internal view returns (uint256) {
         return _convDecimals(amountUSDC, usdcDecimals, 18);
     }
 
+    /// @notice _convUSDLToUSDCAtIndexPrice will convert amount from USDL to USDC token.
     function _convUSDLToUSDCAtIndexPrice(uint256 amountUSDL) internal view returns (uint256) {
         return _convDecimals(amountUSDL, 18, usdcDecimals);
     }
 
+    /// @notice get min amount among a and b
     function _min(uint256 a, uint256 b) internal pure returns (uint256) {
         return (a <= b) ? a : b;
     }
 
+    /// @notice get max amount among a and b (for int256)
     function _max(int256 a, int256 b) internal pure returns (int256) {
         return (a >= b) ? a : b;
     }
 
+    /// @notice get max amount among a and b (for uint256)
     function _max(uint256 a, uint256 b) internal pure returns (uint256) {
         return (a >= b) ? a : b;
     }
 
+    /// @notice get _abs will convert negative amount to positive
     function _abs(int256 a) internal pure returns (uint256) {
         return (a >= 0) ? uint256(a) : uint256(-1 * a);
     }

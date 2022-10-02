@@ -37,6 +37,7 @@ contract LemmaTreasury is ILemmaTreasury, AccessControlUpgradeable {
         return IERC20Decimals(collateral).balanceOf(address(this)) >= amount;
     }
 
+    /// @notice recapitalizeWrapper will be call by usdLemma
     function recapitalizeWrapper(address wrapper, uint256 amount) external override onlyRole(OWNER_ROLE)  {
         address settlementToken = IPerpetualMixDEXWrapper(wrapper).getSettlementToken();
         require(isCollateralAvailable(settlementToken, amount), "Collateral not available in enough quantity");
