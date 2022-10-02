@@ -11,9 +11,8 @@ import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/
 import { IPerpetualMixDEXWrapper } from "./interfaces/IPerpetualMixDEXWrapper.sol";
 
 /// @author Lemma Finance
-/// @notice LemmaSynth contract is use to mint or burn LemmaSynth Coin
-/// When user deposits collateral to mint LemmaSynth.
-/// It will transfer to Derivative dex to open a long position with no-leverage and mint stablecoin called LemmaSynth.
+/// @notice Lemma synthetic tokens are ERC20s backed by spot assets and/or long perpetual positions with no leverage.
+/// For example, a synthetic ETH (ETH*) could be backed by a long ETH/USD perpetual futures position and/or spot ETH.
 contract LemmaSynth is
     ReentrancyGuardUpgradeable,
     ERC20PermitUpgradeable,
@@ -71,12 +70,12 @@ contract LemmaSynth is
         }
         _;
     }
-     
+
     /// @notice onlyPerpDEXWrapper checks that perpLemmaDex is supported to this contract,
     /// Otherwise it will revert
     modifier onlyPerpDEXWrapper() {
         require(isSupportedPerpetualDEXWrapper[_msgSender()], "Only a PerpDEXWrapper can call this");
-        _;        
+        _;
     }
 
     /// @notice Intialize method only called once while deploying contract
@@ -359,7 +358,7 @@ contract LemmaSynth is
     ////////////////////////
     /// INTERNAL METHODS ///
     ////////////////////////
-    
+
     /// @notice _perpDeposit to deposit collateral into perp Vault
     function _perpDeposit(
         IPerpetualMixDEXWrapper perpDEXWrapper,
@@ -386,6 +385,7 @@ contract LemmaSynth is
         SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), address(perpDEXWrapper), to, amount);
     }
 
+    /// @notice Below we are not taking advantage of ERC2771ContextUpgradeable even though we should be able to
     function _msgSender()
         internal
         view
@@ -396,6 +396,7 @@ contract LemmaSynth is
         return msg.sender;
     }
 
+    /// @notice Below we are not taking advantage of ERC2771ContextUpgradeable even though we should be able to
     function _msgData()
         internal
         view

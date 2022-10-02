@@ -15,9 +15,10 @@ import "./interfaces/IUSDLemma.sol";
 import "./interfaces/ILemmaTreasury.sol";
 
 /// @author Lemma Finance
-/// @notice USDLemma contract is use to mint or burn USDL Stablecoin
-/// When user deposits collateral to mint USDL.
-/// It will transfer to Derivative dex to open a short position with no-leverage and mint stablecoin called USDL.
+/// @notice USDLemma contract is used to mint or burn USDL Stablecoin
+/// USDL is a stablecoin backed by a long spot and short futures position.
+/// The price fluctuations of the underlying spot assets are “canceled out” by short futures positions.
+/// As a result, the overall portfolio’s value is stable in USD terms.
 contract USDLemma is
     ReentrancyGuardUpgradeable,
     ERC20PermitUpgradeable,
@@ -455,6 +456,7 @@ contract USDLemma is
         SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), address(perpDEXWrapper), to, amount);
     }
 
+    /// @notice Below we are not taking advantage of ERC2771ContextUpgradeable even though we should be able to
     function _msgSender()
         internal
         view
@@ -465,6 +467,7 @@ contract USDLemma is
         return msg.sender;
     }
 
+    /// @notice Below we are not taking advantage of ERC2771ContextUpgradeable even though we should be able to
     function _msgData()
         internal
         view

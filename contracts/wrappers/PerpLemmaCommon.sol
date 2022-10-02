@@ -24,7 +24,7 @@ import "../interfaces/Perpetual/IExchange.sol";
 /// @author Lemma Finance
 /// @notice PerpLemmaCommon contract will use to open short and long position with no-leverage on perpetual protocol (v2)
 /// USDLemma and LemmaSynth will consume the methods to open short or long on derivative dex
-/// Every collateral has different PerpLemma deployed, and after deployment it will be added in USDLemma contract perpetualDEXWrappers Mapping
+/// Every collateral has different PerpLemma deployed, and after deployment it will be added in USDLemma contract and corresponding LemmaSynth's perpetualDEXWrappers mapping
 contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, AccessControlUpgradeable {
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
@@ -77,7 +77,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
     int256 public amountBase;
     int256 public amountQuote;
-    /// Amount of usdl's collateral that is deposited in perpLemma nd then deposited into perpV2
+    /// Amount of usdl's collateral that is deposited in perpLemma and then deposited into perpV2
     uint256 public amountUsdlCollateralDeposited;
 
     // NOTE: Below this free collateral amount, recapitalization in USDC is needed to push back the margin in a safe zone
@@ -101,6 +101,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     // Has the Market Settled, If settled we can't mint new USDL or Synth
     bool public override hasSettled;
 
+    //for accounting of funding payment distribution
     int256 public fundingPaymentsToDistribute;
     uint256 public percFundingPaymentsToUSDLHolders;
 
@@ -1287,6 +1288,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return (a >= 0) ? uint256(a) : uint256(-1 * a);
     }
 
+    /// @notice Below we are not taking advantage of ERC2771ContextUpgradeable even though we should be able to
     function _msgSender()
         internal
         view
@@ -1297,6 +1299,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return msg.sender;
     }
 
+    /// @notice Below we are not taking advantage of ERC2771ContextUpgradeable even though we should be able to
     function _msgData()
         internal
         view

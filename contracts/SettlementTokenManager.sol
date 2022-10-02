@@ -11,10 +11,7 @@ import "./interfaces/IERC20Decimals.sol";
 import "./interfaces/ISettlementTokenManager.sol";
 
 /// @author Lemma Finance
-/// @notice SettlementTokenManager contract will manage the SettlementToken(USDC in perpV2) of perpV2
-/// When user deposit or withdraw in PerpLemma using SettlementToken from USDLemma contract it will handle by this contract
-/// So it will intermediary between USDLemma and PerpLemma contracts
-/// Also settlement contract will perform rebalance between perpLemmaContracts
+/// @notice This is used in case the system does not have enough USDC to keep the leverage non-risky
 contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgradeable, ISettlementTokenManager {
     /// USDLemma contract address
     address public usdLemma;
@@ -74,7 +71,7 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
     }
 
     /// @notice getSettlementToken will return USDC contract address
-    function getSettlementToken() external view override returns(address) {
+    function getSettlementToken() external view override returns (address) {
         return address(usdc);
     }
 
@@ -123,7 +120,8 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
     /// @param settlementTokenAmount Amount of USDC need to transfer to perpLemma from USDLemma
     /// @param perpDexWrapper on this perpLemma contract the amount will be transfer
     function settlementTokenRecieve(uint256 settlementTokenAmount, address perpDexWrapper)
-        external override
+        external
+        override
         onlyRole(USDLEMMA_ROLE)
     {
         require(isSettlementAllowed, "Settlement Token is not allowed");
@@ -142,7 +140,8 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
     /// @param settlementTokenAmount Amount of USDC need to transfer to USDLemma from PerpLemma
     /// @param perpDexWrapper amount will be withdraw from this perpLemma contract
     function settlementTokenRequested(uint256 settlementTokenAmount, address perpDexWrapper)
-        external override
+        external
+        override
         onlyRole(USDLEMMA_ROLE)
     {
         require(isSettlementAllowed, "Settlement Token is not allowed");
@@ -195,6 +194,7 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
         SafeERC20Upgradeable.safeApprove(usdc, perpDexWrapper, amount);
     }
 
+    /// @notice Below we are not taking advantage of ERC2771ContextUpgradeable even though we should be able to
     function _msgSender()
         internal
         view
@@ -205,6 +205,7 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
         return msg.sender;
     }
 
+    /// @notice Below we are not taking advantage of ERC2771ContextUpgradeable even though we should be able to
     function _msgData()
         internal
         view
