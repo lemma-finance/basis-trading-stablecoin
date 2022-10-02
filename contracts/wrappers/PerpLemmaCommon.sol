@@ -22,9 +22,9 @@ import "../interfaces/Perpetual/IBaseToken.sol";
 import "../interfaces/Perpetual/IExchange.sol";
 
 /// @author Lemma Finance
-/// @notice PerpLemmaCommon contract will use to open short and long position with no-leverage
-/// USDLemma and LemmaSynth will consime the methods to open short or long on derivative dex
-/// Every UsdlCollateral has different PerpLemma deployed, and after deployed it will be add in USDLemma contract perpDexWrapper Mapping
+/// @notice PerpLemmaCommon contract will use to open short and long position with no-leverage on perpetual protocol (v2)
+/// USDLemma and LemmaSynth will consume the methods to open short or long on derivative dex
+/// Every collateral has different PerpLemma deployed, and after deployment it will be added in USDLemma contract perpetualDEXWrappers Mapping
 contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, AccessControlUpgradeable {
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
@@ -196,20 +196,22 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// EXTERNAL VIEW METHODS ///
     /////////////////////////////
 
-    /// @dev This one probably not needed as we can call usdlCollateral.decimals() when we need it
+    /// @dev a helper method to get usdlCollateralDecimlas
     function getUsdlCollateralDecimals() external view override returns (uint256) {
         return usdlCollateralDecimals;
     }
 
-    // NOTE: Abstraction Layer
+    /// @dev a helper method to get settlementToken
     function getSettlementToken() external view override returns (address) {
         return perpVault.getSettlementToken();
     }
 
+    /// @dev a helper method to get minFreeCollateral. Not rellay needed as minFreeCollateral is a public variable
     function getMinFreeCollateral() external view override returns (uint256) {
         return minFreeCollateral;
     }
 
+    /// @dev a helper method to get minMarginSafeThreshold. Not rellay needed as minMarginSafeThreshold is a public variable
     function getMinMarginSafeThreshold() external view override returns (uint256) {
         return minMarginSafeThreshold;
     }
@@ -562,6 +564,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return settleCollateral(amount, to, isUsdl);
     }
 
+    /// @custom:deprecated not being used currently, there will be an update soon
     /// @notice Rebalances USDL or Synth emission swapping by Perp backed to Token backed
     /// @dev USDL can be backed by both: 1) Floating Collateral + Perp Short of the same Floating Collateral or 2) USDC
     /// @dev LemmaX (where X can be ETH, ...) can be backed by both: 1) USDC collateralized Perp Long or 2) X token itself
@@ -633,6 +636,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         _calculateMintingAsset(amount, basis, isOpenShort);
     }
 
+    /// @notice distributes funding payments to xUSDL and xLemmaSynth holders
     function distributeFundingPayments()
         external
         override
@@ -711,6 +715,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// PUBLIC METHODS ///
     //////////////////////
 
+    /**@notice settle the funding payments to make sure funding payments gets ditributed correctly
+                it should be called be called before any interaction that happen on perpetual protocol.
+    */
     function settlePendingFundingPayments() public override {
         fundingPaymentsToDistribute += getPendingFundingPayment();
         clearingHouse.settleAllFunding(address(this));
@@ -860,7 +867,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
     /// @notice Returns the current amount of collateral value (in USDC) after the PnL in 1e18 format
-    /// TODO: Take into account tail assets
     function getAccountValue() public view override returns (int256 value_1e18) {
         value_1e18 = clearingHouse.getAccountValue(address(this));
     }
@@ -1099,6 +1105,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
     }
 
+    /// @custom:deprecated not being used currently, there will be an update soon
     /// @notice swap USDC -> USDLCollateral
     function _USDCToCollateral(
         address router,
@@ -1109,6 +1116,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return _swapOnDEXSpot(router, routerType, false, isExactInput, amountUSDC);
     }
 
+    /// @custom:deprecated not being used currently, there will be an update soon
     /// @notice swap USDLCollateral -> USDC
     function _CollateralToUSDC(
         address router,
@@ -1119,6 +1127,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return _swapOnDEXSpot(router, routerType, true, isExactInput, amountCollateral);
     }
 
+    /// @custom:deprecated not being used currently, there will be an update soon
     function _swapOnDEXSpot(
         address router,
         uint256 routerType,
@@ -1134,6 +1143,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return _swapOnUniV3(router, isBuyUSDLCollateral, isExactInput, amountIn);
     }
 
+    /// @custom:deprecated not being used currently, there will be an update soon
     /// @dev Helper function to swap on UniV3
     function _swapOnUniV3(
         address router,

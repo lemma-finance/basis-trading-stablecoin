@@ -143,6 +143,9 @@ async function main() {
   await perpLemma.connect(defaultSigner).setReBalancer(reBalancer);
   await delay(10000);
 
+  await perpLemma.setUSDLemma(usdLemma.address);
+  await delay(10000);
+
   await perpLemma.setLemmaSynth(lemmaSynth.address);
   await delay(10000);
 
@@ -175,6 +178,9 @@ async function main() {
 
   await xLemmaSynth.setMinimumLock("100");
   await delay(10000);
+
+  await perpLemma.setIsUsdlCollateralTailAsset(true);
+  await delay(1000);
 
   deployedContracts["USDLemma"] = {
     name: "USDLemma",
