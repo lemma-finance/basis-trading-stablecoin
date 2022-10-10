@@ -220,9 +220,10 @@ async function main() {
 
 
 
-
     }
+
     await save(network);
+
 }
 main()
     .then(() => process.exit(0))

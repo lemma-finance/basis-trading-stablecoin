@@ -333,26 +333,26 @@
   },
   "PerpLemmaCRV": {
     "name": "PerpLemmaCRV",
-    "address": "0xF85aae414626831d8591c8a3e5fCd8f024170BF1"
+    "address": "0x119f85ECFcFBC1d7033d266192626202Df7dbDf2"
   },
   "lCRV": {
     "name": "lCRV",
-    "address": "0x3b2a99424D03220798dd260D337A7fcB5107724b"
+    "address": "0x546ba811099883bEf35Fa360e7ded8Af439831f3"
   },
   "xlCRV": {
     "name": "xlCRV",
-    "address": "0x495bf8e2ce678207372B3Fd876b0B512eCb3d5cB"
+    "address": "0x754E6134872D7a501fFEbA6c186e187DBFdf6f4a"
   },
   "PerpLemmaPERP": {
     "name": "PerpLemmaPERP",
-    "address": "0x06F46F89D15d57B0AA25e808Ce89F6B948859EB6"
+    "address": "0x13c214b430fE304C4C6437F3564A690cd4e4f23B"
   },
   "lPERP": {
     "name": "lPERP",
-    "address": "0x6BbB4a630d8E4Db5f51f2B682DdcD13Bf236C2F8"
+    "address": "0xd1a988b024C55d7bAaBB07fD531d63A4E19e3B4C"
   },
   "xlPERP": {
     "name": "xlPERP",
-    "address": "0x3C831c594395238e299f962D28764D0c6a899D0C"
+    "address": "0x3C7E63ba04FF4d5f0673bc93bBD9E73E9DD37Ed2"
   }
 }
