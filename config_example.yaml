@@ -1,7 +1,0 @@
-fork:
-  # If empty, the most recent block is used
-  block_number: ""
-secrets:
-  # Put your alchemy key here
-  alchemy_key: ""
-
