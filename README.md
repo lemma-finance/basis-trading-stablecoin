@@ -37,6 +37,9 @@ PerpLemmaCommonBtc: , 0xCAA344264f1546931A37Ad09da63d3D2AceB1283
 2. Verify contract command
     - ```npx hardhat verify --network optimismKovan <Deployment Address>```
 
+## Bug Bounty
+https://immunefi.com/bounty/lemma/
+
 ### Test JS tests for Perpetual Integration (DEPRECATED)
 1. Go to root repo\
     - cd  basis-trading-stablecoin\
