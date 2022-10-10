@@ -2,6 +2,8 @@
     "10": {
         "USDLemmaAddress": "0x96F2539d3684dbde8B3242A51A73B66360a5B541",
         "xUSDL": "0x252Ea7E68a27390Ce0D53851192839A39Ab8B38C",
+        "LemmaSwapAddress": "0x29E8dd7383aCC9Ac316DFc9055C177Fe748A0bE5",
+        "FeesAccumulatorAddress": "0x8c7c645d4e6810dece35b55e59b020af4fc90dff",
         "SettlementTokenManagerAddress": "0x2F23EAc2714D323BC76d2F014232FCd6f54c0338",
         "trustedForwarder": "0xefba8a2a82ec1fb1273806174f5e28fbb917cf95",
         "reBalancer": "0x0f3BF5c241B6625C0fA781ED137fDe6786b2e66f",

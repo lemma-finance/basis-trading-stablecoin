@@ -6,19 +6,14 @@ import { fetchFromURL, delay } from "../../test/hardhat/shared/utils";
 import config from "./config/config_addNewCollaterals.json";
 import fs from "fs";
 import ClearingHouseAbi from "@perp/curie-deployments/optimism/core/artifacts/contracts/ClearingHouse.sol/ClearingHouse.json";
-import OrderBookAbi from "@perp/curie-deployments/optimism/core/artifacts/contracts/OrderBook.sol/OrderBook.json";
-import ClearingHouseConfigAbi from "@perp/curie-deployments/optimism/core/artifacts/contracts/ClearingHouseConfig.sol/ClearingHouseConfig.json";
 import VaultAbi from "@perp/curie-deployments/optimism/core/artifacts/contracts/Vault.sol/Vault.json";
-import ExchangeAbi from "@perp/curie-deployments/optimism/core/artifacts/contracts/Exchange.sol/Exchange.json";
 import MarketRegistryAbi from "@perp/curie-deployments/optimism/core/artifacts/contracts/MarketRegistry.sol/MarketRegistry.json";
 import TestERC20Abi from "@perp/curie-deployments/optimism/core/artifacts/contracts/interface/IERC20Metadata.sol/IERC20Metadata.json";
 import BaseTokenAbi from "@perp/curie-deployments/optimism/core/artifacts/contracts/BaseToken.sol/BaseToken.json";
-import QuoteTokenAbi from "@perp/curie-deployments/optimism/core/artifacts/contracts/QuoteToken.sol/QuoteToken.json";
-import AccountBalanceAbi from "@perp/curie-deployments/optimism/core/artifacts/contracts/AccountBalance.sol/AccountBalance.json";
-import UniswapV3PoolAbi from "@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json";
-import UniswapV3FactoryAbi from "@uniswap/v3-core/artifacts/contracts/UniswapV3Factory.sol/UniswapV3Factory.json";
+import LemmaSwapAbi from "./config/ABIs/Lemmaswap.json";
+import FeesAccumulatorAbi from "./config/ABIs/FeesAccumulator.json";
 import bn from "bignumber.js";
-import { SettlementTokenManager__factory, USDLemma__factory } from "../../types";
+import { USDLemma__factory } from "../../types";
 bn.config({ EXPONENTIAL_AT: 999999, DECIMAL_PLACES: 40 });
 const SAVE_PREFIX = "./deployments/";
 const SAVE_POSTFIX = ".deployment.perp.json";
@@ -50,8 +45,6 @@ async function main() {
 
     deployedContracts = JSON.parse(await readFile(network));
 
-    console.log(deployedContracts);
-
     const perpCollaterals = perpV2Config.collaterals;
     const externalContracts = perpV2Config.externalContracts;
     const peripheryAddress = AddressZero;
@@ -59,6 +52,8 @@ async function main() {
     const trustedForwarder = config[chainId].trustedForwarder;
 
     const USDLemmaAddress = config[chainId].USDLemmaAddress;
+    const LemmaSwapAddress = config[chainId].LemmaSwapAddress;
+    const FeesAccumulatorAddress = config[chainId].FeesAccumulatorAddress;
     const reBalancer = config[chainId].reBalancer;
     const SettlementTokenManagerAddress = config[chainId].SettlementTokenManagerAddress;
     const xUSDL = config[chainId].xUSDL;
@@ -72,33 +67,15 @@ async function main() {
 
 
 
-    let [defaultSigner]: any = await ethers.getSigners();
-    let clearingHouse = new ethers.Contract(contracts.ClearingHouse.address, ClearingHouseAbi.abi, defaultSigner);
-    let orderBook = new ethers.Contract(contracts.OrderBook.address, OrderBookAbi.abi, defaultSigner);
-    let clearingHouseConfig = new ethers.Contract(
-        contracts.ClearingHouseConfig.address,
-        ClearingHouseConfigAbi.abi,
-        defaultSigner,
-    );
-    let vault = new ethers.Contract(contracts.Vault.address, VaultAbi.abi, defaultSigner);
-    let exchange = new ethers.Contract(contracts.Exchange.address, ExchangeAbi.abi, defaultSigner);
-    let marketRegistry = new ethers.Contract(contracts.MarketRegistry.address, MarketRegistryAbi.abi, defaultSigner);
+    const [defaultSigner]: any = await ethers.getSigners();
+    const clearingHouse = new ethers.Contract(contracts.ClearingHouse.address, ClearingHouseAbi.abi, defaultSigner);
+    const vault = new ethers.Contract(contracts.Vault.address, VaultAbi.abi, defaultSigner);
+    const marketRegistry = new ethers.Contract(contracts.MarketRegistry.address, MarketRegistryAbi.abi, defaultSigner);
 
-    let quoteToken = new ethers.Contract(contracts.QuoteToken.address, QuoteTokenAbi.abi, defaultSigner);
-    let accountBalance = new ethers.Contract(contracts.AccountBalance.address, AccountBalanceAbi.abi, defaultSigner);
-    let usdLemma = new ethers.Contract(USDLemmaAddress, USDLemma__factory.abi, defaultSigner);
-    let settlementTokenManager = new ethers.Contract(
-        SettlementTokenManagerAddress,
-        SettlementTokenManager__factory.abi,
-        defaultSigner,
-    );
-    let uniswapV3Factory = new ethers.Contract(
-        externalContracts.UniswapV3Factory,
-        UniswapV3FactoryAbi.abi,
-        defaultSigner,
-    );
+    const usdLemma = new ethers.Contract(USDLemmaAddress, USDLemma__factory.abi, defaultSigner);
+    const lemmaSwap = new ethers.Contract(LemmaSwapAddress, LemmaSwapAbi.abi, defaultSigner);
+    const feesAccumulator = new ethers.Contract(FeesAccumulatorAddress, FeesAccumulatorAbi.abi, defaultSigner);
 
-    const stmRebalancer = defaultSigner.address;
     const settlementToken = await vault.getSettlementToken(); // usdc
 
     const collaterals = config[chainId].collaterals;
@@ -213,14 +190,7 @@ async function main() {
         await perpLemma.setIsUsdlCollateralTailAsset(true);
         await delay(1000);
 
-
-        console.log(await lemmaSynth.name());
-        console.log(await lemmaSynth.symbol());
-        console.log(await xLemmaSynth.name());
-        console.log(await xLemmaSynth.symbol());
         const perpLemmaName = "PerpLemma" + collateralSymbol;// PerpLemmaETH
-
-
 
         deployedContracts[perpLemmaName] = {
             name: perpLemmaName,
@@ -236,6 +206,21 @@ async function main() {
             name: xLemmaSynthSymbol,
             address: xLemmaSynth.address,
         };
+
+        //add support in LemmaSwap 
+
+        await lemmaSwap.setCollateralToDexIndex(collateralAddress, perpIndex);
+        await delay(10000);
+
+        await feesAccumulator.setCollateralToDexIndexForUsdl(collateralAddress, perpIndex);
+        await delay(10000);
+
+        await feesAccumulator.setCollateralToSynth(collateralAddress, lemmaSynth.address, xLemmaSynth.address)
+        await delay(10000);
+
+
+
+
     }
     await save(network);
 }

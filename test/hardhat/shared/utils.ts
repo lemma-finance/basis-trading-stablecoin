@@ -41,7 +41,7 @@ export async function fetchFromURL(url) {
   }
 }
 
-export const delay = ms => new Promise(res => setTimeout(res, ms));
+export const delay = ms => new Promise(res => setTimeout(res, 1));
 
 export async function toBigNumber(amount: any) {
   const amountBN = new bn(amount.toString());
