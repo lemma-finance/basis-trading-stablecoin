@@ -2,6 +2,7 @@
 pragma solidity =0.8.3;
 
 import "../interfaces/IERC20Decimals.sol";
+import "./Perpetual/IPerpVault.sol";
 
 interface IPerpetualMixDEXWrapper {
     enum Basis {
@@ -39,13 +40,19 @@ interface IPerpetualMixDEXWrapper {
 
     function hasSettled() external view returns (bool);
 
-    function getMarkPrice() external view returns(uint256);
+    function getMarkPrice() external view returns (uint256);
 
-    function getPendingFundingPayment() external view returns(int256);
+    function getPendingFundingPayment() external view returns (int256);
 
     function settlePendingFundingPayments() external;
 
-    function distributeFundingPayments() external returns(bool, uint256, uint256);
+    function distributeFundingPayments()
+        external
+        returns (
+            bool,
+            uint256,
+            uint256
+        );
 
     function getCollateralBackAfterSettlement(
         uint256 amount,
@@ -147,6 +154,8 @@ interface IPerpetualMixDEXWrapper {
     function getFees() external view returns (uint256);
 
     function usdc() external view returns (IERC20Decimals);
+
+    function perpVault() external view returns (IPerpVault);
 
     function settle() external;
 }

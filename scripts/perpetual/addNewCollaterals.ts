@@ -187,6 +187,9 @@ async function main() {
         await xLemmaSynth.setMinimumLock("100");
         await delay(10000);
 
+        // TODO: add setPeriphery as well   
+        // await xLemmaSynth.setPeriphery("LemmaRouter")
+
         await perpLemma.setIsUsdlCollateralTailAsset(true);
         await delay(1000);
 
@@ -197,13 +200,13 @@ async function main() {
             address: perpLemma.address,
         };
 
-        deployedContracts[lemmaSynthSymbol] = {
-            name: lemmaSynthSymbol,
+        deployedContracts[lemmaSynthName] = {
+            name: lemmaSynthName,
             address: lemmaSynth.address,
         };
 
-        deployedContracts[xLemmaSynthSymbol] = {
-            name: xLemmaSynthSymbol,
+        deployedContracts[xLemmaSynthName] = {
+            name: xLemmaSynthName,
             address: xLemmaSynth.address,
         };
 
@@ -217,6 +220,7 @@ async function main() {
 
         await feesAccumulator.setCollateralToSynth(collateralAddress, lemmaSynth.address, xLemmaSynth.address)
         await delay(10000);
+
 
 
 

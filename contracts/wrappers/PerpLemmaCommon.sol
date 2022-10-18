@@ -56,7 +56,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// PerpV2 contract addresses
     IClearingHouse public clearingHouse;
     IClearingHouseConfig public clearingHouseConfig;
-    IPerpVault public perpVault;
+    IPerpVault public override perpVault;
     IAccountBalance public accountBalance;
     IMarketRegistry public marketRegistry;
 

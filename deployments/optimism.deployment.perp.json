@@ -311,48 +311,48 @@
     "name": "PerpLemmaLINK",
     "address": "0xdd4d71D3563C24E38525661896e1d01Fd8c2c9A5"
   },
-  "lLINK": {
-    "name": "lLINK",
+  "LemmaLINK": {
+    "name": "LemmaLINK",
     "address": "0x5C39a4a368AB3c3239d20eb4219e0361Bd2ad092"
   },
-  "xlLINK": {
-    "name": "xlLINK",
+  "xLemmaLINK": {
+    "name": "xLemmaLINK",
     "address": "0x823c55654d6E860F40070ee5625ff8b091df4269"
   },
   "PerpLemmaAAVE": {
     "name": "PerpLemmaAAVE",
-    "address": "0x04A467C69C1DDdcf154A027112afa70dbba075Be"
+    "address": "0xFE1EB36d31ead771Fd5E051ee8CC424dB6416567"
   },
-  "lAAVE": {
-    "name": "lAAVE",
-    "address": "0xC809cd7fFc044651EDb70742743b0fEbBE511e83"
+  "LemmaAAVE": {
+    "name": "LemmaAAVE",
+    "address": "0xA7C657a94Eb9571f4e94F49943Af1130e6D7337c"
   },
-  "xlAAVE": {
-    "name": "xlAAVE",
-    "address": "0x48a0ACf99cfa160db6594f0C6bFd7D189eE9099A"
+  "xLemmaAAVE": {
+    "name": "xLemmaAAVE",
+    "address": "0x90356c24c1F95CF29543D45122f2554b6A74f201"
   },
   "PerpLemmaCRV": {
     "name": "PerpLemmaCRV",
     "address": "0x119f85ECFcFBC1d7033d266192626202Df7dbDf2"
   },
-  "lCRV": {
-    "name": "lCRV",
+  "LemmaCRV": {
+    "name": "LemmaCRV",
     "address": "0x546ba811099883bEf35Fa360e7ded8Af439831f3"
   },
-  "xlCRV": {
-    "name": "xlCRV",
+  "xLemmaCRV": {
+    "name": "xLemmaCRV",
     "address": "0x754E6134872D7a501fFEbA6c186e187DBFdf6f4a"
   },
   "PerpLemmaPERP": {
     "name": "PerpLemmaPERP",
     "address": "0x13c214b430fE304C4C6437F3564A690cd4e4f23B"
   },
-  "lPERP": {
-    "name": "lPERP",
+  "LemmaPERP": {
+    "name": "LemmaPERP",
     "address": "0xd1a988b024C55d7bAaBB07fD531d63A4E19e3B4C"
   },
-  "xlPERP": {
-    "name": "xlPERP",
+  "xLemmaPERP": {
+    "name": "xLemmaPERP",
     "address": "0x3C7E63ba04FF4d5f0673bc93bBD9E73E9DD37Ed2"
   }
 }

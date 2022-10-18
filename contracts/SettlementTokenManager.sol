@@ -7,6 +7,7 @@ import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/m
 import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import { IPerpetualMixDEXWrapper } from "./interfaces/IPerpetualMixDEXWrapper.sol";
 import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "./interfaces/Perpetual/IPerpVault.sol";
 import "./interfaces/IERC20Decimals.sol";
 import "./interfaces/ISettlementTokenManager.sol";
 
@@ -21,6 +22,8 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
     bool public isSettlementAllowed;
     /// USDC ERC20 contract
     IERC20Decimals public usdc;
+
+    uint256 public minUSDCInWETHPerpDEXWrapper;
 
     // Different Roles to perform restricted tx
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
@@ -39,6 +42,7 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
     event SetIsSettlementAllowed(bool indexed _isSettlementAllowed);
     event SetUSDLemma(address indexed _usdLemma);
     event SetRebalancer(address indexed _reBalancer);
+    event SetMinUSDCInWETHPerpDEXWrapper(uint256 indexed _minUSDCInWETHPerpDEXWrapper);
 
     /// @notice Intialize method only called once while deploying contract
     /// It will setup different roles and give role access to specific addreeses
@@ -110,6 +114,13 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
         reBalancer = _reBalancer;
         grantRole(REBALANCER_ROLE, reBalancer);
         emit SetRebalancer(reBalancer);
+    }
+
+    /// @notice setMinUSDCInWETHPerpDEXWrapper set minimum USDC WETHPerpDEXWrapper needs to have
+    /// @param _minUSDCInWETHPerpDEXWrapper amount
+    function setMinUSDCInWETHPerpDEXWrapper(uint256 _minUSDCInWETHPerpDEXWrapper) external onlyRole(ADMIN_ROLE) {
+        minUSDCInWETHPerpDEXWrapper = _minUSDCInWETHPerpDEXWrapper;
+        emit SetMinUSDCInWETHPerpDEXWrapper(_minUSDCInWETHPerpDEXWrapper);
     }
 
     /// @notice settlementTokenRecieve is called when mint USDL using USDC on USDLemma cntract
@@ -186,6 +197,13 @@ contract SettlementTokenManager is ERC2771ContextUpgradeable, AccessControlUpgra
     /// @param perpDexWrapper amount will be withdraw from this perpLemma contract
     function _withdraw(uint256 amount, address perpDexWrapper) internal {
         IPerpetualMixDEXWrapper(perpDexWrapper).withdrawSettlementToken(amount);
+
+        //check and make sure that the dex wrapper has the minimum USDC
+        IPerpVault perpVault = IPerpetualMixDEXWrapper(perpDexWrapper).perpVault();
+        uint256 usdcInWETHPerpDexWrapper = perpVault.getFreeCollateralByToken(perpDexWrapper, address(usdc));
+        if (minUSDCInWETHPerpDEXWrapper != 0) {
+            require(usdcInWETHPerpDexWrapper >= minUSDCInWETHPerpDEXWrapper, "minimum usdc reached");
+        }
     }
 
     /// @notice give necessary approve for settlement token

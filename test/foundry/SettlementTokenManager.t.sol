@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.3;
 
-import {IPerpetualMixDEXWrapper} from "../../contracts/interfaces/IPerpetualMixDEXWrapper.sol";
+import { IPerpetualMixDEXWrapper } from "../../contracts/interfaces/IPerpetualMixDEXWrapper.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "../../contracts/interfaces/IERC20Decimals.sol";
 import "../../src/Deploy.sol";
@@ -24,12 +24,12 @@ contract SettlementTokenManagerTest is Test {
     }
 
     // Internal Functions
-    function _deductFees(address collateral, uint256 collateralAmount, uint256 dexIndex)
-        internal
-        view
-        returns (uint256 total)
-    {
-        uint256 _fees = collateralAmount * d.usdl().getFees(dexIndex, collateral) / 1e6;
+    function _deductFees(
+        address collateral,
+        uint256 collateralAmount,
+        uint256 dexIndex
+    ) internal view returns (uint256 total) {
+        uint256 _fees = (collateralAmount * d.usdl().getFees(dexIndex, collateral)) / 1e6;
         total = uint256(int256(collateralAmount) - int256(_fees));
     }
 
@@ -38,7 +38,11 @@ contract SettlementTokenManagerTest is Test {
         assertTrue(IERC20Decimals(token).balanceOf(address(this)) >= amount);
     }
 
-    function _getMoneyForTo(address to, address token, uint256 amount) internal {
+    function _getMoneyForTo(
+        address to,
+        address token,
+        uint256 amount
+    ) internal {
         d.bank().giveMoney(token, to, amount);
         assertTrue(IERC20Decimals(token).balanceOf(to) >= amount);
     }
@@ -50,10 +54,11 @@ contract SettlementTokenManagerTest is Test {
     function _depositSettlementTokenMax() internal {
         IERC20Decimals settlementToken = IERC20Decimals(d.pl().perpVault().getSettlementToken());
         uint256 perpVaultSettlementTokenBalanceBefore = settlementToken.balanceOf(address(d.pl().perpVault()));
-        uint256 settlementTokenBalanceCap =
-            IClearingHouseConfig(d.pl().clearingHouse().getClearingHouseConfig()).getSettlementTokenBalanceCap();
-        uint256 usdcToDeposit =
-            uint256(int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore));
+        uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.pl().clearingHouse().getClearingHouseConfig())
+            .getSettlementTokenBalanceCap();
+        uint256 usdcToDeposit = uint256(
+            int256(settlementTokenBalanceCap) - int256(perpVaultSettlementTokenBalanceBefore)
+        );
         // uint256 settlementTokenBalanceCap = IClearingHouseConfig(d.getPerps().ch.getClearingHouseConfig()).getSettlementTokenBalanceCap();
         // NOTE: Unclear why I need to use 1/10 of the cap
         // NOTE: If I do not limit this amount I get
@@ -63,7 +68,11 @@ contract SettlementTokenManagerTest is Test {
         d.pl().depositSettlementToken(usdcToDeposit / 2);
     }
 
-    function _mintUSDLWExactUSDL(address to, address collateral, uint256 amount) internal {
+    function _mintUSDLWExactUSDL(
+        address to,
+        address collateral,
+        uint256 amount
+    ) internal {
         address usdl = d.pl().usdLemma();
         _getMoneyForTo(to, collateral, 1000e6);
         uint256 beforeBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
@@ -79,7 +88,11 @@ contract SettlementTokenManagerTest is Test {
         assertTrue(afterBalanceCollateral < beforeBalanceCollateral);
     }
 
-    function _redeemUSDLWExactUsdl(address to, address collateral, uint256 amount) internal {
+    function _redeemUSDLWExactUsdl(
+        address to,
+        address collateral,
+        uint256 amount
+    ) internal {
         address usdl = d.pl().usdLemma();
         uint256 beforeBalanceCollateral = IERC20Decimals(collateral).balanceOf(to);
         uint256 beforeBalanceUSDL = IERC20Decimals(usdl).balanceOf(to);
@@ -106,6 +119,20 @@ contract SettlementTokenManagerTest is Test {
         testDepositToForUSDCTreasury();
         address collateral = d.getTokenAddress("USDC");
         uint256 usdlAmount = d.usdl().balanceOf(address(this));
+        _redeemUSDLWExactUsdl(address(this), collateral, usdlAmount);
+    }
+
+    //test minUSDCinWETHPerpDEXWrapper check
+    function testFailMinUSDCInWETHPerpDEXWrapperCheck() public {
+        address collateral = d.getTokenAddress("USDC");
+        testDepositToForUSDCTreasury();
+        uint256 usdcInWETHPerpDexWrapper = d.pl().perpVault().getFreeCollateralByToken(address(d.pl()), collateral);
+
+        vm.startPrank(address(d));
+        d.settlementTokenManager().setMinUSDCInWETHPerpDEXWrapper(usdcInWETHPerpDexWrapper);
+        vm.stopPrank();
+
+        uint256 usdlAmount = 1 ether;
         _redeemUSDLWExactUsdl(address(this), collateral, usdlAmount);
     }
 
