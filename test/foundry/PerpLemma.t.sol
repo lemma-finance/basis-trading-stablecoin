@@ -7,6 +7,8 @@ import "../../contracts/interfaces/IERC20Decimals.sol";
 import "../../src/Deploy.sol";
 import "forge-std/Test.sol";
 
+// error resTestLeverageCheck(bool temp);
+
 contract PerpLemmaCommonTest is Test {
     Deploy public d;
     address alice = vm.addr(1);
@@ -1026,18 +1028,47 @@ contract PerpLemmaCommonTest is Test {
         return _deltaAbs(a,b) <= precision;
     }
 
-    function testLeverageCheck() public {
-        // NOTE: ETH is set as tail asset here so deposited USDC determines 
-        d.pl().setIsUsdlCollateralTailAsset(true);
-        for(uint256 i=1; i<5; ++i) {
+    function _testLeverageCheck(uint256 i) internal {
             uint256 baseAmount_18 = 1e18;
             console.log("[testLeverageCheck()] Short Base Amount = ", baseAmount_18);
             _testOpenShortWithExactBase(baseAmount_18, i * 1e6);
             uint256 leverage = d.pl().getLeverage(true, 0);
             console.log("[testLeverageCheck()] getLeverage = ", leverage);
             assertTrue(_isAlmostEqual(leverage, i * 1e6, 1e5));
-        }
+            // revert resTestLeverageCheck(_isAlmostEqual(leverage, i * 1e6, 1e5));
     }
+
+    function testLeverageCheck1() public {
+        _testLeverageCheck(1);
+    }
+
+    function testLeverageCheck2() public {
+        _testLeverageCheck(2);
+    }
+
+    // function testLeverageCheck() public {
+    //     // NOTE: ETH is set as tail asset here so deposited USDC determines 
+    //     d.pl().setIsUsdlCollateralTailAsset(true);
+    //     bool isSuccess = true;
+    //     for(uint256 i=1; i<5; ++i) {
+    //         try _testLeverageCheck(i) {
+
+    //         } catch (bytes memory reason) {
+    //         assembly {
+    //             reason := add(reason, 0x04)
+    //         }
+    //             (bool _isSuccess) = abi.decode(reason, (bool));
+    //             isSuccess = isSuccess && _isSuccess;
+    //         }
+    //         // uint256 baseAmount_18 = 1e18;
+    //         // console.log("[testLeverageCheck()] Short Base Amount = ", baseAmount_18);
+    //         // _testOpenShortWithExactBase(baseAmount_18, i * 1e6);
+    //         // uint256 leverage = d.pl().getLeverage(true, 0);
+    //         // console.log("[testLeverageCheck()] getLeverage = ", leverage);
+    //         // assertTrue(_isAlmostEqual(leverage, i * 1e6, 1e5));
+    //     }
+    //     assertTrue(isSuccess);
+    // }
 
     // FAIL. Reason: max position reached
     function testFailMaxPosition() public {

@@ -22,11 +22,13 @@ import "../interfaces/Perpetual/IBaseToken.sol";
 import "../interfaces/Perpetual/IExchange.sol";
 import "../interfaces/Perpetual/ICollateralManager.sol";
 
+import "forge-std/Test.sol";
+
 /// @author Lemma Finance
 /// @notice PerpLemmaCommon contract will use to open short and long position with no-leverage on perpetual protocol (v2)
 /// USDLemma and LemmaSynth will consume the methods to open short or long on derivative dex
 /// Every collateral has different PerpLemma deployed, and after deployment it will be added in USDLemma contract and corresponding LemmaSynth's perpetualDEXWrappers mapping
-contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, AccessControlUpgradeable {
+contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, AccessControlUpgradeable, Test {
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
     using SafeMathExt for int256;
@@ -336,25 +338,34 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         );
     }
 
+    function print(string memory s, int256 a) internal view {
+        console.log(s, (a >= 0) ? "+":"-", (a >= 0) ? uint256(a):uint256(-a));
+    }
+
+
     /// @notice Returns the leverage after a withdrawal of a given collateral or the current leverage if zero
     function getLeverage(bool isSettlementToken, int256 amount_nd) public view override returns(uint256 leverage_6) {
         uint256 totalAbsPositionValue_18 = accountBalance.getTotalAbsPositionValue(address(this));
+        console.log("[getLeverage()] totalAbsPositionValue_18 = ", totalAbsPositionValue_18);
         if(totalAbsPositionValue_18 == 0) {
             // NOTE: No exposition on any market
             return 0;
         }
         int256 beforeAccountValue_18 = getAccountValue();
+        print("[getLeverage()] beforeAccountValue_18 = ", beforeAccountValue_18);
         int256 deltaAmountValue_18 = (amount_nd != 0) ? (
             (isSettlementToken) ? (amount_nd * 1e8 / int256(10**usdc.decimals())) : ((amount_nd > 0) ? int8(1) : int8(-1)) * int256(_getCollateralValue(uint256(amount_nd)))
         ) : int256(0);
+        print("[getLeverage()] deltaAmountValue_18 = ", deltaAmountValue_18);
         int256 afterAccountValue_18 = beforeAccountValue_18 - deltaAmountValue_18;
+        print("[getLeverage()] afterAccountValue_18 = ", afterAccountValue_18);
         if(afterAccountValue_18 <= 0) {
             // NOTE: We treat negative collateral as infinite leverage
             return type(uint256).max;
         }
 
         leverage_6 = totalAbsPositionValue_18 * 1e6 / uint256(afterAccountValue_18);
-
+        console.log("[getLeverage()] leverage_6 = ", leverage_6);
     }
 
     /// @notice Computes the delta exposure
