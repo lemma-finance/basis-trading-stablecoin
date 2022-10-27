@@ -20,4 +20,7 @@ interface IPerpVault {
         returns (int256 freeCollateralByRatio);
 
     function getFreeCollateralByToken(address trader, address token) external view returns (uint256);
+
+    function getCollateralManager() external view returns (address);
+
 }

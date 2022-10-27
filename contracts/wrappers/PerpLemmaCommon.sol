@@ -20,6 +20,7 @@ import "../interfaces/Perpetual/IMarketRegistry.sol";
 import "../interfaces/Perpetual/IPerpVault.sol";
 import "../interfaces/Perpetual/IBaseToken.sol";
 import "../interfaces/Perpetual/IExchange.sol";
+import "../interfaces/Perpetual/ICollateralManager.sol";
 
 /// @author Lemma Finance
 /// @notice PerpLemmaCommon contract will use to open short and long position with no-leverage on perpetual protocol (v2)
@@ -297,6 +298,56 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                 ? MAX_UINT256 // No Collateral Deposited --> Max Leverage Possible
                 : (_margin.abs().toUint256() * 1e18) / _accountValue
         );
+    }
+
+    function _getCollateralValue(uint256 amount_nd) internal view returns(uint256 value_18) {
+        // NOTE: Taken from 
+        // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/Vault.sol#L906
+        if(amount_nd == 0) return 0;
+        uint256 amount_18 = amount_nd * 1e18 / (10**usdlCollateral.decimals());
+        (uint256 indexTwap_pfd, uint8 priceFeedDecimals) = _getIndexPriceAndDecimals(address(usdlCollateral));
+
+        ICollateralManager cm = ICollateralManager(perpVault.getCollateralManager());
+
+        // NOTE: Taken from 
+        // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/Vault.sol#L893-L897
+        uint24 collateralRatio = cm.getCollateralConfig(address(usdlCollateral)).collateralRatio;
+
+        // NOTE: See definition of mulRatio() at  
+        // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/lib/PerpMath.sol#L77
+        value_18 = (amount_18 * indexTwap_pfd / (10**(priceFeedDecimals))) * uint256(collateralRatio) / 1e6;
+    }
+
+    // NOTE: Taken from 
+    // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/Vault.sol#L910
+    function _getIndexPriceAndDecimals(address token) internal view returns (uint256, uint8) {
+        ICollateralManager cm = ICollateralManager(perpVault.getCollateralManager());
+        return (
+            cm.getPrice(
+                token,
+                clearingHouseConfig.getTwapInterval()
+            ),
+            cm.getPriceFeedDecimals(token)
+        );
+    }
+
+    /// @notice Returns the leverage after a withdrawal of a given collateral or the current leverage if zero
+    function getLeverage(bool isSettlementToken, uint256 amount_nd) public view returns(uint256 leverage_6) {
+        uint256 totalAbsPositionValue_18 = accountBalance.getTotalAbsPositionValue(address(this));
+        if(totalAbsPositionValue_18 == 0) {
+            // NOTE: No exposition on any market
+            return 0;
+        }
+        int256 beforeAccountValue_18 = getAccountValue();
+        uint256 withdrawalAmountValue_18 = (isSettlementToken) ? (amount_nd * 1e8 / (10**usdc.decimals())) : _getCollateralValue(amount_nd);
+        int256 afterAccountValue_18 = beforeAccountValue_18 - int256(withdrawalAmountValue_18);
+        if(afterAccountValue_18 <= 0) {
+            // NOTE: We treat negative collateral as infinite leverage
+            return type(uint256).max;
+        }
+
+        leverage_6 = totalAbsPositionValue_18 * 1e6 / uint256(afterAccountValue_18);
+
     }
 
     /// @notice Computes the delta exposure
