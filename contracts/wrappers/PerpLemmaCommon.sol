@@ -320,7 +320,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
         // NOTE: See definition of mulRatio() at  
         // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/lib/PerpMath.sol#L77
-        value_18 = (amount_18 * indexTwap_pfd / (10**(priceFeedDecimals))) * uint256(collateralRatio) / 1e6;
+        value_18 = (amount_18 * indexTwap_pfd / 10**(priceFeedDecimals)) * uint256(collateralRatio) / 1e6;
     }
 
     // NOTE: Taken from 
@@ -337,15 +337,17 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
     /// @notice Returns the leverage after a withdrawal of a given collateral or the current leverage if zero
-    function getLeverage(bool isSettlementToken, uint256 amount_nd) public view returns(uint256 leverage_6) {
+    function getLeverage(bool isSettlementToken, int256 amount_nd) public view override returns(uint256 leverage_6) {
         uint256 totalAbsPositionValue_18 = accountBalance.getTotalAbsPositionValue(address(this));
         if(totalAbsPositionValue_18 == 0) {
             // NOTE: No exposition on any market
             return 0;
         }
         int256 beforeAccountValue_18 = getAccountValue();
-        uint256 withdrawalAmountValue_18 = (isSettlementToken) ? (amount_nd * 1e8 / (10**usdc.decimals())) : _getCollateralValue(amount_nd);
-        int256 afterAccountValue_18 = beforeAccountValue_18 - int256(withdrawalAmountValue_18);
+        int256 deltaAmountValue_18 = (amount_nd != 0) ? (
+            (isSettlementToken) ? (amount_nd * 1e8 / int256(10**usdc.decimals())) : ((amount_nd > 0) ? int8(1) : int8(-1)) * int256(_getCollateralValue(uint256(amount_nd)))
+        ) : int256(0);
+        int256 afterAccountValue_18 = beforeAccountValue_18 - deltaAmountValue_18;
         if(afterAccountValue_18 <= 0) {
             // NOTE: We treat negative collateral as infinite leverage
             return type(uint256).max;
@@ -583,7 +585,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param _amount USDC amount need to withdraw from perp vault
     function withdrawSettlementToken(uint256 _amount) external override onlyRole(USDC_TREASURY) {
         require(_amount > 0, "Amount should greater than zero");
-        require(getLeverage(true, _amount) <= maxLeverage_6, "Max Leverage Exceeded");
+        require(getLeverage(true, int256(-1) * int256(_amount)) <= maxLeverage_6, "Max Leverage Exceeded");
         perpVault.withdraw(address(usdc), _amount);
         SafeERC20Upgradeable.safeTransfer(usdc, msg.sender, _amount);
     }
@@ -593,7 +595,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param _to address where to transfer fund
     function withdrawSettlementTokenTo(uint256 _amount, address _to) external onlyRole(OWNER_ROLE) {
         require(_amount > 0, "Amount should greater than zero");
-        require(getLeverage(true, _amount) <= maxLeverage_6, "Max Leverage Exceeded");
+        require(getLeverage(true, int256(-1) * int256(_amount)) <= maxLeverage_6, "Max Leverage Exceeded");
         require(hasSettled, "Perpetual is not settled yet");
         SafeERC20Upgradeable.safeTransfer(usdc, _to, _amount);
     }
@@ -609,7 +611,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param amount of assets to withdraw
     /// @param collateral needs to withdraw
     function withdraw(uint256 amount, address collateral) external override onlyRole(PERPLEMMA_ROLE) {
-        require(getLeverage((collateral == address(usdc)), amount) <= maxLeverage_6, "Max Leverage Exceeded");
+        require(getLeverage((collateral == address(usdc)), int256(-1) * int256(amount)) <= maxLeverage_6, "Max Leverage Exceeded");
         _withdraw(amount, collateral);
     }
 

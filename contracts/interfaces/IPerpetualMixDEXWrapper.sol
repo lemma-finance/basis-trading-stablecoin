@@ -74,6 +74,8 @@ interface IPerpetualMixDEXWrapper {
 
     function getDeltaExposure() external view returns (int256);
 
+    function getLeverage(bool, int256) external view returns(uint256);
+
     function getExposureDetails()
         external
         view

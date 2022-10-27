@@ -249,13 +249,22 @@ contract PerpLemmaCommonTest is Test {
         return (_usdAmount * 1e18) / d.getPerps().ib.getIndexPrice(15 minutes);
     }
 
-    function testOpenShortWithExactBase() public {
+    function _testOpenShortWithExactBase(uint256 collateralAmount_18, uint256 ethPriceInUSD_18) internal {
         address collateral = d.getTokenAddress("WETH");
-        uint256 collateralAmount = 1e18;
-        uint256 usdcAmount = getEthPriceInUSD(1e18); // 1098e6; // USDL amount
-        _depositSettlementToken((usdcAmount * 1e6) / 1e18);
-        _depositUsdlCollateral(collateralAmount, collateral, address(this));
-        openShortWithExactBase(collateralAmount);
+        uint256 usdcAmount_18 = getEthPriceInUSD(ethPriceInUSD_18); // 1098e6; // USDL amount
+        _depositSettlementToken((usdcAmount_18 * 1e6) / 1e18);
+        _depositUsdlCollateral(collateralAmount_18, collateral, address(this));
+        openShortWithExactBase(collateralAmount_18);
+    }
+
+    function testOpenShortWithExactBase() public {
+        _testOpenShortWithExactBase(1e18, 1e18);
+        // address collateral = d.getTokenAddress("WETH");
+        // uint256 collateralAmount = 1e18;
+        // uint256 usdcAmount = getEthPriceInUSD(1e18); // 1098e6; // USDL amount
+        // _depositSettlementToken((usdcAmount * 1e6) / 1e18);
+        // _depositUsdlCollateral(collateralAmount, collateral, address(this));
+        // openShortWithExactBase(collateralAmount);
     }
 
     function testOpenShortWithExactQuote() public returns (uint256 base, uint256 quote) {
@@ -997,6 +1006,12 @@ contract PerpLemmaCommonTest is Test {
         d.pl().setMaxPosition(_maxPosition);
         assertEq(d.pl().maxPosition(), _maxPosition);
         vm.stopPrank();
+    }
+
+
+    function testLeverageCheck() public {
+        _testOpenShortWithExactBase(1e18, 1e18);
+        console.log("[testLeverageCheck()] getLeverage = ", d.pl().getLeverage(true, 0));
     }
 
     // FAIL. Reason: max position reached
