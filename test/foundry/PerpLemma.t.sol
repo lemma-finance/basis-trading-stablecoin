@@ -1020,10 +1020,10 @@ contract PerpLemmaCommonTest is Test {
     }
 
     // ! No Rebalance with Zero Amount
-    function testFailRebalance() public {
-        vm.startPrank(address(d));
-        d.pl().grantRole(REBALANCER_ROLE, address(d));
-        d.pl().rebalance(address(0), 0, 0, true);
-        vm.stopPrank();
-    }
+    // function testFailRebalance() public {
+    //     vm.startPrank(address(d));
+    //     d.pl().grantRole(REBALANCER_ROLE, address(d));
+    //     d.pl().rebalance(address(0), 0, 0, true);
+    //     vm.stopPrank();
+    // }
 }

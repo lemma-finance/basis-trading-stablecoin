@@ -317,370 +317,370 @@ contract ContractTest is Test {
         assertTrue(balanceTokenOutBefore < balanceTokenOutAfter);
     }
 
-    function testRebalanceIncLongWithUSDL01() public {
-        _getMoney(d.getTokenAddress("WETH"), 1e40);
-        IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
-
-        _depositSettlementTokenMax();
-
-        // uint256 amount = 1e12;
-        // // NOTE: This already gives some USDC to PerpLemma
-        // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
-
-        d.mockUniV3Router().setRouter(address(0));
-        d.mockUniV3Router().setNextSwapAmount(1e12);
-
-        // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
-        _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
-        int256 baseAmountBefore = d.pl().amountBase();
-        d.pl().rebalance(address(d.mockUniV3Router()), 0, 1e8, false);
-        int256 baseAmountAfter = d.pl().amountBase();
-        assertTrue(baseAmountAfter > baseAmountBefore);
-    }
-
-    function testRebalanceIncLongWithSynth01() public {
-        _getMoney(d.getTokenAddress("WETH"), 1e40);
-        IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
-
-        _depositSettlementTokenMax();
-
-        // uint256 amount = 1e12;
-        // // NOTE: This already gives some USDC to PerpLemma
-        // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
-
-        d.mockUniV3Router().setRouter(address(0));
-        d.mockUniV3Router().setNextSwapAmount(1e10);
-
-        // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
-        _mintSynthWExactCollateral(d.getTokenAddress("WETH"), 1e12);
-        int256 baseAmountBefore = d.pl().amountBase();
-        d.pl().rebalance(address(d.mockUniV3Router()), 0, 1e8, false);
-        int256 baseAmountAfter = d.pl().amountBase();
-        assertTrue(baseAmountAfter > baseAmountBefore);
-    }
-
-    function testRebalanceIncLongWhenNetShortFlip01() public {
-        _getMoney(d.getTokenAddress("WETH"), 1e40);
-        IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
-
-        _depositSettlementTokenMax();
-
-        d.mockUniV3Router().setRouter(address(0));
-        // NOTE: Amount of USDC to get back
-        d.mockUniV3Router().setNextSwapAmount(1e12);
-
-        // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
-        _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e6);
-        require(_checkNetShort(), "Need to be net short");
-        int256 baseAmountBefore = d.pl().amountBase();
-        d.pl().rebalance(address(d.mockUniV3Router()), 0, 1e8, false);
-
-        int256 baseAmountAfter = d.pl().amountBase();
-        assertTrue(baseAmountAfter > 0);
-        assertTrue(baseAmountAfter > baseAmountBefore);
-    }
-
-    function testRebalanceIncLongWhenNetLongFlip01() public {
-        _getMoney(d.getTokenAddress("WETH"), 1e40);
-        IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
-
-        _depositSettlementTokenMax();
-
-        d.mockUniV3Router().setRouter(address(0));
-        // NOTE: Amount of USDC to get back
-        d.mockUniV3Router().setNextSwapAmount(1e12);
-
-        // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
-        _mintSynthWExactCollateral(d.getTokenAddress("WETH"), 1e6);
-        require(!_checkNetShort(), "Need to be net long");
-        // NOTE: Checking net long position due to Synth minting
-        assertTrue(d.pl().amountBase() >= 0);
-        int256 baseAmountBefore = d.pl().amountBase();
-        d.pl().rebalance(address(d.mockUniV3Router()), 0, 1e8, false);
-        int256 baseAmountAfter = d.pl().amountBase();
-        assertTrue(baseAmountAfter > 0);
-        assertTrue(baseAmountAfter > baseAmountBefore);
-    }
-
-    function testRebalanceIncLongWhenNetShortIsProfitFalse() public {
-        _getMoney(d.getTokenAddress("WETH"), 1e40);
-        IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
-
-        _depositSettlementTokenMax();
-
-        // uint256 amount = 1e12;
-        // // NOTE: This already gives some USDC to PerpLemma
-        // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
-
-        _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
-        require(_checkNetShort(), "Need to be net short");
-
-        assertTrue(d.pl().amountBase() < 0);
-        d.mockUniV3Router().setRouter(address(0));
-        d.mockUniV3Router().setNextSwapAmount(1e5);
-
-        int256 baseAmountBefore = d.pl().amountBase();
-        // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
-        int256 usdlCollateralAmountToRebalance = 1e18;
-
-        (uint256 amountUSDCPlus, uint256 amountUSDCMinus) =
-            d.pl().rebalance(address(d.mockUniV3Router()), 0, usdlCollateralAmountToRebalance, false);
+    // function testRebalanceIncLongWithUSDL01() public {
+    //     _getMoney(d.getTokenAddress("WETH"), 1e40);
+    //     IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
+
+    //     _depositSettlementTokenMax();
+
+    //     // uint256 amount = 1e12;
+    //     // // NOTE: This already gives some USDC to PerpLemma
+    //     // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+
+    //     d.mockUniV3Router().setRouter(address(0));
+    //     d.mockUniV3Router().setNextSwapAmount(1e12);
+
+    //     // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
+    //     _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
+    //     int256 baseAmountBefore = d.pl().amountBase();
+    //     d.pl().rebalance(address(d.mockUniV3Router()), 0, 1e8, false);
+    //     int256 baseAmountAfter = d.pl().amountBase();
+    //     assertTrue(baseAmountAfter > baseAmountBefore);
+    // }
+
+    // function testRebalanceIncLongWithSynth01() public {
+    //     _getMoney(d.getTokenAddress("WETH"), 1e40);
+    //     IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
+
+    //     _depositSettlementTokenMax();
+
+    //     // uint256 amount = 1e12;
+    //     // // NOTE: This already gives some USDC to PerpLemma
+    //     // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+
+    //     d.mockUniV3Router().setRouter(address(0));
+    //     d.mockUniV3Router().setNextSwapAmount(1e10);
+
+    //     // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
+    //     _mintSynthWExactCollateral(d.getTokenAddress("WETH"), 1e12);
+    //     int256 baseAmountBefore = d.pl().amountBase();
+    //     d.pl().rebalance(address(d.mockUniV3Router()), 0, 1e8, false);
+    //     int256 baseAmountAfter = d.pl().amountBase();
+    //     assertTrue(baseAmountAfter > baseAmountBefore);
+    // }
+
+    // function testRebalanceIncLongWhenNetShortFlip01() public {
+    //     _getMoney(d.getTokenAddress("WETH"), 1e40);
+    //     IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
+
+    //     _depositSettlementTokenMax();
+
+    //     d.mockUniV3Router().setRouter(address(0));
+    //     // NOTE: Amount of USDC to get back
+    //     d.mockUniV3Router().setNextSwapAmount(1e12);
+
+    //     // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
+    //     _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e6);
+    //     require(_checkNetShort(), "Need to be net short");
+    //     int256 baseAmountBefore = d.pl().amountBase();
+    //     d.pl().rebalance(address(d.mockUniV3Router()), 0, 1e8, false);
+
+    //     int256 baseAmountAfter = d.pl().amountBase();
+    //     assertTrue(baseAmountAfter > 0);
+    //     assertTrue(baseAmountAfter > baseAmountBefore);
+    // }
+
+    // function testRebalanceIncLongWhenNetLongFlip01() public {
+    //     _getMoney(d.getTokenAddress("WETH"), 1e40);
+    //     IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
+
+    //     _depositSettlementTokenMax();
+
+    //     d.mockUniV3Router().setRouter(address(0));
+    //     // NOTE: Amount of USDC to get back
+    //     d.mockUniV3Router().setNextSwapAmount(1e12);
+
+    //     // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
+    //     _mintSynthWExactCollateral(d.getTokenAddress("WETH"), 1e6);
+    //     require(!_checkNetShort(), "Need to be net long");
+    //     // NOTE: Checking net long position due to Synth minting
+    //     assertTrue(d.pl().amountBase() >= 0);
+    //     int256 baseAmountBefore = d.pl().amountBase();
+    //     d.pl().rebalance(address(d.mockUniV3Router()), 0, 1e8, false);
+    //     int256 baseAmountAfter = d.pl().amountBase();
+    //     assertTrue(baseAmountAfter > 0);
+    //     assertTrue(baseAmountAfter > baseAmountBefore);
+    // }
+
+    // function testRebalanceIncLongWhenNetShortIsProfitFalse() public {
+    //     _getMoney(d.getTokenAddress("WETH"), 1e40);
+    //     IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
+
+    //     _depositSettlementTokenMax();
+
+    //     // uint256 amount = 1e12;
+    //     // // NOTE: This already gives some USDC to PerpLemma
+    //     // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+
+    //     _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
+    //     require(_checkNetShort(), "Need to be net short");
+
+    //     assertTrue(d.pl().amountBase() < 0);
+    //     d.mockUniV3Router().setRouter(address(0));
+    //     d.mockUniV3Router().setNextSwapAmount(1e5);
+
+    //     int256 baseAmountBefore = d.pl().amountBase();
+    //     // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
+    //     int256 usdlCollateralAmountToRebalance = 1e18;
+
+    //     (uint256 amountUSDCPlus, uint256 amountUSDCMinus) =
+    //         d.pl().rebalance(address(d.mockUniV3Router()), 0, usdlCollateralAmountToRebalance, false);
 
-        vm.expectRevert(bytes("Unprofitable"));
-        require(amountUSDCPlus > amountUSDCMinus, "Unprofitable");
+    //     vm.expectRevert(bytes("Unprofitable"));
+    //     require(amountUSDCPlus > amountUSDCMinus, "Unprofitable");
 
-        // require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
-        int256 baseAmountAfter = d.pl().amountBase();
-        assertTrue(baseAmountAfter > baseAmountBefore);
-    }
+    //     // require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
+    //     int256 baseAmountAfter = d.pl().amountBase();
+    //     assertTrue(baseAmountAfter > baseAmountBefore);
+    // }
 
-    function testRebalanceIncLongWhenNetLongIsProfitFalse() public {
-        _getMoney(d.getTokenAddress("WETH"), 1e40);
-        IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
+    // function testRebalanceIncLongWhenNetLongIsProfitFalse() public {
+    //     _getMoney(d.getTokenAddress("WETH"), 1e40);
+    //     IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
 
-        _depositSettlementTokenMax();
+    //     _depositSettlementTokenMax();
 
-        // uint256 amount = 1e12;
-        // // NOTE: This already gives some USDC to PerpLemma
-        // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
-
-        _mintSynthWExactCollateral(d.getTokenAddress("WETH"), 1e10);
-        require(!_checkNetShort(), "Need to be net long");
-
-        d.mockUniV3Router().setRouter(address(0));
-        d.mockUniV3Router().setNextSwapAmount(1e5);
+    //     // uint256 amount = 1e12;
+    //     // // NOTE: This already gives some USDC to PerpLemma
+    //     // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+
+    //     _mintSynthWExactCollateral(d.getTokenAddress("WETH"), 1e10);
+    //     require(!_checkNetShort(), "Need to be net long");
+
+    //     d.mockUniV3Router().setRouter(address(0));
+    //     d.mockUniV3Router().setNextSwapAmount(1e5);
 
-        int256 baseAmountBefore = d.pl().amountBase();
-        assertTrue(baseAmountBefore >= 0);
-        // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
-        int256 usdlCollateralAmountToRebalance = 1e18;
-
-        (uint256 amountUSDCPlus, uint256 amountUSDCMinus) =
-            d.pl().rebalance(address(d.mockUniV3Router()), 0, usdlCollateralAmountToRebalance, false);
-        vm.expectRevert(bytes("Unprofitable"));
-        require(amountUSDCPlus > amountUSDCMinus, "Unprofitable");
-        // require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
-        int256 baseAmountAfter = d.pl().amountBase();
-        assertTrue(baseAmountAfter > baseAmountBefore);
-    }
+    //     int256 baseAmountBefore = d.pl().amountBase();
+    //     assertTrue(baseAmountBefore >= 0);
+    //     // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
+    //     int256 usdlCollateralAmountToRebalance = 1e18;
+
+    //     (uint256 amountUSDCPlus, uint256 amountUSDCMinus) =
+    //         d.pl().rebalance(address(d.mockUniV3Router()), 0, usdlCollateralAmountToRebalance, false);
+    //     vm.expectRevert(bytes("Unprofitable"));
+    //     require(amountUSDCPlus > amountUSDCMinus, "Unprofitable");
+    //     // require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
+    //     int256 baseAmountAfter = d.pl().amountBase();
+    //     assertTrue(baseAmountAfter > baseAmountBefore);
+    // }
 
-    function testRebalanceIncLongWhenNetShortIsProfitTrue() public {
-        _getMoney(d.getTokenAddress("WETH"), 1e40);
-        IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
+    // function testRebalanceIncLongWhenNetShortIsProfitTrue() public {
+    //     _getMoney(d.getTokenAddress("WETH"), 1e40);
+    //     IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
 
-        _depositSettlementTokenMax();
+    //     _depositSettlementTokenMax();
 
-        // uint256 amount = 1e12;
-        // // NOTE: This already gives some USDC to PerpLemma
-        // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+    //     // uint256 amount = 1e12;
+    //     // // NOTE: This already gives some USDC to PerpLemma
+    //     // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
 
-        _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
+    //     _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
 
-        d.mockUniV3Router().setRouter(address(0));
-        d.mockUniV3Router().setNextSwapAmount(1e10);
-
-        int256 baseAmountBefore = d.pl().amountBase();
-        // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
-        int256 usdlCollateralAmountToRebalance = 1e12;
-        d.pl().rebalance(address(d.mockUniV3Router()), 0, usdlCollateralAmountToRebalance, true);
-
-        // require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
-        int256 baseAmountAfter = d.pl().amountBase();
-        assertTrue(baseAmountAfter > baseAmountBefore);
-    }
-
-    function testRebalanceIncLongWhenNetLongIsProfitTrue() public {
-        _getMoney(d.getTokenAddress("WETH"), 1e40);
-        IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
-        _depositSettlementTokenMax();
-
-        // uint256 amount = 1e12;
-        // // NOTE: This already gives some USDC to PerpLemma
-        // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
-
-        _mintSynthWExactCollateral(d.getTokenAddress("WETH"), 1e10);
-        // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
+    //     d.mockUniV3Router().setRouter(address(0));
+    //     d.mockUniV3Router().setNextSwapAmount(1e10);
+
+    //     int256 baseAmountBefore = d.pl().amountBase();
+    //     // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
+    //     int256 usdlCollateralAmountToRebalance = 1e12;
+    //     d.pl().rebalance(address(d.mockUniV3Router()), 0, usdlCollateralAmountToRebalance, true);
+
+    //     // require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
+    //     int256 baseAmountAfter = d.pl().amountBase();
+    //     assertTrue(baseAmountAfter > baseAmountBefore);
+    // }
+
+    // function testRebalanceIncLongWhenNetLongIsProfitTrue() public {
+    //     _getMoney(d.getTokenAddress("WETH"), 1e40);
+    //     IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
+    //     _depositSettlementTokenMax();
+
+    //     // uint256 amount = 1e12;
+    //     // // NOTE: This already gives some USDC to PerpLemma
+    //     // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+
+    //     _mintSynthWExactCollateral(d.getTokenAddress("WETH"), 1e10);
+    //     // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
 
-        d.mockUniV3Router().setRouter(address(0));
-        d.mockUniV3Router().setNextSwapAmount(1e10);
+    //     d.mockUniV3Router().setRouter(address(0));
+    //     d.mockUniV3Router().setNextSwapAmount(1e10);
 
-        int256 baseAmountBefore = d.pl().amountBase();
-        // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
-        int256 usdlCollateralAmountToRebalance = 1e12;
-        d.pl().rebalance(address(d.mockUniV3Router()), 0, usdlCollateralAmountToRebalance, true);
-        // require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
-        int256 baseAmountAfter = d.pl().amountBase();
-        assertTrue(baseAmountAfter > baseAmountBefore);
-    }
+    //     int256 baseAmountBefore = d.pl().amountBase();
+    //     // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
+    //     int256 usdlCollateralAmountToRebalance = 1e12;
+    //     d.pl().rebalance(address(d.mockUniV3Router()), 0, usdlCollateralAmountToRebalance, true);
+    //     // require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
+    //     int256 baseAmountAfter = d.pl().amountBase();
+    //     assertTrue(baseAmountAfter > baseAmountBefore);
+    // }
 
-    function testRebalanceDecLongWhenNetShortIsProfitTrue() public {
-        _getMoney(d.getTokenAddress("WETH"), 1e40);
-        IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
-
-        // NOTE: We need plenty of USDC for this kind of tests
-        _getMoney(d.getTokenAddress("USDC"), 1e40);
-        IERC20Decimals(d.getTokenAddress("USDC")).transfer(address(d.pl()), 1e20);
-
-        // NOTE: For this rebalance we need to assume we have a lot of USDC available
-        // _getMoney(d.getTokenAddress("USDDC"), 1e40);
-        // IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e40);
-
-        _depositSettlementTokenMax();
-
-        // uint256 amount = 1e12;
-        // // NOTE: This already gives some USDC to PerpLemma
-        // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
-
-        _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
-
-        d.mockUniV3Router().setRouter(address(0));
-        d.mockUniV3Router().setNextSwapAmount(1e3);
-
-        int256 baseAmountBefore = d.pl().amountBase();
-        // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
-        int256 usdlCollateralAmountToRebalance = -1e8;
-        (uint256 amountUSDCPlus, uint256 amountUSDCMinus) =
-            d.pl().rebalance(address(d.mockUniV3Router()), 0, usdlCollateralAmountToRebalance, false);
-        // require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
-        int256 baseAmountAfter = d.pl().amountBase();
+    // function testRebalanceDecLongWhenNetShortIsProfitTrue() public {
+    //     _getMoney(d.getTokenAddress("WETH"), 1e40);
+    //     IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
+
+    //     // NOTE: We need plenty of USDC for this kind of tests
+    //     _getMoney(d.getTokenAddress("USDC"), 1e40);
+    //     IERC20Decimals(d.getTokenAddress("USDC")).transfer(address(d.pl()), 1e20);
+
+    //     // NOTE: For this rebalance we need to assume we have a lot of USDC available
+    //     // _getMoney(d.getTokenAddress("USDDC"), 1e40);
+    //     // IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e40);
+
+    //     _depositSettlementTokenMax();
+
+    //     // uint256 amount = 1e12;
+    //     // // NOTE: This already gives some USDC to PerpLemma
+    //     // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+
+    //     _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
+
+    //     d.mockUniV3Router().setRouter(address(0));
+    //     d.mockUniV3Router().setNextSwapAmount(1e3);
+
+    //     int256 baseAmountBefore = d.pl().amountBase();
+    //     // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
+    //     int256 usdlCollateralAmountToRebalance = -1e8;
+    //     (uint256 amountUSDCPlus, uint256 amountUSDCMinus) =
+    //         d.pl().rebalance(address(d.mockUniV3Router()), 0, usdlCollateralAmountToRebalance, false);
+    //     // require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
+    //     int256 baseAmountAfter = d.pl().amountBase();
 
-        // assertTrue(baseAmountAfter < 0);
-        assertTrue(amountUSDCMinus > amountUSDCPlus);
-        assertTrue(baseAmountAfter < baseAmountBefore);
-    }
+    //     // assertTrue(baseAmountAfter < 0);
+    //     assertTrue(amountUSDCMinus > amountUSDCPlus);
+    //     assertTrue(baseAmountAfter < baseAmountBefore);
+    // }
 
-    function testRebalanceDecLongWhenNetLongIsProfitTrue() public {
-        _getMoney(d.getTokenAddress("WETH"), 1e40);
-        IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
-
-        // NOTE: We need plenty of USDC for this kind of tests
-        _getMoney(d.getTokenAddress("USDC"), 1e40);
-        IERC20Decimals(d.getTokenAddress("USDC")).transfer(address(d.pl()), 1e20);
-
-        // NOTE: For this rebalance we need to assume we have a lot of USDC available
-        // _getMoney(d.getTokenAddress("USDDC"), 1e40);
-        // IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e40);
-
-        _depositSettlementTokenMax();
-
-        // uint256 amount = 1e12;
-        // // NOTE: This already gives some USDC to PerpLemma
-        // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
-
-        _mintSynthWExactCollateral(d.getTokenAddress("WETH"), 1e10);
-        // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
-
-        d.mockUniV3Router().setRouter(address(0));
-        d.mockUniV3Router().setNextSwapAmount(1e3);
-
-        int256 baseAmountBefore = d.pl().amountBase();
-        // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
-        int256 usdlCollateralAmountToRebalance = -1e8;
-        (uint256 amountUSDCPlus, uint256 amountUSDCMinus) =
-            d.pl().rebalance(address(d.mockUniV3Router()), 0, usdlCollateralAmountToRebalance, false);
-        // require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
-        int256 baseAmountAfter = d.pl().amountBase();
-
-        // assertTrue(baseAmountAfter < 0);
-        assertTrue(amountUSDCMinus > amountUSDCPlus);
-        assertTrue(baseAmountAfter < baseAmountBefore);
-    }
-
-    function testRebalanceDecLongWhenNetShortIsProfitFalse() public {
-        _getMoney(d.getTokenAddress("WETH"), 1e40);
-        IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
-
-        // NOTE: We need plenty of USDC for this kind of tests
-        _getMoney(d.getTokenAddress("USDC"), 1e40);
-        IERC20Decimals(d.getTokenAddress("USDC")).transfer(address(d.pl()), 1e20);
-
-        // NOTE: For this rebalance we need to assume we have a lot of USDC available
-        // _getMoney(d.getTokenAddress("USDDC"), 1e40);
-        // IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e40);
-
-        _depositSettlementTokenMax();
-
-        _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
-
-        // uint256 amount = 1e12;
-        // // NOTE: This already gives some USDC to PerpLemma
-        // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
-
-        d.mockUniV3Router().setRouter(address(0));
-        d.mockUniV3Router().setNextSwapAmount(1e20);
-
-        int256 baseAmountBefore = d.pl().amountBase();
-        // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
-        int256 usdlCollateralAmountToRebalance = -1e8;
-        (uint256 amountUSDCPlus, uint256 amountUSDCMinus) =
-            d.pl().rebalance(address(d.mockUniV3Router()), 0, usdlCollateralAmountToRebalance, false);
-        vm.expectRevert(bytes("Unprofitable"));
-        require(amountUSDCPlus > amountUSDCMinus, "Unprofitable");
-
-        // require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
-        int256 baseAmountAfter = d.pl().amountBase();
-        assertTrue(baseAmountAfter < baseAmountBefore);
-    }
-
-    function testRebalanceDecLongWhenNetLongIsProfitFalse() public {
-        _getMoney(d.getTokenAddress("WETH"), 1e40);
-        IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
-
-        // NOTE: We need plenty of USDC for this kind of tests
-        _getMoney(d.getTokenAddress("USDC"), 1e40);
-        IERC20Decimals(d.getTokenAddress("USDC")).transfer(address(d.pl()), 1e20);
-
-        // NOTE: For this rebalance we need to assume we have a lot of USDC available
-        // _getMoney(d.getTokenAddress("USDDC"), 1e40);
-        // IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e40);
-
-        _depositSettlementTokenMax();
-
-        _mintSynthWExactCollateral(d.getTokenAddress("WETH"), 1e10);
-        // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
-
-        // uint256 amount = 1e12;
-        // // NOTE: This already gives some USDC to PerpLemma
-        // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
-
-        d.mockUniV3Router().setRouter(address(0));
-        d.mockUniV3Router().setNextSwapAmount(1e20);
-
-        int256 baseAmountBefore = d.pl().amountBase();
-        // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
-        int256 usdlCollateralAmountToRebalance = -1e8;
-        (uint256 amountUSDCPlus, uint256 amountUSDCMinus) =
-            d.pl().rebalance(address(d.mockUniV3Router()), 0, usdlCollateralAmountToRebalance, false);
-        vm.expectRevert(bytes("Unprofitable"));
-        require(amountUSDCPlus > amountUSDCMinus, "Unprofitable");
-
-        // require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
-        int256 baseAmountAfter = d.pl().amountBase();
-        assertTrue(baseAmountAfter < baseAmountBefore);
-    }
-
-    function testSettleForSingleUserUSDL() public {
-        _depositSettlementTokenMax();
-        uint256 amount = 1e18;
-
-        _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
-
-        address owner = d.getPerps().ib.owner();
-        vm.startPrank(owner);
-        d.getPerps().ib.pause(); // pause market
-        vm.warp(block.timestamp + 6 days); // need to spend 5 days after pause as per perpv2
-        d.getPerps().ib.close(); // Close market after 5 days
-        vm.stopPrank();
-
-        d.pl().settle(); // PerpLemma settle call
-        uint256 beforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(this));
-        uint256 _usdlToRedeem = d.usdl().balanceOf(address(this));
-        _redeemUSDLWExactUsdl(d.getTokenAddress("WETH"), _usdlToRedeem); // get back user collateral after settlement
-        uint256 afterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(this));
-        assertGt(afterBal - beforeBal, 99e16); //approx
-        uint256 perpLemmaAfterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
-        assertLt(perpLemmaAfterBal, 1e16);
-    }
+    // function testRebalanceDecLongWhenNetLongIsProfitTrue() public {
+    //     _getMoney(d.getTokenAddress("WETH"), 1e40);
+    //     IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
+
+    //     // NOTE: We need plenty of USDC for this kind of tests
+    //     _getMoney(d.getTokenAddress("USDC"), 1e40);
+    //     IERC20Decimals(d.getTokenAddress("USDC")).transfer(address(d.pl()), 1e20);
+
+    //     // NOTE: For this rebalance we need to assume we have a lot of USDC available
+    //     // _getMoney(d.getTokenAddress("USDDC"), 1e40);
+    //     // IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e40);
+
+    //     _depositSettlementTokenMax();
+
+    //     // uint256 amount = 1e12;
+    //     // // NOTE: This already gives some USDC to PerpLemma
+    //     // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+
+    //     _mintSynthWExactCollateral(d.getTokenAddress("WETH"), 1e10);
+    //     // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
+
+    //     d.mockUniV3Router().setRouter(address(0));
+    //     d.mockUniV3Router().setNextSwapAmount(1e3);
+
+    //     int256 baseAmountBefore = d.pl().amountBase();
+    //     // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
+    //     int256 usdlCollateralAmountToRebalance = -1e8;
+    //     (uint256 amountUSDCPlus, uint256 amountUSDCMinus) =
+    //         d.pl().rebalance(address(d.mockUniV3Router()), 0, usdlCollateralAmountToRebalance, false);
+    //     // require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
+    //     int256 baseAmountAfter = d.pl().amountBase();
+
+    //     // assertTrue(baseAmountAfter < 0);
+    //     assertTrue(amountUSDCMinus > amountUSDCPlus);
+    //     assertTrue(baseAmountAfter < baseAmountBefore);
+    // }
+
+    // function testRebalanceDecLongWhenNetShortIsProfitFalse() public {
+    //     _getMoney(d.getTokenAddress("WETH"), 1e40);
+    //     IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
+
+    //     // NOTE: We need plenty of USDC for this kind of tests
+    //     _getMoney(d.getTokenAddress("USDC"), 1e40);
+    //     IERC20Decimals(d.getTokenAddress("USDC")).transfer(address(d.pl()), 1e20);
+
+    //     // NOTE: For this rebalance we need to assume we have a lot of USDC available
+    //     // _getMoney(d.getTokenAddress("USDDC"), 1e40);
+    //     // IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e40);
+
+    //     _depositSettlementTokenMax();
+
+    //     _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
+
+    //     // uint256 amount = 1e12;
+    //     // // NOTE: This already gives some USDC to PerpLemma
+    //     // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+
+    //     d.mockUniV3Router().setRouter(address(0));
+    //     d.mockUniV3Router().setNextSwapAmount(1e20);
+
+    //     int256 baseAmountBefore = d.pl().amountBase();
+    //     // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
+    //     int256 usdlCollateralAmountToRebalance = -1e8;
+    //     (uint256 amountUSDCPlus, uint256 amountUSDCMinus) =
+    //         d.pl().rebalance(address(d.mockUniV3Router()), 0, usdlCollateralAmountToRebalance, false);
+    //     vm.expectRevert(bytes("Unprofitable"));
+    //     require(amountUSDCPlus > amountUSDCMinus, "Unprofitable");
+
+    //     // require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
+    //     int256 baseAmountAfter = d.pl().amountBase();
+    //     assertTrue(baseAmountAfter < baseAmountBefore);
+    // }
+
+    // function testRebalanceDecLongWhenNetLongIsProfitFalse() public {
+    //     _getMoney(d.getTokenAddress("WETH"), 1e40);
+    //     IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e20);
+
+    //     // NOTE: We need plenty of USDC for this kind of tests
+    //     _getMoney(d.getTokenAddress("USDC"), 1e40);
+    //     IERC20Decimals(d.getTokenAddress("USDC")).transfer(address(d.pl()), 1e20);
+
+    //     // NOTE: For this rebalance we need to assume we have a lot of USDC available
+    //     // _getMoney(d.getTokenAddress("USDDC"), 1e40);
+    //     // IERC20Decimals(d.getTokenAddress("WETH")).transfer(address(d.pl()), 1e40);
+
+    //     _depositSettlementTokenMax();
+
+    //     _mintSynthWExactCollateral(d.getTokenAddress("WETH"), 1e10);
+    //     // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), 1e10);
+
+    //     // uint256 amount = 1e12;
+    //     // // NOTE: This already gives some USDC to PerpLemma
+    //     // _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+
+    //     d.mockUniV3Router().setRouter(address(0));
+    //     d.mockUniV3Router().setNextSwapAmount(1e20);
+
+    //     int256 baseAmountBefore = d.pl().amountBase();
+    //     // NOTE: Rebalancing by replacing WETH with USDC and opening long for the equivalent amount
+    //     int256 usdlCollateralAmountToRebalance = -1e8;
+    //     (uint256 amountUSDCPlus, uint256 amountUSDCMinus) =
+    //         d.pl().rebalance(address(d.mockUniV3Router()), 0, usdlCollateralAmountToRebalance, false);
+    //     vm.expectRevert(bytes("Unprofitable"));
+    //     require(amountUSDCPlus > amountUSDCMinus, "Unprofitable");
+
+    //     // require(usdlCollateralAmountGotBack > usdlCollateralAmountToRebalance, "Unprofitable");
+    //     int256 baseAmountAfter = d.pl().amountBase();
+    //     assertTrue(baseAmountAfter < baseAmountBefore);
+    // }
+
+    // function testSettleForSingleUserUSDL() public {
+    //     _depositSettlementTokenMax();
+    //     uint256 amount = 1e18;
+
+    //     _mintUSDLWExactCollateral(d.getTokenAddress("WETH"), amount);
+
+    //     address owner = d.getPerps().ib.owner();
+    //     vm.startPrank(owner);
+    //     d.getPerps().ib.pause(); // pause market
+    //     vm.warp(block.timestamp + 6 days); // need to spend 5 days after pause as per perpv2
+    //     d.getPerps().ib.close(); // Close market after 5 days
+    //     vm.stopPrank();
+
+    //     d.pl().settle(); // PerpLemma settle call
+    //     uint256 beforeBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(this));
+    //     uint256 _usdlToRedeem = d.usdl().balanceOf(address(this));
+    //     _redeemUSDLWExactUsdl(d.getTokenAddress("WETH"), _usdlToRedeem); // get back user collateral after settlement
+    //     uint256 afterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(this));
+    //     assertGt(afterBal - beforeBal, 99e16); //approx
+    //     uint256 perpLemmaAfterBal = IERC20Decimals(d.getTokenAddress("WETH")).balanceOf(address(d.pl()));
+    //     assertLt(perpLemmaAfterBal, 1e16);
+    // }
 
     function testSettleForMultipleUserUSDL() public {
         _depositSettlementTokenMax();

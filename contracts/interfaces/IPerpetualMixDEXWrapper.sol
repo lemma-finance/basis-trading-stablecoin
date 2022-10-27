@@ -130,12 +130,12 @@ interface IPerpetualMixDEXWrapper {
 
     function withdraw(uint256 amount, address collateral) external;
 
-    function rebalance(
-        address router,
-        uint256 routerType,
-        int256 amountBase,
-        bool isCheckProfit
-    ) external returns (uint256, uint256);
+    // function rebalance(
+    //     address router,
+    //     uint256 routerType,
+    //     int256 amountBase,
+    //     bool isCheckProfit
+    // ) external returns (uint256, uint256);
 
     // function reBalance(
     //     address _reBalancer,

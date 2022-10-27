@@ -73,6 +73,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     uint256 public constant MAX_UINT256 = type(uint256).max;
     /// MaxPosition till perpLemma can openPosition
     uint256 public maxPosition;
+    /// Max Leverage 
+    uint256 public maxLeverage_6;
     /// USDL's collateral decimal (for e.g. if  eth then 18 decimals)
     uint256 public usdlCollateralDecimals;
 
@@ -115,6 +117,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     event ReferrerUpdated(bytes32 indexed referrerCode);
     event RebalancerUpdated(address indexed rebalancerAddress);
     event MaxPositionUpdated(uint256 indexed maxPos);
+    event MaxLeverageUpdated(uint256 indexed maxLeverage);
     event SetSettlementTokenManager(address indexed _settlementTokenManager);
     event SetMinFreeCollateral(uint256 indexed _minFreeCollateral);
     event SetCollateralRatio(uint256 indexed _collateralRatio);
@@ -157,6 +160,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         lemmaSynth = _lemmaSynth;
         usdlBaseTokenAddress = _usdlBaseToken;
         maxPosition = _maxPosition;
+        // NOTE: Perp Max Running Leverage is 16x so very close to it
+        maxLeverage_6 = 15 * 1e6;
 
         clearingHouse = IClearingHouse(_clearingHouse);
         clearingHouseConfig = IClearingHouseConfig(clearingHouse.getClearingHouseConfig());
@@ -535,6 +540,11 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         emit MaxPositionUpdated(maxPosition);
     }
 
+    function setMaxLeverage(uint256 _maxLeverage_6) external onlyRole(OWNER_ROLE) {
+        maxLeverage_6 = _maxLeverage_6;
+        emit MaxLeverageUpdated(maxLeverage_6);
+    }
+
     /// @notice setSettlementTokenManager is to set the address of settlementTokenManager by admin role only
     /// @param _settlementTokenManager address
     function setSettlementTokenManager(address _settlementTokenManager) external onlyRole(ADMIN_ROLE) {
@@ -573,6 +583,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param _amount USDC amount need to withdraw from perp vault
     function withdrawSettlementToken(uint256 _amount) external override onlyRole(USDC_TREASURY) {
         require(_amount > 0, "Amount should greater than zero");
+        require(getLeverage(true, _amount) <= maxLeverage_6, "Max Leverage Exceeded");
         perpVault.withdraw(address(usdc), _amount);
         SafeERC20Upgradeable.safeTransfer(usdc, msg.sender, _amount);
     }
@@ -582,6 +593,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param _to address where to transfer fund
     function withdrawSettlementTokenTo(uint256 _amount, address _to) external onlyRole(OWNER_ROLE) {
         require(_amount > 0, "Amount should greater than zero");
+        require(getLeverage(true, _amount) <= maxLeverage_6, "Max Leverage Exceeded");
         require(hasSettled, "Perpetual is not settled yet");
         SafeERC20Upgradeable.safeTransfer(usdc, _to, _amount);
     }
@@ -597,6 +609,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param amount of assets to withdraw
     /// @param collateral needs to withdraw
     function withdraw(uint256 amount, address collateral) external override onlyRole(PERPLEMMA_ROLE) {
+        require(getLeverage((collateral == address(usdc)), amount) <= maxLeverage_6, "Max Leverage Exceeded");
         _withdraw(amount, collateral);
     }
 
@@ -643,53 +656,53 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param amountBaseToRebalance The Amount of Base Token to buy or sell on Perp and consequently the amount of corresponding colletarl to sell or buy on Spot
     /// @param isCheckProfit Check the profit to possibly revert the TX in case
     /// @return Amount of USDC resulting from the operation. It can also be negative as we can use this mechanism for purposes other than Arb See https://www.notion.so/lemmafinance/Rebalance-Details-f72ad11a5d8248c195762a6ac6ce037e#ffad7b09a81a4b049348e3cd38e57466 here
-    function rebalance(
-        address router,
-        uint256 routerType,
-        int256 amountBaseToRebalance,
-        bool isCheckProfit
-    ) external override onlyRole(REBALANCER_ROLE) returns (uint256, uint256) {
-        // uint256 usdlCollateralAmountPerp;
-        // uint256 usdlCollateralAmountDex;
-        uint256 amountUSDCPlus;
-        uint256 amountUSDCMinus;
+    // function rebalance(
+    //     address router,
+    //     uint256 routerType,
+    //     int256 amountBaseToRebalance,
+    //     bool isCheckProfit
+    // ) external override onlyRole(REBALANCER_ROLE) returns (uint256, uint256) {
+    //     // uint256 usdlCollateralAmountPerp;
+    //     // uint256 usdlCollateralAmountDex;
+    //     uint256 amountUSDCPlus;
+    //     uint256 amountUSDCMinus;
 
-        require(amountBaseToRebalance != 0, "! No Rebalance with Zero Amount");
+    //     require(amountBaseToRebalance != 0, "! No Rebalance with Zero Amount");
 
-        bool isIncreaseBase = amountBaseToRebalance > 0;
-        uint256 _amountBaseToRebalance = (isIncreaseBase)
-            ? uint256(amountBaseToRebalance)
-            : uint256(-amountBaseToRebalance);
+    //     bool isIncreaseBase = amountBaseToRebalance > 0;
+    //     uint256 _amountBaseToRebalance = (isIncreaseBase)
+    //         ? uint256(amountBaseToRebalance)
+    //         : uint256(-amountBaseToRebalance);
 
-        if (isIncreaseBase) {
-            if (amountBase < 0) {
-                (, uint256 amountUSDCMinus_1e18) = closeShortWithExactBase(_amountBaseToRebalance);
-                amountUSDCMinus = (amountUSDCMinus_1e18 * (10**usdcDecimals)) / 1e18;
-                _withdraw(_amountBaseToRebalance, address(usdlCollateral));
-                require(usdlCollateral.balanceOf(address(this)) > _amountBaseToRebalance, "T1");
-                amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
-            } else {
-                amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
-                _deposit(amountUSDCPlus, address(usdc));
-                (, uint256 amountUSDCMinus_1e18) = openLongWithExactBase(_amountBaseToRebalance);
-                amountUSDCMinus = (amountUSDCMinus_1e18 * (10**usdcDecimals)) / 1e18;
-            }
-        } else {
-            if (amountBase <= 0) {
-                amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
-                _deposit(_amountBaseToRebalance, address(usdlCollateral));
-                (, uint256 amountUSDCPlus_1e18) = openShortWithExactBase(_amountBaseToRebalance);
-                amountUSDCPlus = (amountUSDCPlus_1e18 * (10**usdcDecimals)) / 1e18;
-            } else {
-                (, uint256 amountUSDCPlus_1e18) = closeLongWithExactBase(_amountBaseToRebalance);
-                amountUSDCPlus = (amountUSDCPlus_1e18 * (10**usdcDecimals)) / 1e18;
-                _withdraw(amountUSDCPlus, address(usdc));
-                amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
-            }
-        }
-        if (isCheckProfit) require(amountUSDCPlus >= amountUSDCMinus, "Unprofitable");
-        return (amountUSDCPlus, amountUSDCMinus);
-    }
+    //     if (isIncreaseBase) {
+    //         if (amountBase < 0) {
+    //             (, uint256 amountUSDCMinus_1e18) = closeShortWithExactBase(_amountBaseToRebalance);
+    //             amountUSDCMinus = (amountUSDCMinus_1e18 * (10**usdcDecimals)) / 1e18;
+    //             _withdraw(_amountBaseToRebalance, address(usdlCollateral));
+    //             require(usdlCollateral.balanceOf(address(this)) > _amountBaseToRebalance, "T1");
+    //             amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
+    //         } else {
+    //             amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
+    //             _deposit(amountUSDCPlus, address(usdc));
+    //             (, uint256 amountUSDCMinus_1e18) = openLongWithExactBase(_amountBaseToRebalance);
+    //             amountUSDCMinus = (amountUSDCMinus_1e18 * (10**usdcDecimals)) / 1e18;
+    //         }
+    //     } else {
+    //         if (amountBase <= 0) {
+    //             amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
+    //             _deposit(_amountBaseToRebalance, address(usdlCollateral));
+    //             (, uint256 amountUSDCPlus_1e18) = openShortWithExactBase(_amountBaseToRebalance);
+    //             amountUSDCPlus = (amountUSDCPlus_1e18 * (10**usdcDecimals)) / 1e18;
+    //         } else {
+    //             (, uint256 amountUSDCPlus_1e18) = closeLongWithExactBase(_amountBaseToRebalance);
+    //             amountUSDCPlus = (amountUSDCPlus_1e18 * (10**usdcDecimals)) / 1e18;
+    //             _withdraw(amountUSDCPlus, address(usdc));
+    //             amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
+    //         }
+    //     }
+    //     if (isCheckProfit) require(amountUSDCPlus >= amountUSDCMinus, "Unprofitable");
+    //     return (amountUSDCPlus, amountUSDCMinus);
+    // }
 
     /// @notice calculateMintingAsset is method to track the minted usdl and synth by this perpLemma
     /// @param amount needs to add or sub
