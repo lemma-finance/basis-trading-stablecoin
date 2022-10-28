@@ -311,18 +311,22 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         // NOTE: Taken from 
         // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/Vault.sol#L906
         if(amount_nd == 0) return 0;
+        console.log("[_getCollateralValue()] Start");
+        console.log("[_getCollateralValue()] amount_nd = ", amount_nd);
         uint256 amount_18 = amount_nd * 1e18 / (10**usdlCollateral.decimals());
+        console.log("[_getCollateralValue()] amount_18 = ", amount_18);
         (uint256 indexTwap_pfd, uint8 priceFeedDecimals) = _getIndexPriceAndDecimals(address(usdlCollateral));
-
+        console.log("[_getCollateralValue()] indexTwap_pfd = ", indexTwap_pfd);
         ICollateralManager cm = ICollateralManager(perpVault.getCollateralManager());
 
         // NOTE: Taken from 
         // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/Vault.sol#L893-L897
         uint24 collateralRatio = cm.getCollateralConfig(address(usdlCollateral)).collateralRatio;
-
+        console.log("[_getCollateralValue()] collateralRatio = ", collateralRatio);
         // NOTE: See definition of mulRatio() at  
         // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/lib/PerpMath.sol#L77
         value_18 = (amount_18 * indexTwap_pfd / 10**(priceFeedDecimals)) * uint256(collateralRatio) / 1e6;
+        console.log("[_getCollateralValue()] value_18 = ", value_18);
     }
 
     // NOTE: Taken from 
@@ -343,18 +347,28 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
 
+    // function _abs(int256 x) internal pure returns(uint256 res) {
+    //     res = (x>0) ? uint256(x) : uint256(-x);
+    // }
+
+
     /// @notice Returns the leverage after a withdrawal of a given collateral or the current leverage if zero
     function getLeverage(bool isSettlementToken, int256 amount_nd) public view override returns(uint256 leverage_6) {
         uint256 totalAbsPositionValue_18 = accountBalance.getTotalAbsPositionValue(address(this));
-        console.log("[getLeverage()] totalAbsPositionValue_18 = ", totalAbsPositionValue_18);
         if(totalAbsPositionValue_18 == 0) {
             // NOTE: No exposition on any market
             return 0;
         }
         int256 beforeAccountValue_18 = getAccountValue();
+        console.log("[getLeverage()] isSettlementToken = ", (isSettlementToken) ? 1 : 0);
         print("[getLeverage()] beforeAccountValue_18 = ", beforeAccountValue_18);
+        print("[getLeverage()] amount_nd = ", amount_nd);
+        // print("[getLeverage()] amount_nd * 1e18 = ", amount_nd * 1e18);
+        // print("[getLeverage()] amount_nd * 1e18 / int256(10**usdc.decimals()) = ", amount_nd * 1e18 / int256(10**usdc.decimals()));
+        // int256 _deltaAmountSettlementToken = amount_nd * 1e18 / int256(10**usdc.decimals());
+        // print("[getLeverage()] _deltaAmountSettlementToken = ", _deltaAmountSettlementToken);
         int256 deltaAmountValue_18 = (amount_nd != 0) ? (
-            (isSettlementToken) ? (amount_nd * 1e18 / int256(10**usdc.decimals())) : ((amount_nd > 0) ? int8(1) : int8(-1)) * int256(_getCollateralValue(uint256(amount_nd)))
+            (isSettlementToken) ? (amount_nd * 1e18 / int256(10**usdc.decimals())) : ((amount_nd > 0) ? int256(1) : int256(-1)) * int256(_getCollateralValue(_abs(amount_nd)))
         ) : int256(0);
         print("[getLeverage()] deltaAmountValue_18 = ", deltaAmountValue_18);
         int256 afterAccountValue_18 = beforeAccountValue_18 + deltaAmountValue_18;
