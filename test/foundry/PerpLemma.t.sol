@@ -254,10 +254,14 @@ contract PerpLemmaCommonTest is Test {
         return (_usdAmount * 1e18) / d.getPerps().ib.getIndexPrice(15 minutes);
     }
 
-    function _testOpenShortWithExactBase(uint256 collateralAmount_18, uint256 leverage_6) internal {
+    // NOTE: It only works if usdlCollateral isTailAsset otherwise the actual leverage depends also on the amount of nonSettlementToken deposited, its price which changes over time and teh discount factor set in Perp Protocol
+    function _testOpenShortWithExactBase(uint256 collateralAmount_18, uint256 leverage_6) internal returns(uint256 usdcAmount_6) {
+        assertTrue(d.pl().isUsdlCollateralTailAsset(), "This only works if Usdl Collateral is tail asset otherwise the leverage is not correct");
         address collateral = d.getTokenAddress("WETH");
         uint256 usdcAmount_18 = getEthPriceInUSD(collateralAmount_18); // 1098e6; // USDL amount
-        uint256 usdcAmount_6 = (usdcAmount_18 * 1e6 * 1e6) / (leverage_6 * 1e18);
+
+        // NOTE: Amount of USDC to deposit to reach the desired leverage
+        usdcAmount_6 = (usdcAmount_18 * 1e6 * 1e6) / (leverage_6 * 1e18);
         console.log("[_testOpenShortWithExactBase()] collateralAmount_18 = ", collateralAmount_18);
         console.log("[_testOpenShortWithExactBase()] usdcAmount_18 = ", usdcAmount_18);
         console.log("[_testOpenShortWithExactBase()] usdcAmount_6 = ", usdcAmount_6);
@@ -1028,10 +1032,10 @@ contract PerpLemmaCommonTest is Test {
         return _deltaAbs(a,b) <= precision;
     }
 
-    function _testLeverageCheck(uint256 i) internal {
+    function _testLeverageCheck(uint256 i) internal returns(uint256 usdcAmount_6) {
             uint256 baseAmount_18 = 1e18;
             console.log("[testLeverageCheck()] Short Base Amount = ", baseAmount_18);
-            _testOpenShortWithExactBase(baseAmount_18, i * 1e6);
+            usdcAmount_6 = _testOpenShortWithExactBase(baseAmount_18, i * 1e6);
             uint256 leverage = d.pl().getLeverage(true, 0);
             console.log("[testLeverageCheck()] getLeverage = ", leverage);
             assertTrue(_isAlmostEqual(leverage, i * 1e6, 1e5));
@@ -1039,11 +1043,31 @@ contract PerpLemmaCommonTest is Test {
     }
 
     function testLeverageCheck1() public {
+        d.pl().setIsUsdlCollateralTailAsset(true);
         _testLeverageCheck(1);
     }
 
     function testLeverageCheck2() public {
+        d.pl().setIsUsdlCollateralTailAsset(true);
         _testLeverageCheck(2);
+    }
+
+    function _testWithdraw1(uint256 initialLeverage_6, uint256 finalLeverage_6) internal {
+        d.pl().setIsUsdlCollateralTailAsset(true);
+        uint256 usdcAmount_6 = _testLeverageCheck(1);
+        uint256 usdcAmountWithdraw_6 = usdcAmount_6 - (usdcAmount_6 * initialLeverage_6 / finalLeverage_6);
+        uint256 estimatedLeverage_6 = d.pl().getLeverage(true, -1 * int256(usdcAmountWithdraw_6));
+        // console.log("[_testWithdraw1()] estimatedLeverage_6 = ", estimatedLeverage_6);
+        assertTrue(_isAlmostEqual(estimatedLeverage_6, finalLeverage_6, 1e5));
+        // vm.startPrank(address(d));
+        d.pl().withdrawSettlementToken(usdcAmountWithdraw_6);
+        // vm.stopPrank();
+        uint256 leverage_6 = d.pl().getLeverage(true, 0);
+        assertTrue(_isAlmostEqual(leverage_6, finalLeverage_6, 1e5));
+    }
+
+    function testWithdraw1() public {
+        _testWithdraw1(1e6, 2e6);
     }
 
     // function testLeverageCheck() public {

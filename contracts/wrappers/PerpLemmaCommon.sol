@@ -354,10 +354,10 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         int256 beforeAccountValue_18 = getAccountValue();
         print("[getLeverage()] beforeAccountValue_18 = ", beforeAccountValue_18);
         int256 deltaAmountValue_18 = (amount_nd != 0) ? (
-            (isSettlementToken) ? (amount_nd * 1e8 / int256(10**usdc.decimals())) : ((amount_nd > 0) ? int8(1) : int8(-1)) * int256(_getCollateralValue(uint256(amount_nd)))
+            (isSettlementToken) ? (amount_nd * 1e18 / int256(10**usdc.decimals())) : ((amount_nd > 0) ? int8(1) : int8(-1)) * int256(_getCollateralValue(uint256(amount_nd)))
         ) : int256(0);
         print("[getLeverage()] deltaAmountValue_18 = ", deltaAmountValue_18);
-        int256 afterAccountValue_18 = beforeAccountValue_18 - deltaAmountValue_18;
+        int256 afterAccountValue_18 = beforeAccountValue_18 + deltaAmountValue_18;
         print("[getLeverage()] afterAccountValue_18 = ", afterAccountValue_18);
         if(afterAccountValue_18 <= 0) {
             // NOTE: We treat negative collateral as infinite leverage
