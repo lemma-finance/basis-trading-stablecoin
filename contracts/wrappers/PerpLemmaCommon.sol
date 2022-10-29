@@ -585,6 +585,12 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     ///@param _reBalancer reBalancer address to set
     function setReBalancer(address _reBalancer) external override onlyRole(ADMIN_ROLE) {
         // require(_reBalancer != address(0), "_reBalancer should not ZERO address");
+        if(reBalancer != address(0)) {
+            SafeERC20Upgradeable.safeApprove(usdc, reBalancer, 0);
+            SafeERC20Upgradeable.safeApprove(usdlCollateral, reBalancer, 0);
+            revokeRole(PERPLEMMA_ROLE, reBalancer);
+        }
+
         reBalancer = _reBalancer;
 
         // NOTE: It needs PERPLEMMA_ROLE to call all its methods
