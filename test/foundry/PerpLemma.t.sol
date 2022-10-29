@@ -17,7 +17,7 @@ contract PerpLemmaCommonTest is Test {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant PERPLEMMA_ROLE = keccak256("PERPLEMMA_ROLE");
     bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
-    bytes32 public constant REBALANCER_ROLE = keccak256("REBALANCER_ROLE");
+    // bytes32 public constant REBALANCER_ROLE = keccak256("REBALANCER_ROLE");
     bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
 
     function setUp() public {
@@ -26,7 +26,7 @@ contract PerpLemmaCommonTest is Test {
         d.pl().setUSDLemma(address(d.usdl()));
         d.pl().grantRole(USDC_TREASURY, address(this));
         d.pl().grantRole(PERPLEMMA_ROLE, address(this));
-        d.pl().grantRole(REBALANCER_ROLE, address(this));
+        // d.pl().grantRole(REBALANCER_ROLE, address(this));
         d.pl().grantRole(OWNER_ROLE, address(this));
         d.pl().grantRole(PERPLEMMA_ROLE, alice);
         d.pl().grantRole(PERPLEMMA_ROLE, bob);

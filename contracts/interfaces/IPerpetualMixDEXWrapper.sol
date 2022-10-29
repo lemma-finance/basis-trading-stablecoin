@@ -46,6 +46,9 @@ interface IPerpetualMixDEXWrapper {
 
     function settlePendingFundingPayments() external;
 
+
+    function setReBalancer(address _rebalancer) external;
+
     function distributeFundingPayments()
         external
         returns (

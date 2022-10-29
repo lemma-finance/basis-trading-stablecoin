@@ -148,7 +148,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         _setRoleAdmin(PERPLEMMA_ROLE, ADMIN_ROLE);
         _setRoleAdmin(OWNER_ROLE, ADMIN_ROLE);
         _setRoleAdmin(USDC_TREASURY, ADMIN_ROLE);
-        _setRoleAdmin(REBALANCER_ROLE, ADMIN_ROLE);
+        // _setRoleAdmin(REBALANCER_ROLE, ADMIN_ROLE);
         _setupRole(ADMIN_ROLE, msg.sender);
         grantRole(OWNER_ROLE, msg.sender);
 
@@ -514,7 +514,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         emit SetMinMarginSafeThreshold(minMarginSafeThreshold);
     }
 
-    /// @notice setCollateralRatio will set _collateralRatio by owner role address
+    /// @notice setCollateralRatio will set _collateralRatio by owner role address  
     /// @param _collateralRatio contract address
     function setCollateralRatio(uint24 _collateralRatio) external override onlyRole(OWNER_ROLE) {
         // NOTE: This one should always be >= imRatio or >= mmRatio but not sure if a require is needed
@@ -583,11 +583,23 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
     ///@notice sets reBalncer address - only owner can set
     ///@param _reBalancer reBalancer address to set
-    function setReBalancer(address _reBalancer) external onlyRole(ADMIN_ROLE) {
-        require(_reBalancer != address(0), "ReBalancer should not ZERO address");
-        grantRole(REBALANCER_ROLE, _reBalancer);
+    function setReBalancer(address _reBalancer) external override onlyRole(ADMIN_ROLE) {
+        // require(_reBalancer != address(0), "_reBalancer should not ZERO address");
         reBalancer = _reBalancer;
-        emit RebalancerUpdated(_reBalancer);
+
+        // NOTE: It needs PERPLEMMA_ROLE to call all its methods
+        grantRole(PERPLEMMA_ROLE, reBalancer);
+
+        SafeERC20Upgradeable.safeApprove(usdc, reBalancer, 0);
+        SafeERC20Upgradeable.safeApprove(usdc, reBalancer, MAX_UINT256);
+        SafeERC20Upgradeable.safeApprove(usdlCollateral, reBalancer, 0);
+        SafeERC20Upgradeable.safeApprove(usdlCollateral, reBalancer, MAX_UINT256);
+        emit RebalancerUpdated(reBalancer);
+
+        // require(_reBalancer != address(0), "ReBalancer should not ZERO address");
+        // grantRole(REBALANCER_ROLE, _reBalancer);
+        // reBalancer = _reBalancer;
+        // emit RebalancerUpdated(_reBalancer);
     }
 
     /// @notice reset approvals

@@ -13,7 +13,7 @@ contract ContractTest is Test {
     address bob = vm.addr(2);
     bytes32 public constant PERPLEMMA_ROLE = keccak256("PERPLEMMA_ROLE");
     bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
-    bytes32 public constant REBALANCER_ROLE = keccak256("REBALANCER_ROLE");
+    // bytes32 public constant REBALANCER_ROLE = keccak256("REBALANCER_ROLE");
     bytes32 public constant LEMMA_SWAP = keccak256("LEMMA_SWAP");
 
     function setUp() public {
@@ -22,7 +22,7 @@ contract ContractTest is Test {
         d.pl().setUSDLemma(address(d.usdl()));
         d.pl().grantRole(USDC_TREASURY, address(this));
         d.pl().grantRole(PERPLEMMA_ROLE, address(this));
-        d.pl().grantRole(REBALANCER_ROLE, address(this));
+        // d.pl().grantRole(REBALANCER_ROLE, address(this));
         d.usdl().grantRole(LEMMA_SWAP, address(this));
         d.usdl().grantRole(LEMMA_SWAP, alice);
         d.usdl().grantRole(LEMMA_SWAP, bob);
