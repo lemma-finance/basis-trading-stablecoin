@@ -132,10 +132,17 @@ contract PerpLemmaCommonTest is Test {
         uint256 beforeUserBalance = checkBalance(a.source, a.collateral);
         IERC20Decimals(a.collateral).approve(address(d.pl()), a.amount);
         IERC20Decimals(a.collateral).transferFrom(a.source, address(d.pl()), a.amount);
+
+        // NOTE: Current leverage
         uint256 _leverageBefore = d.pl().getLeverage(true, 0);
+
         d.pl().deposit(a.amount, a.collateral);
+
+        // NOTE: Current leverage
         uint256 _leverageAfter = d.pl().getLeverage(true, 0);
-        assertTrue(_leverageBefore == _leverageAfter, "Leverage Changed");
+
+        // NOTE: Depositing collateral should never increase the leverage
+        assertTrue(_leverageBefore <= _leverageAfter, "Leverage Changed");
         uint256 afterUserBalance = checkBalance(a.source, a.collateral);
         assertEq(beforeUserBalance - afterUserBalance, a.amount);
     }
@@ -1095,15 +1102,27 @@ contract PerpLemmaCommonTest is Test {
     }
 
     function testLeverageCheckWithTailAsset() public {
-        address collateral = d.getTokenAddress("WETH");
-        uint256 collateralAmount_18 = 1e15;
+        // NOTE: Here USDL Collateral is not tail asset
+        uint256 ethAmount = 1e15;
+        uint256 usdcAmount = 1e18;
         _depositUsdlCollateral(
             DepositUSDLCollateralArgs({
-                amount: collateralAmount_18,
-                collateral: collateral,
+                amount: ethAmount,
+                collateral: d.getTokenAddress("WETH"),
                 source: address(this)
             }));
-        openShortWithExactBase(collateralAmount_18);
+
+        // _depositUsdlCollateral(
+        //     DepositUSDLCollateralArgs({
+        //         amount: usdcAmount,
+        //         collateral: d.getTokenAddress("USDC"),
+        //         source: address(this)
+        //     }));
+
+        // NOTE: Here we are trying to open a short position for 0.001 ETH using 0.001 ETH as collateral 
+        // This should be allowed since even if ETH collateral weight is < 100% which results in an opening leverage > 1, that leverage should still be < maxLeverage 
+        // The reason is ETH collateral discount factor should be around 75% which leads to a 4/3 leverage that's way lower than both 10x max Opening Leverage and 16 max Running Leverage  
+        openShortWithExactBase(ethAmount);
         // d.pl().setIsUsdlCollateralTailAsset(false);
         // _testLeverageCheck(1e6, 1e15, false);
     }
