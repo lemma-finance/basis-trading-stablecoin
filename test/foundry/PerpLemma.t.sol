@@ -51,6 +51,10 @@ contract PerpLemmaCommonTest is Test {
 
     // Internal
 
+    function print(string memory s, int256 a) internal view {
+        console.log(s, (a >= 0) ? "+":"-", (a >= 0) ? uint256(a):uint256(-a));
+    }
+
     function _deductFees(address collateral, uint256 collateralAmount, uint256 dexIndex)
         internal
         view
@@ -136,11 +140,15 @@ contract PerpLemmaCommonTest is Test {
         // NOTE: Current leverage
         uint256 _leverageBefore = d.pl().getLeverage(true, 0);
 
-        d.pl().deposit(a.amount, a.collateral);
 
+        console.log("[_depositUsdlCollateral()] Tryining to deposit");
+        console.log("[_depositUsdlCollateral()] Address = ", a.collateral);
+        console.log("[_depositUsdlCollateral()] Amount = ", a.amount);
+        d.pl().deposit(a.amount, a.collateral);
+        console.log("[_depositUsdlCollateral()] DONE");
         // NOTE: Current leverage
         uint256 _leverageAfter = d.pl().getLeverage(true, 0);
-
+        console.log("[_depositUsdlCollateral()] T1");
         // NOTE: Depositing collateral should never increase the leverage
         assertTrue(_leverageBefore <= _leverageAfter, "Leverage Changed");
         uint256 afterUserBalance = checkBalance(a.source, a.collateral);
@@ -158,9 +166,12 @@ contract PerpLemmaCommonTest is Test {
     }
 
     function openShortWithExactBase(uint256 collateralAmount) internal {
+        console.log("[openShortWithExactBase()] collateralAmount = ", collateralAmount);
         uint256 beforeMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
+        print("[openShortWithExactBase()] accountValue = ", d.pl().getAccountValue());
         (uint256 base, uint256 quote) = d.pl().openShortWithExactBase(collateralAmount);
         d.pl().calculateMintingAsset(quote, IPerpetualMixDEXWrapper.Basis.IsUsdl, true);
+        console.log("[openShortWithExactBase()] DONE");
         uint256 afterMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         assertEq(afterMintedPositionUsdlForThisWrapper - beforeMintedPositionUsdlForThisWrapper, quote);
         assertEq(collateralAmount, base);
@@ -1111,6 +1122,8 @@ contract PerpLemmaCommonTest is Test {
                 collateral: d.getTokenAddress("WETH"),
                 source: address(this)
             }));
+
+        console.log("[testLeverageCheckWithTailAsset()] T1");
 
         // _depositUsdlCollateral(
         //     DepositUSDLCollateralArgs({
