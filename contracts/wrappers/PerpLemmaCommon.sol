@@ -591,21 +591,23 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             revokeRole(PERPLEMMA_ROLE, reBalancer);
         }
 
-        reBalancer = _reBalancer;
+        if(_reBalancer != address(0)) {
+            reBalancer = _reBalancer;
 
-        // NOTE: It needs PERPLEMMA_ROLE to call all its methods
-        grantRole(PERPLEMMA_ROLE, reBalancer);
+            // NOTE: It needs PERPLEMMA_ROLE to call all its methods
+            grantRole(PERPLEMMA_ROLE, reBalancer);
 
-        SafeERC20Upgradeable.safeApprove(usdc, reBalancer, 0);
-        SafeERC20Upgradeable.safeApprove(usdc, reBalancer, MAX_UINT256);
-        SafeERC20Upgradeable.safeApprove(usdlCollateral, reBalancer, 0);
-        SafeERC20Upgradeable.safeApprove(usdlCollateral, reBalancer, MAX_UINT256);
-        emit RebalancerUpdated(reBalancer);
+            SafeERC20Upgradeable.safeApprove(usdc, reBalancer, 0);
+            SafeERC20Upgradeable.safeApprove(usdc, reBalancer, MAX_UINT256);
+            SafeERC20Upgradeable.safeApprove(usdlCollateral, reBalancer, 0);
+            SafeERC20Upgradeable.safeApprove(usdlCollateral, reBalancer, MAX_UINT256);
+            emit RebalancerUpdated(reBalancer);
 
-        // require(_reBalancer != address(0), "ReBalancer should not ZERO address");
-        // grantRole(REBALANCER_ROLE, _reBalancer);
-        // reBalancer = _reBalancer;
-        // emit RebalancerUpdated(_reBalancer);
+            // require(_reBalancer != address(0), "ReBalancer should not ZERO address");
+            // grantRole(REBALANCER_ROLE, _reBalancer);
+            // reBalancer = _reBalancer;
+            // emit RebalancerUpdated(_reBalancer);
+        }
     }
 
     /// @notice reset approvals
