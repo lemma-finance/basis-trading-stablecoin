@@ -279,27 +279,32 @@ contract PerpLemmaCommonTest is Test {
     }
 
     // NOTE: It only works if usdlCollateral isTailAsset otherwise the actual leverage depends also on the amount of nonSettlementToken deposited, its price which changes over time and teh discount factor set in Perp Protocol
-    function _testOpenShortWithExactBase(uint256 collateralAmount_18, uint256 leverage_6) internal returns(uint256 usdcAmount_6) {
+    function _initTestOpenShortWithExactBase(uint256 collateralAmount_18, uint256 leverage_6) internal returns(uint256 usdcAmount_6) {
+        int256 initAccountValue = d.pl().getAccountValue();
         address collateral = d.getTokenAddress("WETH");
         uint256 usdcAmount_18 = getEthPriceInUSD(collateralAmount_18); // 1098e6; // USDL amount
 
         // NOTE: Amount of USDC to deposit to reach the desired leverage
         usdcAmount_6 = (usdcAmount_18 * 1e6 * 1e6) / (leverage_6 * 1e18);
-        console.log("[_testOpenShortWithExactBase()] collateralAmount_18 = ", collateralAmount_18);
-        console.log("[_testOpenShortWithExactBase()] usdcAmount_18 = ", usdcAmount_18);
-        console.log("[_testOpenShortWithExactBase()] usdcAmount_6 = ", usdcAmount_6);
+        console.log("[_initTestOpenShortWithExactBase()] collateralAmount_18 = ", collateralAmount_18);
+        console.log("[_initTestOpenShortWithExactBase()] usdcAmount_18 = ", usdcAmount_18);
+        console.log("[_initTestOpenShortWithExactBase()] usdcAmount_6 = ", usdcAmount_6);
         _depositSettlementToken(usdcAmount_6);
         _depositUsdlCollateral(DepositUSDLCollateralArgs({
             collateral: collateral,
             amount: collateralAmount_18, 
             source: address(this)}
             ));
+        
+        // NOTE: Adding collateral should always increase the value
+        require(d.pl().getAccountValue() > initAccountValue, "Collateral should increase");
+
 
         openShortWithExactBase(collateralAmount_18);
     }
 
     function testOpenShortWithExactBase() public {
-        _testOpenShortWithExactBase(1e18, 1e6);
+        _initTestOpenShortWithExactBase(1e18, 1e6);
         // address collateral = d.getTokenAddress("WETH");
         // uint256 collateralAmount = 1e18;
         // uint256 usdcAmount = getEthPriceInUSD(1e18); // 1098e6; // USDL amount
@@ -1095,7 +1100,7 @@ contract PerpLemmaCommonTest is Test {
         assertTrue(d.pl().isUsdlCollateralTailAsset(), "This only works if Usdl Collateral is tail asset otherwise the leverage is not correct");            
         // uint256 baseAmount_18 = 1e18;
         console.log("[testLeverageCheck()] Short Base Amount = ", baseAmount_18);
-        usdcAmount_6 = _testOpenShortWithExactBase(baseAmount_18, inputLeverage_6);
+        usdcAmount_6 = _initTestOpenShortWithExactBase(baseAmount_18, inputLeverage_6);
         uint256 finalLeverage_6 = d.pl().getLeverage(true, 0);
         console.log("[testLeverageCheck()] getLeverage = ", finalLeverage_6);
         assertTrue(_isAlmostEqual(finalLeverage_6, inputLeverage_6, 1e5));
@@ -1116,6 +1121,9 @@ contract PerpLemmaCommonTest is Test {
         // NOTE: Here USDL Collateral is not tail asset
         uint256 ethAmount = 1e15;
         uint256 usdcAmount = 1e18;
+
+        int256 initAccountValue = d.pl().getAccountValue();
+        print("[testLeverageCheckWithTailAsset()] Before d.pl().getAccountValue() = ", d.pl().getAccountValue());
         _depositUsdlCollateral(
             DepositUSDLCollateralArgs({
                 amount: ethAmount,
@@ -1123,7 +1131,10 @@ contract PerpLemmaCommonTest is Test {
                 source: address(this)
             }));
 
-        console.log("[testLeverageCheckWithTailAsset()] T1");
+
+        print("[testLeverageCheckWithTailAsset()] After1 d.pl().getAccountValue() = ", d.pl().getAccountValue());
+
+        require(d.pl().getAccountValue() > initAccountValue, "Account Value should increase");
 
         // _depositUsdlCollateral(
         //     DepositUSDLCollateralArgs({
