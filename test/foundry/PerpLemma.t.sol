@@ -132,7 +132,9 @@ contract PerpLemmaCommonTest is Test {
     }
     
     function _depositUsdlCollateral(DepositUSDLCollateralArgs memory a) internal {
-        _getMoneyForTo(a.source, a.collateral, a.amount);
+        deal(a.collateral, a.source, a.amount);
+        // console.log("_depositUsdlCollateral() BalanceOf")
+        // _getMoneyForTo(a.source, a.collateral, a.amount);
         uint256 beforeUserBalance = checkBalance(a.source, a.collateral);
         IERC20Decimals(a.collateral).approve(address(d.pl()), a.amount);
         IERC20Decimals(a.collateral).transferFrom(a.source, address(d.pl()), a.amount);
@@ -140,15 +142,9 @@ contract PerpLemmaCommonTest is Test {
         // NOTE: Current leverage
         uint256 _leverageBefore = d.pl().getLeverage(true, 0);
 
-
-        console.log("[_depositUsdlCollateral()] Tryining to deposit");
-        console.log("[_depositUsdlCollateral()] Address = ", a.collateral);
-        console.log("[_depositUsdlCollateral()] Amount = ", a.amount);
         d.pl().deposit(a.amount, a.collateral);
-        console.log("[_depositUsdlCollateral()] DONE");
         // NOTE: Current leverage
         uint256 _leverageAfter = d.pl().getLeverage(true, 0);
-        console.log("[_depositUsdlCollateral()] T1");
         // NOTE: Depositing collateral should never increase the leverage
         assertTrue(_leverageBefore <= _leverageAfter, "Leverage Changed");
         uint256 afterUserBalance = checkBalance(a.source, a.collateral);
@@ -1120,10 +1116,18 @@ contract PerpLemmaCommonTest is Test {
     function testLeverageCheckWithTailAsset() public {
         // NOTE: Here USDL Collateral is not tail asset
         uint256 ethAmount = 1e15;
-        uint256 usdcAmount = 1e18;
+
+        vm.startPrank(address(d));
+        d.pl().grantRole(OWNER_ROLE, vm.addr(1));
+        vm.stopPrank();
+        vm.startPrank(vm.addr(1));
+        // NOTE: So it is possible to use ETH as collateral
+        d.pl().setIsUsdlCollateralTailAsset(false);
+        vm.stopPrank();
 
         int256 initAccountValue = d.pl().getAccountValue();
         print("[testLeverageCheckWithTailAsset()] Before d.pl().getAccountValue() = ", d.pl().getAccountValue());
+        address usdc = d.getTokenAddress("USDC");
         _depositUsdlCollateral(
             DepositUSDLCollateralArgs({
                 amount: ethAmount,
@@ -1133,15 +1137,10 @@ contract PerpLemmaCommonTest is Test {
 
 
         print("[testLeverageCheckWithTailAsset()] After1 d.pl().getAccountValue() = ", d.pl().getAccountValue());
-
         require(d.pl().getAccountValue() > initAccountValue, "Account Value should increase");
 
-        // _depositUsdlCollateral(
-        //     DepositUSDLCollateralArgs({
-        //         amount: usdcAmount,
-        //         collateral: d.getTokenAddress("USDC"),
-        //         source: address(this)
-        //     }));
+        uint256 initialLeverage_6 = d.pl().getLeverage(true, 0);
+        require(initialLeverage_6 == 0, "Leverage1");
 
         // NOTE: Here we are trying to open a short position for 0.001 ETH using 0.001 ETH as collateral 
         // This should be allowed since even if ETH collateral weight is < 100% which results in an opening leverage > 1, that leverage should still be < maxLeverage 
@@ -1149,6 +1148,14 @@ contract PerpLemmaCommonTest is Test {
         openShortWithExactBase(ethAmount);
         // d.pl().setIsUsdlCollateralTailAsset(false);
         // _testLeverageCheck(1e6, 1e15, false);
+
+        uint256 finalLeverage_6 = d.pl().getLeverage(true, 0);
+        console.log("[testLeverageCheckWithTailAsset()] finalLeverage_6 = ", finalLeverage_6);
+
+        // NOTE: ETH Discount Factor is 82.5% according to PerpV2 Doc here 
+        // https://support.perp.com/hc/en-us/articles/5257432076569
+        // So it corresponds approx to a 1.2 leverage 
+        assertTrue(_isAlmostEqual(finalLeverage_6, 1.2e6, 1e5), "Leverage2");
     }
 
     function _testWithdraw1(uint256 initialLeverage_6, uint256 finalLeverage_6) internal {

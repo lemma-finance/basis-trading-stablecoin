@@ -1105,10 +1105,14 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @dev If collateral is tail asset no need to deposit it in Perp, it has to stay in this contract balance sheet
     function _deposit(uint256 collateralAmount, address collateral) internal {
         if (collateral == address(usdc)) {
+            console.log("[_deposit()] Trying to deposit settlement token amount = ", collateralAmount);
             perpVault.deposit(address(usdc), collateralAmount);
         } else if ((collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset)) {
+            console.log("[_deposit()] Depositing collateral in Perp");
             perpVault.deposit(collateral, collateralAmount);
             amountUsdlCollateralDeposited += collateralAmount;
+        } else {
+            console.log("[_deposit()] This is tail asset so not depositing collateral in Perp");
         }
     }
 
