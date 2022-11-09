@@ -9,6 +9,10 @@ import "forge-std/Test.sol";
 
 // error resTestLeverageCheck(bool temp);
 
+contract PerpLemma1 {
+    address public usdLemma;
+}
+
 contract PerpLemmaCommonTest is Test {
     Deploy public d;
     address alice = vm.addr(1);
@@ -1115,6 +1119,7 @@ contract PerpLemmaCommonTest is Test {
 
     function testLeverageCheckWithTailAsset() public {
         // NOTE: Here USDL Collateral is not tail asset
+        console.log("[testLeverageCheckWithTailAsset()] usdLemma = ", PerpLemma1(address(d.pl())).usdLemma());
         uint256 ethAmount = 1e15;
 
         vm.startPrank(address(d));
