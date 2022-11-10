@@ -1175,6 +1175,7 @@ contract PerpLemmaCommonTest is Test {
         // vm.stopPrank();
         uint256 leverage_6 = d.pl().getLeverage(true, 0);
         console.log("[_testWithdraw1()] leverage_6 = ", leverage_6);
+        console.log("[_testWithdraw1()] finalLeverage_6 = ", finalLeverage_6);
         assertTrue(_isAlmostEqual(leverage_6, finalLeverage_6, 1e5));
     }
 
