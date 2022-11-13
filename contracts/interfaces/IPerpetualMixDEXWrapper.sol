@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity =0.8.3;
+// pragma solidity =0.8.3;
 
 import "../interfaces/IERC20Decimals.sol";
 import "./Perpetual/IPerpVault.sol";
@@ -11,6 +11,9 @@ interface IPerpetualMixDEXWrapper {
         IsRebalance,
         IsSettle
     }
+
+
+
 
     function getSettlementToken() external view returns (address);
 
@@ -25,6 +28,8 @@ interface IPerpetualMixDEXWrapper {
     function computeRequiredUSDCForTrade(uint256 amount, bool isShort) external view returns (uint256);
 
     function isAdditionalUSDCAcceptable(uint256 amount) external view returns (bool);
+
+    function setIsUsdlCollateralTailAsset(bool _x) external;
 
     function setMinFreeCollateral(uint256 _margin) external;
 
@@ -78,6 +83,10 @@ interface IPerpetualMixDEXWrapper {
     function getDeltaExposure() external view returns (int256);
 
     function getLeverage(bool, int256) external view returns(uint256);
+    
+    function getWithdrawableAmountForTargetLeverage(uint256, address) external view returns(int256);
+
+    function getAmountFromTreasuryForTargetPosAndLeverage(uint256, bool, int256) external view returns(int256);
 
     function getExposureDetails()
         external

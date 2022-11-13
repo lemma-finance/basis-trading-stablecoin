@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity =0.8.3;
+// pragma solidity =0.8.3;
 
 import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
@@ -12,6 +12,7 @@ import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "../interfaces/IERC20Decimals.sol";
 import "../interfaces/IUSDLemma.sol";
+import "../interfaces/ISettlementTokenManager.sol";
 import "../interfaces/Perpetual/IClearingHouse.sol";
 import "../interfaces/Perpetual/IClearingHouseConfig.sol";
 import "../interfaces/Perpetual/IIndexPrice.sol";
@@ -22,11 +23,13 @@ import "../interfaces/Perpetual/IBaseToken.sol";
 import "../interfaces/Perpetual/IExchange.sol";
 import "../interfaces/Perpetual/ICollateralManager.sol";
 
+import "forge-std/Test.sol";
+
 /// @author Lemma Finance
 /// @notice PerpLemmaCommon contract will use to open short and long position with no-leverage on perpetual protocol (v2)
 /// USDLemma and LemmaSynth will consume the methods to open short or long on derivative dex
 /// Every collateral has different PerpLemma deployed, and after deployment it will be added in USDLemma contract and corresponding LemmaSynth's perpetualDEXWrappers mapping
-contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, AccessControlUpgradeable {
+contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, AccessControlUpgradeable, Test {
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
     using SafeMathExt for int256;
@@ -123,6 +126,11 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     event SetCollateralRatio(uint256 indexed _collateralRatio);
     event SetMinMarginSafeThreshold(uint256 indexed _minMarginSafeThreshold);
 
+    modifier onlySettlementTokenOrCollateral(address token) {
+        require((token == address(usdc)) || (token == address(usdlCollateral)), "Only Settlement Token or USDL Collateral");
+        _;
+    }
+
     //////////////////////////////////
     /// Initialize External METHOD ///
     //////////////////////////////////
@@ -197,6 +205,10 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             SafeERC20Upgradeable.safeApprove(usdlCollateral, lemmaSynth, 0);
             SafeERC20Upgradeable.safeApprove(usdlCollateral, lemmaSynth, MAX_UINT256);
         }
+    }
+
+    function print(string memory s, int256 x) internal view {
+        console.log(s, (x >= 0) ? "+":"-", (x>=0) ? uint256(x) : uint256(-x));
     }
 
     /////////////////////////////
@@ -363,6 +375,49 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         leverage_6 = totalAbsPositionValue_18 * 1e6 / uint256(afterAccountValue_18);
     }
 
+
+
+    /// @notice Positive amount means it is possible to withdraw to get to target leverage while a negative amount means it is required to deposit to reach target leverage
+    function getWithdrawableAmountForTargetLeverage(uint256 leverage_6, address token) public view override returns(int256 amount_18) {
+        // TODO: Fix 
+        // if(leverage_6 == 0) {
+        //     return 0;
+        // }
+        require(leverage_6 > 0, "Leverage can't be zero");
+
+        require(token == address(usdc), "Only USDC supported atm");
+        uint256 totalAbsPositionValue_18 = accountBalance.getTotalAbsPositionValue(address(this));
+        int256 currentAccountValue_18 = getAccountValue();
+
+        // NOTE: No position on this market, so not possible to withdraw anything
+        if (totalAbsPositionValue_18 == 0) return 0;
+        
+        amount_18 = currentAccountValue_18 - int256(totalAbsPositionValue_18 * 1e6 / leverage_6);
+    }
+
+
+
+
+    function getAmountFromTreasuryForTargetPosAndLeverage(uint256 leverage_6, bool isBaseToken, int256 deltaAmount_18) public view override returns(int256 amount_18) {
+        // TODO: Fix
+        // if(leverage_6 == 0) {
+        //     return -;
+        // }
+        require(leverage_6 > 0, "Leverage can't be zero");
+
+        require(deltaAmount_18 != 0, "Zero amount");
+        uint256 totalAbsPositionValue_18 = accountBalance.getTotalAbsPositionValue(address(this));
+        int256 currentAccountValue_18 = getAccountValue();
+
+        // NOTE: In case of usdlCollateral this is a lower bound estimate since slippage will make the actual mark price higher 
+        int256 deltaQuote_18 = (!isBaseToken) ? deltaAmount_18 : deltaAmount_18 * int256(getMarkPrice()) / 1e18;
+
+        // NOTE: No position on this market, so not possible to withdraw anything
+        if (totalAbsPositionValue_18 == 0) return 0;
+        
+        amount_18 = currentAccountValue_18 - (int256(totalAbsPositionValue_18) + deltaQuote_18) * 1e6 / int256(leverage_6);
+    }
+
     /// @notice Computes the delta exposure
     /// @dev It does not take into account if the deposited collateral gets silently converted in USDC so that we lose positive delta exposure
     function getDeltaExposure() external view override returns (int256) {
@@ -504,7 +559,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     }
 
     /// @notice Defines the USDL Collateral as a tail asset by only owner role
-    function setIsUsdlCollateralTailAsset(bool _x) external onlyRole(OWNER_ROLE) {
+    function setIsUsdlCollateralTailAsset(bool _x) external override onlyRole(OWNER_ROLE) {
         isUsdlCollateralTailAsset = _x;
     }
 
@@ -916,6 +971,19 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return (base, quote);
     }
 
+    function _preserveLeverage(bool isBase, int256 deltaAmount) internal returns(int256 requiredAmount) {
+        console.log("[_preserveLeverage()] isBase = ", (isBase) ? "true" : "false");
+        print("[_preserveLeverage()] deltaAmount = ", deltaAmount);
+        uint256 leverage_6 = getLeverage(true, 0);
+        if(leverage_6 > 0) {
+            requiredAmount = getAmountFromTreasuryForTargetPosAndLeverage(leverage_6, isBase, deltaAmount);
+        }
+        print("[_preserveLeverage()] requiredAmount = ", requiredAmount);
+        if(requiredAmount > 0) {
+            ISettlementTokenManager(settlementTokenManager).settlementTokenRecieve(uint256(requiredAmount), address(this));
+        }
+    }
+
     /// USDLemma will use below four methods
     /// 1). openShortWithExactBase => depositToWExactCollateral
     /// 2). openShortWithExactQuote => depositTo
@@ -927,7 +995,10 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         onlyRole(PERPLEMMA_ROLE)
         returns (uint256, uint256)
     {
+        console.log("[openShortWithExactBase()] amount = ", amount);
+        _preserveLeverage(true, -1 * int256(amount));
         (uint256 base, uint256 quote) = trade(amount, true, true);
+        console.log("[openShortWithExactBase()] DONE");
         return (base, quote);
     }
 
@@ -937,6 +1008,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         onlyRole(PERPLEMMA_ROLE)
         returns (uint256, uint256)
     {
+        _preserveLeverage(false, -1 * int256(amount));
         (uint256 base, uint256 quote) = trade(amount, true, false);
         return (base, quote);
     }
@@ -947,6 +1019,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         onlyRole(PERPLEMMA_ROLE)
         returns (uint256, uint256)
     {
+        _preserveLeverage(true, int256(amount));
         (uint256 base, uint256 quote) = trade(amount, false, false);
         return (base, quote);
     }
@@ -957,6 +1030,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         onlyRole(PERPLEMMA_ROLE)
         returns (uint256, uint256)
     {
+        _preserveLeverage(false, int256(amount));
         (uint256 base, uint256 quote) = trade(amount, false, true);
         return (base, quote);
     }
