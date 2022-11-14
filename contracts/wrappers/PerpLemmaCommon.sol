@@ -406,16 +406,21 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         require(leverage_6 > 0, "Leverage can't be zero");
 
         require(deltaAmount_18 != 0, "Zero amount");
-        uint256 totalAbsPositionValue_18 = accountBalance.getTotalAbsPositionValue(address(this));
+
+        // uint256 totalAbsPositionValue_18 = accountBalance.getTotalAbsPositionValue(address(this));
+        // NOTE: No position on this market, so not possible to withdraw anything
+        if (accountBalance.getTotalAbsPositionValue(address(this)) == 0) return 0;
+
+        int256 positionValue_18 = accountBalance.getTotalPositionValue(address(this), address(usdlBaseTokenAddress));
         int256 currentAccountValue_18 = getAccountValue();
 
         // NOTE: In case of usdlCollateral this is a lower bound estimate since slippage will make the actual mark price higher 
-        int256 deltaQuote_18 = (!isBaseToken) ? deltaAmount_18 : deltaAmount_18 * int256(getMarkPrice()) / 1e18;
+        int256 deltaPositionValue_18 = (!isBaseToken) ? deltaAmount_18 : (deltaAmount_18 * int256(getMarkPrice()) / 1e18);
 
-        // NOTE: No position on this market, so not possible to withdraw anything
-        if (totalAbsPositionValue_18 == 0) return 0;
-        
-        amount_18 = currentAccountValue_18 - (int256(totalAbsPositionValue_18) + deltaQuote_18) * 1e6 / int256(leverage_6);
+
+        // NOTE: currentAccountValue_18 is the sign and size of the position in quote 
+        // NOTE: deltaQuote_18 is the sign and size of the delta position
+        amount_18 = ((positionValue_18 + deltaPositionValue_18) * 1e6 / int256(leverage_6)) - currentAccountValue_18;
     }
 
     /// @notice Computes the delta exposure
@@ -1056,6 +1061,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
     /// @notice Get account value of the specified trader
     /// @return value_1e18 account value (in settlement token's decimals)
+    /// NOTE: See 
+    /// https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/ClearingHouse.sol#L640
+    /// https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/Vault.sol#L360
     function getAccountValue() public view override returns (int256 value_1e18) {
         value_1e18 = clearingHouse.getAccountValue(address(this));
     }
