@@ -76,8 +76,11 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     uint256 public constant MAX_UINT256 = type(uint256).max;
     /// MaxPosition till perpLemma can openPosition
     uint256 public maxPosition;
+
     /// Max Leverage 
     uint256 public maxLeverage_6;
+    uint256 public desiredLeverage_6;
+
     /// USDL's collateral decimal (for e.g. if  eth then 18 decimals)
     uint256 public usdlCollateralDecimals;
 
@@ -121,6 +124,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     event RebalancerUpdated(address indexed rebalancerAddress);
     event MaxPositionUpdated(uint256 indexed maxPos);
     event MaxLeverageUpdated(uint256 indexed maxLeverage);
+    event DesiredLeverageUpdated(uint256 indexed desiredLeverage);
     event SetSettlementTokenManager(address indexed _settlementTokenManager);
     event SetMinFreeCollateral(uint256 indexed _minFreeCollateral);
     event SetCollateralRatio(uint256 indexed _collateralRatio);
@@ -170,6 +174,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         maxPosition = _maxPosition;
         // NOTE: Perp Max Running Leverage is 16x so very close to it
         maxLeverage_6 = 15 * 1e6;
+        desiredLeverage_6 = 2 * 1e6;
 
         clearingHouse = IClearingHouse(_clearingHouse);
         clearingHouseConfig = IClearingHouseConfig(clearingHouse.getClearingHouseConfig());
@@ -613,6 +618,11 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         emit MaxLeverageUpdated(maxLeverage_6);
     }
 
+    function setDesiredLeverage(uint256 _desiredLeverage_6) external onlyRole(OWNER_ROLE) {
+        desiredLeverage_6 = _desiredLeverage_6;
+        emit DesiredLeverageUpdated(desiredLeverage_6);
+    }
+
     /// @notice setSettlementTokenManager is to set the address of settlementTokenManager by admin role only
     /// @param _settlementTokenManager address
     function setSettlementTokenManager(address _settlementTokenManager) external onlyRole(ADMIN_ROLE) {
@@ -976,16 +986,19 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         return (base, quote);
     }
 
+
     function _preserveLeverage(bool isBase, int256 deltaAmount) internal returns(int256 requiredAmount) {
         console.log("[_preserveLeverage()] isBase = ", (isBase) ? "true" : "false");
         print("[_preserveLeverage()] deltaAmount = ", deltaAmount);
-        uint256 leverage_6 = getLeverage(true, 0);
-        if(leverage_6 > 0) {
-            requiredAmount = getAmountFromTreasuryForTargetPosAndLeverage(leverage_6, isBase, deltaAmount);
-        }
-        print("[_preserveLeverage()] requiredAmount = ", requiredAmount);
-        if(requiredAmount > 0) {
-            ISettlementTokenManager(settlementTokenManager).settlementTokenRecieve(uint256(requiredAmount), address(this));
+
+        // uint256 leverage_6 = getLeverage(true, 0);
+
+        if(desiredLeverage_6 > 0) {
+            requiredAmount = getAmountFromTreasuryForTargetPosAndLeverage(desiredLeverage_6, isBase, deltaAmount);
+            print("[_preserveLeverage()] requiredAmount = ", requiredAmount);
+            if(requiredAmount > 0) {
+                ISettlementTokenManager(settlementTokenManager).settlementTokenRecieve(uint256(requiredAmount), address(this));
+            }
         }
     }
 
