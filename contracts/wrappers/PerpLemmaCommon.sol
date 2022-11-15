@@ -23,13 +23,11 @@ import "../interfaces/Perpetual/IBaseToken.sol";
 import "../interfaces/Perpetual/IExchange.sol";
 import "../interfaces/Perpetual/ICollateralManager.sol";
 
-import "forge-std/Test.sol";
-
 /// @author Lemma Finance
 /// @notice PerpLemmaCommon contract will use to open short and long position with no-leverage on perpetual protocol (v2)
 /// USDLemma and LemmaSynth will consume the methods to open short or long on derivative dex
 /// Every collateral has different PerpLemma deployed, and after deployment it will be added in USDLemma contract and corresponding LemmaSynth's perpetualDEXWrappers mapping
-contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, AccessControlUpgradeable, Test {
+contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, AccessControlUpgradeable {
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
     using SafeMathExt for int256;
@@ -212,10 +210,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         }
     }
 
-    function print(string memory s, int256 x) internal view {
-        console.log(s, (x >= 0) ? "+":"-", (x>=0) ? uint256(x) : uint256(-x));
-    }
-
     /////////////////////////////
     /// EXTERNAL VIEW METHODS ///
     /////////////////////////////
@@ -350,11 +344,6 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             cm.getPriceFeedDecimals(token)
         );
     }
-
-    // function print(string memory s, int256 a) internal view {
-    //     console.log(s, (a >= 0) ? "+":"-", (a >= 0) ? uint256(a):uint256(-a));
-    // }
-
 
     /// @notice Returns the leverage after a withdrawal of a given collateral or the current leverage if zero
     function getLeverage(bool isSettlementToken, int256 amount_nd) public view override returns(uint256 leverage_6) {
@@ -988,14 +977,11 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
 
     function _preserveLeverage(bool isBase, int256 deltaAmount) internal returns(int256 requiredAmount) {
-        console.log("[_preserveLeverage()] isBase = ", (isBase) ? "true" : "false");
-        print("[_preserveLeverage()] deltaAmount = ", deltaAmount);
 
         // uint256 leverage_6 = getLeverage(true, 0);
 
         if(desiredLeverage_6 > 0) {
             requiredAmount = getAmountFromTreasuryForTargetPosAndLeverage(desiredLeverage_6, isBase, deltaAmount);
-            print("[_preserveLeverage()] requiredAmount = ", requiredAmount);
             if(requiredAmount > 0) {
                 ISettlementTokenManager(settlementTokenManager).settlementTokenRecieve(uint256(requiredAmount), address(this));
             }
@@ -1013,10 +999,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         onlyRole(PERPLEMMA_ROLE)
         returns (uint256, uint256)
     {
-        console.log("[openShortWithExactBase()] amount = ", amount);
         _preserveLeverage(true, -1 * int256(amount));
         (uint256 base, uint256 quote) = trade(amount, true, true);
-        console.log("[openShortWithExactBase()] DONE");
         return (base, quote);
     }
 
