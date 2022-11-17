@@ -1,20 +1,5 @@
 ## Documentation
-https://docs.lemma.finance/smart-contracts/core-contracts
-
-## Optimism-KOVAN Testnet Contract addresses
-
-```
-SettlementTokenManager: , 0x790f5ea61193Eb680F82dE61230863c12f8AC5cC
-
-xUSDL: , 0x317c72f8509b09D9F7632761e1393e045A040f7e
-USDLemma: , 0xc34E7f18185b381d1d7aab8aeEC507e01f4276EE
-xLemmaSynthEth: 0xF8A4d59bB0DAf3B777E85696c694E3B983164d6e
-LemmaSynthEth: , 0xac7b51F1D5Da49c64fAe5ef7D5Dc2869389A46FC
-PerpLemmaCommonETH: , 0xCa184D2B5557EA317e0A696De2e08e567F608E1f
-LemmaSynthBtc: , 0x72D43D1A52599289eDBE0c98342c6ED22eB85bd3
-PerpLemmaCommonBtc: , 0xCAA344264f1546931A37Ad09da63d3D2AceB1283
-```
-
+https://docs.lemma.finance/concepts-overview/usdl
 ## Test using Foundry
 1. Install forge dependency
     - ```forge install  ```
