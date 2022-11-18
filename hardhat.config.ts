@@ -46,7 +46,7 @@ const config: HardhatUserConfig = {
       },
     },
     optimism: {
-      url: "https://mainnet.optimism.io",
+      url: "https://optimism-mainnet.infura.io/v3/" + process.env.INFURA_KEY,
       accounts: {
         mnemonic: process.env.MNEMONIC,
       },
