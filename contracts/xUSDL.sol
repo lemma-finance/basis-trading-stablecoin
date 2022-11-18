@@ -86,7 +86,7 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
         require((assets = previewMint(shares)) != 0, "ZERO_SHARES");
         SafeERC20Upgradeable.safeTransferFrom(usdl, _msgSender(), address(this), assets);
         if (periphery != _msgSender()) {
-            userUnlockBlock[_msgSender()] = block.number + minimumLock;
+            userUnlockBlock[receiver] = block.number + minimumLock;
         }
         _mint(receiver, shares);
         emit Deposit(_msgSender(), receiver, assets, shares);
