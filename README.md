@@ -23,7 +23,7 @@ https://docs.lemma.finance/concepts-overview/usdl
     - ```npx hardhat verify --network optimismKovan <Deployment Address>```
 
 ## Bug Bounty
-https://immunefi.com/bounty/lemma/
+https://immunefi.com/bounty/lemmafinance/
 
 ### Test JS tests for Perpetual Integration (DEPRECATED)
 1. Go to root repo\
