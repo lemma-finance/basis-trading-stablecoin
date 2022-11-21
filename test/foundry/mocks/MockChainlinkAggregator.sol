@@ -138,8 +138,7 @@ contract MockAggregatorProxy is AggregatorV2V3Interface {
     }
 
     function getAnswer(uint256 roundId) external view override returns (int256) {
-        return
-            (roundId >= oracleStatusInitial.latestRound)
+        return (roundId >= oracleStatusInitial.latestRound)
             ? oracleData[roundId].answer
             : AggregatorV2V3Interface(realAggregator).getAnswer(roundId);
     }

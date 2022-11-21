@@ -8,11 +8,7 @@ interface LemmaPerp {
 
     function distributeFundingPayments()
         external
-        returns (
-            bool isProfit,
-            uint256 amountUSDCToXUSDL,
-            uint256 amountUSDCToXSynth
-        );
+        returns (bool isProfit, uint256 amountUSDCToXUSDL, uint256 amountUSDCToXSynth);
 }
 
 interface IERC20 {
@@ -26,11 +22,7 @@ interface IERC20 {
 interface LemmaXEth {
     function deposit(uint256 assets, address receiver) external returns (uint256 shares);
 
-    function redeem(
-        uint256 shares,
-        address receiver,
-        address _owner
-    ) external returns (uint256 assets);
+    function redeem(uint256 shares, address receiver, address _owner) external returns (uint256 assets);
 }
 
 contract Depositor {
@@ -79,11 +71,7 @@ contract LemmaFinanceTest is Test {
     IERC20 lemmaEth = IERC20(0x3BC414FA971189783ACee4dEe281067C322E3412);
     LemmaXEth lemmaXEth = LemmaXEth(0x89c4e9a23Db43641e1B3C5E0691b100E64b50E32);
 
-    function writeTokenBalance(
-        address who,
-        IERC20 token,
-        uint256 amt
-    ) internal {
+    function writeTokenBalance(address who, IERC20 token, uint256 amt) internal {
         stdstore.target(address(token)).sig(token.balanceOf.selector).with_key(who).checked_write(amt);
     }
 

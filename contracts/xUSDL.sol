@@ -71,7 +71,8 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
     function deposit(uint256 assets, address receiver) external override returns (uint256 shares) {
         require((shares = previewDeposit(assets)) != 0, "ZERO_SHARES");
         SafeERC20Upgradeable.safeTransferFrom(usdl, _msgSender(), address(this), assets);
-        if (periphery != _msgSender()) {
+        checkIfDepositedAlready(receiver);
+        if (periphery != receiver) {
             userUnlockBlock[receiver] = block.number + minimumLock;
         }
         _mint(receiver, shares);
@@ -85,7 +86,8 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
     function mint(uint256 shares, address receiver) external override returns (uint256 assets) {
         require((assets = previewMint(shares)) != 0, "ZERO_SHARES");
         SafeERC20Upgradeable.safeTransferFrom(usdl, _msgSender(), address(this), assets);
-        if (periphery != _msgSender()) {
+        checkIfDepositedAlready(receiver);
+        if (periphery != receiver) {
             userUnlockBlock[receiver] = block.number + minimumLock;
         }
         _mint(receiver, shares);
@@ -191,6 +193,16 @@ contract xUSDL is IEIP4626, ERC20PermitUpgradeable, OwnableUpgradeable, ERC2771C
     /// @notice Total number of underlying shares that caller can redeem.
     function maxRedeem() external pure override returns (uint256 maxShares) {
         return type(uint256).max;
+    }
+
+    /// @notice checkIfDepositedAlready will check if reciever has already xTokenBalance
+    /// then msg.sender and receiver/to address should be same for xToken
+    /// it restricts user to not to get lock again and again by attacker
+    function checkIfDepositedAlready(address receiver) internal view {
+        uint256 previousBalance = balanceOf(receiver);
+        if (previousBalance > 0) {
+            require(_msgSender() == receiver, "Invalid Address: Receiver should be msg.sender");
+        }
     }
 
     function _msgSender()

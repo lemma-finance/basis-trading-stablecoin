@@ -281,10 +281,7 @@ contract Deploy {
         address perp_mr,
         address _usdl,
         address _lemmaSynth
-    )
-        internal
-        returns (TestPerpLemma)
-    {
+    ) internal returns (TestPerpLemma) {
         TestPerpLemma _pl = new TestPerpLemma();
         _pl.initialize(
             d_pl.trustedForwarder,
