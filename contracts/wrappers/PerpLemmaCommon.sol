@@ -20,12 +20,15 @@ import "../interfaces/Perpetual/IMarketRegistry.sol";
 import "../interfaces/Perpetual/IPerpVault.sol";
 import "../interfaces/Perpetual/IBaseToken.sol";
 import "../interfaces/Perpetual/IExchange.sol";
+import "../interfaces/Perpetual/ICollateralManager.sol";
+
+import "forge-std/Test.sol";
 
 /// @author Lemma Finance
 /// @notice PerpLemmaCommon contract will use to open short and long position with no-leverage on perpetual protocol (v2)
 /// USDLemma and LemmaSynth will consume the methods to open short or long on derivative dex
 /// Every collateral has different PerpLemma deployed, and after deployment it will be added in USDLemma contract and corresponding LemmaSynth's perpetualDEXWrappers mapping
-contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, AccessControlUpgradeable {
+contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, AccessControlUpgradeable, Test {
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
     using SafeMathExt for int256;
@@ -72,6 +75,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     uint256 public constant MAX_UINT256 = type(uint256).max;
     /// MaxPosition till perpLemma can openPosition
     uint256 public maxPosition;
+    /// Max Leverage 
+    uint256 public maxLeverage_6;
     /// USDL's collateral decimal (for e.g. if  eth then 18 decimals)
     uint256 public usdlCollateralDecimals;
 
@@ -114,6 +119,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     event ReferrerUpdated(bytes32 indexed referrerCode);
     event RebalancerUpdated(address indexed rebalancerAddress);
     event MaxPositionUpdated(uint256 indexed maxPos);
+    event MaxLeverageUpdated(uint256 indexed maxLeverage);
     event SetSettlementTokenManager(address indexed _settlementTokenManager);
     event SetMinFreeCollateral(uint256 indexed _minFreeCollateral);
     event SetCollateralRatio(uint256 indexed _collateralRatio);
@@ -142,7 +148,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         _setRoleAdmin(PERPLEMMA_ROLE, ADMIN_ROLE);
         _setRoleAdmin(OWNER_ROLE, ADMIN_ROLE);
         _setRoleAdmin(USDC_TREASURY, ADMIN_ROLE);
-        _setRoleAdmin(REBALANCER_ROLE, ADMIN_ROLE);
+        // _setRoleAdmin(REBALANCER_ROLE, ADMIN_ROLE);
         _setupRole(ADMIN_ROLE, msg.sender);
         grantRole(OWNER_ROLE, msg.sender);
 
@@ -156,6 +162,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         lemmaSynth = _lemmaSynth;
         usdlBaseTokenAddress = _usdlBaseToken;
         maxPosition = _maxPosition;
+        // NOTE: Perp Max Running Leverage is 16x so very close to it
+        maxLeverage_6 = 15 * 1e6;
 
         clearingHouse = IClearingHouse(_clearingHouse);
         clearingHouseConfig = IClearingHouseConfig(clearingHouse.getClearingHouseConfig());
@@ -299,6 +307,81 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         );
     }
 
+    function _getCollateralValue(uint256 amount_nd) internal view returns(uint256 value_18) {
+        // NOTE: Taken from 
+        // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/Vault.sol#L906
+        if(amount_nd == 0) return 0;
+        console.log("[_getCollateralValue()] Start");
+        console.log("[_getCollateralValue()] amount_nd = ", amount_nd);
+        uint256 amount_18 = amount_nd * 1e18 / (10**usdlCollateral.decimals());
+        console.log("[_getCollateralValue()] amount_18 = ", amount_18);
+        (uint256 indexTwap_pfd, uint8 priceFeedDecimals) = _getIndexPriceAndDecimals(address(usdlCollateral));
+        console.log("[_getCollateralValue()] indexTwap_pfd = ", indexTwap_pfd);
+        ICollateralManager cm = ICollateralManager(perpVault.getCollateralManager());
+
+        // NOTE: Taken from 
+        // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/Vault.sol#L893-L897
+        uint24 collateralRatio = cm.getCollateralConfig(address(usdlCollateral)).collateralRatio;
+        console.log("[_getCollateralValue()] collateralRatio = ", collateralRatio);
+        // NOTE: See definition of mulRatio() at  
+        // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/lib/PerpMath.sol#L77
+        value_18 = (amount_18 * indexTwap_pfd / 10**(priceFeedDecimals)) * uint256(collateralRatio) / 1e6;
+        console.log("[_getCollateralValue()] value_18 = ", value_18);
+    }
+
+    // NOTE: Taken from 
+    // https://github.com/perpetual-protocol/perp-curie-contract/blob/main/contracts/Vault.sol#L910
+    function _getIndexPriceAndDecimals(address token) internal view returns (uint256, uint8) {
+        ICollateralManager cm = ICollateralManager(perpVault.getCollateralManager());
+        return (
+            cm.getPrice(
+                token,
+                clearingHouseConfig.getTwapInterval()
+            ),
+            cm.getPriceFeedDecimals(token)
+        );
+    }
+
+    function print(string memory s, int256 a) internal view {
+        console.log(s, (a >= 0) ? "+":"-", (a >= 0) ? uint256(a):uint256(-a));
+    }
+
+
+    // function _abs(int256 x) internal pure returns(uint256 res) {
+    //     res = (x>0) ? uint256(x) : uint256(-x);
+    // }
+
+
+    /// @notice Returns the leverage after a withdrawal of a given collateral or the current leverage if zero
+    function getLeverage(bool isSettlementToken, int256 amount_nd) public view override returns(uint256 leverage_6) {
+        uint256 totalAbsPositionValue_18 = accountBalance.getTotalAbsPositionValue(address(this));
+        if(totalAbsPositionValue_18 == 0) {
+            // NOTE: No exposition on any market
+            return 0;
+        }
+        int256 beforeAccountValue_18 = getAccountValue();
+        console.log("[getLeverage()] isSettlementToken = ", (isSettlementToken) ? 1 : 0);
+        print("[getLeverage()] beforeAccountValue_18 = ", beforeAccountValue_18);
+        print("[getLeverage()] amount_nd = ", amount_nd);
+        // print("[getLeverage()] amount_nd * 1e18 = ", amount_nd * 1e18);
+        // print("[getLeverage()] amount_nd * 1e18 / int256(10**usdc.decimals()) = ", amount_nd * 1e18 / int256(10**usdc.decimals()));
+        // int256 _deltaAmountSettlementToken = amount_nd * 1e18 / int256(10**usdc.decimals());
+        // print("[getLeverage()] _deltaAmountSettlementToken = ", _deltaAmountSettlementToken);
+        int256 deltaAmountValue_18 = (amount_nd != 0) ? (
+            (isSettlementToken) ? (amount_nd * 1e18 / int256(10**usdc.decimals())) : ((amount_nd > 0) ? int256(1) : int256(-1)) * int256(_getCollateralValue(_abs(amount_nd)))
+        ) : int256(0);
+        print("[getLeverage()] deltaAmountValue_18 = ", deltaAmountValue_18);
+        int256 afterAccountValue_18 = beforeAccountValue_18 + deltaAmountValue_18;
+        print("[getLeverage()] afterAccountValue_18 = ", afterAccountValue_18);
+        if(afterAccountValue_18 <= 0) {
+            // NOTE: We treat negative collateral as infinite leverage
+            return type(uint256).max;
+        }
+
+        leverage_6 = totalAbsPositionValue_18 * 1e6 / uint256(afterAccountValue_18);
+        console.log("[getLeverage()] leverage_6 = ", leverage_6);
+    }
+
     /// @notice Computes the delta exposure
     /// @dev It does not take into account if the deposited collateral gets silently converted in USDC so that we lose positive delta exposure
     function getDeltaExposure() external view override returns (int256) {
@@ -431,7 +514,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         emit SetMinMarginSafeThreshold(minMarginSafeThreshold);
     }
 
-    /// @notice setCollateralRatio will set _collateralRatio by owner role address
+    /// @notice setCollateralRatio will set _collateralRatio by owner role address  
     /// @param _collateralRatio contract address
     function setCollateralRatio(uint24 _collateralRatio) external override onlyRole(OWNER_ROLE) {
         // NOTE: This one should always be >= imRatio or >= mmRatio but not sure if a require is needed
@@ -484,6 +567,11 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         emit MaxPositionUpdated(maxPosition);
     }
 
+    function setMaxLeverage(uint256 _maxLeverage_6) external onlyRole(OWNER_ROLE) {
+        maxLeverage_6 = _maxLeverage_6;
+        emit MaxLeverageUpdated(maxLeverage_6);
+    }
+
     /// @notice setSettlementTokenManager is to set the address of settlementTokenManager by admin role only
     /// @param _settlementTokenManager address
     function setSettlementTokenManager(address _settlementTokenManager) external onlyRole(ADMIN_ROLE) {
@@ -495,11 +583,31 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
     ///@notice sets reBalncer address - only owner can set
     ///@param _reBalancer reBalancer address to set
-    function setReBalancer(address _reBalancer) external onlyRole(ADMIN_ROLE) {
-        require(_reBalancer != address(0), "ReBalancer should not ZERO address");
-        grantRole(REBALANCER_ROLE, _reBalancer);
-        reBalancer = _reBalancer;
-        emit RebalancerUpdated(_reBalancer);
+    function setReBalancer(address _reBalancer) external override onlyRole(ADMIN_ROLE) {
+        // require(_reBalancer != address(0), "_reBalancer should not ZERO address");
+        if(reBalancer != address(0)) {
+            SafeERC20Upgradeable.safeApprove(usdc, reBalancer, 0);
+            SafeERC20Upgradeable.safeApprove(usdlCollateral, reBalancer, 0);
+            revokeRole(PERPLEMMA_ROLE, reBalancer);
+        }
+
+        if(_reBalancer != address(0)) {
+            reBalancer = _reBalancer;
+
+            // NOTE: It needs PERPLEMMA_ROLE to call all its methods
+            grantRole(PERPLEMMA_ROLE, reBalancer);
+
+            SafeERC20Upgradeable.safeApprove(usdc, reBalancer, 0);
+            SafeERC20Upgradeable.safeApprove(usdc, reBalancer, MAX_UINT256);
+            SafeERC20Upgradeable.safeApprove(usdlCollateral, reBalancer, 0);
+            SafeERC20Upgradeable.safeApprove(usdlCollateral, reBalancer, MAX_UINT256);
+            emit RebalancerUpdated(reBalancer);
+
+            // require(_reBalancer != address(0), "ReBalancer should not ZERO address");
+            // grantRole(REBALANCER_ROLE, _reBalancer);
+            // reBalancer = _reBalancer;
+            // emit RebalancerUpdated(_reBalancer);
+        }
     }
 
     /// @notice reset approvals
@@ -522,6 +630,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param _amount USDC amount need to withdraw from perp vault
     function withdrawSettlementToken(uint256 _amount) external override onlyRole(USDC_TREASURY) {
         require(_amount > 0, "Amount should greater than zero");
+        require(getLeverage(true, int256(-1) * int256(_amount)) <= maxLeverage_6, "Max Leverage Exceeded");
         perpVault.withdraw(address(usdc), _amount);
         SafeERC20Upgradeable.safeTransfer(usdc, msg.sender, _amount);
     }
@@ -531,6 +640,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param _to address where to transfer fund
     function withdrawSettlementTokenTo(uint256 _amount, address _to) external onlyRole(OWNER_ROLE) {
         require(_amount > 0, "Amount should greater than zero");
+        require(getLeverage(true, int256(-1) * int256(_amount)) <= maxLeverage_6, "Max Leverage Exceeded");
         require(hasSettled, "Perpetual is not settled yet");
         SafeERC20Upgradeable.safeTransfer(usdc, _to, _amount);
     }
@@ -546,6 +656,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param amount of assets to withdraw
     /// @param collateral needs to withdraw
     function withdraw(uint256 amount, address collateral) external override onlyRole(PERPLEMMA_ROLE) {
+        require(getLeverage((collateral == address(usdc)), int256(-1) * int256(amount)) <= maxLeverage_6, "Max Leverage Exceeded");
         _withdraw(amount, collateral);
     }
 
@@ -592,53 +703,53 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param amountBaseToRebalance The Amount of Base Token to buy or sell on Perp and consequently the amount of corresponding colletarl to sell or buy on Spot
     /// @param isCheckProfit Check the profit to possibly revert the TX in case
     /// @return Amount of USDC resulting from the operation. It can also be negative as we can use this mechanism for purposes other than Arb See https://www.notion.so/lemmafinance/Rebalance-Details-f72ad11a5d8248c195762a6ac6ce037e#ffad7b09a81a4b049348e3cd38e57466 here
-    function rebalance(
-        address router,
-        uint256 routerType,
-        int256 amountBaseToRebalance,
-        bool isCheckProfit
-    ) external override onlyRole(REBALANCER_ROLE) returns (uint256, uint256) {
-        // uint256 usdlCollateralAmountPerp;
-        // uint256 usdlCollateralAmountDex;
-        uint256 amountUSDCPlus;
-        uint256 amountUSDCMinus;
+    // function rebalance(
+    //     address router,
+    //     uint256 routerType,
+    //     int256 amountBaseToRebalance,
+    //     bool isCheckProfit
+    // ) external override onlyRole(REBALANCER_ROLE) returns (uint256, uint256) {
+    //     // uint256 usdlCollateralAmountPerp;
+    //     // uint256 usdlCollateralAmountDex;
+    //     uint256 amountUSDCPlus;
+    //     uint256 amountUSDCMinus;
 
-        require(amountBaseToRebalance != 0, "! No Rebalance with Zero Amount");
+    //     require(amountBaseToRebalance != 0, "! No Rebalance with Zero Amount");
 
-        bool isIncreaseBase = amountBaseToRebalance > 0;
-        uint256 _amountBaseToRebalance = (isIncreaseBase)
-            ? uint256(amountBaseToRebalance)
-            : uint256(-amountBaseToRebalance);
+    //     bool isIncreaseBase = amountBaseToRebalance > 0;
+    //     uint256 _amountBaseToRebalance = (isIncreaseBase)
+    //         ? uint256(amountBaseToRebalance)
+    //         : uint256(-amountBaseToRebalance);
 
-        if (isIncreaseBase) {
-            if (amountBase < 0) {
-                (, uint256 amountUSDCMinus_1e18) = closeShortWithExactBase(_amountBaseToRebalance);
-                amountUSDCMinus = (amountUSDCMinus_1e18 * (10**usdcDecimals)) / 1e18;
-                _withdraw(_amountBaseToRebalance, address(usdlCollateral));
-                require(usdlCollateral.balanceOf(address(this)) > _amountBaseToRebalance, "T1");
-                amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
-            } else {
-                amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
-                _deposit(amountUSDCPlus, address(usdc));
-                (, uint256 amountUSDCMinus_1e18) = openLongWithExactBase(_amountBaseToRebalance);
-                amountUSDCMinus = (amountUSDCMinus_1e18 * (10**usdcDecimals)) / 1e18;
-            }
-        } else {
-            if (amountBase <= 0) {
-                amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
-                _deposit(_amountBaseToRebalance, address(usdlCollateral));
-                (, uint256 amountUSDCPlus_1e18) = openShortWithExactBase(_amountBaseToRebalance);
-                amountUSDCPlus = (amountUSDCPlus_1e18 * (10**usdcDecimals)) / 1e18;
-            } else {
-                (, uint256 amountUSDCPlus_1e18) = closeLongWithExactBase(_amountBaseToRebalance);
-                amountUSDCPlus = (amountUSDCPlus_1e18 * (10**usdcDecimals)) / 1e18;
-                _withdraw(amountUSDCPlus, address(usdc));
-                amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
-            }
-        }
-        if (isCheckProfit) require(amountUSDCPlus >= amountUSDCMinus, "Unprofitable");
-        return (amountUSDCPlus, amountUSDCMinus);
-    }
+    //     if (isIncreaseBase) {
+    //         if (amountBase < 0) {
+    //             (, uint256 amountUSDCMinus_1e18) = closeShortWithExactBase(_amountBaseToRebalance);
+    //             amountUSDCMinus = (amountUSDCMinus_1e18 * (10**usdcDecimals)) / 1e18;
+    //             _withdraw(_amountBaseToRebalance, address(usdlCollateral));
+    //             require(usdlCollateral.balanceOf(address(this)) > _amountBaseToRebalance, "T1");
+    //             amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
+    //         } else {
+    //             amountUSDCPlus = _CollateralToUSDC(router, routerType, true, _amountBaseToRebalance);
+    //             _deposit(amountUSDCPlus, address(usdc));
+    //             (, uint256 amountUSDCMinus_1e18) = openLongWithExactBase(_amountBaseToRebalance);
+    //             amountUSDCMinus = (amountUSDCMinus_1e18 * (10**usdcDecimals)) / 1e18;
+    //         }
+    //     } else {
+    //         if (amountBase <= 0) {
+    //             amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
+    //             _deposit(_amountBaseToRebalance, address(usdlCollateral));
+    //             (, uint256 amountUSDCPlus_1e18) = openShortWithExactBase(_amountBaseToRebalance);
+    //             amountUSDCPlus = (amountUSDCPlus_1e18 * (10**usdcDecimals)) / 1e18;
+    //         } else {
+    //             (, uint256 amountUSDCPlus_1e18) = closeLongWithExactBase(_amountBaseToRebalance);
+    //             amountUSDCPlus = (amountUSDCPlus_1e18 * (10**usdcDecimals)) / 1e18;
+    //             _withdraw(amountUSDCPlus, address(usdc));
+    //             amountUSDCMinus = _USDCToCollateral(router, routerType, false, _amountBaseToRebalance);
+    //         }
+    //     }
+    //     if (isCheckProfit) require(amountUSDCPlus >= amountUSDCMinus, "Unprofitable");
+    //     return (amountUSDCPlus, amountUSDCMinus);
+    // }
 
     /// @notice calculateMintingAsset is method to track the minted usdl and synth by this perpLemma
     /// @param amount needs to add or sub
@@ -994,10 +1105,14 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @dev If collateral is tail asset no need to deposit it in Perp, it has to stay in this contract balance sheet
     function _deposit(uint256 collateralAmount, address collateral) internal {
         if (collateral == address(usdc)) {
+            console.log("[_deposit()] Trying to deposit settlement token amount = ", collateralAmount);
             perpVault.deposit(address(usdc), collateralAmount);
         } else if ((collateral == address(usdlCollateral)) && (!isUsdlCollateralTailAsset)) {
+            console.log("[_deposit()] Depositing collateral in Perp");
             perpVault.deposit(collateral, collateralAmount);
             amountUsdlCollateralDeposited += collateralAmount;
+        } else {
+            console.log("[_deposit()] This is tail asset so not depositing collateral in Perp");
         }
     }
 

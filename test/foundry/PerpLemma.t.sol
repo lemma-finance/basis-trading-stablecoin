@@ -7,6 +7,12 @@ import "../../contracts/interfaces/IERC20Decimals.sol";
 import "../../src/Deploy.sol";
 import "forge-std/Test.sol";
 
+// error resTestLeverageCheck(bool temp);
+
+contract PerpLemma1 {
+    address public usdLemma;
+}
+
 contract PerpLemmaCommonTest is Test {
     Deploy public d;
     address alice = vm.addr(1);
@@ -15,7 +21,7 @@ contract PerpLemmaCommonTest is Test {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant PERPLEMMA_ROLE = keccak256("PERPLEMMA_ROLE");
     bytes32 public constant USDC_TREASURY = keccak256("USDC_TREASURY");
-    bytes32 public constant REBALANCER_ROLE = keccak256("REBALANCER_ROLE");
+    // bytes32 public constant REBALANCER_ROLE = keccak256("REBALANCER_ROLE");
     bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
 
     function setUp() public {
@@ -24,7 +30,7 @@ contract PerpLemmaCommonTest is Test {
         d.pl().setUSDLemma(address(d.usdl()));
         d.pl().grantRole(USDC_TREASURY, address(this));
         d.pl().grantRole(PERPLEMMA_ROLE, address(this));
-        d.pl().grantRole(REBALANCER_ROLE, address(this));
+        // d.pl().grantRole(REBALANCER_ROLE, address(this));
         d.pl().grantRole(OWNER_ROLE, address(this));
         d.pl().grantRole(PERPLEMMA_ROLE, alice);
         d.pl().grantRole(PERPLEMMA_ROLE, bob);
@@ -48,6 +54,10 @@ contract PerpLemmaCommonTest is Test {
     }
 
     // Internal
+
+    function print(string memory s, int256 a) internal view {
+        console.log(s, (a >= 0) ? "+":"-", (a >= 0) ? uint256(a):uint256(-a));
+    }
 
     function _deductFees(address collateral, uint256 collateralAmount, uint256 dexIndex)
         internal
@@ -119,14 +129,30 @@ contract PerpLemmaCommonTest is Test {
         assertEq(afterUserBalance - beforeUserBalance, amount);
     }
 
-    function _depositUsdlCollateral(uint256 amount, address collateral, address to) internal {
-        _getMoneyForTo(to, collateral, amount);
-        uint256 beforeUserBalance = checkBalance(to, collateral);
-        IERC20Decimals(collateral).approve(address(d.pl()), amount);
-        IERC20Decimals(collateral).transferFrom(to, address(d.pl()), amount);
-        d.pl().deposit(amount, collateral);
-        uint256 afterUserBalance = checkBalance(to, collateral);
-        assertEq(beforeUserBalance - afterUserBalance, amount);
+    struct DepositUSDLCollateralArgs {
+        address collateral;
+        uint256 amount;
+        address source;
+    }
+    
+    function _depositUsdlCollateral(DepositUSDLCollateralArgs memory a) internal {
+        deal(a.collateral, a.source, a.amount);
+        // console.log("_depositUsdlCollateral() BalanceOf")
+        // _getMoneyForTo(a.source, a.collateral, a.amount);
+        uint256 beforeUserBalance = checkBalance(a.source, a.collateral);
+        IERC20Decimals(a.collateral).approve(address(d.pl()), a.amount);
+        IERC20Decimals(a.collateral).transferFrom(a.source, address(d.pl()), a.amount);
+
+        // NOTE: Current leverage
+        uint256 _leverageBefore = d.pl().getLeverage(true, 0);
+
+        d.pl().deposit(a.amount, a.collateral);
+        // NOTE: Current leverage
+        uint256 _leverageAfter = d.pl().getLeverage(true, 0);
+        // NOTE: Depositing collateral should never increase the leverage
+        assertTrue(_leverageBefore <= _leverageAfter, "Leverage Changed");
+        uint256 afterUserBalance = checkBalance(a.source, a.collateral);
+        assertEq(beforeUserBalance - afterUserBalance, a.amount);
     }
 
     function _withdrawUsdlCollateral(uint256 amount, address collateral, address to) internal {
@@ -140,9 +166,12 @@ contract PerpLemmaCommonTest is Test {
     }
 
     function openShortWithExactBase(uint256 collateralAmount) internal {
+        console.log("[openShortWithExactBase()] collateralAmount = ", collateralAmount);
         uint256 beforeMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
+        print("[openShortWithExactBase()] accountValue = ", d.pl().getAccountValue());
         (uint256 base, uint256 quote) = d.pl().openShortWithExactBase(collateralAmount);
         d.pl().calculateMintingAsset(quote, IPerpetualMixDEXWrapper.Basis.IsUsdl, true);
+        console.log("[openShortWithExactBase()] DONE");
         uint256 afterMintedPositionUsdlForThisWrapper = d.pl().mintedPositionUsdlForThisWrapper();
         assertEq(afterMintedPositionUsdlForThisWrapper - beforeMintedPositionUsdlForThisWrapper, quote);
         assertEq(collateralAmount, base);
@@ -249,13 +278,39 @@ contract PerpLemmaCommonTest is Test {
         return (_usdAmount * 1e18) / d.getPerps().ib.getIndexPrice(15 minutes);
     }
 
-    function testOpenShortWithExactBase() public {
+    // NOTE: It only works if usdlCollateral isTailAsset otherwise the actual leverage depends also on the amount of nonSettlementToken deposited, its price which changes over time and teh discount factor set in Perp Protocol
+    function _initTestOpenShortWithExactBase(uint256 collateralAmount_18, uint256 leverage_6) internal returns(uint256 usdcAmount_6) {
+        int256 initAccountValue = d.pl().getAccountValue();
         address collateral = d.getTokenAddress("WETH");
-        uint256 collateralAmount = 1e18;
-        uint256 usdcAmount = getEthPriceInUSD(1e18); // 1098e6; // USDL amount
-        _depositSettlementToken((usdcAmount * 1e6) / 1e18);
-        _depositUsdlCollateral(collateralAmount, collateral, address(this));
-        openShortWithExactBase(collateralAmount);
+        uint256 usdcAmount_18 = getEthPriceInUSD(collateralAmount_18); // 1098e6; // USDL amount
+
+        // NOTE: Amount of USDC to deposit to reach the desired leverage
+        usdcAmount_6 = (usdcAmount_18 * 1e6 * 1e6) / (leverage_6 * 1e18);
+        console.log("[_initTestOpenShortWithExactBase()] collateralAmount_18 = ", collateralAmount_18);
+        console.log("[_initTestOpenShortWithExactBase()] usdcAmount_18 = ", usdcAmount_18);
+        console.log("[_initTestOpenShortWithExactBase()] usdcAmount_6 = ", usdcAmount_6);
+        _depositSettlementToken(usdcAmount_6);
+        _depositUsdlCollateral(DepositUSDLCollateralArgs({
+            collateral: collateral,
+            amount: collateralAmount_18, 
+            source: address(this)}
+            ));
+        
+        // NOTE: Adding collateral should always increase the value
+        require(d.pl().getAccountValue() > initAccountValue, "Collateral should increase");
+
+
+        openShortWithExactBase(collateralAmount_18);
+    }
+
+    function testOpenShortWithExactBase() public {
+        _initTestOpenShortWithExactBase(1e18, 1e6);
+        // address collateral = d.getTokenAddress("WETH");
+        // uint256 collateralAmount = 1e18;
+        // uint256 usdcAmount = getEthPriceInUSD(1e18); // 1098e6; // USDL amount
+        // _depositSettlementToken((usdcAmount * 1e6) / 1e18);
+        // _depositUsdlCollateral(collateralAmount, collateral, address(this));
+        // openShortWithExactBase(collateralAmount);
     }
 
     function testOpenShortWithExactQuote() public returns (uint256 base, uint256 quote) {
@@ -264,7 +319,12 @@ contract PerpLemmaCommonTest is Test {
         // uint256 exactUSDLAmount = 1096143206913675032725;
         uint256 exactUSDLAmount = getEthPriceInUSD(collateralAmount); // USDL amount
         _depositSettlementToken((exactUSDLAmount * 1e6) / 1e18);
-        _depositUsdlCollateral(collateralAmount, collateral, address(this));
+        _depositUsdlCollateral(
+            DepositUSDLCollateralArgs({
+                amount: collateralAmount,
+                collateral: collateral,
+                source: address(this)
+            }));
         (base, quote) = openShortWithExactQuote(collateralAmount, exactUSDLAmount);
     }
 
@@ -393,7 +453,12 @@ contract PerpLemmaCommonTest is Test {
         // USDL Mint
         vm.startPrank(alice);
         uint256 beforeAliceUSDL = d.pl().mintedPositionUsdlForThisWrapper();
-        _depositUsdlCollateral(ethCollateral, d.getTokenAddress("WETH"), alice);
+        _depositUsdlCollateral(
+            DepositUSDLCollateralArgs({
+                amount: ethCollateral,
+                collateral: d.getTokenAddress("WETH"),
+                source: alice
+            }));
         openShortWithExactBase(ethCollateral);
         uint256 afterAliceUSDL = d.pl().mintedPositionUsdlForThisWrapper();
         aliceUsdlToRedeem = afterAliceUSDL - beforeAliceUSDL;
@@ -401,7 +466,12 @@ contract PerpLemmaCommonTest is Test {
 
         usdcAmount = (getEthPriceInUSD(ethCollateral) * 1e6) / 1e18; // USDL amount
         vm.startPrank(bob);
-        _depositUsdlCollateral(ethCollateral, d.getTokenAddress("WETH"), bob);
+        _depositUsdlCollateral(
+            DepositUSDLCollateralArgs({
+                amount: ethCollateral,
+                collateral: d.getTokenAddress("WETH"),
+                source: bob
+            }));
         openShortWithExactBase(ethCollateral);
         uint256 afterBobUSDL = d.pl().mintedPositionUsdlForThisWrapper();
         bobUsdlToRedeem = afterBobUSDL - afterAliceUSDL;
@@ -525,14 +595,24 @@ contract PerpLemmaCommonTest is Test {
 
         vm.startPrank(alice);
         uint256 beforeAliceUSDL = d.pl().mintedPositionUsdlForThisWrapper();
-        _depositUsdlCollateral(collateralAmount, collateral, alice);
+        _depositUsdlCollateral(
+            DepositUSDLCollateralArgs({
+                amount: collateralAmount,
+                collateral: collateral,
+                source: alice
+            }));
         openShortWithExactBase(collateralAmount);
         uint256 afterAliceUSDL = d.pl().mintedPositionUsdlForThisWrapper();
         uint256 aliceUsdlToRedeem = afterAliceUSDL - beforeAliceUSDL;
         vm.stopPrank();
 
         vm.startPrank(bob);
-        _depositUsdlCollateral(collateralAmount, collateral, bob);
+        _depositUsdlCollateral(
+            DepositUSDLCollateralArgs({
+                amount: collateralAmount,
+                collateral: collateral,
+                source: bob
+            }));
         openShortWithExactBase(collateralAmount);
         uint256 afterBobUSDL = d.pl().mintedPositionUsdlForThisWrapper();
         uint256 bobUsdlToRedeem = afterBobUSDL - afterAliceUSDL;
@@ -895,11 +975,12 @@ contract PerpLemmaCommonTest is Test {
         assertEq(d.pl().reBalancer(), vm.addr(1));
     }
 
-    function testFailSetRebalancer() public {
-        vm.startPrank(address(d));
-        d.pl().setReBalancer(address(0));
-        vm.stopPrank();
-    }
+    // function testSetRebalancer() public {
+    //     vm.startPrank(address(d));
+    //     // NOTE: Now it is possible to set the set the rebalancer to zero to deactivate it
+    //     d.pl().setReBalancer(address(0));
+    //     vm.stopPrank();
+    // }
 
     function testResetApprovals() public {
         d.pl().resetApprovals();
@@ -933,7 +1014,12 @@ contract PerpLemmaCommonTest is Test {
         uint256 collateralAmount = 1e18;
         uint256 usdcAmount = 1098e6; // USDL amount
         _depositSettlementToken(usdcAmount);
-        _depositUsdlCollateral(collateralAmount, collateral, address(this));
+        _depositUsdlCollateral(
+            DepositUSDLCollateralArgs({
+                amount: collateralAmount,
+                collateral: collateral,
+                source: address(this)
+            }));
         (, uint256 quote) = d.pl().openShortWithExactBase(collateralAmount);
         int256 getTotalPosition = d.pl().getTotalPosition();
         assertGe(uint256(getTotalPosition * (-1)), 0);
@@ -999,6 +1085,132 @@ contract PerpLemmaCommonTest is Test {
         vm.stopPrank();
     }
 
+    function _deltaAbs(uint256 a, uint256 b) internal returns(uint256) {
+        int256 _delta = int256(a) - int256(b);
+        return (_delta >= 0) ? uint256(_delta) : uint256(-_delta);
+    }
+
+    function _isAlmostEqual(uint256 a, uint256 b, uint256 precision) internal returns(bool) {
+        // console.log("[_isAlmostEqual()] a/precision = ", a/precision);
+        // console.log("[_isAlmostEqual()] b/precision = ", b/precision);
+        return _deltaAbs(a,b) <= precision;
+    }
+
+    function _testLeverageCheck(uint256 inputLeverage_6, uint256 baseAmount_18) internal returns(uint256 usdcAmount_6) {
+        assertTrue(d.pl().isUsdlCollateralTailAsset(), "This only works if Usdl Collateral is tail asset otherwise the leverage is not correct");            
+        // uint256 baseAmount_18 = 1e18;
+        console.log("[testLeverageCheck()] Short Base Amount = ", baseAmount_18);
+        usdcAmount_6 = _initTestOpenShortWithExactBase(baseAmount_18, inputLeverage_6);
+        uint256 finalLeverage_6 = d.pl().getLeverage(true, 0);
+        console.log("[testLeverageCheck()] getLeverage = ", finalLeverage_6);
+        assertTrue(_isAlmostEqual(finalLeverage_6, inputLeverage_6, 1e5));
+        // revert resTestLeverageCheck(_isAlmostEqual(leverage, i * 1e6, 1e5));
+    }
+
+    function testLeverageCheck1() public {
+        d.pl().setIsUsdlCollateralTailAsset(true);
+        _testLeverageCheck(1e6, 1e18);
+    }
+
+    function testLeverageCheck2() public {
+        d.pl().setIsUsdlCollateralTailAsset(true);
+        _testLeverageCheck(2e6, 1e18);
+    }
+
+    function testLeverageCheckWithTailAsset() public {
+        // NOTE: Here USDL Collateral is not tail asset
+        console.log("[testLeverageCheckWithTailAsset()] usdLemma = ", PerpLemma1(address(d.pl())).usdLemma());
+        uint256 ethAmount = 1e15;
+
+        vm.startPrank(address(d));
+        d.pl().grantRole(OWNER_ROLE, vm.addr(1));
+        vm.stopPrank();
+        vm.startPrank(vm.addr(1));
+        // NOTE: So it is possible to use ETH as collateral
+        d.pl().setIsUsdlCollateralTailAsset(false);
+        vm.stopPrank();
+
+        int256 initAccountValue = d.pl().getAccountValue();
+        print("[testLeverageCheckWithTailAsset()] Before d.pl().getAccountValue() = ", d.pl().getAccountValue());
+        address usdc = d.getTokenAddress("USDC");
+        _depositUsdlCollateral(
+            DepositUSDLCollateralArgs({
+                amount: ethAmount,
+                collateral: d.getTokenAddress("WETH"),
+                source: address(this)
+            }));
+
+
+        print("[testLeverageCheckWithTailAsset()] After1 d.pl().getAccountValue() = ", d.pl().getAccountValue());
+        require(d.pl().getAccountValue() > initAccountValue, "Account Value should increase");
+
+        uint256 initialLeverage_6 = d.pl().getLeverage(true, 0);
+        require(initialLeverage_6 == 0, "Leverage1");
+
+        // NOTE: Here we are trying to open a short position for 0.001 ETH using 0.001 ETH as collateral 
+        // This should be allowed since even if ETH collateral weight is < 100% which results in an opening leverage > 1, that leverage should still be < maxLeverage 
+        // The reason is ETH collateral discount factor should be around 75% which leads to a 4/3 leverage that's way lower than both 10x max Opening Leverage and 16 max Running Leverage  
+        openShortWithExactBase(ethAmount);
+        // d.pl().setIsUsdlCollateralTailAsset(false);
+        // _testLeverageCheck(1e6, 1e15, false);
+
+        uint256 finalLeverage_6 = d.pl().getLeverage(true, 0);
+        console.log("[testLeverageCheckWithTailAsset()] finalLeverage_6 = ", finalLeverage_6);
+
+        // NOTE: ETH Discount Factor is 82.5% according to PerpV2 Doc here 
+        // https://support.perp.com/hc/en-us/articles/5257432076569
+        // So it corresponds approx to a 1.2 leverage 
+        assertTrue(_isAlmostEqual(finalLeverage_6, 1.2e6, 1e5), "Leverage2");
+    }
+
+    function _testWithdraw1(uint256 initialLeverage_6, uint256 finalLeverage_6) internal {
+        d.pl().setIsUsdlCollateralTailAsset(true);
+        uint256 usdcAmount_6 = _testLeverageCheck(initialLeverage_6, 1e18);
+        uint256 usdcAmountWithdraw_6 = usdcAmount_6 - (usdcAmount_6 * initialLeverage_6 / finalLeverage_6);
+        uint256 estimatedLeverage_6 = d.pl().getLeverage(true, -1 * int256(usdcAmountWithdraw_6));
+        console.log("[_testWithdraw1()] estimatedLeverage_6 = ", estimatedLeverage_6);
+        // assertTrue(_isAlmostEqual(estimatedLeverage_6, finalLeverage_6, 1e5));
+        // vm.startPrank(address(d));
+        d.pl().withdrawSettlementToken(usdcAmountWithdraw_6);
+        // vm.stopPrank();
+        uint256 leverage_6 = d.pl().getLeverage(true, 0);
+        console.log("[_testWithdraw1()] leverage_6 = ", leverage_6);
+        assertTrue(_isAlmostEqual(leverage_6, finalLeverage_6, 1e5));
+    }
+
+
+    function testWithdraw1() public {
+        _testWithdraw1(1e6, 2e6);
+    }
+
+    function testWithdraw2() public {
+        _testWithdraw1(2e6, 3e6);
+    }
+
+    // function testLeverageCheck() public {
+    //     // NOTE: ETH is set as tail asset here so deposited USDC determines 
+    //     d.pl().setIsUsdlCollateralTailAsset(true);
+    //     bool isSuccess = true;
+    //     for(uint256 i=1; i<5; ++i) {
+    //         try _testLeverageCheck(i) {
+
+    //         } catch (bytes memory reason) {
+    //         assembly {
+    //             reason := add(reason, 0x04)
+    //         }
+    //             (bool _isSuccess) = abi.decode(reason, (bool));
+    //             isSuccess = isSuccess && _isSuccess;
+    //         }
+    //         // uint256 baseAmount_18 = 1e18;
+    //         // console.log("[testLeverageCheck()] Short Base Amount = ", baseAmount_18);
+    //         // _testOpenShortWithExactBase(baseAmount_18, i * 1e6);
+    //         // uint256 leverage = d.pl().getLeverage(true, 0);
+    //         // console.log("[testLeverageCheck()] getLeverage = ", leverage);
+    //         // assertTrue(_isAlmostEqual(leverage, i * 1e6, 1e5));
+    //     }
+    //     assertTrue(isSuccess);
+    // }
+
     // FAIL. Reason: max position reached
     function testFailMaxPosition() public {
         vm.startPrank(address(d));
@@ -1015,15 +1227,20 @@ contract PerpLemmaCommonTest is Test {
         uint256 collateralAmount = 1e18;
         uint256 usdcAmount = 1098e6; // USDL amount
         _depositSettlementToken(usdcAmount);
-        _depositUsdlCollateral(collateralAmount, collateral, address(this));
+        _depositUsdlCollateral(
+            DepositUSDLCollateralArgs({
+                amount: collateralAmount,
+                collateral: collateral,
+                source: address(this)
+            }));
         d.pl().openShortWithExactBase(collateralAmount);
     }
 
     // ! No Rebalance with Zero Amount
-    function testFailRebalance() public {
-        vm.startPrank(address(d));
-        d.pl().grantRole(REBALANCER_ROLE, address(d));
-        d.pl().rebalance(address(0), 0, 0, true);
-        vm.stopPrank();
-    }
+    // function testFailRebalance() public {
+    //     vm.startPrank(address(d));
+    //     d.pl().grantRole(REBALANCER_ROLE, address(d));
+    //     d.pl().rebalance(address(0), 0, 0, true);
+    //     vm.stopPrank();
+    // }
 }

@@ -46,6 +46,9 @@ interface IPerpetualMixDEXWrapper {
 
     function settlePendingFundingPayments() external;
 
+
+    function setReBalancer(address _rebalancer) external;
+
     function distributeFundingPayments()
         external
         returns (
@@ -73,6 +76,8 @@ interface IPerpetualMixDEXWrapper {
     function getMargin() external view returns (int256);
 
     function getDeltaExposure() external view returns (int256);
+
+    function getLeverage(bool, int256) external view returns(uint256);
 
     function getExposureDetails()
         external
@@ -130,12 +135,12 @@ interface IPerpetualMixDEXWrapper {
 
     function withdraw(uint256 amount, address collateral) external;
 
-    function rebalance(
-        address router,
-        uint256 routerType,
-        int256 amountBase,
-        bool isCheckProfit
-    ) external returns (uint256, uint256);
+    // function rebalance(
+    //     address router,
+    //     uint256 routerType,
+    //     int256 amountBase,
+    //     bool isCheckProfit
+    // ) external returns (uint256, uint256);
 
     // function reBalance(
     //     address _reBalancer,

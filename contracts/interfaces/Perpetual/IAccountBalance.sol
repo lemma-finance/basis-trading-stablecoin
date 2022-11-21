@@ -2,6 +2,7 @@
 pragma solidity =0.8.3;
 
 interface IAccountBalance {
+    function getTotalAbsPositionValue(address trader) external view returns (uint256);
     function getTotalPositionSize(address trader, address baseToken) external view returns (int256);
 
     function getPositionSize(address trader, address baseToken) external view returns (int256);
