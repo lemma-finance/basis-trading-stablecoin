@@ -22,216 +22,204 @@ const testnetAddressesURL = "https://metadata.perp.exchange/v2/optimism-kovan.js
 let deployedContracts = {};
 
 const save = async network => {
-    await fs.writeFileSync(SAVE_PREFIX + network + SAVE_POSTFIX, JSON.stringify(deployedContracts, null, 2));
+  await fs.writeFileSync(SAVE_PREFIX + network + SAVE_POSTFIX, JSON.stringify(deployedContracts, null, 2));
 };
 const readFile = async network => {
-    return await fs.readFileSync(SAVE_PREFIX + network + SAVE_POSTFIX, "utf8")
-}
+  return await fs.readFileSync(SAVE_PREFIX + network + SAVE_POSTFIX, "utf8");
+};
 
 async function main() {
+  let { chainId } = await ethers.provider.getNetwork();
+  console.log("chainId: ", chainId);
+  let perpV2Config;
 
+  if (chainId == 10) {
+    perpV2Config = await fetchFromURL(mainnetAddressesURL);
+  } else if (chainId == 69) {
+    perpV2Config = await fetchFromURL(testnetAddressesURL);
+  }
+  const network = perpV2Config.network;
+  const contracts = perpV2Config.contracts;
 
-    let { chainId } = await ethers.provider.getNetwork();
-    console.log("chainId: ", chainId);
-    let perpV2Config;
+  deployedContracts = JSON.parse(await readFile(network));
 
-    if (chainId == 10) {
-        perpV2Config = await fetchFromURL(mainnetAddressesURL);
-    } else if (chainId == 69) {
-        perpV2Config = await fetchFromURL(testnetAddressesURL);
-    }
-    const network = perpV2Config.network;
-    const contracts = perpV2Config.contracts;
+  const perpCollaterals = perpV2Config.collaterals;
+  const externalContracts = perpV2Config.externalContracts;
+  const peripheryAddress = AddressZero;
 
-    deployedContracts = JSON.parse(await readFile(network));
+  const trustedForwarder = config[chainId].trustedForwarder;
 
-    const perpCollaterals = perpV2Config.collaterals;
-    const externalContracts = perpV2Config.externalContracts;
-    const peripheryAddress = AddressZero;
+  const USDLemmaAddress = config[chainId].USDLemmaAddress;
+  const LemmaSwapAddress = config[chainId].LemmaSwapAddress;
+  const FeesAccumulatorAddress = config[chainId].FeesAccumulatorAddress;
+  const reBalancer = config[chainId].reBalancer;
+  const SettlementTokenManagerAddress = config[chainId].SettlementTokenManagerAddress;
+  const xUSDL = config[chainId].xUSDL;
+  const perpIndex = config[chainId].perpIndex;
+  const percFundingPaymentsToUSDLHolder = config[chainId].percFundingPaymentsToUSDLHolder;
 
-    const trustedForwarder = config[chainId].trustedForwarder;
+  const minFreeCollateral = config[chainId].minFreeCollateral;
+  const minMarginSafeThreshold = config[chainId].minMarginSafeThreshold;
+  const collateralRatio = config[chainId].collateralRatio;
+  const lemmaSynthSetFees = config[chainId].lemmaSynthSetFees;
 
-    const USDLemmaAddress = config[chainId].USDLemmaAddress;
-    const LemmaSwapAddress = config[chainId].LemmaSwapAddress;
-    const FeesAccumulatorAddress = config[chainId].FeesAccumulatorAddress;
-    const reBalancer = config[chainId].reBalancer;
-    const SettlementTokenManagerAddress = config[chainId].SettlementTokenManagerAddress;
-    const xUSDL = config[chainId].xUSDL;
-    const perpIndex = config[chainId].perpIndex;
-    const percFundingPaymentsToUSDLHolder = config[chainId].percFundingPaymentsToUSDLHolder;
+  const [defaultSigner]: any = await ethers.getSigners();
+  const clearingHouse = new ethers.Contract(contracts.ClearingHouse.address, ClearingHouseAbi.abi, defaultSigner);
+  const vault = new ethers.Contract(contracts.Vault.address, VaultAbi.abi, defaultSigner);
+  const marketRegistry = new ethers.Contract(contracts.MarketRegistry.address, MarketRegistryAbi.abi, defaultSigner);
 
-    const minFreeCollateral = config[chainId].minFreeCollateral;
-    const minMarginSafeThreshold = config[chainId].minMarginSafeThreshold;
-    const collateralRatio = config[chainId].collateralRatio;
-    const lemmaSynthSetFees = config[chainId].lemmaSynthSetFees;
+  const usdLemma = new ethers.Contract(USDLemmaAddress, USDLemma__factory.abi, defaultSigner);
+  const lemmaSwap = new ethers.Contract(LemmaSwapAddress, LemmaSwapAbi.abi, defaultSigner);
+  const feesAccumulator = new ethers.Contract(FeesAccumulatorAddress, FeesAccumulatorAbi.abi, defaultSigner);
 
+  const settlementToken = await vault.getSettlementToken(); // usdc
 
+  const collaterals = config[chainId].collaterals;
 
-    const [defaultSigner]: any = await ethers.getSigners();
-    const clearingHouse = new ethers.Contract(contracts.ClearingHouse.address, ClearingHouseAbi.abi, defaultSigner);
-    const vault = new ethers.Contract(contracts.Vault.address, VaultAbi.abi, defaultSigner);
-    const marketRegistry = new ethers.Contract(contracts.MarketRegistry.address, MarketRegistryAbi.abi, defaultSigner);
+  for (let i = 0; i < collaterals.length; i++) {
+    const collateralAddress = config[chainId].collaterals[i];
+    const maxPosition = config[chainId].collateralParameters[collateralAddress].maxPosition;
+    const collateralSymbol = config[chainId].collateralParameters[collateralAddress].symbol;
+    const collateralName = config[chainId].collateralParameters[collateralAddress].name;
+    const baseTokenAddress = contracts["v" + collateralSymbol].address; //vLINK
 
-    const usdLemma = new ethers.Contract(USDLemmaAddress, USDLemma__factory.abi, defaultSigner);
-    const lemmaSwap = new ethers.Contract(LemmaSwapAddress, LemmaSwapAbi.abi, defaultSigner);
-    const feesAccumulator = new ethers.Contract(FeesAccumulatorAddress, FeesAccumulatorAbi.abi, defaultSigner);
+    let collateral = new ethers.Contract(collateralAddress, TestERC20Abi.abi, defaultSigner);
+    let baseToken = new ethers.Contract(baseTokenAddress, BaseTokenAbi.abi, defaultSigner);
 
-    const settlementToken = await vault.getSettlementToken(); // usdc
+    console.log("baseTokenAddress", baseTokenAddress);
 
-    const collaterals = config[chainId].collaterals;
+    console.log("deploying perpLemma");
+    const perpLemmaFactory = await ethers.getContractFactory("PerpLemmaCommon");
+    let perpLemma = await upgrades.deployProxy(
+      perpLemmaFactory,
+      [
+        trustedForwarder,
+        collateralAddress,
+        baseToken.address,
+        clearingHouse.address,
+        marketRegistry.address,
+        usdLemma.address,
+        AddressZero,
+        maxPosition,
+      ],
+      { initializer: "initialize" },
+    );
+    console.log("perpLemma.address: ", perpLemma.address);
+    await delay(10000);
 
-    for (let i = 0; i < collaterals.length; i++) {
+    // Deploy lemmaSynth
+    const LemmaSynth = await ethers.getContractFactory("LemmaSynth");
 
-        const collateralAddress = config[chainId].collaterals[i];
-        const maxPosition = config[chainId].collateralParameters[collateralAddress].maxPosition;
-        const collateralSymbol = config[chainId].collateralParameters[collateralAddress].symbol;
-        const collateralName = config[chainId].collateralParameters[collateralAddress].name;
-        const baseTokenAddress = contracts["v" + collateralSymbol].address;//vLINK
+    const lemmaSynthName = "Lemma" + collateralSymbol; //LemmaETH
+    const lemmaSynthSymbol = "l" + collateralSymbol; //lETH
+    const lemmaSynth = await upgrades.deployProxy(
+      LemmaSynth,
+      [trustedForwarder, perpLemma.address, settlementToken, collateralAddress, lemmaSynthName, lemmaSynthSymbol],
+      {
+        initializer: "initialize",
+      },
+    );
+    console.log("lemmaSynth.address: ", lemmaSynth.address);
+    await delay(10000);
 
-        let collateral = new ethers.Contract(collateralAddress, TestERC20Abi.abi, defaultSigner);
-        let baseToken = new ethers.Contract(baseTokenAddress, BaseTokenAbi.abi, defaultSigner);
+    // Deploy xLemmaSynth
+    console.log("deploying xLemmaSynth");
 
-        console.log("baseTokenAddress", baseTokenAddress)
+    const xLemmaSynthName = "x" + lemmaSynthName; //xLemmaETH
+    const xLemmaSynthSymbol = "x" + lemmaSynthSymbol; //xlETH
 
+    const XLemmaSynth = await ethers.getContractFactory("xLemmaSynth");
+    const xLemmaSynth = await upgrades.deployProxy(
+      XLemmaSynth,
+      [trustedForwarder, lemmaSynth.address, peripheryAddress, xLemmaSynthName, xLemmaSynthSymbol],
+      {
+        initializer: "initialize",
+      },
+    );
+    console.log("xLemmaSynth.address: ", xLemmaSynth.address);
+    await delay(10000);
 
-        console.log("deploying perpLemma");
-        const perpLemmaFactory = await ethers.getContractFactory("PerpLemmaCommon");
-        let perpLemma = await upgrades.deployProxy(
-            perpLemmaFactory,
-            [
-                trustedForwarder,
-                collateralAddress,
-                baseToken.address,
-                clearingHouse.address,
-                marketRegistry.address,
-                usdLemma.address,
-                AddressZero,
-                maxPosition,
-            ],
-            { initializer: "initialize" },
-        );
-        console.log("perpLemma.address: ", perpLemma.address);
-        await delay(10000);
+    console.log("configuring parameters");
 
+    await perpLemma.connect(defaultSigner).setSettlementTokenManager(SettlementTokenManagerAddress);
+    await delay(10000);
 
-        // Deploy lemmaSynth
-        const LemmaSynth = await ethers.getContractFactory("LemmaSynth");
+    await perpLemma.connect(defaultSigner).setReBalancer(reBalancer);
+    await delay(10000);
 
-        const lemmaSynthName = "Lemma" + collateralSymbol; //LemmaETH
-        const lemmaSynthSymbol = "l" + collateralSymbol; //lETH
-        const lemmaSynth = await upgrades.deployProxy(
-            LemmaSynth,
-            [trustedForwarder, perpLemma.address, settlementToken, collateralAddress, lemmaSynthName, lemmaSynthSymbol],
-            {
-                initializer: "initialize",
-            },
-        );
-        console.log("lemmaSynth.address: ", lemmaSynth.address);
-        await delay(10000);
+    await perpLemma.setLemmaSynth(lemmaSynth.address);
+    await delay(10000);
 
-        // Deploy xLemmaSynth
-        console.log("deploying xLemmaSynth");
+    await perpLemma.setXUsdl(xUSDL);
+    await delay(10000);
 
-        const xLemmaSynthName = "x" + lemmaSynthName; //xLemmaETH
-        const xLemmaSynthSymbol = "x" + lemmaSynthSymbol; //xlETH
+    await perpLemma.setXSynth(xLemmaSynth.address);
+    await delay(10000);
 
-        const XLemmaSynth = await ethers.getContractFactory("xLemmaSynth");
-        const xLemmaSynth = await upgrades.deployProxy(
-            XLemmaSynth,
-            [trustedForwarder, lemmaSynth.address, peripheryAddress, xLemmaSynthName, xLemmaSynthSymbol],
-            {
-                initializer: "initialize",
-            },
-        );
-        console.log("xLemmaSynth.address: ", xLemmaSynth.address);
-        await delay(10000);
+    await perpLemma.setPercFundingPaymentsToUSDLHolders(percFundingPaymentsToUSDLHolder);
+    await delay(10000);
 
-        console.log("configuring parameters");
+    // await perpLemma.setMinFreeCollateral(minFreeCollateral);
+    // await delay(10000);
 
-        await perpLemma.connect(defaultSigner).setSettlementTokenManager(SettlementTokenManagerAddress);
-        await delay(10000);
+    // await perpLemma.setMinMarginSafeThreshold(minMarginSafeThreshold);
+    // await delay(10000);
 
-        await perpLemma.connect(defaultSigner).setReBalancer(reBalancer);
-        await delay(10000);
+    await perpLemma.setCollateralRatio(collateralRatio);
+    await delay(10000);
 
-        await perpLemma.setLemmaSynth(lemmaSynth.address);
-        await delay(10000);
+    await usdLemma.addPerpetualDEXWrapper(perpIndex, collateralAddress, perpLemma.address);
+    await delay(10000);
 
-        await perpLemma.setXUsdl(xUSDL);
-        await delay(10000);
+    await lemmaSynth.setXSynth(xLemmaSynth.address);
+    await delay(10000);
 
-        await perpLemma.setXSynth(xLemmaSynth.address);
-        await delay(10000);
+    await lemmaSynth.setFees(lemmaSynthSetFees);
+    await delay(10000);
 
-        await perpLemma.setPercFundingPaymentsToUSDLHolders(percFundingPaymentsToUSDLHolder);
-        await delay(10000);
+    await xLemmaSynth.setMinimumLock("100");
+    await delay(10000);
 
-        // await perpLemma.setMinFreeCollateral(minFreeCollateral);
-        // await delay(10000);
+    // TODO: add setPeriphery as well
+    // await xLemmaSynth.setPeriphery("LemmaRouter")
 
-        // await perpLemma.setMinMarginSafeThreshold(minMarginSafeThreshold);
-        // await delay(10000);
+    await perpLemma.setIsUsdlCollateralTailAsset(true);
+    await delay(1000);
 
-        await perpLemma.setCollateralRatio(collateralRatio);
-        await delay(10000);
+    const perpLemmaName = "PerpLemma" + collateralSymbol; // PerpLemmaETH
 
-        await usdLemma.addPerpetualDEXWrapper(perpIndex, collateralAddress, perpLemma.address);
-        await delay(10000);
+    deployedContracts[perpLemmaName] = {
+      name: perpLemmaName,
+      address: perpLemma.address,
+    };
 
-        await lemmaSynth.setXSynth(xLemmaSynth.address);
-        await delay(10000);
+    deployedContracts[lemmaSynthName] = {
+      name: lemmaSynthName,
+      address: lemmaSynth.address,
+    };
 
-        await lemmaSynth.setFees(lemmaSynthSetFees);
-        await delay(10000);
+    deployedContracts[xLemmaSynthName] = {
+      name: xLemmaSynthName,
+      address: xLemmaSynth.address,
+    };
 
-        await xLemmaSynth.setMinimumLock("100");
-        await delay(10000);
+    //add support in LemmaSwap
 
-        // TODO: add setPeriphery as well   
-        // await xLemmaSynth.setPeriphery("LemmaRouter")
+    await lemmaSwap.setCollateralToDexIndex(collateralAddress, perpIndex);
+    await delay(10000);
 
-        await perpLemma.setIsUsdlCollateralTailAsset(true);
-        await delay(1000);
+    await feesAccumulator.setCollateralToDexIndexForUsdl(collateralAddress, perpIndex);
+    await delay(10000);
 
-        const perpLemmaName = "PerpLemma" + collateralSymbol;// PerpLemmaETH
+    await feesAccumulator.setCollateralToSynth(collateralAddress, lemmaSynth.address, xLemmaSynth.address);
+    await delay(10000);
+  }
 
-        deployedContracts[perpLemmaName] = {
-            name: perpLemmaName,
-            address: perpLemma.address,
-        };
-
-        deployedContracts[lemmaSynthName] = {
-            name: lemmaSynthName,
-            address: lemmaSynth.address,
-        };
-
-        deployedContracts[xLemmaSynthName] = {
-            name: xLemmaSynthName,
-            address: xLemmaSynth.address,
-        };
-
-        //add support in LemmaSwap 
-
-        await lemmaSwap.setCollateralToDexIndex(collateralAddress, perpIndex);
-        await delay(10000);
-
-        await feesAccumulator.setCollateralToDexIndexForUsdl(collateralAddress, perpIndex);
-        await delay(10000);
-
-        await feesAccumulator.setCollateralToSynth(collateralAddress, lemmaSynth.address, xLemmaSynth.address)
-        await delay(10000);
-
-
-
-
-    }
-
-    await save(network);
-
+  await save(network);
 }
 main()
-    .then(() => process.exit(0))
-    .catch(error => {
-        console.error(error);
-        process.exit(1);
-    });
+  .then(() => process.exit(0))
+  .catch(error => {
+    console.error(error);
+    process.exit(1);
+  });
