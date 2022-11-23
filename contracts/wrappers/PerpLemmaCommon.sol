@@ -23,6 +23,15 @@ import "../interfaces/Perpetual/IBaseToken.sol";
 import "../interfaces/Perpetual/IExchange.sol";
 import "../interfaces/Perpetual/ICollateralManager.sol";
 
+contract LemmaConfig {
+    uint256 public maxLeverage_6;
+    uint256 public desiredLeverage_6;
+
+
+    mapping(string => uint256) public genVarsUint256;
+    mapping(string => int256) public genVarsInt256;
+}
+
 /// @author Lemma Finance
 /// @notice PerpLemmaCommon contract will use to open short and long position with no-leverage on perpetual protocol (v2)
 /// USDLemma and LemmaSynth will consume the methods to open short or long on derivative dex
@@ -31,6 +40,9 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     using SafeCastUpgradeable for uint256;
     using SafeCastUpgradeable for int256;
     using SafeMathExt for int256;
+
+    // TODO: Replace with the hardcoded address
+    address constant lemmaConfig = address(0);
 
     // Different Roles to perform restricted tx
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
@@ -76,8 +88,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     uint256 public maxPosition;
 
     /// Max Leverage 
-    uint256 public maxLeverage_6;
-    uint256 public desiredLeverage_6;
+    // uint256 public maxLeverage_6;
+    // uint256 public desiredLeverage_6;
 
     /// USDL's collateral decimal (for e.g. if  eth then 18 decimals)
     uint256 public usdlCollateralDecimals;
@@ -121,8 +133,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     event ReferrerUpdated(bytes32 indexed referrerCode);
     event RebalancerUpdated(address indexed rebalancerAddress);
     event MaxPositionUpdated(uint256 indexed maxPos);
-    event MaxLeverageUpdated(uint256 indexed maxLeverage);
-    event DesiredLeverageUpdated(uint256 indexed desiredLeverage);
+    // event MaxLeverageUpdated(uint256 indexed maxLeverage);
+    // event DesiredLeverageUpdated(uint256 indexed desiredLeverage);
     event SetSettlementTokenManager(address indexed _settlementTokenManager);
     event SetMinFreeCollateral(uint256 indexed _minFreeCollateral);
     event SetCollateralRatio(uint256 indexed _collateralRatio);
@@ -171,8 +183,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         usdlBaseTokenAddress = _usdlBaseToken;
         maxPosition = _maxPosition;
         // NOTE: Perp Max Running Leverage is 16x so very close to it
-        maxLeverage_6 = 15 * 1e6;
-        desiredLeverage_6 = 2 * 1e6;
+        // maxLeverage_6 = 15 * 1e6;
+        // desiredLeverage_6 = 2 * 1e6;
 
         clearingHouse = IClearingHouse(_clearingHouse);
         clearingHouseConfig = IClearingHouseConfig(clearingHouse.getClearingHouseConfig());
@@ -602,15 +614,15 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
         emit MaxPositionUpdated(maxPosition);
     }
 
-    function setMaxLeverage(uint256 _maxLeverage_6) external onlyRole(OWNER_ROLE) {
-        maxLeverage_6 = _maxLeverage_6;
-        emit MaxLeverageUpdated(maxLeverage_6);
-    }
+    // function setMaxLeverage(uint256 _maxLeverage_6) external onlyRole(OWNER_ROLE) {
+    //     maxLeverage_6 = _maxLeverage_6;
+    //     emit MaxLeverageUpdated(maxLeverage_6);
+    // }
 
-    function setDesiredLeverage(uint256 _desiredLeverage_6) external onlyRole(OWNER_ROLE) {
-        desiredLeverage_6 = _desiredLeverage_6;
-        emit DesiredLeverageUpdated(desiredLeverage_6);
-    }
+    // function setDesiredLeverage(uint256 _desiredLeverage_6) external onlyRole(OWNER_ROLE) {
+    //     desiredLeverage_6 = _desiredLeverage_6;
+    //     emit DesiredLeverageUpdated(desiredLeverage_6);
+    // }
 
     /// @notice setSettlementTokenManager is to set the address of settlementTokenManager by admin role only
     /// @param _settlementTokenManager address
@@ -670,7 +682,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param _amount USDC amount need to withdraw from perp vault
     function withdrawSettlementToken(uint256 _amount) external override onlyRole(USDC_TREASURY) {
         require(_amount > 0, "Amount should greater than zero");
-        require(getLeverage(true, int256(-1) * int256(_amount)) <= maxLeverage_6, "Max Leverage Exceeded");
+        require(getLeverage(true, int256(-1) * int256(_amount)) <= LemmaConfig(lemmaConfig).maxLeverage_6(), "Max Leverage Exceeded");
         perpVault.withdraw(address(usdc), _amount);
         SafeERC20Upgradeable.safeTransfer(usdc, msg.sender, _amount);
     }
@@ -680,7 +692,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param _to address where to transfer fund
     function withdrawSettlementTokenTo(uint256 _amount, address _to) external onlyRole(OWNER_ROLE) {
         require(_amount > 0, "Amount should greater than zero");
-        require(getLeverage(true, int256(-1) * int256(_amount)) <= maxLeverage_6, "Max Leverage Exceeded");
+        require(getLeverage(true, int256(-1) * int256(_amount)) <= LemmaConfig(lemmaConfig).maxLeverage_6(), "Max Leverage Exceeded");
         require(hasSettled, "Perpetual is not settled yet");
         SafeERC20Upgradeable.safeTransfer(usdc, _to, _amount);
     }
@@ -696,7 +708,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// @param amount of assets to withdraw
     /// @param collateral needs to withdraw
     function withdraw(uint256 amount, address collateral) external override onlyRole(PERPLEMMA_ROLE) {
-        require(getLeverage((collateral == address(usdc)), int256(-1) * int256(amount)) <= maxLeverage_6, "Max Leverage Exceeded");
+        require(getLeverage((collateral == address(usdc)), int256(-1) * int256(amount)) <= LemmaConfig(lemmaConfig).maxLeverage_6(), "Max Leverage Exceeded");
         _withdraw(amount, collateral);
     }
 
@@ -980,8 +992,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
 
         // uint256 leverage_6 = getLeverage(true, 0);
 
-        if(desiredLeverage_6 > 0) {
-            requiredAmount = getAmountFromTreasuryForTargetPosAndLeverage(desiredLeverage_6, isBase, deltaAmount);
+        if(LemmaConfig(lemmaConfig).desiredLeverage_6() > 0) {
+            requiredAmount = getAmountFromTreasuryForTargetPosAndLeverage(LemmaConfig(lemmaConfig).desiredLeverage_6(), isBase, deltaAmount);
             if(requiredAmount > 0) {
                 ISettlementTokenManager(settlementTokenManager).settlementTokenRecieve(uint256(requiredAmount), address(this));
             }
