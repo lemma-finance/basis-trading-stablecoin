@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.3;
 
-import { IERC20Decimals, IERC20Upgradeable } from "./interfaces/IERC20Decimals.sol";
-import { ERC20PermitUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/draft-ERC20PermitUpgradeable.sol";
-import { SafeERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import { ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import { ERC2771ContextUpgradeable } from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
-import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import { IPerpetualMixDEXWrapper } from "./interfaces/IPerpetualMixDEXWrapper.sol";
+import {IERC20Decimals, IERC20Upgradeable} from "./interfaces/IERC20Decimals.sol";
+import {ERC20PermitUpgradeable} from
+    "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/draft-ERC20PermitUpgradeable.sol";
+import {SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {ERC2771ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/metatx/ERC2771ContextUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import {IPerpetualMixDEXWrapper} from "./interfaces/IPerpetualMixDEXWrapper.sol";
 
 /// @author Lemma Finance
 /// @notice Lemma synthetic tokens are ERC20s backed by spot assets and/or long perpetual positions with no leverage.
@@ -205,25 +206,19 @@ contract LemmaSynth is
         IERC20Upgradeable collateral
     ) external nonReentrant onlyOneFunInSameTx {
         // first trade and then deposit
-        IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
-            perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
-        );
+        IPerpetualMixDEXWrapper perpDEXWrapper =
+            IPerpetualMixDEXWrapper(perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]);
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         uint256 _collateralRequired;
         if (address(collateral) == usdc) {
             (, uint256 _collateralRequired_1e18) = perpDEXWrapper.openLongWithExactBase(amount);
             _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
-                _collateralRequired_1e18,
-                address(collateral),
-                false
+                _collateralRequired_1e18, address(collateral), false
             );
             require(_collateralRequired_1e18 <= maxCollateralAmountRequired, "collateral required execeeds maximum");
         } else {
-            _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
-                amount,
-                address(collateral),
-                false
-            );
+            _collateralRequired =
+                perpDEXWrapper.getAmountInCollateralDecimalsForPerp(amount, address(collateral), false);
         }
         perpDEXWrapper.calculateMintingAsset(amount, IPerpetualMixDEXWrapper.Basis.IsSynth, false);
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
@@ -245,19 +240,15 @@ contract LemmaSynth is
         uint256 minSynthToMint,
         IERC20Upgradeable collateral // if eth/btc instead usdc then what collateralAmount
     ) external nonReentrant onlyOneFunInSameTx {
-        IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
-            perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
-        );
+        IPerpetualMixDEXWrapper perpDEXWrapper =
+            IPerpetualMixDEXWrapper(perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]);
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
-        uint256 _collateralRequired = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
-            collateralAmount,
-            address(collateral),
-            false
-        );
+        uint256 _collateralRequired =
+            perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
         _perpDeposit(perpDEXWrapper, address(collateral), _collateralRequired);
         uint256 _lemmaSynthToMint;
         if (address(collateral) == usdc) {
-            (_lemmaSynthToMint, ) = perpDEXWrapper.openLongWithExactQuote(collateralAmount);
+            (_lemmaSynthToMint,) = perpDEXWrapper.openLongWithExactQuote(collateralAmount);
             require(_lemmaSynthToMint >= minSynthToMint, "Synth minted too low");
         } else {
             _lemmaSynthToMint = collateralAmount;
@@ -280,9 +271,8 @@ contract LemmaSynth is
         IERC20Upgradeable collateral
     ) external nonReentrant onlyOneFunInSameTx {
         _burn(_msgSender(), amount);
-        IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
-            perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
-        );
+        IPerpetualMixDEXWrapper perpDEXWrapper =
+            IPerpetualMixDEXWrapper(perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]);
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
 
         bool hasSettled = perpDEXWrapper.hasSettled();
@@ -292,17 +282,12 @@ contract LemmaSynth is
         if (address(collateral) == usdc) {
             (, uint256 _collateralAmountToWithdraw1e_18) = perpDEXWrapper.closeLongWithExactBase(amount);
             _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
-                _collateralAmountToWithdraw1e_18,
-                address(collateral),
-                false
+                _collateralAmountToWithdraw1e_18, address(collateral), false
             );
             require(_collateralAmountToWithdraw1e_18 >= minCollateralAmountToGetBack, "Collateral to get back too low");
         } else {
-            _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
-                amount,
-                address(collateral),
-                false
-            );
+            _collateralAmountToWithdraw =
+                perpDEXWrapper.getAmountInCollateralDecimalsForPerp(amount, address(collateral), false);
         }
         perpDEXWrapper.calculateMintingAsset(amount, IPerpetualMixDEXWrapper.Basis.IsSynth, true);
         _perpWithdraw(to, perpDEXWrapper, address(collateral), _collateralAmountToWithdraw);
@@ -321,36 +306,29 @@ contract LemmaSynth is
         uint256 maxSynthToBurn,
         IERC20Upgradeable collateral
     ) external nonReentrant onlyOneFunInSameTx {
-        IPerpetualMixDEXWrapper perpDEXWrapper = IPerpetualMixDEXWrapper(
-            perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]
-        );
+        IPerpetualMixDEXWrapper perpDEXWrapper =
+            IPerpetualMixDEXWrapper(perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]);
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         bool hasSettled = perpDEXWrapper.hasSettled();
         if (hasSettled) {
             perpDEXWrapper.getCollateralBackAfterSettlement(collateralAmount, to, false);
+            _burn(_msgSender(), collateralAmount); //@bug: see if this is correct
             return;
         } else {
             uint256 _lemmaSynthToBurn;
             if (address(collateral) == usdc) {
-                (_lemmaSynthToBurn, ) = perpDEXWrapper.closeLongWithExactQuote(collateralAmount);
+                (_lemmaSynthToBurn,) = perpDEXWrapper.closeLongWithExactQuote(collateralAmount);
                 require(_lemmaSynthToBurn <= maxSynthToBurn, "Too much Synth to burn");
             } else {
                 _lemmaSynthToBurn = collateralAmount;
             }
-            uint256 _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
-                collateralAmount,
-                address(collateral),
-                false
-            );
+            uint256 _collateralAmountToWithdraw =
+                perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
             _perpWithdraw(to, perpDEXWrapper, address(collateral), _collateralAmountToWithdraw);
             perpDEXWrapper.calculateMintingAsset(_lemmaSynthToBurn, IPerpetualMixDEXWrapper.Basis.IsSynth, true);
             _burn(_msgSender(), _lemmaSynthToBurn);
             emit WithdrawTo(
-                address(perpDEXWrapper),
-                address(collateral),
-                to,
-                _lemmaSynthToBurn,
-                _collateralAmountToWithdraw
+                address(perpDEXWrapper), address(collateral), to, _lemmaSynthToBurn, _collateralAmountToWithdraw
             );
         }
     }
@@ -360,27 +338,17 @@ contract LemmaSynth is
     ////////////////////////
 
     /// @notice _perpDeposit to deposit collateral into perp Vault
-    function _perpDeposit(
-        IPerpetualMixDEXWrapper perpDEXWrapper,
-        address collateral,
-        uint256 amount
-    ) internal {
+    function _perpDeposit(IPerpetualMixDEXWrapper perpDEXWrapper, address collateral, uint256 amount) internal {
         SafeERC20Upgradeable.safeTransferFrom(
-            IERC20Upgradeable(collateral),
-            _msgSender(),
-            address(perpDEXWrapper),
-            amount
+            IERC20Upgradeable(collateral), _msgSender(), address(perpDEXWrapper), amount
         );
         perpDEXWrapper.deposit(amount, collateral);
     }
 
     /// @notice _perpWithdraw to withdraw collateral from perp Vault
-    function _perpWithdraw(
-        address to,
-        IPerpetualMixDEXWrapper perpDEXWrapper,
-        address collateral,
-        uint256 amount
-    ) internal {
+    function _perpWithdraw(address to, IPerpetualMixDEXWrapper perpDEXWrapper, address collateral, uint256 amount)
+        internal
+    {
         perpDEXWrapper.withdraw(amount, collateral);
         SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(collateral), address(perpDEXWrapper), to, amount);
     }
