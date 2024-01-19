@@ -8,6 +8,12 @@ import {IClearingHouse} from "../../contracts/interfaces/Perpetual/IClearingHous
 import {IAccountBalance} from "../../contracts/interfaces/Perpetual/IAccountBalance.sol";
 import {IPerpVault} from "../../contracts/interfaces/Perpetual/IPerpVault.sol";
 
+interface ITransperentUpgradeableProxy {
+    function upgradeTo(address newImplementation) external;
+    //to get admin read the value stored at slot 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103
+    function admin() external returns (address);
+}
+
 contract TestSettlement is Test {
     PerpLemmaCommon perpLemmaETH = PerpLemmaCommon(address(0x29b159aE784Accfa7Fb9c7ba1De272bad75f5674));
     IClearingHouse clearingHouse;
@@ -60,19 +66,6 @@ contract TestSettlement is Test {
 
         clearingHouse.settleAllFunding(address(perpLemmaETH));
 
-        // uint256 freeUSDCCollateral = perpVault.getFreeCollateral(address(perpLemmaETH));
-        // console2.log("freeUSDCCollateral: %s", freeUSDCCollateral);
-        // perpVault.withdraw(address(usdc), freeUSDCCollateral);
-
-        // //usdc balnce
-        // uint256 usdcBalance = usdc.balanceOf(address(perpLemmaETH));
-        // console2.log("usdcBalance: %s", usdcBalance);
-
-        // freeUSDCCollateral = perpVault.getFreeCollateral(address(perpLemmaETH));
-        // assertEq(freeUSDCCollateral, 0);
-
-        // console2.log("freeUSDCCollateral: %s", freeUSDCCollateral);
-
         {
             uint256 freeUSDLCollateral =
                 perpVault.getFreeCollateralByToken(address(perpLemmaETH), address(usdlCollateral));
@@ -98,5 +91,26 @@ contract TestSettlement is Test {
             freeUSDC = perpVault.getFreeCollateralByToken(address(perpLemmaETH), address(usdc));
             assertEq(freeUSDC, 0);
         }
+    }
+
+    function testUpgrade() public {
+        address newImplementation = address(new PerpLemmaCommon());
+
+        bytes32 admin =
+            vm.load(address(perpLemmaETH), 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103);
+        vm.startPrank(address(uint160(uint256(admin))));
+        ITransperentUpgradeableProxy(address(perpLemmaETH)).upgradeTo(newImplementation);
+        vm.stopPrank();
+
+        address perpLemmaOwner = 0x63c072aBe9a00A6d761De08727dE079EEd9A7D6e;
+        vm.startPrank(address(perpLemmaOwner));
+        perpLemmaETH.forceSettle();
+        vm.stopPrank();
+
+        //getFreeCollateralByToken should be zero
+        assertEq(perpVault.getFreeCollateralByToken(address(perpLemmaETH), address(usdc)), 0);
+        assertEq(perpVault.getFreeCollateralByToken(address(perpLemmaETH), address(usdlCollateral)), 0);
+        //totalPositionSize should be zero
+        assertEq(accountBalance.getTotalPositionSize(address(perpLemmaETH), baseToken), 0);
     }
 }
