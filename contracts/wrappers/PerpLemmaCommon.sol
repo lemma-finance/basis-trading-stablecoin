@@ -573,6 +573,10 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
             referralCode: 0
         });
         clearingHouse.closePosition(closePositionParams);
+
+        // TODO: decide on closedPrice
+        closedPrice = IBaseToken(usdlBaseTokenAddress).getIndexPrice(15 * 60); //15 minutes
+
         clearingHouse.settleAllFunding(address(this));
 
         if (!isUsdlCollateralTailAsset) {
