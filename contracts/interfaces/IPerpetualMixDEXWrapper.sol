@@ -46,25 +46,11 @@ interface IPerpetualMixDEXWrapper {
 
     function settlePendingFundingPayments() external;
 
-    function distributeFundingPayments()
-        external
-        returns (
-            bool,
-            uint256,
-            uint256
-        );
+    function distributeFundingPayments() external returns (bool, uint256, uint256);
 
-    function getCollateralBackAfterSettlement(
-        uint256 amount,
-        address to,
-        bool isUsdl
-    ) external;
+    function getCollateralBackAfterSettlement(uint256 amount, address to, bool isUsdl) external;
 
-    function trade(
-        uint256 amount,
-        bool isShorting,
-        bool isExactInput
-    ) external returns (uint256 base, uint256 quote);
+    function trade(uint256 amount, bool isShorting, bool isExactInput) external returns (uint256 base, uint256 quote);
 
     function getAccountValue() external view returns (int256);
 
@@ -74,16 +60,7 @@ interface IPerpetualMixDEXWrapper {
 
     function getDeltaExposure() external view returns (int256);
 
-    function getExposureDetails()
-        external
-        view
-        returns (
-            uint256,
-            uint256,
-            int256,
-            int256,
-            uint256
-        );
+    function getExposureDetails() external view returns (uint256, uint256, int256, int256, uint256);
 
     function getCollateralTokens() external view returns (address[] memory res);
 
@@ -112,11 +89,7 @@ interface IPerpetualMixDEXWrapper {
 
     /////////
 
-    function calculateMintingAsset(
-        uint256 amount,
-        Basis basis,
-        bool isOpenShort
-    ) external;
+    function calculateMintingAsset(uint256 amount, Basis basis, bool isOpenShort) external;
 
     function getMaxSettlementTokenAcceptableByVault() external view returns (uint256);
 
@@ -130,12 +103,9 @@ interface IPerpetualMixDEXWrapper {
 
     function withdraw(uint256 amount, address collateral) external;
 
-    function rebalance(
-        address router,
-        uint256 routerType,
-        int256 amountBase,
-        bool isCheckProfit
-    ) external returns (uint256, uint256);
+    function rebalance(address router, uint256 routerType, int256 amountBase, bool isCheckProfit)
+        external
+        returns (uint256, uint256);
 
     // function reBalance(
     //     address _reBalancer,
@@ -145,11 +115,10 @@ interface IPerpetualMixDEXWrapper {
 
     function getTotalPosition() external view returns (int256);
 
-    function getAmountInCollateralDecimalsForPerp(
-        uint256 amount,
-        address collateral,
-        bool roundUp
-    ) external view returns (uint256);
+    function getAmountInCollateralDecimalsForPerp(uint256 amount, address collateral, bool roundUp)
+        external
+        view
+        returns (uint256);
 
     function getFees() external view returns (uint256);
 
@@ -158,4 +127,6 @@ interface IPerpetualMixDEXWrapper {
     function perpVault() external view returns (IPerpVault);
 
     function settle() external;
+
+    function closedPrice() external view returns (uint256);
 }

@@ -276,27 +276,31 @@ contract LemmaSynth is
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
 
         bool hasSettled = perpDEXWrapper.hasSettled();
-        /// NOTE:- hasSettled Error: PerpLemma is settled. so call withdrawToWExactCollateral method to settle your collateral using exact synth
-        require(!hasSettled, "hasSettled Error");
         uint256 _collateralAmountToWithdraw;
-        if (address(collateral) == usdc) {
-            (, uint256 _collateralAmountToWithdraw1e_18) = perpDEXWrapper.closeLongWithExactBase(amount);
-            _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
-                _collateralAmountToWithdraw1e_18, address(collateral), false
-            );
-            require(_collateralAmountToWithdraw1e_18 >= minCollateralAmountToGetBack, "Collateral to get back too low");
+        if (hasSettled) {
+            perpDEXWrapper.getCollateralBackAfterSettlement(amount, to, false);
         } else {
-            _collateralAmountToWithdraw =
-                perpDEXWrapper.getAmountInCollateralDecimalsForPerp(amount, address(collateral), false);
+            if (address(collateral) == usdc) {
+                (, uint256 _collateralAmountToWithdraw1e_18) = perpDEXWrapper.closeLongWithExactBase(amount);
+                _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
+                    _collateralAmountToWithdraw1e_18, address(collateral), false
+                );
+                require(
+                    _collateralAmountToWithdraw1e_18 >= minCollateralAmountToGetBack, "Collateral to get back too low"
+                );
+            } else {
+                _collateralAmountToWithdraw =
+                    perpDEXWrapper.getAmountInCollateralDecimalsForPerp(amount, address(collateral), false);
+            }
+            perpDEXWrapper.calculateMintingAsset(amount, IPerpetualMixDEXWrapper.Basis.IsSynth, true);
+            _perpWithdraw(to, perpDEXWrapper, address(collateral), _collateralAmountToWithdraw);
         }
-        perpDEXWrapper.calculateMintingAsset(amount, IPerpetualMixDEXWrapper.Basis.IsSynth, true);
-        _perpWithdraw(to, perpDEXWrapper, address(collateral), _collateralAmountToWithdraw);
         emit WithdrawTo(address(perpDEXWrapper), address(collateral), to, amount, _collateralAmountToWithdraw);
     }
 
     /// @notice Redeem Synth and withdraw collateral like USDC specifying the exact amount of usdccollateral
     /// @param to Receipent of withdrawn collateral
-    /// @param collateralAmount Amount of collateral to withdraw
+    /// @param collateralAmount Amount of collateral to withdraw in 18 decimals
     /// @param maxSynthToBurn Max Synth to burn in the process
     /// @param collateral Collateral to be used to redeem Synth
     function withdrawToWExactCollateral(
@@ -310,27 +314,25 @@ contract LemmaSynth is
             IPerpetualMixDEXWrapper(perpetualDEXWrappers[perpetualDEXIndex][address(collateral)]);
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
         bool hasSettled = perpDEXWrapper.hasSettled();
-        if (hasSettled) {
-            perpDEXWrapper.getCollateralBackAfterSettlement(collateralAmount, to, false);
-            _burn(_msgSender(), collateralAmount); //@bug: see if this is correct
-            return;
+
+        /// NOTE:- hasSettled Error: PerpLemma is settled. so call withdrawTo method to settle your collateral using exact synth
+        require(!hasSettled, "hasSettled Error");
+        uint256 _lemmaSynthToBurn;
+        if (address(collateral) == usdc) {
+            (_lemmaSynthToBurn,) = perpDEXWrapper.closeLongWithExactQuote(collateralAmount);
+            require(_lemmaSynthToBurn <= maxSynthToBurn, "Too much Synth to burn");
         } else {
-            uint256 _lemmaSynthToBurn;
-            if (address(collateral) == usdc) {
-                (_lemmaSynthToBurn,) = perpDEXWrapper.closeLongWithExactQuote(collateralAmount);
-                require(_lemmaSynthToBurn <= maxSynthToBurn, "Too much Synth to burn");
-            } else {
-                _lemmaSynthToBurn = collateralAmount;
-            }
-            uint256 _collateralAmountToWithdraw =
-                perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
-            _perpWithdraw(to, perpDEXWrapper, address(collateral), _collateralAmountToWithdraw);
-            perpDEXWrapper.calculateMintingAsset(_lemmaSynthToBurn, IPerpetualMixDEXWrapper.Basis.IsSynth, true);
-            _burn(_msgSender(), _lemmaSynthToBurn);
-            emit WithdrawTo(
-                address(perpDEXWrapper), address(collateral), to, _lemmaSynthToBurn, _collateralAmountToWithdraw
-            );
+            _lemmaSynthToBurn = collateralAmount;
         }
+        uint256 _collateralAmountToWithdraw =
+            perpDEXWrapper.getAmountInCollateralDecimalsForPerp(collateralAmount, address(collateral), false);
+        _perpWithdraw(to, perpDEXWrapper, address(collateral), _collateralAmountToWithdraw);
+        perpDEXWrapper.calculateMintingAsset(_lemmaSynthToBurn, IPerpetualMixDEXWrapper.Basis.IsSynth, true);
+        _burn(_msgSender(), _lemmaSynthToBurn);
+        emit WithdrawTo(
+            address(perpDEXWrapper), address(collateral), to, _lemmaSynthToBurn, _collateralAmountToWithdraw
+        );
+        // }
     }
 
     ////////////////////////

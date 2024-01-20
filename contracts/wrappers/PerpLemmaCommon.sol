@@ -96,7 +96,7 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
     /// Amount of LemmaSynth minted
     uint256 public mintedPositionSynthForThisWrapper;
     /// Settlement time price
-    uint256 public closedPrice;
+    uint256 public override closedPrice;
 
     // Has the Market Settled, If settled we can't mint new USDL or Synth
     bool public override hasSettled;
@@ -1115,8 +1115,8 @@ contract PerpLemmaCommon is ERC2771ContextUpgradeable, IPerpetualMixDEXWrapper, 
                     }
                 }
             }
-            /// ERROR MESSAGE: => NEUM: Not enough USDL minted by this PerpLemmaContract
-            require(mintedPositionSynthForThisWrapper >= usdlOrSynthAmount, "NEUM");
+            /// ERROR MESSAGE: => NEUM: Not enough LemmaSynth minted by this PerpLemmaContract
+            require(mintedPositionSynthForThisWrapper >= usdlOrSynthAmount, "NELSM");
             mintedPositionSynthForThisWrapper -= usdlOrSynthAmount;
         }
     }
