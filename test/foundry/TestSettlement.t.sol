@@ -4,6 +4,7 @@ pragma solidity =0.8.3;
 import {Test, console2} from "forge-std/Test.sol";
 
 import {PerpLemmaCommon, IERC20Decimals} from "../../contracts/wrappers/PerpLemmaCommon.sol";
+import {IUSDLemma} from "../../contracts/interfaces/IUSDLemma.sol";
 import {LemmaSynth} from "../../contracts/LemmaSynth.sol";
 import {IClearingHouse} from "../../contracts/interfaces/Perpetual/IClearingHouse.sol";
 import {IAccountBalance} from "../../contracts/interfaces/Perpetual/IAccountBalance.sol";
@@ -18,6 +19,7 @@ interface ITransperentUpgradeableProxy {
 contract TestSettlement is Test {
     PerpLemmaCommon perpLemmaETH = PerpLemmaCommon(address(0x29b159aE784Accfa7Fb9c7ba1De272bad75f5674));
     LemmaSynth lemmaETH = LemmaSynth(address(0x3BC414FA971189783ACee4dEe281067C322E3412));
+    IUSDLemma usdl = IUSDLemma(address(0x96F2539d3684dbde8B3242A51A73B66360a5B541));
 
     IClearingHouse clearingHouse;
     IAccountBalance accountBalance;
@@ -33,6 +35,18 @@ contract TestSettlement is Test {
         baseToken = perpLemmaETH.usdlBaseTokenAddress();
         usdc = perpLemmaETH.usdc();
         usdlCollateral = perpLemmaETH.usdlCollateral();
+
+        //do the upgrade and settlement
+        address newImplementation = address(new PerpLemmaCommon());
+        upgrade(address(perpLemmaETH), newImplementation);
+
+        address perpLemmaOwner = 0x63c072aBe9a00A6d761De08727dE079EEd9A7D6e;
+        vm.startPrank(address(perpLemmaOwner));
+        perpLemmaETH.forceSettle();
+        vm.stopPrank();
+
+        address newLemmaSynthImplementation = address(new LemmaSynth());
+        upgrade(address(lemmaETH), newLemmaSynthImplementation);
     }
 
     function testV2Settlement() public {
@@ -105,14 +119,6 @@ contract TestSettlement is Test {
     }
 
     function testUpgrade() public {
-        address newImplementation = address(new PerpLemmaCommon());
-        upgrade(address(perpLemmaETH), newImplementation);
-
-        address perpLemmaOwner = 0x63c072aBe9a00A6d761De08727dE079EEd9A7D6e;
-        vm.startPrank(address(perpLemmaOwner));
-        perpLemmaETH.forceSettle();
-        vm.stopPrank();
-
         //getFreeCollateralByToken should be zero
         assertEq(perpVault.getFreeCollateralByToken(address(perpLemmaETH), address(usdc)), 0);
         assertEq(perpVault.getFreeCollateralByToken(address(perpLemmaETH), address(usdlCollateral)), 0);
@@ -120,10 +126,8 @@ contract TestSettlement is Test {
         assertEq(accountBalance.getTotalPositionSize(address(perpLemmaETH), baseToken), 0);
 
         //make sure the right amount of LemmaSynth gets burned after updating it
-        address newLemmaSynthImplementation = address(new LemmaSynth());
-        upgrade(address(lemmaETH), newLemmaSynthImplementation);
 
-        address lemmaETHHolder = perpLemmaOwner;
+        address lemmaETHHolder = 0x63c072aBe9a00A6d761De08727dE079EEd9A7D6e;
         vm.startPrank(address(lemmaETHHolder));
         uint256 lemmaETHBalanceBefore = lemmaETH.balanceOf(lemmaETHHolder);
         uint256 usdcBalanceBefore = usdc.balanceOf(lemmaETHHolder);
@@ -138,5 +142,14 @@ contract TestSettlement is Test {
         uint256 lemmaETHBalanceAfter = lemmaETH.balanceOf(lemmaETHHolder);
         console2.log("difference lemmaETH", lemmaETHBalanceBefore - lemmaETHBalanceAfter);
         console2.log("difference usdc", usdcBalanceAfter - usdcBalanceBefore);
+    }
+
+    function testUpgradeUSDLBurn() public {
+        address usdlHolder = 0x63c072aBe9a00A6d761De08727dE079EEd9A7D6e;
+
+        vm.startPrank(address(usdlHolder));
+        uint256 usdlBalanceBefore = usdl.balanceOf(usdlHolder);
+        usdl.withdrawTo(usdlHolder, 1 ether, 0, 0, usdlCollateral);
+        assertEq(usdl.balanceOf(usdlHolder), usdlBalanceBefore - 1 ether);
     }
 }

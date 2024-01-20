@@ -276,10 +276,12 @@ contract LemmaSynth is
         require(address(perpDEXWrapper) != address(0), "invalid DEX/collateral");
 
         bool hasSettled = perpDEXWrapper.hasSettled();
-        uint256 _collateralAmountToWithdraw;
+
         if (hasSettled) {
             perpDEXWrapper.getCollateralBackAfterSettlement(amount, to, false);
+            return;
         } else {
+            uint256 _collateralAmountToWithdraw;
             if (address(collateral) == usdc) {
                 (, uint256 _collateralAmountToWithdraw1e_18) = perpDEXWrapper.closeLongWithExactBase(amount);
                 _collateralAmountToWithdraw = perpDEXWrapper.getAmountInCollateralDecimalsForPerp(
@@ -294,8 +296,8 @@ contract LemmaSynth is
             }
             perpDEXWrapper.calculateMintingAsset(amount, IPerpetualMixDEXWrapper.Basis.IsSynth, true);
             _perpWithdraw(to, perpDEXWrapper, address(collateral), _collateralAmountToWithdraw);
+            emit WithdrawTo(address(perpDEXWrapper), address(collateral), to, amount, _collateralAmountToWithdraw);
         }
-        emit WithdrawTo(address(perpDEXWrapper), address(collateral), to, amount, _collateralAmountToWithdraw);
     }
 
     /// @notice Redeem Synth and withdraw collateral like USDC specifying the exact amount of usdccollateral
@@ -332,7 +334,6 @@ contract LemmaSynth is
         emit WithdrawTo(
             address(perpDEXWrapper), address(collateral), to, _lemmaSynthToBurn, _collateralAmountToWithdraw
         );
-        // }
     }
 
     ////////////////////////
